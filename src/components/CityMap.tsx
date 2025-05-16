@@ -1,7 +1,8 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as turf from '@turf/turf';
 import { Segment } from '@/types';
+import { Button } from './ui/button';
 
 interface CityMapProps {
   segments: Segment[];
@@ -9,47 +10,215 @@ interface CityMapProps {
 
 const CityMap = ({ segments }: CityMapProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [mapZoom, setMapZoom] = useState<number>(12);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [bounds, setBounds] = useState<{
+    minLat: number;
+    minLon: number;
+    maxLat: number;
+    maxLon: number;
+  } | null>(null);
   
+  // Create a bounding box from all segments
   useEffect(() => {
-    if (!mapContainerRef.current || segments.length === 0) return;
-
-    // This is just a placeholder - in a real implementation, you would:
-    // 1. Initialize a map library (like Leaflet, Mapbox GL, or OpenLayers)
-    // 2. Convert segment geometries to proper GeoJSON
-    // 3. Add them to the map with styling based on selection status
+    if (segments.length === 0) return;
     
-    const mapContainer = mapContainerRef.current;
-    mapContainer.innerHTML = ''; // Clear previous map
+    let minLat = Infinity;
+    let minLon = Infinity;
+    let maxLat = -Infinity;
+    let maxLon = -Infinity;
     
-    const mapInfo = document.createElement('div');
-    mapInfo.className = 'p-4 bg-gray-100 rounded';
+    segments.forEach(segment => {
+      segment.geometry.forEach((point: { lat: number, lon: number }) => {
+        minLat = Math.min(minLat, point.lat);
+        minLon = Math.min(minLon, point.lon);
+        maxLat = Math.max(maxLat, point.lat);
+        maxLon = Math.max(maxLon, point.lon);
+      });
+    });
     
-    const selectedSegments = segments.filter(s => s.selected);
+    // Add a small buffer
+    const latBuffer = (maxLat - minLat) * 0.1;
+    const lonBuffer = (maxLon - minLon) * 0.1;
     
-    if (selectedSegments.length > 0) {
-      mapInfo.textContent = `${selectedSegments.length} segmentos selecionados`;
-    } else {
-      mapInfo.textContent = `${segments.length} segmentos disponíveis`;
-    }
-    
-    mapContainer.appendChild(mapInfo);
-    
-    // In a real implementation, you'd initialize the map here
-    // And draw the segments with their geometries
-
-    return () => {
-      // Cleanup map when component unmounts
-    };
+    setBounds({
+      minLat: minLat - latBuffer,
+      minLon: minLon - lonBuffer,
+      maxLat: maxLat + latBuffer,
+      maxLon: maxLon + lonBuffer,
+    });
   }, [segments]);
 
+  // Draw map and segments
+  useEffect(() => {
+    if (!mapContainerRef.current || !canvasRef.current || !bounds || segments.length === 0) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate scale to fit the map in the canvas
+    const latRange = bounds.maxLat - bounds.minLat;
+    const lonRange = bounds.maxLon - bounds.minLon;
+    
+    const xScale = canvas.width / lonRange;
+    const yScale = canvas.height / latRange;
+    
+    // Function to convert geo coordinates to canvas coordinates
+    const geoToCanvas = (lat: number, lon: number) => {
+      const x = (lon - bounds.minLon) * xScale;
+      // Flip y axis because canvas y increases downward
+      const y = canvas.height - (lat - bounds.minLat) * yScale;
+      return { x, y };
+    };
+    
+    // Draw all segments
+    segments.forEach(segment => {
+      if (segment.geometry.length < 2) return;
+      
+      ctx.beginPath();
+      
+      // Get first point
+      const firstPoint = geoToCanvas(segment.geometry[0].lat, segment.geometry[0].lon);
+      ctx.moveTo(firstPoint.x, firstPoint.y);
+      
+      // Draw line through all points
+      for (let i = 1; i < segment.geometry.length; i++) {
+        const point = geoToCanvas(segment.geometry[i].lat, segment.geometry[i].lon);
+        ctx.lineTo(point.x, point.y);
+      }
+      
+      // Style based on selection status
+      if (segment.selected) {
+        ctx.strokeStyle = '#22c55e'; // Green for selected
+        ctx.lineWidth = 3;
+      } else {
+        ctx.strokeStyle = '#94a3b8'; // Gray for unselected
+        ctx.lineWidth = 1.5;
+      }
+      
+      ctx.stroke();
+    });
+    
+    // Draw selected segments again on top to make them more visible
+    const selectedSegments = segments.filter(s => s.selected);
+    if (selectedSegments.length > 0) {
+      selectedSegments.forEach(segment => {
+        if (segment.geometry.length < 2) return;
+        
+        ctx.beginPath();
+        
+        const firstPoint = geoToCanvas(segment.geometry[0].lat, segment.geometry[0].lon);
+        ctx.moveTo(firstPoint.x, firstPoint.y);
+        
+        for (let i = 1; i < segment.geometry.length; i++) {
+          const point = geoToCanvas(segment.geometry[i].lat, segment.geometry[i].lon);
+          ctx.lineTo(point.x, point.y);
+        }
+        
+        ctx.strokeStyle = '#22c55e'; // Green
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      });
+    }
+    
+  }, [segments, bounds, mapZoom]);
+
+  const handleZoomIn = () => {
+    setMapZoom(prev => Math.min(prev * 1.5, 20));
+  };
+
+  const handleZoomOut = () => {
+    setMapZoom(prev => Math.max(prev / 1.5, 1));
+  };
+
+  const handleFitSelected = () => {
+    const selectedSegments = segments.filter(s => s.selected);
+    if (selectedSegments.length === 0) return;
+    
+    let minLat = Infinity;
+    let minLon = Infinity;
+    let maxLat = -Infinity;
+    let maxLon = -Infinity;
+    
+    selectedSegments.forEach(segment => {
+      segment.geometry.forEach((point: { lat: number, lon: number }) => {
+        minLat = Math.min(minLat, point.lat);
+        minLon = Math.min(minLon, point.lon);
+        maxLat = Math.max(maxLat, point.lat);
+        maxLon = Math.max(maxLon, point.lon);
+      });
+    });
+    
+    // Add a small buffer
+    const latBuffer = (maxLat - minLat) * 0.2;
+    const lonBuffer = (maxLon - minLon) * 0.2;
+    
+    setBounds({
+      minLat: minLat - latBuffer,
+      minLon: minLon - lonBuffer,
+      maxLat: maxLat + latBuffer,
+      maxLon: maxLon + lonBuffer,
+    });
+  };
+
   return (
-    <div 
-      ref={mapContainerRef}
-      className="border rounded-md h-[400px] bg-slate-50 flex items-center justify-center"
-    >
-      <p className="text-gray-400">
-        Mapa será renderizado aqui (é necessário implementar uma biblioteca de mapa)
-      </p>
+    <div className="border rounded-md h-[400px] bg-slate-50 flex flex-col">
+      <div className="p-2 border-b flex justify-between items-center">
+        <div>
+          <span className="text-sm font-medium">
+            {segments.filter(s => s.selected).length} segmentos selecionados
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleZoomIn}
+            disabled={mapZoom >= 20}
+          >
+            +
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleZoomOut}
+            disabled={mapZoom <= 1}
+          >
+            -
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFitSelected}
+            disabled={segments.filter(s => s.selected).length === 0}
+          >
+            Centralizar Selecionados
+          </Button>
+        </div>
+      </div>
+      <div 
+        ref={mapContainerRef}
+        className="flex-1 relative"
+      >
+        {segments.length > 0 && bounds ? (
+          <canvas 
+            ref={canvasRef}
+            width={800}
+            height={340}
+            className="absolute inset-0 w-full h-full"
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-400">
+              Selecione uma cidade para visualizar o mapa
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
