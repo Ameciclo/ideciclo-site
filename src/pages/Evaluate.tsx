@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { City, Segment } from "@/types";
+import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
 import SegmentsTable from "@/components/SegmentsTable";
 import CityMap from "@/components/CityMap";
@@ -18,6 +18,10 @@ const Evaluate = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [mergeData, setMergeData] = useState<{
+    name: string;
+    type: SegmentType;
+  } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -79,7 +83,9 @@ const Evaluate = () => {
   const handleMergeSegments = () => {
     const selectedSegments = segments.filter(s => s.selected);
     if (selectedSegments.length < 2) return;
-
+    
+    // Em uma aplicação real, você implementaria a lógica de mesclagem aqui
+    // usando os dados do mergeData que foram selecionados pelo usuário no diálogo
     const totalLength = calculateMergedLength(selectedSegments);
     
     toast({
@@ -87,8 +93,10 @@ const Evaluate = () => {
       description: `${selectedSegments.length} segmentos mesclados com extensão total de ${totalLength.toFixed(4)} km`,
     });
     
-    // In a real app, you would perform the actual merging here
-    // For now, we'll just visualize it in the toast
+    // Depois de mesclar, desmarcar todos os segmentos
+    setSegments(prevSegments => 
+      prevSegments.map(segment => ({ ...segment, selected: false }))
+    );
   };
 
   const handleBackToStart = () => {
