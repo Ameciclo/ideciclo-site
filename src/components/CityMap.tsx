@@ -60,6 +60,9 @@ const CityMap = ({ segments }: CityMapProps) => {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Draw a map background
+    drawMapBackground(ctx, canvas.width, canvas.height);
+    
     // Calculate scale to fit the map in the canvas
     const latRange = bounds.maxLat - bounds.minLat;
     const lonRange = bounds.maxLon - bounds.minLon;
@@ -74,6 +77,9 @@ const CityMap = ({ segments }: CityMapProps) => {
       const y = canvas.height - (lat - bounds.minLat) * yScale;
       return { x, y };
     };
+    
+    // Draw city grid for context
+    drawCityGrid(ctx, bounds, geoToCanvas);
     
     // Draw all segments
     segments.forEach(segment => {
@@ -126,6 +132,70 @@ const CityMap = ({ segments }: CityMapProps) => {
     }
     
   }, [segments, bounds, mapZoom]);
+
+  // Draw a background map pattern
+  const drawMapBackground = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Fill with a light color
+    ctx.fillStyle = '#F1F1F1'; // Light background
+    ctx.fillRect(0, 0, width, height);
+  };
+  
+  // Draw a simplified city grid for context
+  const drawCityGrid = (
+    ctx: CanvasRenderingContext2D, 
+    bounds: {minLat: number, minLon: number, maxLat: number, maxLon: number},
+    geoToCanvas: (lat: number, lon: number) => {x: number, y: number}
+  ) => {
+    // Draw a grid to represent city blocks
+    const gridSize = 0.002; // Grid size in degrees
+    
+    ctx.strokeStyle = '#C8C8C9'; // Light gray grid
+    ctx.lineWidth = 0.5;
+    
+    // Vertical lines (longitude)
+    for (let lon = Math.floor(bounds.minLon / gridSize) * gridSize; lon <= bounds.maxLon; lon += gridSize) {
+      ctx.beginPath();
+      const start = geoToCanvas(bounds.minLat, lon);
+      const end = geoToCanvas(bounds.maxLat, lon);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+    
+    // Horizontal lines (latitude)
+    for (let lat = Math.floor(bounds.minLat / gridSize) * gridSize; lat <= bounds.maxLat; lat += gridSize) {
+      ctx.beginPath();
+      const start = geoToCanvas(lat, bounds.minLon);
+      const end = geoToCanvas(lat, bounds.maxLon);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+    
+    // Draw major streets with slightly darker lines
+    ctx.strokeStyle = '#8E9196'; // Darker gray for major streets
+    ctx.lineWidth = 1;
+    
+    // Vertical major streets (every 5 grid cells)
+    for (let lon = Math.floor(bounds.minLon / (gridSize * 5)) * gridSize * 5; lon <= bounds.maxLon; lon += gridSize * 5) {
+      ctx.beginPath();
+      const start = geoToCanvas(bounds.minLat, lon);
+      const end = geoToCanvas(bounds.maxLat, lon);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+    
+    // Horizontal major streets (every 5 grid cells)
+    for (let lat = Math.floor(bounds.minLat / (gridSize * 5)) * gridSize * 5; lat <= bounds.maxLat; lat += gridSize * 5) {
+      ctx.beginPath();
+      const start = geoToCanvas(lat, bounds.minLon);
+      const end = geoToCanvas(lat, bounds.maxLon);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.stroke();
+    }
+  };
 
   const handleZoomIn = () => {
     setMapZoom(prev => Math.min(prev * 1.5, 20));
