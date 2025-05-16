@@ -1,4 +1,3 @@
-
 import { City, IBGECity, IBGEState, OverpassResponse, Segment, SegmentType } from "@/types";
 import * as turf from '@turf/turf';
 
@@ -77,22 +76,12 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
   const query = `
     [out:json];
     area(${areaId})->.searchArea;
-    way
-    (area.searchArea)
-    ["highway"]
-    ["cycleway"],
-    way
-    (area.searchArea)
-    ["highway"]
-    ["cycleway:left"],
-    way
-    (area.searchArea)
-    ["highway"]
-    ["cycleway:right"],
-    way
-    (area.searchArea)
-    ["highway"]
-    ["cycleway:both"];
+    (
+      way(area.searchArea)["highway"]["cycleway"];
+      way(area.searchArea)["highway"]["cycleway:left"];
+      way(area.searchArea)["highway"]["cycleway:right"];
+      way(area.searchArea)["highway"]["cycleway:both"];
+    );
     out geom;
   `;
 
