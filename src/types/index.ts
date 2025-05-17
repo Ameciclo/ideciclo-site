@@ -33,19 +33,25 @@ export interface Segment {
   length: number;
   geometry: any;
   selected: boolean;
+  evaluated: boolean;
 }
 
 export interface Form {
   id: string;
-  id_review?: string;
-  start: string;
-  end: string;
-  reviewed_at: Date;
-  reviewed_by: string;
-  started_at: Date;
-  ended_at: Date;
-  other_info: any;
-  reviewed: boolean;
+  segment_id: string;
+  city_id: string;
+  researcher: string;
+  date: Date;
+  street_name: string;
+  neighborhood: string;
+  extension: number;
+  start_point: string;
+  end_point: string;
+  hierarchy: string;
+  observations: string;
+  responses: Record<string, any>;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface Review {

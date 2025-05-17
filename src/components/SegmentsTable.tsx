@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Segment, SegmentType, RatingType } from "@/types";
 import { 
   Table, 
@@ -12,7 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Edit } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -74,6 +74,7 @@ const SegmentsTable = ({
   const [selectedSegments, setSelectedSegments] = useState<Segment[]>([]);
   
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Filter and search segments
   const filteredSegments = segments.filter(segment => {
@@ -123,6 +124,16 @@ const SegmentsTable = ({
   };
 
   const handleCheckboxChange = (segmentId: string, checked: boolean) => {
+    // Verificar se o segmento já foi avaliado
+    const segment = segments.find(s => s.id === segmentId);
+    if (segment && segment.evaluated) {
+      toast({
+        title: "Aviso",
+        description: "Segmentos já avaliados não podem ser mesclados",
+        variant: "default",
+      });
+      return;
+    }
     onSelectSegment(segmentId, checked);
   };
 
@@ -136,8 +147,26 @@ const SegmentsTable = ({
       return;
     }
     
+    // Verificar se algum segmento selecionado já foi avaliado
+    const evaluatedSegments = segments
+      .filter(s => s.selected && s.evaluated)
+      .map(s => s.name);
+    
+    if (evaluatedSegments.length > 0) {
+      toast({
+        title: "Erro",
+        description: `Os seguintes segmentos já foram avaliados e não podem ser mesclados: ${evaluatedSegments.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     prepareMergeData();
     setIsMergeDialogOpen(true);
+  };
+
+  const handleEvaluateSegment = (segmentId: string) => {
+    navigate(`/avaliar/formulario/${segmentId}`);
   };
 
   const prepareMergeData = () => {
@@ -368,6 +397,7 @@ const SegmentsTable = ({
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Extensão (km)</TableHead>
               <TableHead>Nota Geral</TableHead>
+              <TableHead>Formulário</TableHead>
               <TableHead className="w-[100px]">Selecionar</TableHead>
             </TableRow>
           </TableHeader>
@@ -391,8 +421,20 @@ const SegmentsTable = ({
                     )}
                   </TableCell>
                   <TableCell>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleEvaluateSegment(segment.id)}
+                      className="flex gap-1"
+                    >
+                      <Edit size={14} />
+                      {segment.evaluated ? "Ver" : "Avaliar"}
+                    </Button>
+                  </TableCell>
+                  <TableCell>
                     <Checkbox 
                       checked={segment.selected} 
+                      disabled={segment.evaluated}
                       onCheckedChange={(checked) => 
                         handleCheckboxChange(segment.id, checked === true)
                       }
@@ -402,7 +444,7 @@ const SegmentsTable = ({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-4">
                   Nenhum segmento encontrado
                 </TableCell>
               </TableRow>

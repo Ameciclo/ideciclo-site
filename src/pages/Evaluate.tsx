@@ -51,7 +51,20 @@ const Evaluate = () => {
       // Fetch segments
       const waysData = await fetchCityWays(selectedCityId);
       const citySegments = convertToSegments(waysData, selectedCityId);
-      setSegments(citySegments);
+      
+      // Em um cenário real, você buscaria do backend quais segmentos já foram avaliados
+      // Para fins de demonstração, vamos simular que alguns segmentos já foram avaliados
+      const enhancedSegments = citySegments.map((segment, index) => {
+        // Simulando que alguns segmentos já foram avaliados (apenas para demonstração)
+        const evaluated = index % 7 === 0; // A cada 7 segmentos, um é considerado avaliado
+        return {
+          ...segment,
+          evaluated,
+          id_form: evaluated ? `form-${segment.id}` : undefined
+        };
+      });
+      
+      setSegments(enhancedSegments);
 
       toast({
         title: "Sucesso",
@@ -83,6 +96,17 @@ const Evaluate = () => {
   const handleMergeSegments = () => {
     const selectedSegments = segments.filter(s => s.selected);
     if (selectedSegments.length < 2) return;
+    
+    // Verificar se algum segmento selecionado já foi avaliado
+    const hasEvaluated = selectedSegments.some(s => s.evaluated);
+    if (hasEvaluated) {
+      toast({
+        title: "Erro",
+        description: "Segmentos já avaliados não podem ser mesclados",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Em uma aplicação real, você implementaria a lógica de mesclagem aqui
     // usando os dados do mergeData que foram selecionados pelo usuário no diálogo
