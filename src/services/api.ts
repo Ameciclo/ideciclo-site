@@ -1,100 +1,148 @@
-
 import { City, IBGECity, IBGEState, OverpassResponse, Segment, SegmentType } from "@/types";
 import * as turf from '@turf/turf';
 
+// Helper function to retry failed API calls
+const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, delay = 1000) => {
+  let lastError;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      console.log(`Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
+      // Wait before trying again
+      await new Promise(resolve => setTimeout(resolve, delay));
+      // Increase delay for each retry (exponential backoff)
+      delay *= 2;
+    }
+  }
+  
+  throw lastError;
+};
+
 export const fetchStates = async (): Promise<IBGEState[]> => {
-  const response = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados');
-  return response.json();
+  try {
+    const response = await fetchWithRetry('https://servicodados.ibge.gov.br/api/v1/localidades/estados');
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching states:", error);
+    throw new Error("Não foi possível carregar os estados. Por favor, tente novamente mais tarde.");
+  }
 };
 
 export const fetchCities = async (stateId: string): Promise<IBGECity[]> => {
-  const response = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios`);
-  return response.json();
+  try {
+    const response = await fetchWithRetry(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios`);
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching cities:", error);
+    throw new Error(`Não foi possível carregar as cidades do estado ${stateId}. Por favor, tente novamente mais tarde.`);
+  }
 };
 
 export const getOverpassAreaId = async (cityId: string): Promise<number> => {
-  const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-  const query = `
-    [out:json][timeout:900];
-    area["IBGE:GEOCODIGO"=${cityId}];
-    out ids;
-  `;
+  try {
+    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+    const query = `
+      [out:json][timeout:900];
+      area["IBGE:GEOCODIGO"=${cityId}];
+      out ids;
+    `;
 
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: query,
-  });
+    const response = await fetchWithRetry(OVERPASS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: query,
+    });
 
-  const data = await response.json();
-  
-  const areaId = data.elements[0]?.id;
-  
-  if (!areaId) {
-    throw new Error('Área não encontrada para o ID informado.');
+    const data = await response.json();
+    
+    const areaId = data.elements[0]?.id;
+    
+    if (!areaId) {
+      throw new Error('Área não encontrada para o ID informado.');
+    }
+    
+    return areaId;
+  } catch (error) {
+    console.error("Error getting Overpass area ID:", error);
+    throw new Error(`Falha ao obter a área para a cidade ${cityId}. O serviço Overpass API pode estar indisponível temporariamente. Por favor, tente novamente mais tarde.`);
   }
-  
-  return areaId;
 };
 
 export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassResponse> => {
-  const areaId = await getOverpassAreaId(cityId);
-  const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+  try {
+    const areaId = await getOverpassAreaId(cityId);
+    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-  const query = `
-    [out:json];
-    area(${areaId})->.searchArea;
-    way ["highway"]
-    ["highway"!~"^(construction|cycleway|footway|path|proposed|service|track|bus_stop|corridor|living_street|pedestrian|raceway|steps)$"]
-    ["highway"](area.searchArea);
-    for (t["highway"])
-    {
-      make stat highway=_.val,
-      count=count(ways),
-      length=sum(length());
-      out
-      body;
-    }
-  `;
+    const query = `
+      [out:json][timeout:900];
+      area(${areaId})->.searchArea;
+      way ["highway"]
+      ["highway"!~"^(construction|cycleway|footway|path|proposed|service|track|bus_stop|corridor|living_street|pedestrian|raceway|steps)$"]
+      ["highway"](area.searchArea);
+      for (t["highway"])
+      {
+        make stat highway=_.val,
+        count=count(ways),
+        length=sum(length());
+        out
+        body;
+      }
+    `;
 
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: query,
-  });
+    const response = await fetchWithRetry(OVERPASS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: query,
+    }, 3, 2000); // More retries and longer delay for complex queries
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching city highway stats:", error);
+    throw new Error(`Falha ao obter estatísticas viárias para a cidade ${cityId}. O serviço Overpass API pode estar indisponível ou com lentidão. Por favor, tente novamente mais tarde.`);
+  }
 };
 
 export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> => {
-  const areaId = await getOverpassAreaId(cityId);
-  const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+  try {
+    const areaId = await getOverpassAreaId(cityId);
+    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-  const query = `
-    [out:json];
-    area(${areaId})->.searchArea;
-    (
-      way(area.searchArea)["highway"]["cycleway"];
-      way(area.searchArea)["highway"]["cycleway:left"];
-      way(area.searchArea)["highway"]["cycleway:right"];
-      way(area.searchArea)["highway"]["cycleway:both"];
-    );
-    out geom;
-  `;
+    const query = `
+      [out:json][timeout:900];
+      area(${areaId})->.searchArea;
+      (
+        way(area.searchArea)["highway"]["cycleway"];
+        way(area.searchArea)["highway"]["cycleway:left"];
+        way(area.searchArea)["highway"]["cycleway:right"];
+        way(area.searchArea)["highway"]["cycleway:both"];
+      );
+      out geom;
+    `;
 
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: query,
-  });
+    const response = await fetchWithRetry(OVERPASS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: query,
+    }, 3, 2000); // More retries and longer delay for complex queries
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching city ways:", error);
+    throw new Error(`Falha ao obter dados cicloviários para a cidade ${cityId}. O serviço Overpass API pode estar indisponível ou com lentidão. Por favor, tente novamente mais tarde.`);
+  }
 };
 
 export const calculateCityStats = (data: OverpassResponse): Pick<City, 'vias_estruturais_km' | 'vias_alimentadoras_km' | 'vias_locais_km'> => {
@@ -198,7 +246,7 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
         length: parseFloat(length.toFixed(4)),
         geometry: element.geometry,
         selected: false,
-        evaluated: false  // Adding the missing property
+        evaluated: false
       };
     });
 };

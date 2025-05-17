@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchCityHighwayStats, fetchCityWays, calculateCityStats, convertToSegments, calculateMergedLength } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 const Evaluate = () => {
   const [step, setStep] = useState<'selection' | 'evaluation'>('selection');
@@ -18,6 +20,7 @@ const Evaluate = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [mergeData, setMergeData] = useState<{
     name: string;
     type: SegmentType;
@@ -28,6 +31,7 @@ const Evaluate = () => {
   const handleCitySelected = async (stateId: string, selectedCityId: string, selectedCityName: string, selectedStateName: string) => {
     try {
       setIsLoading(true);
+      setError(null);
       setCityId(selectedCityId);
       setCityName(selectedCityName);
       setStateName(selectedStateName);
@@ -75,9 +79,11 @@ const Evaluate = () => {
       setStep('evaluation');
     } catch (error) {
       console.error("Erro ao processar cidade:", error);
+      const errorMessage = error instanceof Error ? error.message : "Falha ao processar os dados da cidade";
+      setError(errorMessage);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Falha ao processar os dados da cidade",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -127,6 +133,15 @@ const Evaluate = () => {
     navigate("/");
   };
 
+  const handleRetry = () => {
+    if (cityId && stateName) {
+      handleCitySelected("", cityId, cityName, stateName);
+    } else {
+      setError(null);
+      setStep('selection');
+    }
+  };
+
   const selectedSegmentsCount = segments.filter(s => s.selected).length;
 
   return (
@@ -136,7 +151,31 @@ const Evaluate = () => {
         <Button variant="outline" onClick={handleBackToStart}>Voltar ao Início</Button>
       </div>
 
-      {step === 'selection' ? (
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>
+            {error}
+            <div className="mt-2">
+              <Button variant="outline" size="sm" onClick={handleRetry}>
+                Tentar novamente
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isLoading && (
+        <div className="flex justify-center items-center py-20">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p>Carregando dados... Por favor aguarde.</p>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !error && step === 'selection' && (
         <Card>
           <CardHeader>
             <CardTitle>Selecionar Cidade</CardTitle>
@@ -148,7 +187,9 @@ const Evaluate = () => {
             <CitySelection onCitySelected={handleCitySelected} />
           </CardContent>
         </Card>
-      ) : (
+      )}
+
+      {!isLoading && !error && step === 'evaluation' && (
         <div className="space-y-8">
           <Card>
             <CardHeader>
