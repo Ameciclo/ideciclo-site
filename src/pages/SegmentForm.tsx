@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -141,7 +140,7 @@ const SegmentForm = () => {
         description: "Formulário enviado com sucesso!",
       });
       
-      // Voltar para a página de avaliação
+      // Voltar para a página de avaliação com a planilha
       navigate("/avaliar");
     } catch (error) {
       console.error("Erro ao enviar formulário:", error);
@@ -156,6 +155,7 @@ const SegmentForm = () => {
   };
 
   const handleCancel = () => {
+    // Navegar de volta para a página com a planilha
     navigate("/avaliar");
   };
 
