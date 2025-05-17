@@ -1,3 +1,4 @@
+
 import { City, IBGECity, IBGEState, OverpassResponse, Segment, SegmentType } from "@/types";
 import * as turf from '@turf/turf';
 
@@ -196,7 +197,8 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
         type: determineSegmentType(element.tags),
         length: parseFloat(length.toFixed(4)),
         geometry: element.geometry,
-        selected: false
+        selected: false,
+        evaluated: false  // Adding the missing property
       };
     });
 };
