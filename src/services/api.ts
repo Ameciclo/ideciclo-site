@@ -292,3 +292,24 @@ export const getStoredCityData = (cityId: string): { city: Partial<City>, segmen
     return null;
   }
 };
+
+/**
+ * Update segment name in localStorage
+ */
+export const updateSegmentName = (cityId: string, segmentId: string, newName: string): boolean => {
+  try {
+    const data = localStorage.getItem(`city_${cityId}`);
+    if (data) {
+      const parsedData = JSON.parse(data);
+      parsedData.segments = parsedData.segments.map((segment: Segment) => 
+        segment.id === segmentId ? { ...segment, name: newName } : segment
+      );
+      localStorage.setItem(`city_${cityId}`, JSON.stringify(parsedData));
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error updating segment name:", error);
+    return false;
+  }
+};

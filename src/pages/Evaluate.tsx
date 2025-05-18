@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -217,14 +216,13 @@ const Evaluate = () => {
     // Criar o novo segmento mesclado
     const mergedSegment: Segment = {
       id: mergedId,
+      id_cidade: cityId,
       name: mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
       type: mergeData?.type || selectedSegments[0].type,
       length: totalLength,
-      neighborhood: selectedSegments[0].neighborhood || "",
-      city_id: cityId,
-      evaluated: false,
+      geometry: [], // Em uma implementação real, você mesclaria as geometrias
       selected: false,
-      geometry: [] // Em uma implementação real, você mesclaria as geometrias
+      evaluated: false
     };
     
     // Remover os segmentos selecionados e adicionar o mesclado

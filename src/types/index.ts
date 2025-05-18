@@ -31,6 +31,7 @@ export interface Segment {
   name: string;
   type: SegmentType;
   length: number;
+  neighborhood?: string;  // Add the neighborhood property as optional
   geometry: any;
   selected: boolean;
   evaluated: boolean;

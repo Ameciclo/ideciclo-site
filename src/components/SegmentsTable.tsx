@@ -12,7 +12,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Edit } from "lucide-react";
+import { Search, Filter, Edit, Pencil, Check } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -74,6 +74,8 @@ const SegmentsTable = ({
   const [selectedType, setSelectedType] = useState<SegmentType | null>(null);
   const [totalLength, setTotalLength] = useState(0);
   const [selectedSegments, setSelectedSegments] = useState<Segment[]>([]);
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -311,6 +313,65 @@ const SegmentsTable = ({
     return items;
   };
 
+  // Add function to update segment name
+  const handleEditName = (segment: Segment) => {
+    setEditingSegmentId(segment.id);
+    setEditingName(segment.name);
+  };
+
+  const handleSaveName = (segmentId: string) => {
+    if (editingName.trim() === "") {
+      toast({
+        title: "Erro",
+        description: "O nome do segmento não pode estar vazio",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find the segment in the local data
+    const updatedSegments = segments.map(segment => 
+      segment.id === segmentId ? { ...segment, name: editingName } : segment
+    );
+
+    // Update local storage with the edited segment
+    const cityId = updatedSegments[0]?.id_cidade;
+    if (cityId) {
+      const storedData = localStorage.getItem(`city_${cityId}`);
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        parsedData.segments = updatedSegments;
+        localStorage.setItem(`city_${cityId}`, JSON.stringify(parsedData));
+      }
+    }
+
+    // Update any selected segment data for merging
+    if (onMergeDataChange && segmentId === editingSegmentId) {
+      const selectedSegments = segments.filter(s => s.selected);
+      if (selectedSegments.length >= 2) {
+        onMergeDataChange({
+          name: editingName,
+          type: selectedSegments[0].type
+        });
+      }
+    }
+
+    // Notify the parent component about the update
+    toast({
+      title: "Nome atualizado",
+      description: `Nome do segmento atualizado para "${editingName}"`,
+    });
+
+    // Clear editing state
+    setEditingSegmentId(null);
+    setEditingName("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSegmentId(null);
+    setEditingName("");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -409,7 +470,47 @@ const SegmentsTable = ({
             {paginatedSegments.length > 0 ? (
               paginatedSegments.map((segment) => (
                 <TableRow key={segment.id}>
-                  <TableCell>{segment.name}</TableCell>
+                  <TableCell>
+                    {editingSegmentId === segment.id ? (
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          className="text-sm h-8"
+                        />
+                        <div className="flex gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => handleSaveName(segment.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={handleCancelEdit}
+                            className="h-8 w-8 p-0"
+                          >
+                            <span className="text-xs">✕</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span>{segment.name}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 ml-2"
+                          onClick={() => handleEditName(segment)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>{translateType(segment.type)}</TableCell>
                   <TableCell className="text-right">{segment.length.toFixed(4)}</TableCell>
                   <TableCell>
