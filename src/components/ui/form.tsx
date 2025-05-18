@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { Slot } from "@radix-ui/react-slot"
@@ -164,6 +165,21 @@ const FormMessage = React.forwardRef<
 })
 FormMessage.displayName = "FormMessage"
 
+// Convenience component for read-only form fields
+const FormValue = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => {
+  return (
+    <p
+      ref={ref}
+      className={cn("text-sm font-medium p-2 bg-muted rounded-md", className)}
+      {...props}
+    />
+  )
+})
+FormValue.displayName = "FormValue"
+
 export {
   useFormField,
   Form,
@@ -173,4 +189,5 @@ export {
   FormDescription,
   FormMessage,
   FormField,
+  FormValue,
 }
