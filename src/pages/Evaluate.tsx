@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -289,14 +290,14 @@ const Evaluate = () => {
     const mergedId = `merged-${Date.now()}`;
     const totalLength = calculateMergedLength(selectedSegments);
     
-    // Criar o novo segmento mesclado - aqui é onde usamos o nome customizado definido pelo usuário
+    // Criar o novo segmento mesclado - utilizando o nome definido pelo usuário no diálogo de mesclagem
     const mergedSegment: Segment = {
       id: mergedId,
       id_cidade: cityId,
       name: mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
       type: mergeData?.type || selectedSegments[0].type,
       length: totalLength,
-      neighborhood: mergeData?.name ? undefined : undefined, // Optional neighborhood property
+      neighborhood: selectedSegments[0].neighborhood,
       geometry: [], // Em uma implementação real, você mesclaria as geometrias
       selected: false,
       evaluated: false

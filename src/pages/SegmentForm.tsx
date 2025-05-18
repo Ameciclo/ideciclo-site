@@ -59,6 +59,7 @@ const SegmentForm = () => {
   const { segmentId } = useParams<{ segmentId: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [segment, setSegment] = useState<any>(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,6 +102,18 @@ const SegmentForm = () => {
         
         if (storedData) {
           segmentData = JSON.parse(storedData);
+          
+          // Verificar se o segmento já foi avaliado
+          if (segmentData.evaluated && segmentData.formData) {
+            setIsReadOnly(true);
+            
+            // Preencher o formulário com os dados salvos
+            Object.entries(segmentData.formData).forEach(([key, value]) => {
+              form.setValue(key as any, value as any);
+            });
+            
+            console.log("Formulário preenchido com dados salvos:", segmentData.formData);
+          }
         } else {
           // Em um cenário real, você buscaria os dados do segmento do backend
           // Aqui vamos simular com dados fictícios
@@ -120,8 +133,8 @@ const SegmentForm = () => {
         
         // Preencher o formulário com os dados do segmento
         form.setValue("street_name", segmentData.name);
-        form.setValue("extension", segmentData.length.toString());
-        form.setValue("neighborhood", segmentData.neighborhood);
+        form.setValue("extension", segmentData.length?.toString() || "");
+        form.setValue("neighborhood", segmentData.neighborhood || "");
         form.setValue("infra_type", segmentData.type as any);
         
       } catch (error) {
@@ -193,7 +206,9 @@ const SegmentForm = () => {
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Formulário de Avaliação de Segmento</h2>
+        <h2 className="text-2xl font-bold">
+          {isReadOnly ? "Visualização de Avaliação" : "Formulário de Avaliação de Segmento"}
+        </h2>
         <Button variant="outline" onClick={handleCancel}>Voltar</Button>
       </div>
 
@@ -201,7 +216,9 @@ const SegmentForm = () => {
         <CardHeader>
           <CardTitle>{segment?.name || "Carregando..."}</CardTitle>
           <CardDescription>
-            Preencha os dados para avaliar este segmento
+            {isReadOnly 
+              ? "Visualização dos dados avaliados para este segmento" 
+              : "Preencha os dados para avaliar este segmento"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -218,7 +235,8 @@ const SegmentForm = () => {
                       <FormItem>
                         <FormLabel>Pesquisador(a)</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Nome do pesquisador" />
+                          <Input {...field} placeholder="Nome do pesquisador" readOnly={isReadOnly} 
+                            className={isReadOnly ? "bg-gray-100" : ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -232,7 +250,8 @@ const SegmentForm = () => {
                       <FormItem>
                         <FormLabel>Data</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="date" {...field} readOnly={isReadOnly} 
+                            className={isReadOnly ? "bg-gray-100" : ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -637,7 +656,8 @@ const SegmentForm = () => {
                         <Textarea 
                           {...field} 
                           placeholder="Adicione observações relevantes sobre o segmento"
-                          className="min-h-[120px]" 
+                          className={`min-h-[120px] ${isReadOnly ? "bg-gray-100" : ""}`}
+                          readOnly={isReadOnly}
                         />
                       </FormControl>
                       <FormMessage />
@@ -646,14 +666,16 @@ const SegmentForm = () => {
                 />
               </div>
 
-              <div className="flex justify-end space-x-4 pt-4">
-                <Button variant="outline" type="button" onClick={handleCancel}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Enviando..." : "Enviar Avaliação"}
-                </Button>
-              </div>
+              {!isReadOnly && (
+                <div className="flex justify-end space-x-4 pt-4">
+                  <Button variant="outline" type="button" onClick={handleCancel}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Enviando..." : "Enviar Avaliação"}
+                  </Button>
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>
