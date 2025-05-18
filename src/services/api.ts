@@ -263,3 +263,32 @@ export const calculateMergedLength = (segments: Segment[]): number => {
   
   return parseFloat(totalLength.toFixed(4));
 };
+
+/**
+ * Store city data in localStorage
+ */
+export const storeCityData = (cityId: string, data: { city: Partial<City>, segments: Segment[] }) => {
+  try {
+    localStorage.setItem(`city_${cityId}`, JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error("Error storing city data:", error);
+    return false;
+  }
+};
+
+/**
+ * Get city data from localStorage
+ */
+export const getStoredCityData = (cityId: string): { city: Partial<City>, segments: Segment[] } | null => {
+  try {
+    const data = localStorage.getItem(`city_${cityId}`);
+    if (data) {
+      return JSON.parse(data);
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting stored city data:", error);
+    return null;
+  }
+};

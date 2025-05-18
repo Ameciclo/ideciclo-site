@@ -1,13 +1,21 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
 import SegmentsTable from "@/components/SegmentsTable";
 import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchCityHighwayStats, fetchCityWays, calculateCityStats, convertToSegments, calculateMergedLength } from "@/services/api";
+import { 
+  fetchCityHighwayStats, 
+  fetchCityWays, 
+  calculateCityStats, 
+  convertToSegments, 
+  calculateMergedLength, 
+  getStoredCityData, 
+  storeCityData 
+} from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -26,7 +34,69 @@ const Evaluate = () => {
     type: SegmentType;
   } | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Check if we're returning from form with preserved data
+  useEffect(() => {
+    const state = location.state as { preserveData?: boolean } | undefined;
+    
+    if (state?.preserveData) {
+      const storedCityId = localStorage.getItem('currentCityId');
+      if (storedCityId) {
+        const storedCityName = localStorage.getItem('currentCityName') || "";
+        const storedStateName = localStorage.getItem('currentStateName') || "";
+        
+        setCityId(storedCityId);
+        setCityName(storedCityName);
+        setStateName(storedStateName);
+        
+        if (step === 'selection') {
+          loadStoredCityData(storedCityId);
+        }
+      }
+    }
+  }, [location]);
+
+  const loadStoredCityData = async (selectedCityId: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Try to load city data from localStorage
+      const storedData = getStoredCityData(selectedCityId);
+      
+      if (storedData) {
+        setCity(storedData.city);
+        setSegments(storedData.segments);
+        
+        // Update segment evaluation status
+        const evaluatedSegments = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+        if (evaluatedSegments.length > 0) {
+          setSegments(prevSegments => 
+            prevSegments.map(segment => {
+              if (evaluatedSegments.includes(segment.id)) {
+                return { ...segment, evaluated: true, id_form: `form-${segment.id}` };
+              }
+              return segment;
+            })
+          );
+        }
+        
+        setStep('evaluation');
+      } else {
+        // If no stored data, we need to fetch it
+        handleCitySelected("", selectedCityId, 
+          localStorage.getItem('currentCityName') || "", 
+          localStorage.getItem('currentStateName') || "");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados armazenados:", error);
+      setError("Falha ao carregar dados armazenados");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCitySelected = async (stateId: string, selectedCityId: string, selectedCityName: string, selectedStateName: string) => {
     try {
@@ -35,45 +105,71 @@ const Evaluate = () => {
       setCityId(selectedCityId);
       setCityName(selectedCityName);
       setStateName(selectedStateName);
-
-      // Fetch highway stats
-      const highwayStats = await fetchCityHighwayStats(selectedCityId);
-      const cityStats = calculateCityStats(highwayStats);
-
-      // Create city record
-      const newCity: Partial<City> = {
-        id: selectedCityId,
-        name: selectedCityName,
-        state: selectedStateName,
-        extensao_avaliada: 0,
-        ideciclo: 0,
-        ...cityStats
-      };
       
-      setCity(newCity);
+      // Store current selection in localStorage
+      localStorage.setItem('currentCityId', selectedCityId);
+      localStorage.setItem('currentCityName', selectedCityName);
+      localStorage.setItem('currentStateName', selectedStateName);
 
-      // Fetch segments
-      const waysData = await fetchCityWays(selectedCityId);
-      const citySegments = convertToSegments(waysData, selectedCityId);
+      // Check if data is in localStorage before making API calls
+      const storedData = getStoredCityData(selectedCityId);
       
-      // Em um cenário real, você buscaria do backend quais segmentos já foram avaliados
-      // Para fins de demonstração, vamos simular que alguns segmentos já foram avaliados
-      const enhancedSegments = citySegments.map((segment, index) => {
-        // Simulando que alguns segmentos já foram avaliados (apenas para demonstração)
-        const evaluated = index % 7 === 0; // A cada 7 segmentos, um é considerado avaliado
-        return {
-          ...segment,
-          evaluated,
-          id_form: evaluated ? `form-${segment.id}` : undefined
+      if (storedData) {
+        setCity(storedData.city);
+        setSegments(storedData.segments);
+        
+        toast({
+          title: "Dados carregados",
+          description: `Dados de ${selectedCityName}/${selectedStateName} carregados do armazenamento local!`,
+        });
+      } else {
+        // Fetch highway stats
+        const highwayStats = await fetchCityHighwayStats(selectedCityId);
+        const cityStats = calculateCityStats(highwayStats);
+
+        // Create city record
+        const newCity: Partial<City> = {
+          id: selectedCityId,
+          name: selectedCityName,
+          state: selectedStateName,
+          extensao_avaliada: 0,
+          ideciclo: 0,
+          ...cityStats
         };
-      });
-      
-      setSegments(enhancedSegments);
+        
+        setCity(newCity);
 
-      toast({
-        title: "Sucesso",
-        description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
-      });
+        // Fetch segments
+        const waysData = await fetchCityWays(selectedCityId);
+        const citySegments = convertToSegments(waysData, selectedCityId);
+        
+        // Em um cenário real, você buscaria do backend quais segmentos já foram avaliados
+        // Para fins de demonstração, vamos simular que alguns segmentos já foram avaliados
+        const evaluatedSegmentsIds = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+        
+        const enhancedSegments = citySegments.map((segment) => {
+          // Check if this segment has been evaluated
+          const evaluated = evaluatedSegmentsIds.includes(segment.id);
+          return {
+            ...segment,
+            evaluated,
+            id_form: evaluated ? `form-${segment.id}` : undefined
+          };
+        });
+        
+        setSegments(enhancedSegments);
+        
+        // Store data in localStorage
+        storeCityData(selectedCityId, {
+          city: newCity,
+          segments: enhancedSegments
+        });
+
+        toast({
+          title: "Sucesso",
+          description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
+        });
+      }
 
       // Move to evaluation step
       setStep('evaluation');
@@ -114,19 +210,42 @@ const Evaluate = () => {
       return;
     }
     
-    // Em uma aplicação real, você implementaria a lógica de mesclagem aqui
-    // usando os dados do mergeData que foram selecionados pelo usuário no diálogo
+    // Gerar um novo ID para o segmento mesclado
+    const mergedId = `merged-${Date.now()}`;
     const totalLength = calculateMergedLength(selectedSegments);
+    
+    // Criar o novo segmento mesclado
+    const mergedSegment: Segment = {
+      id: mergedId,
+      name: mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
+      type: mergeData?.type || selectedSegments[0].type,
+      length: totalLength,
+      neighborhood: selectedSegments[0].neighborhood || "",
+      city_id: cityId,
+      evaluated: false,
+      selected: false,
+      geometry: [] // Em uma implementação real, você mesclaria as geometrias
+    };
+    
+    // Remover os segmentos selecionados e adicionar o mesclado
+    const idsToRemove = new Set(selectedSegments.map(s => s.id));
+    const updatedSegments = [
+      ...segments.filter(s => !idsToRemove.has(s.id)),
+      mergedSegment
+    ];
+    
+    setSegments(updatedSegments);
+    
+    // Atualizar a lista no localStorage
+    storeCityData(cityId, {
+      city: city as Partial<City>,
+      segments: updatedSegments
+    });
     
     toast({
       title: "Segmentos mesclados",
       description: `${selectedSegments.length} segmentos mesclados com extensão total de ${totalLength.toFixed(4)} km`,
     });
-    
-    // Depois de mesclar, desmarcar todos os segmentos
-    setSegments(prevSegments => 
-      prevSegments.map(segment => ({ ...segment, selected: false }))
-    );
   };
 
   const handleBackToStart = () => {
@@ -223,6 +342,7 @@ const Evaluate = () => {
                 onSelectSegment={handleSelectSegment}
                 onMergeSelected={handleMergeSegments}
                 selectedSegmentsCount={selectedSegmentsCount}
+                onMergeDataChange={setMergeData}
               />
             </div>
             <div>

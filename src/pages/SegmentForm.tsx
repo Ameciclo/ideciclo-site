@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { 
   Form,
   FormControl,
@@ -60,6 +61,7 @@ const SegmentForm = () => {
   const [segment, setSegment] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -92,15 +94,27 @@ const SegmentForm = () => {
       
       try {
         setIsLoading(true);
-        // Em um cenário real, você buscaria os dados do segmento do backend
-        // Aqui vamos simular com dados fictícios
-        const segmentData = {
-          id: segmentId,
-          name: `Segmento ${segmentId.substring(0, 5)}`,
-          type: "ciclofaixa",
-          length: 1.2345,
-          neighborhood: "Centro",
-        };
+        
+        // Tentar recuperar do localStorage primeiro
+        const storedData = localStorage.getItem(`segment_${segmentId}`);
+        let segmentData;
+        
+        if (storedData) {
+          segmentData = JSON.parse(storedData);
+        } else {
+          // Em um cenário real, você buscaria os dados do segmento do backend
+          // Aqui vamos simular com dados fictícios
+          segmentData = {
+            id: segmentId,
+            name: `Segmento ${segmentId.substring(0, 5)}`,
+            type: "ciclofaixa",
+            length: 1.2345,
+            neighborhood: "Centro",
+          };
+          
+          // Armazenar no localStorage
+          localStorage.setItem(`segment_${segmentId}`, JSON.stringify(segmentData));
+        }
         
         setSegment(segmentData);
         
@@ -129,8 +143,25 @@ const SegmentForm = () => {
     try {
       setIsLoading(true);
       
-      // Em um cenário real, você enviaria os dados para o backend
+      // Simular o envio para o backend
       console.log("Dados do formulário:", values);
+      
+      // Salvar os dados no localStorage
+      const segmentData = {
+        ...segment,
+        evaluated: true,
+        id_form: `form-${segmentId}`,
+        formData: values
+      };
+      
+      localStorage.setItem(`segment_${segmentId}`, JSON.stringify(segmentData));
+      
+      // Atualizar a lista de segmentos avaliados no localStorage
+      const evaluatedSegments = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+      if (!evaluatedSegments.includes(segmentId)) {
+        evaluatedSegments.push(segmentId);
+        localStorage.setItem('evaluatedSegments', JSON.stringify(evaluatedSegments));
+      }
       
       // Simular um atraso de rede
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -141,7 +172,7 @@ const SegmentForm = () => {
       });
       
       // Voltar para a página de avaliação com a planilha
-      navigate("/avaliar");
+      navigate("/avaliar", { state: { preserveData: true } });
     } catch (error) {
       console.error("Erro ao enviar formulário:", error);
       toast({
@@ -156,7 +187,7 @@ const SegmentForm = () => {
 
   const handleCancel = () => {
     // Navegar de volta para a página com a planilha
-    navigate("/avaliar");
+    navigate("/avaliar", { state: { preserveData: true } });
   };
 
   return (

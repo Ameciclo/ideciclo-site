@@ -45,6 +45,7 @@ interface SegmentsTableProps {
   onSelectSegment: (id: string, selected: boolean) => void;
   onMergeSelected: () => void;
   selectedSegmentsCount: number;
+  onMergeDataChange?: (data: { name: string; type: SegmentType }) => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -53,7 +54,8 @@ const SegmentsTable = ({
   segments, 
   onSelectSegment, 
   onMergeSelected,
-  selectedSegmentsCount
+  selectedSegmentsCount,
+  onMergeDataChange
 }: SegmentsTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -207,17 +209,19 @@ const SegmentsTable = ({
       return;
     }
     
+    // Pass merge data to parent
+    if (onMergeDataChange) {
+      onMergeDataChange({
+        name: selectedName,
+        type: selectedType
+      });
+    }
+    
     // Close dialog
     setIsMergeDialogOpen(false);
     
     // Call merge function
     onMergeSelected();
-    
-    // Show success message
-    toast({
-      title: "Segmentos mesclados",
-      description: `${selectedSegments.length} segmentos mesclados com nome "${selectedName}" e extensão total de ${totalLength.toFixed(4)} km`,
-    });
   };
 
   const goToPage = (page: number) => {
