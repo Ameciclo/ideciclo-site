@@ -46,6 +46,7 @@ interface SegmentsTableProps {
   onMergeSelected: () => void;
   selectedSegmentsCount: number;
   onMergeDataChange?: (data: { name: string; type: SegmentType }) => void;
+  onUpdateSegmentName?: (segmentId: string, newName: string) => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -55,7 +56,8 @@ const SegmentsTable = ({
   onSelectSegment, 
   onMergeSelected,
   selectedSegmentsCount,
-  onMergeDataChange
+  onMergeDataChange,
+  onUpdateSegmentName
 }: SegmentsTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -183,7 +185,10 @@ const SegmentsTable = ({
     
     // Generate default name
     const uniqueNames = [...new Set(selected.map(s => s.name))];
-    const defaultName = uniqueNames.join(" / ");
+    const defaultName = uniqueNames.length > 1 
+      ? uniqueNames.join(" / ")
+      : uniqueNames[0];
+    
     setSelectedName(defaultName);
     
     // Check if all segments have the same type
@@ -329,24 +334,13 @@ const SegmentsTable = ({
       return;
     }
 
-    // Find the segment in the local data
-    const updatedSegments = segments.map(segment => 
-      segment.id === segmentId ? { ...segment, name: editingName } : segment
-    );
-
-    // Update local storage with the edited segment
-    const cityId = updatedSegments[0]?.id_cidade;
-    if (cityId) {
-      const storedData = localStorage.getItem(`city_${cityId}`);
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        parsedData.segments = updatedSegments;
-        localStorage.setItem(`city_${cityId}`, JSON.stringify(parsedData));
-      }
+    // Call the parent component's handler to update the name
+    if (onUpdateSegmentName) {
+      onUpdateSegmentName(segmentId, editingName);
     }
 
     // Update any selected segment data for merging
-    if (onMergeDataChange && segmentId === editingSegmentId) {
+    if (onMergeDataChange && segments.some(s => s.id === segmentId && s.selected)) {
       const selectedSegments = segments.filter(s => s.selected);
       if (selectedSegments.length >= 2) {
         onMergeDataChange({
@@ -356,7 +350,7 @@ const SegmentsTable = ({
       }
     }
 
-    // Notify the parent component about the update
+    // Notify about the update
     toast({
       title: "Nome atualizado",
       description: `Nome do segmento atualizado para "${editingName}"`,

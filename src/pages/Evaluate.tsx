@@ -13,11 +13,12 @@ import {
   convertToSegments, 
   calculateMergedLength, 
   getStoredCityData, 
-  storeCityData 
+  storeCityData,
+  updateSegmentName
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 
 const Evaluate = () => {
   const [step, setStep] = useState<'selection' | 'evaluation'>('selection');
@@ -32,6 +33,10 @@ const Evaluate = () => {
     name: string;
     type: SegmentType;
   } | null>(null);
+  const [mergeHistory, setMergeHistory] = useState<Array<{
+    removedSegments: Segment[],
+    mergedSegment: Segment
+  }>>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -92,6 +97,77 @@ const Evaluate = () => {
     } catch (error) {
       console.error("Erro ao carregar dados armazenados:", error);
       setError("Falha ao carregar dados armazenados");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetCityData = async () => {
+    if (!cityId) return;
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Clear local storage for this city
+      localStorage.removeItem(`city_${cityId}`);
+      
+      // Refetch data from API
+      const highwayStats = await fetchCityHighwayStats(cityId);
+      const cityStats = calculateCityStats(highwayStats);
+
+      // Create updated city record
+      const updatedCity: Partial<City> = {
+        id: cityId,
+        name: cityName,
+        state: stateName,
+        extensao_avaliada: 0,
+        ideciclo: 0,
+        ...cityStats
+      };
+      
+      setCity(updatedCity);
+
+      // Fetch segments
+      const waysData = await fetchCityWays(cityId);
+      const citySegments = convertToSegments(waysData, cityId);
+      
+      // Preserve evaluation status if possible
+      const evaluatedSegmentsIds = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+      
+      const enhancedSegments = citySegments.map((segment) => {
+        const evaluated = evaluatedSegmentsIds.includes(segment.id);
+        return {
+          ...segment,
+          evaluated,
+          id_form: evaluated ? `form-${segment.id}` : undefined
+        };
+      });
+      
+      setSegments(enhancedSegments);
+      
+      // Store data in localStorage
+      storeCityData(cityId, {
+        city: updatedCity,
+        segments: enhancedSegments
+      });
+      
+      // Clear merge history
+      setMergeHistory([]);
+
+      toast({
+        title: "Dados recarregados",
+        description: `Dados de ${cityName}/${stateName} foram recarregados com sucesso da API!`,
+      });
+    } catch (error) {
+      console.error("Erro ao recarregar dados:", error);
+      const errorMessage = error instanceof Error ? error.message : "Falha ao recarregar os dados da cidade";
+      setError(errorMessage);
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -213,17 +289,27 @@ const Evaluate = () => {
     const mergedId = `merged-${Date.now()}`;
     const totalLength = calculateMergedLength(selectedSegments);
     
-    // Criar o novo segmento mesclado
+    // Criar o novo segmento mesclado - aqui é onde usamos o nome customizado definido pelo usuário
     const mergedSegment: Segment = {
       id: mergedId,
       id_cidade: cityId,
       name: mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
       type: mergeData?.type || selectedSegments[0].type,
       length: totalLength,
+      neighborhood: mergeData?.name ? undefined : undefined, // Optional neighborhood property
       geometry: [], // Em uma implementação real, você mesclaria as geometrias
       selected: false,
       evaluated: false
     };
+    
+    // Save to merge history before removing segments
+    setMergeHistory(prev => [
+      ...prev,
+      {
+        removedSegments: [...selectedSegments],
+        mergedSegment: {...mergedSegment}
+      }
+    ]);
     
     // Remover os segmentos selecionados e adicionar o mesclado
     const idsToRemove = new Set(selectedSegments.map(s => s.id));
@@ -244,6 +330,52 @@ const Evaluate = () => {
       title: "Segmentos mesclados",
       description: `${selectedSegments.length} segmentos mesclados com extensão total de ${totalLength.toFixed(4)} km`,
     });
+  };
+
+  const handleUndoLastMerge = () => {
+    if (mergeHistory.length === 0) {
+      toast({
+        title: "Informação",
+        description: "Não há fusões para desfazer",
+      });
+      return;
+    }
+    
+    // Get the last merge operation
+    const lastMerge = mergeHistory[mergeHistory.length - 1];
+    
+    // Remove the merged segment and add back the original segments
+    const updatedSegments = segments.filter(segment => segment.id !== lastMerge.mergedSegment.id);
+    const restoredSegments = [...updatedSegments, ...lastMerge.removedSegments];
+    
+    // Update state
+    setSegments(restoredSegments);
+    
+    // Update localStorage
+    storeCityData(cityId, {
+      city: city as Partial<City>,
+      segments: restoredSegments
+    });
+    
+    // Update merge history
+    setMergeHistory(prev => prev.slice(0, -1));
+    
+    toast({
+      title: "Fusão desfeita",
+      description: "A última operação de mesclagem foi desfeita com sucesso",
+    });
+  };
+  
+  const handleUpdateSegmentName = (segmentId: string, newName: string) => {
+    // First update in the local state
+    setSegments(prevSegments => 
+      prevSegments.map(segment => 
+        segment.id === segmentId ? { ...segment, name: newName } : segment
+      )
+    );
+    
+    // Also update in the localStorage
+    updateSegmentName(cityId, segmentId, newName);
   };
 
   const handleBackToStart = () => {
@@ -310,10 +442,24 @@ const Evaluate = () => {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>{cityName}, {stateName}</CardTitle>
-              <CardDescription>
-                Dados da infraestrutura cicloviária
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>{cityName}, {stateName}</CardTitle>
+                  <CardDescription>
+                    Dados da infraestrutura cicloviária
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleUndoLastMerge} disabled={mergeHistory.length === 0}>
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    Desfazer mesclagem
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={resetCityData}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Recarregar dados
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -341,6 +487,7 @@ const Evaluate = () => {
                 onMergeSelected={handleMergeSegments}
                 selectedSegmentsCount={selectedSegmentsCount}
                 onMergeDataChange={setMergeData}
+                onUpdateSegmentName={handleUpdateSegmentName}
               />
             </div>
             <div>
