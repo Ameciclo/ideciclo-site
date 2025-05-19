@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Segment } from '@/types';
 import {
@@ -21,13 +20,30 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Link } from "react-router-dom";
+import OriginalSegmentsTable from './OriginalSegmentsTable';
 
 interface OriginalSegmentsTableProps {
   segments: Segment[];
   showSortOptions?: boolean;
+  onSelectSegment?: (id: string, selected: boolean) => void;
+  onMergeSelected?: () => Promise<void>;
+  selectedSegmentsCount?: number;
+  onMergeDataChange?: React.Dispatch<React.SetStateAction<{
+    name: string;
+    type: any;
+  } | null>>;
+  onUpdateSegmentName?: (segmentId: string, newName: string) => Promise<void>;
 }
 
-export const TableSortableWrapper = ({ segments: initialSegments, showSortOptions = false }: OriginalSegmentsTableProps) => {
+export const TableSortableWrapper = ({ 
+  segments: initialSegments, 
+  showSortOptions = false,
+  onSelectSegment,
+  onMergeSelected,
+  selectedSegmentsCount,
+  onMergeDataChange,
+  onUpdateSegmentName,
+}: OriginalSegmentsTableProps) => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedRating, setSelectedRating] = useState<string>("all");
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
@@ -60,6 +76,21 @@ export const TableSortableWrapper = ({ segments: initialSegments, showSortOption
         return true;
       });
 
+  // Based on the props passed, determine which version to show
+  if (onSelectSegment && onUpdateSegmentName) {
+    // This is the "Refine Data" page version with selection, merging, and name editing
+    return (
+      <OriginalSegmentsTable 
+        segments={filteredSegments}
+        onSelectSegment={onSelectSegment}
+        onUpdateSegmentName={onUpdateSegmentName}
+        hideSelectColumn={false}
+        hideNameEditing={false}
+      />
+    );
+  }
+
+  // Otherwise, this is the "Evaluation" page version without selection and merging
   return (
     <div>
       <div className="mb-4">

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
-import SegmentsTable from "@/components/SegmentsTable";
+import OriginalSegmentsTable from "@/components/OriginalSegmentsTable";
 import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -547,14 +547,12 @@ const Evaluate = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div>
-              <SegmentsTable 
+              <OriginalSegmentsTable 
                 segments={segments}
                 onSelectSegment={handleSelectSegment}
-                onMergeSelected={handleMergeSegments}
-                selectedSegmentsCount={selectedSegmentsCount}
-                onMergeDataChange={setMergeData}
                 onUpdateSegmentName={handleUpdateSegmentName}
-                showSortOptions={true}
+                hideSelectColumn={false}
+                hideNameEditing={false}
               />
             </div>
             <div>

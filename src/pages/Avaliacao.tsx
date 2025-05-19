@@ -15,17 +15,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
+import SegmentsTable from "@/components/SegmentsTable";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -36,8 +28,6 @@ const Avaliacao = () => {
   const [states, setStates] = useState<{id: string, name: string}[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [selectedRating, setSelectedRating] = useState<string>("all");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -45,7 +35,6 @@ const Avaliacao = () => {
   useEffect(() => {
     const fetchStates = async () => {
       try {
-        // Instead of using distinct, we'll fetch all cities and extract unique states
         const { data, error } = await supabase
           .from('cities')
           .select('state');
@@ -148,29 +137,6 @@ const Avaliacao = () => {
     navigate("/");
   };
 
-  const toggleSortDirection = () => {
-    setSortDirection(prev => prev === "asc" ? "desc" : "asc");
-  };
-
-  const sortedSegments = [...segments].sort((a, b) => {
-    const nameA = a.name.toLowerCase();
-    const nameB = b.name.toLowerCase();
-    
-    if (sortDirection === "asc") {
-      return nameA.localeCompare(nameB);
-    } else {
-      return nameB.localeCompare(nameA);
-    }
-  });
-
-  const filteredSegments = selectedRating === "all" 
-    ? sortedSegments 
-    : sortedSegments.filter(segment => {
-        // Filter by rating logic would go here
-        // For now just return all as we don't have ratings in our current data model
-        return true;
-      });
-
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
@@ -268,63 +234,7 @@ const Avaliacao = () => {
                 </div>
               </div>
               
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={toggleSortDirection}
-                  >
-                    Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
-                  </Button>
-                  
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="filter-rating">Filtrar por nota:</Label>
-                    <Select value={selectedRating} onValueChange={setSelectedRating}>
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas</SelectItem>
-                        <SelectItem value="A">A</SelectItem>
-                        <SelectItem value="B">B</SelectItem>
-                        <SelectItem value="C">C</SelectItem>
-                        <SelectItem value="D">D</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="rounded-md border">
-                <Table>
-                  <TableCaption>Lista de segmentos cicloviários avaliados</TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Extensão (km)</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSegments.map(segment => (
-                      <TableRow key={segment.id}>
-                        <TableCell className="font-medium">{segment.name}</TableCell>
-                        <TableCell>{segment.type}</TableCell>
-                        <TableCell className="text-right">{segment.length.toFixed(4)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link to={`/avaliar/formulario/${segment.id}`}>
-                              Ver Avaliação
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <SegmentsTable segments={segments} showSortOptions={true} />
             </CardContent>
           </Card>
         </div>
