@@ -53,10 +53,14 @@ export interface Form {
   responses: Record<string, any>;
   created_at: Date;
   updated_at: Date;
+  velocity?: number;
+  blocks_count?: number;
+  intersections_count?: number;
 }
 
 export interface Review {
   id: string;
+  form_id: string;
   rating_name: RatingType;
   rating: number;
   weight: number;

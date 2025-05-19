@@ -1,6 +1,43 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { City, Segment, Form, Review, SegmentType } from "@/types";
+import { Database } from "@/integrations/supabase/types";
+
+// Type aliases for database row types
+type CityRow = Database['public']['Tables']['cities']['Row'];
+type SegmentRow = Database['public']['Tables']['segments']['Row'];
+type FormRow = Database['public']['Tables']['forms']['Row'];
+type ReviewRow = Database['public']['Tables']['reviews']['Row'];
+
+// Conversion helpers
+const convertCityRowToCity = (row: CityRow): City => ({
+  id: row.id,
+  name: row.name,
+  state: row.state,
+  extensao_avaliada: row.extensao_avaliada || 0,
+  ideciclo: row.ideciclo || 0,
+  vias_estruturais_km: row.vias_estruturais_km || 0,
+  vias_alimentadoras_km: row.vias_alimentadoras_km || 0,
+  vias_locais_km: row.vias_locais_km || 0,
+});
+
+const convertFormRowToForm = (row: FormRow): Form => ({
+  id: row.id,
+  segment_id: row.segment_id,
+  city_id: row.city_id,
+  researcher: row.researcher || '',
+  date: row.date ? new Date(row.date) : new Date(),
+  street_name: row.street_name || '',
+  neighborhood: row.neighborhood || '',
+  extension: row.extension || 0,
+  start_point: row.start_point || '',
+  end_point: row.end_point || '',
+  hierarchy: row.hierarchy || '',
+  observations: row.observations || '',
+  responses: row.responses || {},
+  created_at: row.created_at ? new Date(row.created_at) : new Date(),
+  updated_at: row.updated_at ? new Date(row.updated_at) : new Date(),
+});
 
 /**
  * City CRUD operations
@@ -17,10 +54,16 @@ export const fetchCityFromDB = async (cityId: string): Promise<City | null> => {
     return null;
   }
 
-  return data as City;
+  return convertCityRowToCity(data);
 };
 
 export const saveCityToDB = async (city: Partial<City>): Promise<City | null> => {
+  // Ensure required fields are present
+  if (!city.id || !city.name || !city.state) {
+    console.error("Required city fields missing");
+    return null;
+  }
+
   // Check if city already exists
   const { data: existingCity } = await supabase
     .from('cities')
@@ -33,13 +76,30 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
     // Update
     operation = supabase
       .from('cities')
-      .update(city)
+      .update({
+        name: city.name,
+        state: city.state,
+        extensao_avaliada: city.extensao_avaliada || 0,
+        ideciclo: city.ideciclo || 0,
+        vias_estruturais_km: city.vias_estruturais_km || 0,
+        vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
+        vias_locais_km: city.vias_locais_km || 0,
+      })
       .eq('id', city.id);
   } else {
     // Insert
     operation = supabase
       .from('cities')
-      .insert(city);
+      .insert({
+        id: city.id,
+        name: city.name,
+        state: city.state,
+        extensao_avaliada: city.extensao_avaliada || 0,
+        ideciclo: city.ideciclo || 0,
+        vias_estruturais_km: city.vias_estruturais_km || 0,
+        vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
+        vias_locais_km: city.vias_locais_km || 0,
+      });
   }
 
   const { data, error } = await operation.select().single();
@@ -49,7 +109,7 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
     return null;
   }
 
-  return data as City;
+  return convertCityRowToCity(data);
 };
 
 /**
@@ -66,7 +126,18 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
     return [];
   }
 
-  return data as Segment[];
+  return data.map((segment: SegmentRow): Segment => ({
+    id: segment.id,
+    id_form: segment.id_form || undefined,
+    id_cidade: segment.id_cidade,
+    name: segment.name,
+    type: segment.type as SegmentType,
+    length: segment.length,
+    neighborhood: segment.neighborhood || undefined,
+    geometry: segment.geometry,
+    selected: segment.selected || false,
+    evaluated: segment.evaluated || false,
+  }));
 };
 
 export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> => {
@@ -87,10 +158,24 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     }
   }
 
+  // Prepare segments for insertion by ensuring they match the database schema
+  const segmentsToInsert = segments.map(segment => ({
+    id: segment.id,
+    id_cidade: segment.id_cidade,
+    id_form: segment.id_form,
+    name: segment.name,
+    type: segment.type,
+    length: segment.length,
+    neighborhood: segment.neighborhood,
+    geometry: segment.geometry,
+    selected: segment.selected,
+    evaluated: segment.evaluated
+  }));
+
   // Now insert all segments
   const { error: insertError } = await supabase
     .from('segments')
-    .insert(segments);
+    .insert(segmentsToInsert);
 
   if (insertError) {
     console.error("Error inserting segments:", insertError);
@@ -101,9 +186,23 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
 };
 
 export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segment | null> => {
+  if (!segment.id) {
+    console.error("Segment ID is required for updates");
+    return null;
+  }
+  
   const { data, error } = await supabase
     .from('segments')
-    .update(segment)
+    .update({
+      name: segment.name,
+      type: segment.type,
+      length: segment.length,
+      neighborhood: segment.neighborhood,
+      geometry: segment.geometry,
+      selected: segment.selected,
+      evaluated: segment.evaluated,
+      id_form: segment.id_form
+    })
     .eq('id', segment.id)
     .select()
     .single();
@@ -113,21 +212,53 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     return null;
   }
 
-  return data as Segment;
+  return {
+    id: data.id,
+    id_form: data.id_form || undefined,
+    id_cidade: data.id_cidade,
+    name: data.name,
+    type: data.type as SegmentType,
+    length: data.length,
+    neighborhood: data.neighborhood || undefined,
+    geometry: data.geometry,
+    selected: data.selected || false,
+    evaluated: data.evaluated || false,
+  };
 };
 
 /**
  * Form CRUD operations
  */
 export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> => {
-  // Generate a unique ID if not provided
-  if (!form.id) {
-    form.id = `form-${Date.now()}`;
+  // Ensure required fields are present
+  if (!form.id || !form.segment_id || !form.city_id) {
+    console.error("Required form fields missing");
+    return null;
   }
+
+  // Convert date fields to ISO strings for database storage
+  const formToInsert = {
+    id: form.id,
+    segment_id: form.segment_id,
+    city_id: form.city_id,
+    researcher: form.researcher || null,
+    date: form.date instanceof Date ? form.date.toISOString() : new Date().toISOString(),
+    street_name: form.street_name || null,
+    neighborhood: form.neighborhood || null,
+    extension: form.extension || null,
+    start_point: form.start_point || null,
+    end_point: form.end_point || null,
+    hierarchy: form.hierarchy || null,
+    velocity: form.velocity || null,
+    blocks_count: form.blocks_count || null,
+    intersections_count: form.intersections_count || null,
+    observations: form.observations || null,
+    responses: form.responses || null
+  };
 
   const { data, error } = await supabase
     .from('forms')
-    .insert(form)
+    .insert(formToInsert)
     .select()
     .single();
 
@@ -151,7 +282,7 @@ export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> =>
     }
   }
 
-  return data as Form;
+  return convertFormRowToForm(data);
 };
 
 export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
@@ -166,7 +297,7 @@ export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
     return null;
   }
 
-  return data as Form;
+  return convertFormRowToForm(data);
 };
 
 export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | null> => {
@@ -183,7 +314,7 @@ export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | nu
     return null;
   }
 
-  return data as Form;
+  return convertFormRowToForm(data);
 };
 
 /**
@@ -192,9 +323,18 @@ export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | nu
 export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
   if (reviews.length === 0) return true;
 
+  // Prepare reviews for insertion by ensuring they match the database schema
+  const reviewsToInsert = reviews.map(review => ({
+    id: review.id,
+    form_id: review.form_id || `form-${review.id.split('-')[1]}`, // Fallback if form_id is missing
+    rating_name: review.rating_name,
+    rating: review.rating,
+    weight: review.weight
+  }));
+
   const { error } = await supabase
     .from('reviews')
-    .insert(reviews);
+    .insert(reviewsToInsert);
 
   if (error) {
     console.error("Error saving reviews:", error);
@@ -215,7 +355,13 @@ export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => 
     return [];
   }
 
-  return data as Review[];
+  return data.map((review: ReviewRow): Review => ({
+    id: review.id,
+    form_id: review.form_id,
+    rating_name: review.rating_name,
+    rating: review.rating,
+    weight: review.weight
+  }));
 };
 
 /**
@@ -235,7 +381,13 @@ export const migrateLocalStorageToDatabase = async (): Promise<boolean> => {
         
         // Save city data
         if (data.city) {
-          await saveCityToDB(data.city);
+          await saveCityToDB({
+            ...data.city,
+            // Ensure required fields are present
+            id: data.city.id || cityId,
+            name: data.city.name || "Unknown City",
+            state: data.city.state || "Unknown State"
+          });
         }
         
         // Save segments data
@@ -252,11 +404,23 @@ export const migrateLocalStorageToDatabase = async (): Promise<boolean> => {
     for (const segmentId of evaluatedSegments) {
       const formData = localStorage.getItem(`form_${segmentId}`);
       if (formData) {
-        const form = JSON.parse(formData);
+        const formJson = JSON.parse(formData);
+        const cityId = localStorage.getItem('currentCityId') || '';
+        
         await saveFormToDB({
-          ...form,
           id: `form-${segmentId}`,
-          segment_id: segmentId
+          segment_id: segmentId,
+          city_id: cityId,
+          researcher: formJson.researcher || '',
+          date: new Date(),
+          street_name: formJson.streetName || '',
+          neighborhood: formJson.neighborhood || '',
+          extension: formJson.extension || 0,
+          start_point: formJson.startPoint || '',
+          end_point: formJson.endPoint || '',
+          hierarchy: formJson.hierarchy || '',
+          observations: formJson.observations || '',
+          responses: formJson
         });
       }
     }
