@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Segment, SegmentType, RatingType } from "@/types";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -30,14 +30,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationEllipsis, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
-  PaginationPrevious
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 
 interface SegmentsTableProps {
@@ -51,13 +51,13 @@ interface SegmentsTableProps {
 
 const ITEMS_PER_PAGE = 10;
 
-const SegmentsTable = ({ 
-  segments, 
-  onSelectSegment, 
+const SegmentsTable = ({
+  segments,
+  onSelectSegment,
   onMergeSelected,
   selectedSegmentsCount,
   onMergeDataChange,
-  onUpdateSegmentName
+  onUpdateSegmentName,
 }: SegmentsTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,10 +66,10 @@ const SegmentsTable = ({
       [SegmentType.CICLOFAIXA]: true,
       [SegmentType.CICLOVIA]: true,
       [SegmentType.CICLORROTA]: true,
-      [SegmentType.COMPARTILHADA]: true
+      [SegmentType.COMPARTILHADA]: true,
     },
     minLength: "",
-    maxLength: ""
+    maxLength: "",
   });
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [selectedName, setSelectedName] = useState("");
@@ -78,31 +78,40 @@ const SegmentsTable = ({
   const [selectedSegments, setSelectedSegments] = useState<Segment[]>([]);
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  
+
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Filter and search segments
-  const filteredSegments = segments.filter(segment => {
+  const filteredSegments = segments.filter((segment) => {
     // Search by name
-    const matchesSearch = segment.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = segment.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
     // Filter by type
     const matchesType = filters.types[segment.type];
-    
+
     // Filter by length
-    const minLengthFilter = filters.minLength !== "" ? parseFloat(filters.minLength) : null;
-    const maxLengthFilter = filters.maxLength !== "" ? parseFloat(filters.maxLength) : null;
-    
-    const matchesMinLength = minLengthFilter === null || segment.length >= minLengthFilter;
-    const matchesMaxLength = maxLengthFilter === null || segment.length <= maxLengthFilter;
-    
+    const minLengthFilter =
+      filters.minLength !== "" ? parseFloat(filters.minLength) : null;
+    const maxLengthFilter =
+      filters.maxLength !== "" ? parseFloat(filters.maxLength) : null;
+
+    const matchesMinLength =
+      minLengthFilter === null || segment.length >= minLengthFilter;
+    const matchesMaxLength =
+      maxLengthFilter === null || segment.length <= maxLengthFilter;
+
     return matchesSearch && matchesType && matchesMinLength && matchesMaxLength;
   });
-  
+
   const totalPages = Math.ceil(filteredSegments.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedSegments = filteredSegments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedSegments = filteredSegments.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
 
   // Reset to first page when filters/search changes
   useEffect(() => {
@@ -111,7 +120,7 @@ const SegmentsTable = ({
 
   // Update selected segments when segments prop changes
   useEffect(() => {
-    setSelectedSegments(segments.filter(s => s.selected));
+    setSelectedSegments(segments.filter((s) => s.selected));
   }, [segments]);
 
   const translateType = (type: SegmentType): string => {
@@ -131,7 +140,7 @@ const SegmentsTable = ({
 
   const handleCheckboxChange = (segmentId: string, checked: boolean) => {
     // Verificar se o segmento já foi avaliado
-    const segment = segments.find(s => s.id === segmentId);
+    const segment = segments.find((s) => s.id === segmentId);
     if (segment && segment.evaluated) {
       toast({
         title: "Aviso",
@@ -152,21 +161,23 @@ const SegmentsTable = ({
       });
       return;
     }
-    
+
     // Verificar se algum segmento selecionado já foi avaliado
     const evaluatedSegments = segments
-      .filter(s => s.selected && s.evaluated)
-      .map(s => s.name);
-    
+      .filter((s) => s.selected && s.evaluated)
+      .map((s) => s.name);
+
     if (evaluatedSegments.length > 0) {
       toast({
         title: "Erro",
-        description: `Os seguintes segmentos já foram avaliados e não podem ser mesclados: ${evaluatedSegments.join(", ")}`,
+        description: `Os seguintes segmentos já foram avaliados e não podem ser mesclados: ${evaluatedSegments.join(
+          ", "
+        )}`,
         variant: "destructive",
       });
       return;
     }
-    
+
     prepareMergeData();
     setIsMergeDialogOpen(true);
   };
@@ -176,24 +187,28 @@ const SegmentsTable = ({
   };
 
   const prepareMergeData = () => {
-    const selected = segments.filter(s => s.selected);
+    const selected = segments.filter((s) => s.selected);
     setSelectedSegments(selected);
-    
+
     // Calculate total length
-    const totalLen = selected.reduce((total, segment) => total + segment.length, 0);
+    const totalLen = selected.reduce(
+      (total, segment) => total + segment.length,
+      0
+    );
     setTotalLength(totalLen);
-    
+
     // Generate default name
-    const uniqueNames = [...new Set(selected.map(s => s.name))];
-    const defaultName = uniqueNames.length > 1 
-      ? uniqueNames.join(" / ")
-      : uniqueNames[0];
-    
+    const uniqueNames = [...new Set(selected.map((s) => s.name))];
+    const defaultName =
+      uniqueNames.length > 1 ? uniqueNames.join(" / ") : uniqueNames[0];
+
     setSelectedName(defaultName);
-    
+
     // Check if all segments have the same type
-    const uniqueTypes = [...new Set(selected.map(s => s.type))];
-    setSelectedType(uniqueTypes.length === 1 ? uniqueTypes[0] as SegmentType : null);
+    const uniqueTypes = [...new Set(selected.map((s) => s.type))];
+    setSelectedType(
+      uniqueTypes.length === 1 ? (uniqueTypes[0] as SegmentType) : null
+    );
   };
 
   const handleMergeConfirm = () => {
@@ -206,7 +221,7 @@ const SegmentsTable = ({
       });
       return;
     }
-    
+
     if (selectedType === null) {
       toast({
         title: "Erro",
@@ -215,18 +230,18 @@ const SegmentsTable = ({
       });
       return;
     }
-    
+
     // Pass merge data to parent
     if (onMergeDataChange) {
       onMergeDataChange({
         name: selectedName,
-        type: selectedType
+        type: selectedType,
       });
     }
-    
+
     // Close dialog
     setIsMergeDialogOpen(false);
-    
+
     // Call merge function
     onMergeSelected();
   };
@@ -237,37 +252,37 @@ const SegmentsTable = ({
   };
 
   const handleFilterChange = (key: string, value: any) => {
-    if (key === 'types') {
-      setFilters(prev => ({
+    if (key === "types") {
+      setFilters((prev) => ({
         ...prev,
         types: {
           ...prev.types,
-          [value]: !prev.types[value as SegmentType]
-        }
+          [value]: !prev.types[value as SegmentType],
+        },
       }));
     } else {
-      setFilters(prev => ({
+      setFilters((prev) => ({
         ...prev,
-        [key]: value
+        [key]: value,
       }));
     }
   };
 
   const renderPaginationItems = () => {
     const items = [];
-    
+
     // Always show first page
     items.push(
       <PaginationItem key="first">
-        <PaginationLink 
-          isActive={currentPage === 1} 
+        <PaginationLink
+          isActive={currentPage === 1}
           onClick={() => goToPage(1)}
         >
           1
         </PaginationLink>
       </PaginationItem>
     );
-    
+
     // Show ellipsis if needed
     if (currentPage > 3) {
       items.push(
@@ -276,14 +291,18 @@ const SegmentsTable = ({
         </PaginationItem>
       );
     }
-    
+
     // Show pages around current page
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    ) {
       if (i === 1 || i === totalPages) continue; // Skip first and last page as they're always shown
       items.push(
         <PaginationItem key={i}>
-          <PaginationLink 
-            isActive={currentPage === i} 
+          <PaginationLink
+            isActive={currentPage === i}
             onClick={() => goToPage(i)}
           >
             {i}
@@ -291,7 +310,7 @@ const SegmentsTable = ({
         </PaginationItem>
       );
     }
-    
+
     // Show ellipsis if needed
     if (currentPage < totalPages - 2) {
       items.push(
@@ -300,13 +319,13 @@ const SegmentsTable = ({
         </PaginationItem>
       );
     }
-    
+
     // Always show last page if it's different from the first
     if (totalPages > 1) {
       items.push(
         <PaginationItem key="last">
-          <PaginationLink 
-            isActive={currentPage === totalPages} 
+          <PaginationLink
+            isActive={currentPage === totalPages}
             onClick={() => goToPage(totalPages)}
           >
             {totalPages}
@@ -314,7 +333,7 @@ const SegmentsTable = ({
         </PaginationItem>
       );
     }
-    
+
     return items;
   };
 
@@ -340,12 +359,15 @@ const SegmentsTable = ({
     }
 
     // Update any selected segment data for merging
-    if (onMergeDataChange && segments.some(s => s.id === segmentId && s.selected)) {
-      const selectedSegments = segments.filter(s => s.selected);
+    if (
+      onMergeDataChange &&
+      segments.some((s) => s.id === segmentId && s.selected)
+    ) {
+      const selectedSegments = segments.filter((s) => s.selected);
       if (selectedSegments.length >= 2) {
         onMergeDataChange({
           name: editingName,
-          type: selectedSegments[0].type
+          type: selectedSegments[0].type,
         });
       }
     }
@@ -369,28 +391,34 @@ const SegmentsTable = ({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Segmentos da via ({filteredSegments.length})</h3>
-        <Button 
-          onClick={handleMergeClick} 
+        <h3 className="text-lg font-semibold">
+          Segmentos da via ({filteredSegments.length})
+        </h3>
+        <Button
+          onClick={handleMergeClick}
           disabled={selectedSegmentsCount < 2}
           variant="default"
         >
-          Mesclar {selectedSegmentsCount > 0 ? `(${selectedSegmentsCount})` : ''}
+          Mesclar{" "}
+          {selectedSegmentsCount > 0 ? `(${selectedSegmentsCount})` : ""}
         </Button>
       </div>
 
       {/* Search and filter bar */}
       <div className="flex flex-col md:flex-row gap-2">
         <div className="relative flex-grow">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-          <Input 
-            placeholder="Pesquisar segmentos..." 
+          <Search
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={18}
+          />
+          <Input
+            placeholder="Pesquisar segmentos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
           />
         </div>
-        
+
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="flex gap-2">
@@ -404,39 +432,45 @@ const SegmentsTable = ({
               <div className="grid grid-cols-2 gap-2">
                 {Object.keys(filters.types).map((type) => (
                   <div key={type} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`filter-${type}`} 
-                      checked={filters.types[type as SegmentType]} 
-                      onCheckedChange={() => handleFilterChange('types', type)}
+                    <Checkbox
+                      id={`filter-${type}`}
+                      checked={filters.types[type as SegmentType]}
+                      onCheckedChange={() => handleFilterChange("types", type)}
                     />
-                    <Label htmlFor={`filter-${type}`}>{translateType(type as SegmentType)}</Label>
+                    <Label htmlFor={`filter-${type}`}>
+                      {translateType(type as SegmentType)}
+                    </Label>
                   </div>
                 ))}
               </div>
-              
+
               <div>
                 <h4 className="font-medium mb-2">Extensão (km)</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label htmlFor="min-length">Mínima</Label>
-                    <Input 
+                    <Input
                       id="min-length"
                       type="number"
                       placeholder="Min"
                       value={filters.minLength}
-                      onChange={(e) => handleFilterChange('minLength', e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("minLength", e.target.value)
+                      }
                       step="0.001"
                       min="0"
                     />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="max-length">Máxima</Label>
-                    <Input 
+                    <Input
                       id="max-length"
                       type="number"
                       placeholder="Max"
                       value={filters.maxLength}
-                      onChange={(e) => handleFilterChange('maxLength', e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("maxLength", e.target.value)
+                      }
                       step="0.001"
                       min="0"
                     />
@@ -473,17 +507,17 @@ const SegmentsTable = ({
                           className="text-sm h-8"
                         />
                         <div className="flex gap-1">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="ghost"
                             onClick={() => handleSaveName(segment.id)}
                             className="h-8 w-8 p-0"
                           >
                             <Check className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={handleCancelEdit}
                             className="h-8 w-8 p-0"
                           >
@@ -506,7 +540,9 @@ const SegmentsTable = ({
                     )}
                   </TableCell>
                   <TableCell>{translateType(segment.type)}</TableCell>
-                  <TableCell className="text-right">{segment.length.toFixed(4)}</TableCell>
+                  <TableCell className="text-right">
+                    {segment.length.toFixed(4)}
+                  </TableCell>
                   <TableCell>
                     {segment.id_form ? (
                       <div className="px-2 py-0.5 rounded text-xs font-medium inline-block bg-green-100 text-green-800">
@@ -520,9 +556,9 @@ const SegmentsTable = ({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleEvaluateSegment(segment.id)}
                       className="flex gap-1"
                     >
@@ -531,10 +567,10 @@ const SegmentsTable = ({
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <Checkbox 
-                      checked={segment.selected} 
+                    <Checkbox
+                      checked={segment.selected}
                       disabled={segment.evaluated}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         handleCheckboxChange(segment.id, checked === true)
                       }
                     />
@@ -555,16 +591,22 @@ const SegmentsTable = ({
       {totalPages > 1 && (
         <Pagination>
           <PaginationContent>
-            <PaginationPrevious 
+            <PaginationPrevious
               onClick={() => goToPage(currentPage - 1)}
-              className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              className={
+                currentPage === 1 ? "pointer-events-none opacity-50" : ""
+              }
             />
-            
+
             {renderPaginationItems()}
-            
-            <PaginationNext 
+
+            <PaginationNext
               onClick={() => goToPage(currentPage + 1)}
-              className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              className={
+                currentPage === totalPages
+                  ? "pointer-events-none opacity-50"
+                  : ""
+              }
             />
           </PaginationContent>
         </Pagination>
@@ -579,25 +621,25 @@ const SegmentsTable = ({
               Configure as propriedades do segmento mesclado
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="merged-name">Nome do segmento</Label>
-              <Textarea 
-                id="merged-name" 
+              <Textarea
+                id="merged-name"
                 value={selectedName}
                 onChange={(e) => setSelectedName(e.target.value)}
                 placeholder="Nome do segmento mesclado"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label>Extensão total</Label>
               <div className="p-2 bg-gray-100 rounded-md font-medium">
                 {totalLength.toFixed(4)} km
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Tipo de segmento</Label>
               {selectedType !== null ? (
@@ -605,28 +647,33 @@ const SegmentsTable = ({
                   {translateType(selectedType)}
                 </div>
               ) : (
-                <RadioGroup 
-                  value={selectedType || ""} 
-                  onValueChange={(value) => setSelectedType(value as SegmentType)}
+                <RadioGroup
+                  value={selectedType || ""}
+                  onValueChange={(value) =>
+                    setSelectedType(value as SegmentType)
+                  }
                 >
                   {Object.values(SegmentType).map((type) => (
                     <div key={type} className="flex items-center space-x-2">
                       <RadioGroupItem value={type} id={`type-${type}`} />
-                      <Label htmlFor={`type-${type}`}>{translateType(type)}</Label>
+                      <Label htmlFor={`type-${type}`}>
+                        {translateType(type)}
+                      </Label>
                     </div>
                   ))}
                 </RadioGroup>
               )}
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMergeDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsMergeDialogOpen(false)}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleMergeConfirm}>
-              Mesclar
-            </Button>
+            <Button onClick={handleMergeConfirm}>Mesclar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
