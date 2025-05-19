@@ -5,7 +5,8 @@ import {
   saveCityToDB, 
   fetchSegmentsFromDB, 
   saveSegmentsToDB, 
-  updateSegmentInDB 
+  updateSegmentInDB,
+  migrateLocalStorageToDatabase
 } from "./supabase";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -293,6 +294,7 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
 
 /**
  * Get city data from database, falling back to localStorage if not found
+ * Auto-migrates data from localStorage to database if needed
  */
 export const getStoredCityData = async (cityId: string): Promise<{ city: Partial<City>, segments: Segment[] } | null> => {
   try {
@@ -301,12 +303,16 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
     const segments = await fetchSegmentsFromDB(cityId);
     
     if (city && segments.length > 0) {
+      console.log(`Found city ${cityId} in database`);
       return { city, segments };
     }
+    
+    console.log(`City ${cityId} not found in database, checking localStorage...`);
     
     // If not in database, try localStorage as fallback
     const data = localStorage.getItem(`city_${cityId}`);
     if (data) {
+      console.log(`Found city ${cityId} in localStorage, migrating to database...`);
       const parsedData = JSON.parse(data);
       
       // Save to database for future use
@@ -318,9 +324,11 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
         await saveSegmentsToDB(parsedData.segments);
       }
       
+      console.log(`Successfully migrated city ${cityId} to database`);
       return parsedData;
     }
     
+    console.log(`No data found for city ${cityId}`);
     return null;
   } catch (error) {
     console.error("Error getting stored city data:", error);
@@ -335,9 +343,6 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
   }
 };
 
-/**
- * Update segment name in both database and localStorage
- */
 export const updateSegmentName = async (cityId: string, segmentId: string, newName: string): Promise<boolean> => {
   try {
     // Update in database
@@ -376,7 +381,7 @@ export const updateSegmentName = async (cityId: string, segmentId: string, newNa
   }
 };
 
-// Add a helper function to migrate data from localStorage to database when needed
+// Automatically migrate data from localStorage to database when needed
 export const migrateDataToDatabase = async (): Promise<boolean> => {
   try {
     // Get all keys from localStorage that start with 'city_'

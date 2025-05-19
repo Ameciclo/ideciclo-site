@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { City, Segment, Form, Review, SegmentType } from "@/types";
+import { City, Segment, Form, Review, SegmentType, RatingType } from "@/types";
 import { Database } from "@/integrations/supabase/types";
 
 // Type aliases for database row types
@@ -26,7 +26,7 @@ const convertFormRowToForm = (row: FormRow): Form => ({
   segment_id: row.segment_id,
   city_id: row.city_id,
   researcher: row.researcher || '',
-  date: row.date ? new Date(row.date) : new Date(),
+  date: row.date || new Date().toISOString(),
   street_name: row.street_name || '',
   neighborhood: row.neighborhood || '',
   extension: row.extension || 0,
@@ -34,9 +34,12 @@ const convertFormRowToForm = (row: FormRow): Form => ({
   end_point: row.end_point || '',
   hierarchy: row.hierarchy || '',
   observations: row.observations || '',
-  responses: row.responses || {},
-  created_at: row.created_at ? new Date(row.created_at) : new Date(),
-  updated_at: row.updated_at ? new Date(row.updated_at) : new Date(),
+  responses: row.responses as Record<string, any> || {},
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+  velocity: row.velocity || undefined,
+  blocks_count: row.blocks_count || undefined,
+  intersections_count: row.intersections_count || undefined,
 });
 
 /**
@@ -242,7 +245,7 @@ export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> =>
     segment_id: form.segment_id,
     city_id: form.city_id,
     researcher: form.researcher || null,
-    date: form.date instanceof Date ? form.date.toISOString() : new Date().toISOString(),
+    date: form.date instanceof Date ? form.date.toISOString() : form.date || new Date().toISOString(),
     street_name: form.street_name || null,
     neighborhood: form.neighborhood || null,
     extension: form.extension || null,
@@ -326,7 +329,7 @@ export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
   // Prepare reviews for insertion by ensuring they match the database schema
   const reviewsToInsert = reviews.map(review => ({
     id: review.id,
-    form_id: review.form_id || `form-${review.id.split('-')[1]}`, // Fallback if form_id is missing
+    form_id: review.form_id,
     rating_name: review.rating_name,
     rating: review.rating,
     weight: review.weight
@@ -358,7 +361,7 @@ export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => 
   return data.map((review: ReviewRow): Review => ({
     id: review.id,
     form_id: review.form_id,
-    rating_name: review.rating_name,
+    rating_name: review.rating_name as RatingType,
     rating: review.rating,
     weight: review.weight
   }));
@@ -412,7 +415,7 @@ export const migrateLocalStorageToDatabase = async (): Promise<boolean> => {
           segment_id: segmentId,
           city_id: cityId,
           researcher: formJson.researcher || '',
-          date: new Date(),
+          date: new Date().toISOString(),
           street_name: formJson.streetName || '',
           neighborhood: formJson.neighborhood || '',
           extension: formJson.extension || 0,

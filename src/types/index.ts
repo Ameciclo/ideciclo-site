@@ -31,7 +31,7 @@ export interface Segment {
   name: string;
   type: SegmentType;
   length: number;
-  neighborhood?: string;  // Add the neighborhood property as optional
+  neighborhood?: string;
   geometry: any;
   selected: boolean;
   evaluated: boolean;
@@ -42,7 +42,7 @@ export interface Form {
   segment_id: string;
   city_id: string;
   researcher: string;
-  date: Date;
+  date: string | Date; // Changed to allow string or Date
   street_name: string;
   neighborhood: string;
   extension: number;
@@ -51,8 +51,8 @@ export interface Form {
   hierarchy: string;
   observations: string;
   responses: Record<string, any>;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string | Date; // Changed to allow string or Date
+  updated_at: string | Date; // Changed to allow string or Date
   velocity?: number;
   blocks_count?: number;
   intersections_count?: number;

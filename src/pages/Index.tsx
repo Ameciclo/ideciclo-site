@@ -1,16 +1,19 @@
+
 import { migrateLocalStorageToDatabase } from "@/services/supabase";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Database, Loader2 } from "lucide-react";
+import { Database, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Index = () => {
   const [isMigrating, setIsMigrating] = useState(false);
@@ -50,6 +53,16 @@ const Index = () => {
     <div className="container py-8">
       <h1 className="text-3xl font-bold mb-6">Sistema de Avaliação IDECiclo</h1>
 
+      <Alert className="mb-6">
+        <Info className="h-4 w-4" />
+        <AlertTitle>Migração Automática</AlertTitle>
+        <AlertDescription>
+          O sistema agora faz a migração automática dos dados do armazenamento local para o banco de dados 
+          quando uma cidade é acessada pela primeira vez. Não é necessário usar o botão de migração abaixo 
+          a menos que você queira forçar uma migração manual.
+        </AlertDescription>
+      </Alert>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <Card>
           <CardHeader>
@@ -60,10 +73,12 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <p>Comece a avaliar a infraestrutura cicloviária da sua cidade.</p>
-            <Link to="/avaliar">
-              <Button className="mt-4">Começar Avaliação</Button>
-            </Link>
           </CardContent>
+          <CardFooter>
+            <Link to="/avaliar">
+              <Button>Começar Avaliação</Button>
+            </Link>
+          </CardFooter>
         </Card>
 
         <Card>
@@ -75,6 +90,8 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <p>Saiba mais sobre o projeto e como você pode contribuir.</p>
+          </CardContent>
+          <CardFooter>
             <Button variant="secondary" asChild>
               <a
                 href="https://github.com/DanielFranca/ideciclo-frontend"
@@ -84,7 +101,7 @@ const Index = () => {
                 Ver no GitHub
               </a>
             </Button>
-          </CardContent>
+          </CardFooter>
         </Card>
       </div>
 
@@ -104,7 +121,7 @@ const Index = () => {
             ) : (
               <Database className="h-4 w-4" />
             )}
-            Migrar dados para o banco de dados
+            Migrar dados manualmente para o banco de dados
           </Button>
         </div>
       </div>
