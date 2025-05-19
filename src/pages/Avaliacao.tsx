@@ -45,19 +45,21 @@ const Avaliacao = () => {
   useEffect(() => {
     const fetchStates = async () => {
       try {
+        // Instead of using distinct, we'll fetch all cities and extract unique states
         const { data, error } = await supabase
           .from('cities')
-          .select('state')
-          .distinct();
+          .select('state');
         
         if (error) {
           console.error("Error fetching states:", error);
           return;
         }
 
-        const uniqueStates = data.map(item => ({
-          id: item.state,
-          name: item.state
+        // Extract unique states
+        const uniqueStatesSet = new Set(data.map(item => item.state));
+        const uniqueStates = Array.from(uniqueStatesSet).map(state => ({
+          id: state,
+          name: state
         }));
 
         setStates(uniqueStates);

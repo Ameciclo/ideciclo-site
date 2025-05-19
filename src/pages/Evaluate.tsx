@@ -178,36 +178,6 @@ const Evaluate = () => {
     }
   };
 
-  const handleMigrateToDatabase = async () => {
-    try {
-      setIsMigrating(true);
-      
-      const result = await migrateDataToDatabase();
-      
-      if (result) {
-        toast({
-          title: "Migração concluída",
-          description: "Todos os dados foram migrados com sucesso para o banco de dados.",
-        });
-      } else {
-        toast({
-          title: "Erro na migração",
-          description: "Ocorreu um erro ao migrar os dados para o banco de dados.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erro na migração:", error);
-      toast({
-        title: "Erro na migração",
-        description: "Ocorreu um erro ao migrar os dados para o banco de dados.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
   const handleCitySelected = async (stateId: string, selectedCityId: string, selectedCityName: string, selectedStateName: string) => {
     try {
       setIsLoading(true);

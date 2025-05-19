@@ -1,68 +1,46 @@
 
-import { useState } from "react";
-import { Segment, SegmentType, RatingType } from "@/types";
-import OriginalSegmentsTable from "./OriginalSegmentsTable";
+import { useState } from 'react';
+import { Segment } from '@/types';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
-interface TableSortableWrapperProps {
+interface OriginalSegmentsTableProps {
   segments: Segment[];
-  onSelectSegment?: (id: string, selected: boolean) => void;
-  onMergeSelected?: () => void;
-  selectedSegmentsCount?: number;
-  onMergeDataChange?: (data: { name: string; type: SegmentType }) => void;
-  onUpdateSegmentName?: (id: string, newName: string) => void;
   showSortOptions?: boolean;
-  hideSelectColumn?: boolean;
-  hideNameEditing?: boolean;
 }
 
-export function TableSortableWrapper({
-  segments,
-  onSelectSegment,
-  onMergeSelected,
-  selectedSegmentsCount,
-  onMergeDataChange,
-  onUpdateSegmentName,
-  showSortOptions = false,
-  hideSelectColumn = false,
-  hideNameEditing = false
-}: TableSortableWrapperProps) {
+export const TableSortableWrapper = ({ segments: initialSegments, showSortOptions = false }: OriginalSegmentsTableProps) => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedRating, setSelectedRating] = useState<string>("all");
-  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const [mergeName, setMergeName] = useState("");
-  const [mergeType, setMergeType] = useState<SegmentType>(SegmentType.CICLOFAIXA);
+  const [segments, setSegments] = useState<Segment[]>(initialSegments);
 
-  const handleMergeConfirm = () => {
-    if (onMergeDataChange) {
-      onMergeDataChange({
-        name: mergeName,
-        type: mergeType
-      });
-    }
-    setMergeDialogOpen(false);
-    
-    if (onMergeSelected) {
-      onMergeSelected();
-    }
-  };
-
-  const handleMergeClick = () => {
-    setMergeDialogOpen(true);
-    setMergeName(`Segmento mesclado (${selectedSegmentsCount})`);
-    setMergeType(SegmentType.CICLOFAIXA);
-  };
+  // Update segments when initialSegments change
+  if (JSON.stringify(initialSegments) !== JSON.stringify(segments)) {
+    setSegments(initialSegments);
+  }
 
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === "asc" ? "desc" : "asc");
   };
 
-  // Sort segments by name
   const sortedSegments = [...segments].sort((a, b) => {
     const nameA = a.name.toLowerCase();
     const nameB = b.name.toLowerCase();
@@ -74,7 +52,6 @@ export function TableSortableWrapper({
     }
   });
 
-  // Filter by rating (would need to integrate with actual rating data)
   const filteredSegments = selectedRating === "all" 
     ? sortedSegments 
     : sortedSegments.filter(segment => {
@@ -84,23 +61,17 @@ export function TableSortableWrapper({
       });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <h3 className="text-lg font-semibold">Segmentos Cicloviários</h3>
-        
+    <div>
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-2">Segmentos</h3>
         {showSortOptions && (
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-4 mb-2">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={toggleSortDirection}
-              className="flex items-center gap-1"
             >
-              {sortDirection === "asc" ? (
-                <>Ordenar por Nome <ArrowDownAZ className="h-4 w-4" /></>
-              ) : (
-                <>Ordenar por Nome <ArrowUpAZ className="h-4 w-4" /></>
-              )}
+              Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
             </Button>
             
             <div className="flex items-center gap-2">
@@ -120,66 +91,49 @@ export function TableSortableWrapper({
             </div>
           </div>
         )}
-        
-        {!hideSelectColumn && selectedSegmentsCount && selectedSegmentsCount > 1 && (
-          <Button onClick={handleMergeClick}>
-            Mesclar {selectedSegmentsCount} segmentos
-          </Button>
-        )}
       </div>
 
-      <OriginalSegmentsTable 
-        segments={filteredSegments} 
-        onSelectSegment={hideSelectColumn ? undefined : onSelectSegment} 
-        onUpdateSegmentName={hideNameEditing ? undefined : onUpdateSegmentName}
-        hideSelectColumn={hideSelectColumn}
-        hideNameEditing={hideNameEditing}
-      />
-      
-      <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mesclar segmentos</DialogTitle>
-            <DialogDescription>
-              Defina as propriedades do segmento mesclado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="merge-name" className="text-right">
-                Nome
-              </Label>
-              <Input
-                id="merge-name"
-                value={mergeName}
-                onChange={(e) => setMergeName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="merge-type" className="text-right">
-                Tipo
-              </Label>
-              <Select value={mergeType} onValueChange={(val) => setMergeType(val as SegmentType)}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Tipo de segmento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SegmentType.CICLOFAIXA}>Ciclofaixa</SelectItem>
-                  <SelectItem value={SegmentType.CICLOVIA}>Ciclovia</SelectItem>
-                  <SelectItem value={SegmentType.CICLORROTA}>Ciclorrota</SelectItem>
-                  <SelectItem value={SegmentType.COMPARTILHADA}>Compartilhada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit" onClick={handleMergeConfirm}>
-              Mesclar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="rounded-md border">
+        <Table>
+          <TableCaption>Lista de segmentos cicloviários</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-right">Extensão (km)</TableHead>
+              <TableHead className="text-right">Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredSegments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6">Nenhum segmento encontrado</TableCell>
+              </TableRow>
+            ) : (
+              filteredSegments.map(segment => (
+                <TableRow key={segment.id}>
+                  <TableCell className="font-medium">{segment.name}</TableCell>
+                  <TableCell>{segment.type}</TableCell>
+                  <TableCell className="text-right">{segment.length.toFixed(4)}</TableCell>
+                  <TableCell className="text-right">
+                    {segment.evaluated ? "Avaliado" : "Não avaliado"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/avaliar/formulario/${segment.id}`}>
+                        {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
-}
+};
+
+export default TableSortableWrapper;
