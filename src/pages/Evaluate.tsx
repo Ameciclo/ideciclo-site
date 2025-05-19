@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -15,13 +14,12 @@ import {
   calculateMergedLength, 
   getStoredCityData, 
   storeCityData,
-  updateSegmentName,
-  migrateDataToDatabase
+  updateSegmentName
 } from "@/services/api";
 import { fetchFormBySegmentId } from "@/services/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Database, HardDrive, Loader2, RefreshCw, Undo2 } from "lucide-react";
+import { AlertCircle, HardDrive, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Evaluate = () => {
@@ -30,7 +28,6 @@ const Evaluate = () => {
   const [cityName, setCityName] = useState<string>("");
   const [stateName, setStateName] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isMigrating, setIsMigrating] = useState<boolean>(false);
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -491,16 +488,8 @@ const Evaluate = () => {
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Avaliação de Infraestrutura Cicloviária</h2>
+        <h2 className="text-2xl font-bold">Refinar Dados de Infraestrutura Cicloviária</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleMigrateToDatabase} disabled={isMigrating}>
-            {isMigrating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="mr-2 h-4 w-4" />
-            )}
-            Migrar dados para DB
-          </Button>
           <Button variant="outline" onClick={handleBackToStart}>Voltar ao Início</Button>
         </div>
       </div>
@@ -520,25 +509,23 @@ const Evaluate = () => {
         </Alert>
       )}
 
-      {(isLoading || isMigrating) && (
+      {isLoading && (
         <div className="flex justify-center items-center py-20">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <p>
-              {isLoading
-                ? "Carregando dados... Por favor aguarde."
-                : "Migrando dados para o banco de dados... Por favor aguarde."}
+              Carregando dados... Por favor aguarde.
             </p>
           </div>
         </div>
       )}
 
-      {!isLoading && !isMigrating && !error && step === 'selection' && (
+      {!isLoading && !error && step === 'selection' && (
         <Card>
           <CardHeader>
             <CardTitle>Selecionar Cidade</CardTitle>
             <CardDescription>
-              Escolha o estado e a cidade para iniciar a avaliação
+              Escolha o estado e a cidade para refinar os dados
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -597,6 +584,7 @@ const Evaluate = () => {
                 selectedSegmentsCount={selectedSegmentsCount}
                 onMergeDataChange={setMergeData}
                 onUpdateSegmentName={handleUpdateSegmentName}
+                showSortOptions={true}
               />
             </div>
             <div>
