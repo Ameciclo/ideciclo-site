@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -22,6 +21,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
+import TableSortableWrapper from "@/components/TableSortableWrapper";
 
 const Evaluate = () => {
   const [step, setStep] = useState<'selection' | 'evaluation'>('selection');
@@ -32,6 +40,8 @@ const Evaluate = () => {
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedRating, setSelectedRating] = useState<string>("all");
   const [mergeData, setMergeData] = useState<{
     name: string;
     type: SegmentType;
@@ -550,47 +560,14 @@ const Evaluate = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
               
-              <div className="mb-4 flex items-center gap-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
-                >
-                  Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
-                </Button>
-                
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="filter-rating">Filtrar por nota:</Label>
-                  <Select value={selectedRating} onValueChange={setSelectedRating}>
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="A">A</SelectItem>
-                      <SelectItem value="B">B</SelectItem>
-                      <SelectItem value="C">C</SelectItem>
-                      <SelectItem value="D">D</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {selectedSegmentsCount > 0 && (
-                  <Button 
-                    onClick={handleMergeSegments}
-                    disabled={selectedSegmentsCount < 2}
-                  >
-                    Mesclar {selectedSegmentsCount} segmentos
-                  </Button>
-                )}
-              </div>
-              
-              <OriginalSegmentsTable 
+              <TableSortableWrapper 
                 segments={segments}
+                showSortOptions={true}
                 onSelectSegment={handleSelectSegment}
+                onMergeSelected={handleMergeSegments}
+                selectedSegmentsCount={selectedSegmentsCount}
+                onMergeDataChange={setMergeData}
                 onUpdateSegmentName={handleUpdateSegmentName}
-                hideSelectColumn={false}
-                hideNameEditing={false}
               />
             </div>
             <div>
