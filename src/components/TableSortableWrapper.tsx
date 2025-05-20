@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Segment, SegmentType } from '@/types';
 import {
@@ -21,7 +20,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ArrowDown, ArrowUp, Filter } from "lucide-react";
 import OriginalSegmentsTable from './OriginalSegmentsTable';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from './ui/pagination';
 
@@ -72,10 +71,11 @@ export const TableSortableWrapper = ({
   const filteredAndSortedSegments = () => {
     return [...initialSegments]
       .filter(segment => {
-        // Filter by rating (currently a placeholder as we don't have ratings yet)
+        // Filter by rating
         if (selectedRating !== "all") {
-          // We would filter by rating here if we had rating data
-          return true; // For now just return all
+          // For now, placeholder as we don't have ratings directly in segments
+          // In a real implementation, this would check segment.rating
+          return true; // We would filter by rating here if ratings were available
         }
         return true;
       })
@@ -156,30 +156,17 @@ export const TableSortableWrapper = ({
         {showSortOptions && (
           <div className="mb-4">
             <div className="flex flex-wrap items-center gap-4 mb-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={toggleSortDirection}
-              >
-                Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
-              </Button>
-              
-              <div className="flex items-center gap-2">
-                <Label htmlFor="filter-rating">Filtrar por nota:</Label>
-                <Select value={selectedRating} onValueChange={setSelectedRating}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="A">A</SelectItem>
-                    <SelectItem value="B">B</SelectItem>
-                    <SelectItem value="C">C</SelectItem>
-                    <SelectItem value="D">D</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
+              {selectedSegmentsCount !== undefined && selectedSegmentsCount > 0 && onMergeSelected && (
+                <Button 
+                  onClick={() => onMergeSelected()}
+                  disabled={selectedSegmentsCount < 2}
+                >
+                  Mesclar {selectedSegmentsCount} segmentos
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <Label htmlFor="filter-type">Filtrar por tipo:</Label>
                 <Select value={selectedType} onValueChange={setSelectedType}>
@@ -195,18 +182,7 @@ export const TableSortableWrapper = ({
                   </SelectContent>
                 </Select>
               </div>
-              
-              {selectedSegmentsCount !== undefined && selectedSegmentsCount > 0 && onMergeSelected && (
-                <Button 
-                  onClick={() => onMergeSelected()}
-                  disabled={selectedSegmentsCount < 2}
-                >
-                  Mesclar {selectedSegmentsCount} segmentos
-                </Button>
-              )}
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-4 mb-4">
+
               <div className="flex items-center gap-2">
                 <Label htmlFor="min-length">Extensão mínima (km):</Label>
                 <Input 
@@ -300,14 +276,6 @@ export const TableSortableWrapper = ({
     <div>
       <div className="mb-4">
         <div className="flex flex-wrap items-center gap-4 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={toggleSortDirection}
-          >
-            Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
-          </Button>
-          
           <div className="flex items-center gap-2">
             <Label htmlFor="filter-rating">Filtrar por nota:</Label>
             <Select value={selectedRating} onValueChange={setSelectedRating}>
@@ -386,7 +354,17 @@ export const TableSortableWrapper = ({
           <TableCaption>Lista de segmentos cicloviários</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
+              <TableHead className="flex items-center gap-2">
+                Nome
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-6 w-6" 
+                  onClick={toggleSortDirection}
+                >
+                  {sortDirection === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                </Button>
+              </TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Extensão (km)</TableHead>
               <TableHead className="text-right">Status</TableHead>
