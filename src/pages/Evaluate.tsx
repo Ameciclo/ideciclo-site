@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -80,52 +81,27 @@ const Evaluate = () => {
       setIsLoading(true);
       setError(null);
       
+      console.log("Loading data for city ID:", selectedCityId);
+      
       // First check if city data exists in the database
       const dbCity = await fetchCityFromDB(selectedCityId);
-      const dbSegments = await fetchSegmentsFromDB(selectedCityId);
+      console.log("Database city data:", dbCity);
       
-      if (dbCity && dbSegments.length > 0) {
-        // City data exists in database
-        setCity(dbCity);
+      if (dbCity) {
+        const dbSegments = await fetchSegmentsFromDB(selectedCityId);
+        console.log("Database segments found:", dbSegments.length);
         
-        // For each segment, check if it has been evaluated
-        for (let i = 0; i < dbSegments.length; i++) {
-          const segment = dbSegments[i];
-          const form = await fetchFormBySegmentId(segment.id);
-          
-          if (form) {
-            dbSegments[i] = {
-              ...segment,
-              evaluated: true,
-              id_form: form.id
-            };
-          }
-        }
-        
-        setSegments(dbSegments);
-        setStep('evaluation');
-        
-        toast({
-          title: "Dados carregados do banco de dados",
-          description: `Dados de ${dbCity.name}/${dbCity.state} carregados com sucesso do banco de dados!`,
-        });
-      } else {
-        // Try to load city data from localStorage
-        const storedData = await getStoredCityData(selectedCityId);
-        
-        if (storedData) {
-          setCity(storedData.city);
+        if (dbSegments.length > 0) {
+          // City data exists in database
+          setCity(dbCity);
           
           // For each segment, check if it has been evaluated
-          const enhancedSegments = [...storedData.segments];
-          
-          // Check evaluation status for each segment
-          for (let i = 0; i < enhancedSegments.length; i++) {
-            const segment = enhancedSegments[i];
+          for (let i = 0; i < dbSegments.length; i++) {
+            const segment = dbSegments[i];
             const form = await fetchFormBySegmentId(segment.id);
             
             if (form) {
-              enhancedSegments[i] = {
+              dbSegments[i] = {
                 ...segment,
                 evaluated: true,
                 id_form: form.id
@@ -133,30 +109,70 @@ const Evaluate = () => {
             }
           }
           
-          setSegments(enhancedSegments);
+          setSegments(dbSegments);
           setStep('evaluation');
           
-          // Store city and segments in database for future use
-          const savedCity = await saveCityToDB(storedData.city);
-          const savedSegments = await saveSegmentsToDB(enhancedSegments);
-          
-          if (savedCity && savedSegments) {
-            toast({
-              title: "Dados carregados e salvos",
-              description: `Dados de ${storedData.city.name}/${storedData.city.state} carregados do armazenamento local e salvos no banco de dados!`,
-            });
-          }
-        } else {
-          // If no stored data, we need to fetch it from API
-          handleCitySelected("", selectedCityId, 
-            localStorage.getItem('currentCityName') || "", 
-            localStorage.getItem('currentStateName') || "");
+          toast({
+            title: "Dados carregados do banco de dados",
+            description: `Dados de ${dbCity.name}/${dbCity.state} carregados com sucesso do banco de dados!`,
+          });
+          setIsLoading(false);
+          return;
         }
       }
+      
+      // Try to load city data from localStorage
+      console.log("Trying to load data from localStorage");
+      const storedData = await getStoredCityData(selectedCityId);
+      
+      if (storedData) {
+        console.log("Found data in localStorage:", storedData);
+        setCity(storedData.city);
+        
+        // For each segment, check if it has been evaluated
+        const enhancedSegments = [...storedData.segments];
+        
+        // Check evaluation status for each segment
+        for (let i = 0; i < enhancedSegments.length; i++) {
+          const segment = enhancedSegments[i];
+          const form = await fetchFormBySegmentId(segment.id);
+          
+          if (form) {
+            enhancedSegments[i] = {
+              ...segment,
+              evaluated: true,
+              id_form: form.id
+            };
+          }
+        }
+        
+        setSegments(enhancedSegments);
+        setStep('evaluation');
+        
+        // Store city and segments in database for future use
+        console.log("Saving data to database for future use");
+        const savedCity = await saveCityToDB(storedData.city);
+        const savedSegments = await saveSegmentsToDB(enhancedSegments);
+        
+        if (savedCity && savedSegments) {
+          toast({
+            title: "Dados carregados e salvos",
+            description: `Dados de ${storedData.city.name}/${storedData.city.state} carregados do armazenamento local e salvos no banco de dados!`,
+          });
+        }
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no stored data, we need to fetch it from API
+      console.log("No stored data found, fetching from API");
+      handleCitySelected("", selectedCityId, 
+        localStorage.getItem('currentCityName') || "", 
+        localStorage.getItem('currentStateName') || "");
+      
     } catch (error) {
       console.error("Erro ao carregar dados armazenados:", error);
       setError("Falha ao carregar dados armazenados");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -244,44 +260,59 @@ const Evaluate = () => {
       localStorage.setItem('currentCityName', selectedCityName);
       localStorage.setItem('currentStateName', selectedStateName);
 
+      console.log(`Fetching data for city: ${selectedCityName} (ID: ${selectedCityId})`);
+
       // First check if city data exists in database
       const dbCity = await fetchCityFromDB(selectedCityId);
-      const dbSegments = await fetchSegmentsFromDB(selectedCityId);
+      console.log("Database city result:", dbCity);
       
-      if (dbCity && dbSegments.length > 0) {
-        // City data exists in database
-        setCity(dbCity);
+      if (dbCity) {
+        const dbSegments = await fetchSegmentsFromDB(selectedCityId);
+        console.log(`Found ${dbSegments.length} segments in database`);
         
-        // For each segment, check if it has been evaluated
-        for (let i = 0; i < dbSegments.length; i++) {
-          const segment = dbSegments[i];
-          const form = await fetchFormBySegmentId(segment.id);
+        if (dbSegments.length > 0) {
+          // City data exists in database
+          setCity(dbCity);
           
-          if (form) {
-            dbSegments[i] = {
-              ...segment,
-              evaluated: true,
-              id_form: form.id
-            };
+          // For each segment, check if it has been evaluated
+          const enhancedSegments = [...dbSegments];
+          for (let i = 0; i < enhancedSegments.length; i++) {
+            const segment = enhancedSegments[i];
+            try {
+              const form = await fetchFormBySegmentId(segment.id);
+              
+              if (form) {
+                enhancedSegments[i] = {
+                  ...segment,
+                  evaluated: true,
+                  id_form: form.id
+                };
+              }
+            } catch (error) {
+              console.error(`Error fetching form for segment ${segment.id}:`, error);
+            }
           }
+          
+          setSegments(enhancedSegments);
+          
+          toast({
+            title: "Dados carregados do banco de dados",
+            description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso do banco de dados!`,
+          });
+          
+          // Move to evaluation step
+          setStep('evaluation');
+          setIsLoading(false);
+          return;
         }
-        
-        setSegments(dbSegments);
-        
-        toast({
-          title: "Dados carregados do banco de dados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso do banco de dados!`,
-        });
-        
-        // Move to evaluation step
-        setStep('evaluation');
-        return;
       }
       
       // Then check if data is in localStorage
+      console.log("Checking local storage for city data");
       const storedData = await getStoredCityData(selectedCityId);
       
       if (storedData) {
+        console.log("Found data in local storage:", storedData);
         setCity(storedData.city);
         
         // For each segment, check if it has been evaluated
@@ -290,20 +321,25 @@ const Evaluate = () => {
         // Check evaluation status for each segment
         for (let i = 0; i < enhancedSegments.length; i++) {
           const segment = enhancedSegments[i];
-          const form = await fetchFormBySegmentId(segment.id);
-          
-          if (form) {
-            enhancedSegments[i] = {
-              ...segment,
-              evaluated: true,
-              id_form: form.id
-            };
+          try {
+            const form = await fetchFormBySegmentId(segment.id);
+            
+            if (form) {
+              enhancedSegments[i] = {
+                ...segment,
+                evaluated: true,
+                id_form: form.id
+              };
+            }
+          } catch (error) {
+            console.error(`Error fetching form for segment ${segment.id}:`, error);
           }
         }
         
         setSegments(enhancedSegments);
         
         // Store city and segments in database for future use
+        console.log("Saving data to database");
         await saveCityToDB(storedData.city);
         await saveSegmentsToDB(enhancedSegments);
         
@@ -311,35 +347,43 @@ const Evaluate = () => {
           title: "Dados carregados",
           description: `Dados de ${selectedCityName}/${selectedStateName} carregados do armazenamento local!`,
         });
-      } else {
-        // If no stored data, fetch from API
         
-        // Fetch highway stats
-        const highwayStats = await fetchCityHighwayStats(selectedCityId);
-        const cityStats = calculateCityStats(highwayStats);
+        // Move to evaluation step
+        setStep('evaluation');
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no stored data, fetch from API
+      console.log("No data found locally, fetching from API");
+      
+      // Fetch highway stats
+      const highwayStats = await fetchCityHighwayStats(selectedCityId);
+      const cityStats = calculateCityStats(highwayStats);
 
-        // Create city record
-        const newCity: Partial<City> = {
-          id: selectedCityId,
-          name: selectedCityName,
-          state: selectedStateName,
-          extensao_avaliada: 0,
-          ideciclo: 0,
-          ...cityStats
-        };
-        
-        setCity(newCity);
+      // Create city record
+      const newCity: Partial<City> = {
+        id: selectedCityId,
+        name: selectedCityName,
+        state: selectedStateName,
+        extensao_avaliada: 0,
+        ideciclo: 0,
+        ...cityStats
+      };
+      
+      setCity(newCity);
 
-        // Fetch segments
-        const waysData = await fetchCityWays(selectedCityId);
-        const citySegments = convertToSegments(waysData, selectedCityId);
-        
-        // For each segment, check if it has been evaluated
-        const enhancedSegments = [...citySegments];
-        
-        // Check evaluation status for each segment
-        for (let i = 0; i < enhancedSegments.length; i++) {
-          const segment = enhancedSegments[i];
+      // Fetch segments
+      const waysData = await fetchCityWays(selectedCityId);
+      const citySegments = convertToSegments(waysData, selectedCityId);
+      
+      // For each segment, check if it has been evaluated
+      const enhancedSegments = [...citySegments];
+      
+      // Check evaluation status for each segment
+      for (let i = 0; i < enhancedSegments.length; i++) {
+        const segment = enhancedSegments[i];
+        try {
           const form = await fetchFormBySegmentId(segment.id);
           
           if (form) {
@@ -349,23 +393,26 @@ const Evaluate = () => {
               id_form: form.id
             };
           }
+        } catch (error) {
+          console.error(`Error fetching form for segment ${segment.id}:`, error);
         }
-        
-        setSegments(enhancedSegments);
-        
-        // Store data in database and localStorage
-        await saveCityToDB(newCity);
-        await saveSegmentsToDB(enhancedSegments);
-        await storeCityData(selectedCityId, {
-          city: newCity,
-          segments: enhancedSegments
-        });
-
-        toast({
-          title: "Sucesso",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso da API!`,
-        });
       }
+      
+      setSegments(enhancedSegments);
+      
+      // Store data in database and localStorage
+      console.log("Saving newly fetched data to database and localStorage");
+      await saveCityToDB(newCity);
+      await saveSegmentsToDB(enhancedSegments);
+      await storeCityData(selectedCityId, {
+        city: newCity,
+        segments: enhancedSegments
+      });
+
+      toast({
+        title: "Sucesso",
+        description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso da API!`,
+      });
 
       // Move to evaluation step
       setStep('evaluation');
