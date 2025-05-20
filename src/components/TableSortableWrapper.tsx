@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Segment } from '@/types';
 import {
@@ -80,13 +81,52 @@ export const TableSortableWrapper = ({
   if (onSelectSegment && onUpdateSegmentName) {
     // This is the "Refine Data" page version with selection, merging, and name editing
     return (
-      <OriginalSegmentsTable 
-        segments={filteredSegments}
-        onSelectSegment={onSelectSegment}
-        onUpdateSegmentName={onUpdateSegmentName}
-        hideSelectColumn={false}
-        hideNameEditing={false}
-      />
+      <div>
+        {showSortOptions && (
+          <div className="flex items-center gap-4 mb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={toggleSortDirection}
+            >
+              Ordenar por Nome {sortDirection === "asc" ? "↑" : "↓"}
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <Label htmlFor="filter-rating">Filtrar por nota:</Label>
+              <Select value={selectedRating} onValueChange={setSelectedRating}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="C">C</SelectItem>
+                  <SelectItem value="D">D</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedSegmentsCount !== undefined && selectedSegmentsCount > 0 && onMergeSelected && (
+              <Button 
+                onClick={() => onMergeSelected()}
+                disabled={selectedSegmentsCount < 2}
+              >
+                Mesclar {selectedSegmentsCount} segmentos
+              </Button>
+            )}
+          </div>
+        )}
+        
+        <OriginalSegmentsTable 
+          segments={filteredSegments}
+          onSelectSegment={onSelectSegment}
+          onUpdateSegmentName={onUpdateSegmentName}
+          hideSelectColumn={false}
+          hideNameEditing={false}
+        />
+      </div>
     );
   }
 

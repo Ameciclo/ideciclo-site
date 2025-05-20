@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
-import SegmentsTable from "@/components/SegmentsTable";
+import TableSortableWrapper from "@/components/TableSortableWrapper";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -115,12 +115,11 @@ const Avaliacao = () => {
       const { data, error } = await supabase
         .from('segments')
         .select('*')
-        .eq('id_cidade', cityId)
-        .eq('evaluated', true);
+        .eq('id_cidade', cityId);
       
       if (error) {
         console.error("Error fetching segments:", error);
-        setError("Erro ao carregar segmentos avaliados");
+        setError("Erro ao carregar segmentos");
         return;
       }
 
@@ -158,7 +157,7 @@ const Avaliacao = () => {
         <CardHeader>
           <CardTitle>Selecionar Cidade</CardTitle>
           <CardDescription>
-            Escolha o estado e a cidade para visualizar os segmentos avaliados
+            Escolha o estado e a cidade para visualizar os segmentos
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -214,7 +213,7 @@ const Avaliacao = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>{selectedCity.name}, {selectedCity.state}</CardTitle>
-                  <CardDescription>Segmentos avaliados</CardDescription>
+                  <CardDescription>Segmentos disponíveis para avaliação</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -234,7 +233,7 @@ const Avaliacao = () => {
                 </div>
               </div>
               
-              <SegmentsTable segments={segments} showSortOptions={true} />
+              <TableSortableWrapper segments={segments} showSortOptions={true} />
             </CardContent>
           </Card>
         </div>
@@ -242,9 +241,9 @@ const Avaliacao = () => {
 
       {!isLoading && selectedCity && segments.length === 0 && (
         <Alert>
-          <AlertTitle>Nenhum segmento avaliado</AlertTitle>
+          <AlertTitle>Nenhum segmento encontrado</AlertTitle>
           <AlertDescription>
-            Não foram encontrados segmentos avaliados para esta cidade.
+            Não foram encontrados segmentos para esta cidade.
           </AlertDescription>
         </Alert>
       )}
