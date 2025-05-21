@@ -285,28 +285,29 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
     .filter((segment): segment is Segment => segment !== null); 
 };
 
-export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
-  const lines = segments.map(segment => {
-    const geometry = JSON.parse(segment.geometry);
-    return geometry.coordinates;
-  });
+// export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
+//   const lines = segments.map(segment => {
+//     const geometry = JSON.parse(segment.geometry);
+//     return geometry.coordinates;
+//   });
 
-  const multiLine = turf.multiLineString(lines);
+//   const multiLine = turf.multiLineString(lines);
 
-  const totalLength = segments.reduce((sum, segment) => {
-    const geometry = JSON.parse(segment.geometry);
-    const line = turf.lineString(geometry.coordinates);
-    return sum + turf.length(line, { units: 'kilometers' });
-  }, 0);
+//   const totalLength = segments.reduce((sum, segment) => {
+//     const geometry = JSON.parse(segment.geometry);
+//     const line = turf.lineString(geometry.coordinates);
+//     return sum + turf.length(line, { units: 'kilometers' });
+//   }, 0);
 
-  return {
-    length: parseFloat(totalLength.toFixed(4)),
-    geometry: JSON.stringify(multiLine.geometry),
-  };
-};
+//   return {
+//     length: parseFloat(totalLength.toFixed(4)),
+//     geometry: JSON.stringify(multiLine.geometry),
+//   };
+// };
 
 // mergear garantindo que as linhas estão conectadas com lineMerge
-export const mergeGeometry2 = (segments: Segment[]): { length: number; geometry: string } => {
+
+export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
   const lines = segments.map(segment => {
     const geometry = JSON.parse(segment.geometry);
     const coords = geometry.coordinates;

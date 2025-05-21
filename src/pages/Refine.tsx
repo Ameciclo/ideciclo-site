@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -31,6 +30,7 @@ import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import TableSortableWrapper from "@/components/TableSortableWrapper";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
+import CityMap from "@/components/CityMap";
 
 const Refine = () => {
   const [step, setStep] = useState<"selection" | "refinement">("selection");
@@ -42,7 +42,8 @@ const Refine = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
-  
+  const [showMap, setShowMap] = useState(true);
+
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -107,10 +108,10 @@ const Refine = () => {
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
-        
+
         // Update local storage with fresh data
         saveLocalSegments(selectedCityId, storedData.segments);
-        
+
         setStep("refinement");
       }
     } catch (error) {
@@ -303,20 +304,19 @@ const Refine = () => {
     try {
       // Update in the database
       await updateSegmentName(cityId, segmentId, newName);
-      
+
       // Update state for UI
       setSegments((prevSegments) =>
         prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, name: newName } : seg
         )
       );
-      
+
       // Update local storage
-      const updatedSegments = segments.map((seg) => 
+      const updatedSegments = segments.map((seg) =>
         seg.id === segmentId ? { ...seg, name: newName } : seg
       );
       saveLocalSegments(cityId, updatedSegments);
-      
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -331,14 +331,16 @@ const Refine = () => {
     try {
       // Remove from database
       await removeSegments([segmentId]);
-      
+
       // Update state
-      const updatedSegments = segments.filter(segment => segment.id !== segmentId);
+      const updatedSegments = segments.filter(
+        (segment) => segment.id !== segmentId
+      );
       setSegments(updatedSegments);
-      
+
       // Update local storage
       saveLocalSegments(cityId, updatedSegments);
-      
+
       toast({
         title: "Segmento removido",
         description: "O segmento foi removido com sucesso.",
@@ -359,21 +361,29 @@ const Refine = () => {
       segment.id === id ? { ...segment, selected } : segment
     );
     setSegments(updatedSegments);
-    
+
     // Update local storage
     saveLocalSegments(cityId, updatedSegments);
   };
 
-  const handleMergeButtonClick = () => {
-    if (selectedSegmentsCount >= 2) {
-      setMergeDialogOpen(true);
-    }
+  const handleMergeButtonClick = () =>
+    Promise.resolve().then(() => {
+      if (selectedSegmentsCount >= 2) {
+        setMergeDialogOpen(true);
+      }
+    });
+
+  const handleShowMap = () => {
+    setShowMap((showMap) => !showMap);
   };
 
-  const handleMergeSegments = async (mergedName: string, mergedType: SegmentType) => {
+  const handleMergeSegments = async (
+    mergedName: string,
+    mergedType: SegmentType
+  ) => {
     const selectedSegments = segments.filter((s) => s.selected);
     if (selectedSegments.length < 2) return;
-    
+
     try {
       // Gerar um novo ID para o segmento mesclado
       const mergedId = `merged-${Date.now()}`;
@@ -398,9 +408,9 @@ const Refine = () => {
         ...segments.filter((s) => !idsToRemove.has(s.id)),
         mergedSegment,
       ];
-      
+
       setSegments(updatedSegments);
-      
+
       // Update local storage
       saveLocalSegments(cityId, updatedSegments);
 
@@ -531,7 +541,9 @@ const Refine = () => {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div
+            className={`grid gap-8 ${!showMap ? "grid-cols-2" : "grid-cols-1"}`}
+          >
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
 
@@ -545,6 +557,9 @@ const Refine = () => {
                   </Button>
                 )}
               </div>
+              <Button variant="outline" onClick={handleShowMap}>
+                Mostrar mapa
+              </Button>
 
               <TableSortableWrapper
                 segments={segments}
@@ -564,10 +579,7 @@ const Refine = () => {
               />
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">
-                Visualização do Mapa
-              </h3>
-              {/* <CityMap segments={segments} /> */}
+              {showMap == false && <CityMap segments={selectedSegments} />}
             </div>
           </div>
         </div>

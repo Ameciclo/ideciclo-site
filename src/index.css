@@ -70,6 +70,13 @@
     --radius: 0.5rem;
   }
 } */
+ 
+@import 'leaflet/dist/leaflet.css';
+
+.leaflet-container {
+  width: 100vh;
+  height: 100vh;
+}
 
 @layer base {
   * {
