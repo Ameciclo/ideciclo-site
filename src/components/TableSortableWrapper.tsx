@@ -38,7 +38,7 @@ export const TableSortableWrapper = ({
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
@@ -47,7 +47,6 @@ export const TableSortableWrapper = ({
   useEffect(() => {
     if (JSON.stringify(initialSegments) !== JSON.stringify(segments)) {
       setSegments(initialSegments);
-      setCurrentPage(1); // Reset to first page when segments change
     }
   }, [initialSegments]);
 
@@ -122,7 +121,10 @@ export const TableSortableWrapper = ({
   const totalPages = Math.ceil(processedSegments.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = processedSegments.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = processedSegments.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
 
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= totalPages) {
@@ -133,7 +135,14 @@ export const TableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedRating, selectedType, minLength, maxLength, sortDirection, nameFilter]);
+  }, [
+    selectedRating,
+    selectedType,
+    minLength,
+    maxLength,
+    sortDirection,
+    nameFilter,
+  ]);
 
   // Based on the props passed, determine which version to show
   if (onSelectSegment && onUpdateSegmentName) {
@@ -188,7 +197,10 @@ export const TableSortableWrapper = ({
           onPageChange={paginate}
           itemsPerPage={itemsPerPage}
           totalItems={processedSegments.length}
-          currentItemsStart={Math.min(indexOfFirstItem + 1, processedSegments.length)}
+          currentItemsStart={Math.min(
+            indexOfFirstItem + 1,
+            processedSegments.length
+          )}
           currentItemsEnd={Math.min(indexOfLastItem, processedSegments.length)}
         />
       </div>
@@ -226,7 +238,10 @@ export const TableSortableWrapper = ({
         onPageChange={paginate}
         itemsPerPage={itemsPerPage}
         totalItems={processedSegments.length}
-        currentItemsStart={Math.min(indexOfFirstItem + 1, processedSegments.length)}
+        currentItemsStart={Math.min(
+          indexOfFirstItem + 1,
+          processedSegments.length
+        )}
         currentItemsEnd={Math.min(indexOfLastItem, processedSegments.length)}
       />
     </div>

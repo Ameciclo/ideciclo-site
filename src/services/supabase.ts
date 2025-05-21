@@ -143,6 +143,60 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
   }));
 };
 
+export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('segments')
+      .insert({
+        id: segment.id,
+        id_cidade: segment.id_cidade,
+        id_form: segment.id_form,
+        name: segment.name,
+        type: segment.type,
+        length: segment.length,
+        neighborhood: segment.neighborhood,
+        geometry: segment.geometry,
+        selected: segment.selected,
+        evaluated: segment.evaluated
+      });
+
+    if (error) {
+      console.error("Error inserting segment:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error inserting segment:", error);
+    return false;
+  }
+};
+
+export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
+  if (segmentIds.length === 0) {
+    console.warn("No segment IDs provided for deletion.");
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('segments')
+      .delete()
+      .in('id', segmentIds);
+
+    if (error) {
+      console.error("Error deleting segments:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error deleting segments:", error);
+    return false;
+  }
+};
+
+
 export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> => {
   // First, delete all existing segments for the city to avoid duplications
   // In a real-world scenario, this might need a more sophisticated merge strategy

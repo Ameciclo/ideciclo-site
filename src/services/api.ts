@@ -6,7 +6,9 @@ import {
   fetchSegmentsFromDB, 
   saveSegmentsToDB, 
   updateSegmentInDB,
-  migrateLocalStorageToDatabase
+  migrateLocalStorageToDatabase,
+  saveSegmentToDB,
+  removeSegmentsFromDB
 } from "./supabase";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -283,6 +285,46 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
     .filter((segment): segment is Segment => segment !== null); 
 };
 
+export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
+  const lines = segments.map(segment => {
+    const geometry = JSON.parse(segment.geometry);
+    return geometry.coordinates;
+  });
+
+  const multiLine = turf.multiLineString(lines);
+
+  const totalLength = segments.reduce((sum, segment) => {
+    const geometry = JSON.parse(segment.geometry);
+    const line = turf.lineString(geometry.coordinates);
+    return sum + turf.length(line, { units: 'kilometers' });
+  }, 0);
+
+  return {
+    length: parseFloat(totalLength.toFixed(4)),
+    geometry: JSON.stringify(multiLine.geometry),
+  };
+};
+
+// mergear garantindo que as linhas estão conectadas com lineMerge
+export const mergeGeometry2 = (segments: Segment[]): { length: number; geometry: string } => {
+  const lines = segments.map(segment => {
+    const geometry = JSON.parse(segment.geometry);
+    const coords = geometry.coordinates;
+    return turf.lineString(coords);
+  });
+
+  const multiLine = turf.multiLineString(
+    lines.map(line => line.geometry.coordinates)
+  );
+
+  const merged = turf.lineMerge(multiLine);
+
+  const length = turf.length(merged, { units: 'kilometers' });
+  return {
+    length: parseFloat(length.toFixed(4)),
+    geometry: JSON.stringify(merged.geometry),
+  };
+};
 
 export const calculateMergedLength = (segments: Segment[]): number => {
   const selectedSegments = segments.filter(segment => segment.selected);
@@ -313,6 +355,26 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
   }
 };
 
+export const storeSegment = async (segment: Segment): Promise<boolean> => {
+  try {
+    await saveSegmentToDB(segment);
+    return true;
+  } catch (error) {
+    console.error("Error storing segment:", error);
+    return false;
+  }
+};
+
+export const removeSegments = async (segmentIds: string[]): Promise<boolean> => {
+  try {
+    await removeSegmentsFromDB(segmentIds);
+    return true;
+  } catch (error) {
+    console.error("Error removing segments:", error);
+    return false;
+  }
+};
+
 /**
  * Get city data from database
  */
@@ -337,69 +399,10 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
 export const updateSegmentName = async (cityId: string, segmentId: string, newName: string): Promise<boolean> => {
   try {
     // Update in database
-    await updateSegmentInDB({ id: segmentId, name: newName });
-    
-    // Update in localStorage for backward compatibility
-    const data = localStorage.getItem(`city_${cityId}`);
-    if (data) {
-      const parsedData = JSON.parse(data);
-      parsedData.segments = parsedData.segments.map((segment: Segment) => 
-        segment.id === segmentId ? { ...segment, name: newName } : segment
-      );
-      localStorage.setItem(`city_${cityId}`, JSON.stringify(parsedData));
-    }
-    
+    await updateSegmentInDB({ id: segmentId, name: newName });    
     return true;
   } catch (error) {
-    console.error("Error updating segment name:", error);
-    
-    // Fallback to just localStorage
-    try {
-      const data = localStorage.getItem(`city_${cityId}`);
-      if (data) {
-        const parsedData = JSON.parse(data);
-        parsedData.segments = parsedData.segments.map((segment: Segment) => 
-          segment.id === segmentId ? { ...segment, name: newName } : segment
-        );
-        localStorage.setItem(`city_${cityId}`, JSON.stringify(parsedData));
-        return true;
-      }
-    } catch (e) {
-      console.error("Error updating segment name in localStorage:", e);
-    }
-    
-    return false;
-  }
-};
-
-// Automatically migrate data from localStorage to database when needed
-export const migrateDataToDatabase = async (): Promise<boolean> => {
-  try {
-    // Get all keys from localStorage that start with 'city_'
-    const cityKeys = Object.keys(localStorage).filter(key => key.startsWith('city_'));
-    
-    for (const key of cityKeys) {
-      const cityId = key.replace('city_', '');
-      const data = localStorage.getItem(key);
-      
-      if (data) {
-        const { city, segments } = JSON.parse(data);
-        
-        // Save city to database
-        if (city && city.id) {
-          await saveCityToDB(city);
-        }
-        
-        // Save segments to database
-        if (segments && Array.isArray(segments)) {
-          await saveSegmentsToDB(segments);
-        }
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error("Error migrating data to database:", error);
+    console.error("Error updating segment name:", error);    
     return false;
   }
 };
