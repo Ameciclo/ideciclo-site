@@ -1,7 +1,14 @@
-
 import { useState, useRef } from "react";
 import { Segment, SegmentType } from "@/types";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Check, Pencil, X } from "lucide-react";
@@ -16,12 +23,12 @@ interface SegmentsTableProps {
   hideNameEditing?: boolean;
 }
 
-const OriginalSegmentsTable = ({ 
-  segments, 
-  onSelectSegment, 
+const OriginalSegmentsTable = ({
+  segments,
+  onSelectSegment,
   onUpdateSegmentName,
   hideSelectColumn = false,
-  hideNameEditing = false
+  hideNameEditing = false,
 }: SegmentsTableProps) => {
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>("");
@@ -54,7 +61,7 @@ const OriginalSegmentsTable = ({
       cancelEditing();
     }
   };
-  
+
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
       case SegmentType.CICLOFAIXA:
@@ -82,16 +89,18 @@ const OriginalSegmentsTable = ({
             <TableHead>Nome</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead className="text-right">Extensão (km)</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {segments.map(segment => (
-            <TableRow key={segment.id} className={segment.evaluated ? "bg-muted/30" : undefined}>
+          {segments.map((segment) => (
+            <TableRow
+              key={segment.id}
+              className={segment.evaluated ? "bg-muted/30" : undefined}
+            >
               {!hideSelectColumn && onSelectSegment && (
                 <TableCell>
-                  <Checkbox 
-                    checked={segment.selected} 
+                  <Checkbox
+                    checked={segment.selected}
                     onCheckedChange={(checked) => {
                       onSelectSegment(segment.id, !!checked);
                     }}
@@ -99,7 +108,7 @@ const OriginalSegmentsTable = ({
                   />
                 </TableCell>
               )}
-              
+
               <TableCell>
                 {editingNameId === segment.id ? (
                   <div className="flex items-center gap-1">
@@ -112,46 +121,51 @@ const OriginalSegmentsTable = ({
                       className="border rounded px-2 py-1 w-full"
                       autoFocus
                     />
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={saveNameChange}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={saveNameChange}
+                    >
                       <Check className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={cancelEditing}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={cancelEditing}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">
                     <span className="font-medium">{segment.name}</span>
-                    {!hideNameEditing && onUpdateSegmentName && !segment.evaluated && (
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => startEditing(segment)}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    )}
+                    {!hideNameEditing &&
+                      onUpdateSegmentName &&
+                      !segment.evaluated && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => startEditing(segment)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
                     {segment.evaluated && (
-                      <Badge variant="outline" className="ml-2">Avaliado</Badge>
+                      <Badge variant="outline" className="ml-2">
+                        Avaliado
+                      </Badge>
                     )}
                   </div>
                 )}
               </TableCell>
-              
+
               <TableCell>{getSegmentTypeBadge(segment.type)}</TableCell>
-              
-              <TableCell className="text-right">{segment.length.toFixed(4)}</TableCell>
-              
+
               <TableCell className="text-right">
-                {segment.evaluated ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to={`/avaliar/formulario/${segment.id}`}>
-                      Ver Avaliação
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to={`/avaliar/formulario/${segment.id}`}>
-                      Avaliar
-                    </Link>
-                  </Button>
-                )}
+                {segment.length.toFixed(4)}
               </TableCell>
             </TableRow>
           ))}

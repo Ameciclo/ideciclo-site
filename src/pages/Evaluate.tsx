@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -6,34 +5,40 @@ import CitySelection from "@/components/CitySelection";
 import OriginalSegmentsTable from "@/components/OriginalSegmentsTable";
 import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  fetchCityHighwayStats, 
-  fetchCityWays, 
-  calculateCityStats, 
-  convertToSegments, 
-  calculateMergedLength, 
-  getStoredCityData, 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  fetchCityHighwayStats,
+  fetchCityWays,
+  calculateCityStats,
+  convertToSegments,
+  calculateMergedLength,
+  getStoredCityData,
   storeCityData,
-  updateSegmentName
+  updateSegmentName,
 } from "@/services/api";
-import { fetchFormBySegmentId, fetchCityFromDB, saveCityToDB, fetchSegmentsFromDB, saveSegmentsToDB, updateSegmentInDB } from "@/services/supabase";
+import { fetchFormBySegmentId } from "@/services/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue 
+  SelectValue,
 } from "@/components/ui/select";
 import TableSortableWrapper from "@/components/TableSortableWrapper";
 
 const Evaluate = () => {
-  const [step, setStep] = useState<'selection' | 'evaluation'>('selection');
+  const [step, setStep] = useState<"selection" | "evaluation">("selection");
   const [cityId, setCityId] = useState<string>("");
   const [cityName, setCityName] = useState<string>("");
   const [stateName, setStateName] = useState<string>("");
@@ -47,10 +52,12 @@ const Evaluate = () => {
     name: string;
     type: SegmentType;
   } | null>(null);
-  const [mergeHistory, setMergeHistory] = useState<Array<{
-    removedSegments: Segment[],
-    mergedSegment: Segment
-  }>>([]);
+  const [mergeHistory, setMergeHistory] = useState<
+    Array<{
+      removedSegments: Segment[];
+      mergedSegment: Segment;
+    }>
+  >([]);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -58,18 +65,18 @@ const Evaluate = () => {
   // Check if we're returning from form with preserved data
   useEffect(() => {
     const state = location.state as { preserveData?: boolean } | undefined;
-    
+
     if (state?.preserveData) {
-      const storedCityId = localStorage.getItem('currentCityId');
+      const storedCityId = localStorage.getItem("currentCityId");
       if (storedCityId) {
-        const storedCityName = localStorage.getItem('currentCityName') || "";
-        const storedStateName = localStorage.getItem('currentStateName') || "";
-        
+        const storedCityName = localStorage.getItem("currentCityName") || "";
+        const storedStateName = localStorage.getItem("currentStateName") || "";
+
         setCityId(storedCityId);
         setCityName(storedCityName);
         setStateName(storedStateName);
-        
-        if (step === 'selection') {
+
+        if (step === "selection") {
           loadStoredCityData(storedCityId);
         }
       }
@@ -80,116 +87,62 @@ const Evaluate = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      console.log("Loading data for city ID:", selectedCityId);
-      
-      // First check if city data exists in the database
-      const dbCity = await fetchCityFromDB(selectedCityId);
-      console.log("Database city data:", dbCity);
-      
-      if (dbCity) {
-        const dbSegments = await fetchSegmentsFromDB(selectedCityId);
-        console.log("Database segments found:", dbSegments.length);
-        
-        if (dbSegments.length > 0) {
-          // City data exists in database
-          setCity(dbCity);
-          
-          // For each segment, check if it has been evaluated
-          for (let i = 0; i < dbSegments.length; i++) {
-            const segment = dbSegments[i];
-            const form = await fetchFormBySegmentId(segment.id);
-            
-            if (form) {
-              dbSegments[i] = {
-                ...segment,
-                evaluated: true,
-                id_form: form.id
-              };
-            }
-          }
-          
-          setSegments(dbSegments);
-          setStep('evaluation');
-          
-          toast({
-            title: "Dados carregados do banco de dados",
-            description: `Dados de ${dbCity.name}/${dbCity.state} carregados com sucesso do banco de dados!`,
-          });
-          setIsLoading(false);
-          return;
-        }
-      }
-      
-      // Try to load city data from localStorage
-      console.log("Trying to load data from localStorage");
+
+      // Try to load city data from database/localStorage
       const storedData = await getStoredCityData(selectedCityId);
-      
+
       if (storedData) {
-        console.log("Found data in localStorage:", storedData);
         setCity(storedData.city);
-        
-        // For each segment, check if it has been evaluated
+
+        // For each segment, check if it has been evaluated by querying the database
         const enhancedSegments = [...storedData.segments];
-        
+
         // Check evaluation status for each segment
         for (let i = 0; i < enhancedSegments.length; i++) {
           const segment = enhancedSegments[i];
           const form = await fetchFormBySegmentId(segment.id);
-          
+
           if (form) {
             enhancedSegments[i] = {
               ...segment,
               evaluated: true,
-              id_form: form.id
+              id_form: form.id,
             };
           }
         }
-        
+
         setSegments(enhancedSegments);
-        setStep('evaluation');
-        
-        // Store city and segments in database for future use
-        console.log("Saving data to database for future use");
-        const savedCity = await saveCityToDB(storedData.city);
-        const savedSegments = await saveSegmentsToDB(enhancedSegments);
-        
-        if (savedCity && savedSegments) {
-          toast({
-            title: "Dados carregados e salvos",
-            description: `Dados de ${storedData.city.name}/${storedData.city.state} carregados do armazenamento local e salvos no banco de dados!`,
-          });
-        }
-        setIsLoading(false);
-        return;
+        setStep("evaluation");
+      } else {
+        // If no stored data, we need to fetch it
+        handleCitySelected(
+          "",
+          selectedCityId,
+          localStorage.getItem("currentCityName") || "",
+          localStorage.getItem("currentStateName") || ""
+        );
       }
-      
-      // If no stored data, we need to fetch it from API
-      console.log("No stored data found, fetching from API");
-      handleCitySelected("", selectedCityId, 
-        localStorage.getItem('currentCityName') || "", 
-        localStorage.getItem('currentStateName') || "");
-      
     } catch (error) {
       console.error("Erro ao carregar dados armazenados:", error);
       setError("Falha ao carregar dados armazenados");
+    } finally {
       setIsLoading(false);
     }
   };
 
   const resetCityData = async () => {
     if (!cityId) return;
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Clear local storage for this city
       localStorage.removeItem(`city_${cityId}`);
-      
+
       // Delete data from database (segments will cascade delete due to FK constraints)
-      await supabase.from('cities').delete().eq('id', cityId);
-      
+      await supabase.from("cities").delete().eq("id", cityId);
+
       // Refetch data from API
       const highwayStats = await fetchCityHighwayStats(cityId);
       const cityStats = calculateCityStats(highwayStats);
@@ -201,31 +154,31 @@ const Evaluate = () => {
         state: stateName,
         extensao_avaliada: 0,
         ideciclo: 0,
-        ...cityStats
+        ...cityStats,
       };
-      
+
       setCity(updatedCity);
 
       // Fetch segments
       const waysData = await fetchCityWays(cityId);
       const citySegments = convertToSegments(waysData, cityId);
-      
+
       const enhancedSegments = citySegments.map((segment) => {
         return {
           ...segment,
           evaluated: false,
-          id_form: undefined
+          id_form: undefined,
         };
       });
-      
+
       setSegments(enhancedSegments);
-      
+
       // Store data in database and localStorage
       await storeCityData(cityId, {
         city: updatedCity,
-        segments: enhancedSegments
+        segments: enhancedSegments,
       });
-      
+
       // Clear merge history
       setMergeHistory([]);
 
@@ -235,7 +188,10 @@ const Evaluate = () => {
       });
     } catch (error) {
       console.error("Erro ao recarregar dados:", error);
-      const errorMessage = error instanceof Error ? error.message : "Falha ao recarregar os dados da cidade";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Falha ao recarregar os dados da cidade";
       setError(errorMessage);
       toast({
         title: "Erro",
@@ -247,178 +203,95 @@ const Evaluate = () => {
     }
   };
 
-  const handleCitySelected = async (stateId: string, selectedCityId: string, selectedCityName: string, selectedStateName: string) => {
+  const handleCitySelected = async (
+    stateId: string,
+    selectedCityId: string,
+    selectedCityName: string,
+    selectedStateName: string
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
       setCityId(selectedCityId);
       setCityName(selectedCityName);
       setStateName(selectedStateName);
-      
+
       // Store current selection in localStorage
-      localStorage.setItem('currentCityId', selectedCityId);
-      localStorage.setItem('currentCityName', selectedCityName);
-      localStorage.setItem('currentStateName', selectedStateName);
+      localStorage.setItem("currentCityId", selectedCityId);
+      localStorage.setItem("currentCityName", selectedCityName);
+      localStorage.setItem("currentStateName", selectedStateName);
 
-      console.log(`Fetching data for city: ${selectedCityName} (ID: ${selectedCityId})`);
-
-      // First check if city data exists in database
-      const dbCity = await fetchCityFromDB(selectedCityId);
-      console.log("Database city result:", dbCity);
-      
-      if (dbCity) {
-        const dbSegments = await fetchSegmentsFromDB(selectedCityId);
-        console.log(`Found ${dbSegments.length} segments in database`);
-        
-        if (dbSegments.length > 0) {
-          // City data exists in database
-          setCity(dbCity);
-          
-          // For each segment, check if it has been evaluated
-          const enhancedSegments = [...dbSegments];
-          for (let i = 0; i < enhancedSegments.length; i++) {
-            const segment = enhancedSegments[i];
-            try {
-              const form = await fetchFormBySegmentId(segment.id);
-              
-              if (form) {
-                enhancedSegments[i] = {
-                  ...segment,
-                  evaluated: true,
-                  id_form: form.id
-                };
-              }
-            } catch (error) {
-              console.error(`Error fetching form for segment ${segment.id}:`, error);
-            }
-          }
-          
-          setSegments(enhancedSegments);
-          
-          toast({
-            title: "Dados carregados do banco de dados",
-            description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso do banco de dados!`,
-          });
-          
-          // Move to evaluation step
-          setStep('evaluation');
-          setIsLoading(false);
-          return;
-        }
-      }
-      
-      // Then check if data is in localStorage
-      console.log("Checking local storage for city data");
+      // Check if data is in database/localStorage before making API calls
       const storedData = await getStoredCityData(selectedCityId);
-      
       if (storedData) {
-        console.log("Found data in local storage:", storedData);
         setCity(storedData.city);
-        
-        // For each segment, check if it has been evaluated
         const enhancedSegments = [...storedData.segments];
-        
+        setSegments(enhancedSegments);
+
+        toast({
+          title: "Dados carregados",
+          description: `Dados de ${selectedCityName}/${selectedStateName} carregados do armazenamento!`,
+        });
+      } else {
+        // Fetch highway stats
+        const highwayStats = await fetchCityHighwayStats(selectedCityId);
+        const cityStats = calculateCityStats(highwayStats);
+
+        // Create city record
+        const newCity: Partial<City> = {
+          id: selectedCityId,
+          name: selectedCityName,
+          state: selectedStateName,
+          extensao_avaliada: 0,
+          ideciclo: 0,
+          ...cityStats,
+        };
+
+        setCity(newCity);
+
+        // Fetch segments
+        const waysData = await fetchCityWays(selectedCityId);
+        const citySegments = convertToSegments(waysData, selectedCityId);
+
+        // For each segment, check if it has been evaluated
+        const enhancedSegments = [...citySegments];
+
         // Check evaluation status for each segment
         for (let i = 0; i < enhancedSegments.length; i++) {
           const segment = enhancedSegments[i];
-          try {
-            const form = await fetchFormBySegmentId(segment.id);
-            
-            if (form) {
-              enhancedSegments[i] = {
-                ...segment,
-                evaluated: true,
-                id_form: form.id
-              };
-            }
-          } catch (error) {
-            console.error(`Error fetching form for segment ${segment.id}:`, error);
-          }
-        }
-        
-        setSegments(enhancedSegments);
-        
-        // Store city and segments in database for future use
-        console.log("Saving data to database");
-        await saveCityToDB(storedData.city);
-        await saveSegmentsToDB(enhancedSegments);
-        
-        toast({
-          title: "Dados carregados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados do armazenamento local!`,
-        });
-        
-        // Move to evaluation step
-        setStep('evaluation');
-        setIsLoading(false);
-        return;
-      }
-      
-      // If no stored data, fetch from API
-      console.log("No data found locally, fetching from API");
-      
-      // Fetch highway stats
-      const highwayStats = await fetchCityHighwayStats(selectedCityId);
-      const cityStats = calculateCityStats(highwayStats);
-
-      // Create city record
-      const newCity: Partial<City> = {
-        id: selectedCityId,
-        name: selectedCityName,
-        state: selectedStateName,
-        extensao_avaliada: 0,
-        ideciclo: 0,
-        ...cityStats
-      };
-      
-      setCity(newCity);
-
-      // Fetch segments
-      const waysData = await fetchCityWays(selectedCityId);
-      const citySegments = convertToSegments(waysData, selectedCityId);
-      
-      // For each segment, check if it has been evaluated
-      const enhancedSegments = [...citySegments];
-      
-      // Check evaluation status for each segment
-      for (let i = 0; i < enhancedSegments.length; i++) {
-        const segment = enhancedSegments[i];
-        try {
           const form = await fetchFormBySegmentId(segment.id);
-          
+
           if (form) {
             enhancedSegments[i] = {
               ...segment,
               evaluated: true,
-              id_form: form.id
+              id_form: form.id,
             };
           }
-        } catch (error) {
-          console.error(`Error fetching form for segment ${segment.id}:`, error);
         }
-      }
-      
-      setSegments(enhancedSegments);
-      
-      // Store data in database and localStorage
-      console.log("Saving newly fetched data to database and localStorage");
-      await saveCityToDB(newCity);
-      await saveSegmentsToDB(enhancedSegments);
-      await storeCityData(selectedCityId, {
-        city: newCity,
-        segments: enhancedSegments
-      });
 
-      toast({
-        title: "Sucesso",
-        description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso da API!`,
-      });
+        setSegments(enhancedSegments);
+
+        // Store data in database and localStorage
+        await storeCityData(selectedCityId, {
+          city: newCity,
+          segments: enhancedSegments,
+        });
+
+        toast({
+          title: "Sucesso",
+          description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
+        });
+      }
 
       // Move to evaluation step
-      setStep('evaluation');
+      setStep("evaluation");
     } catch (error) {
       console.error("Erro ao processar cidade:", error);
-      const errorMessage = error instanceof Error ? error.message : "Falha ao processar os dados da cidade";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Falha ao processar os dados da cidade";
       setError(errorMessage);
       toast({
         title: "Erro",
@@ -431,19 +304,19 @@ const Evaluate = () => {
   };
 
   const handleSelectSegment = (id: string, selected: boolean) => {
-    setSegments(prevSegments => 
-      prevSegments.map(segment => 
+    setSegments((prevSegments) =>
+      prevSegments.map((segment) =>
         segment.id === id ? { ...segment, selected } : segment
       )
     );
   };
 
   const handleMergeSegments = async () => {
-    const selectedSegments = segments.filter(s => s.selected);
+    const selectedSegments = segments.filter((s) => s.selected);
     if (selectedSegments.length < 2) return;
-    
+
     // Verificar se algum segmento selecionado já foi avaliado
-    const hasEvaluated = selectedSegments.some(s => s.evaluated);
+    const hasEvaluated = selectedSegments.some((s) => s.evaluated);
     if (hasEvaluated) {
       toast({
         title: "Erro",
@@ -452,58 +325,63 @@ const Evaluate = () => {
       });
       return;
     }
-    
+
     try {
       // Gerar um novo ID para o segmento mesclado
       const mergedId = `merged-${Date.now()}`;
       const totalLength = calculateMergedLength(selectedSegments);
-      
+
       // Criar o novo segmento mesclado - utilizando o nome definido pelo usuário no diálogo de mesclagem
       const mergedSegment: Segment = {
         id: mergedId,
         id_cidade: cityId,
-        name: mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
+        name:
+          mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
         type: mergeData?.type || selectedSegments[0].type,
         length: totalLength,
         neighborhood: selectedSegments[0].neighborhood,
         geometry: [], // Em uma implementação real, você mesclaria as geometrias
         selected: false,
-        evaluated: false
+        evaluated: false,
       };
-      
+
       // Save to merge history before removing segments
-      setMergeHistory(prev => [
+      setMergeHistory((prev) => [
         ...prev,
         {
           removedSegments: [...selectedSegments],
-          mergedSegment: {...mergedSegment}
-        }
+          mergedSegment: { ...mergedSegment },
+        },
       ]);
-      
+
       // Remover os segmentos selecionados e adicionar o mesclado
-      const idsToRemove = new Set(selectedSegments.map(s => s.id));
+      const idsToRemove = new Set(selectedSegments.map((s) => s.id));
       const updatedSegments = [
-        ...segments.filter(s => !idsToRemove.has(s.id)),
-        mergedSegment
+        ...segments.filter((s) => !idsToRemove.has(s.id)),
+        mergedSegment,
       ];
-      
+
       setSegments(updatedSegments);
-      
+
       // Atualizar a lista no banco de dados e localStorage
       await storeCityData(cityId, {
         city: city as Partial<City>,
-        segments: updatedSegments
+        segments: updatedSegments,
       });
-      
+
       // Delete the removed segments from the database
-      const segmentIds = selectedSegments.map(s => s.id);
+      const segmentIds = selectedSegments.map((s) => s.id);
       if (segmentIds.length > 0) {
-        await supabase.from('segments').delete().in('id', segmentIds);
+        await supabase.from("segments").delete().in("id", segmentIds);
       }
-      
+
       toast({
         title: "Segmentos mesclados",
-        description: `${selectedSegments.length} segmentos mesclados com extensão total de ${totalLength.toFixed(4)} km`,
+        description: `${
+          selectedSegments.length
+        } segmentos mesclados com extensão total de ${totalLength.toFixed(
+          4
+        )} km`,
       });
     } catch (error) {
       console.error("Erro ao mesclar segmentos:", error);
@@ -523,30 +401,38 @@ const Evaluate = () => {
       });
       return;
     }
-    
+
     try {
       // Get the last merge operation
       const lastMerge = mergeHistory[mergeHistory.length - 1];
-      
+
       // Remove the merged segment and add back the original segments
-      const updatedSegments = segments.filter(segment => segment.id !== lastMerge.mergedSegment.id);
-      const restoredSegments = [...updatedSegments, ...lastMerge.removedSegments];
-      
+      const updatedSegments = segments.filter(
+        (segment) => segment.id !== lastMerge.mergedSegment.id
+      );
+      const restoredSegments = [
+        ...updatedSegments,
+        ...lastMerge.removedSegments,
+      ];
+
       // Update state
       setSegments(restoredSegments);
-      
+
       // Update database and localStorage
       await storeCityData(cityId, {
         city: city as Partial<City>,
-        segments: restoredSegments
+        segments: restoredSegments,
       });
-      
+
       // Delete the merged segment from the database
-      await supabase.from('segments').delete().eq('id', lastMerge.mergedSegment.id);
-      
+      await supabase
+        .from("segments")
+        .delete()
+        .eq("id", lastMerge.mergedSegment.id);
+
       // Update merge history
-      setMergeHistory(prev => prev.slice(0, -1));
-      
+      setMergeHistory((prev) => prev.slice(0, -1));
+
       toast({
         title: "Fusão desfeita",
         description: "A última operação de mesclagem foi desfeita com sucesso",
@@ -560,24 +446,21 @@ const Evaluate = () => {
       });
     }
   };
-  
-  const handleUpdateSegmentName = async (segmentId: string, newName: string) => {
+
+  const handleUpdateSegmentName = async (
+    segmentId: string,
+    newName: string
+  ) => {
     try {
       // First update in the local state
-      setSegments(prevSegments => 
-        prevSegments.map(segment => 
+      setSegments((prevSegments) =>
+        prevSegments.map((segment) =>
           segment.id === segmentId ? { ...segment, name: newName } : segment
         )
       );
-      
+
       // Also update in the database and localStorage
       await updateSegmentName(cityId, segmentId, newName);
-      
-      // Update in Supabase as well
-      await updateSegmentInDB({
-        id: segmentId,
-        name: newName
-      });
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -597,18 +480,22 @@ const Evaluate = () => {
       handleCitySelected("", cityId, cityName, stateName);
     } else {
       setError(null);
-      setStep('selection');
+      setStep("selection");
     }
   };
 
-  const selectedSegmentsCount = segments.filter(s => s.selected).length;
+  const selectedSegmentsCount = segments.filter((s) => s.selected).length;
 
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Refinar Dados de Infraestrutura Cicloviária</h2>
+        <h2 className="text-2xl font-bold">
+          Refinar Dados de Infraestrutura Cicloviária
+        </h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleBackToStart}>Voltar ao Início</Button>
+          <Button variant="outline" onClick={handleBackToStart}>
+            Voltar ao Início
+          </Button>
         </div>
       </div>
 
@@ -631,14 +518,12 @@ const Evaluate = () => {
         <div className="flex justify-center items-center py-20">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>
-              Carregando dados... Por favor aguarde.
-            </p>
+            <p>Carregando dados... Por favor aguarde.</p>
           </div>
         </div>
       )}
 
-      {!isLoading && !error && step === 'selection' && (
+      {!isLoading && !error && step === "selection" && (
         <Card>
           <CardHeader>
             <CardTitle>Selecionar Cidade</CardTitle>
@@ -652,19 +537,26 @@ const Evaluate = () => {
         </Card>
       )}
 
-      {!isLoading && !error && step === 'evaluation' && (
+      {!isLoading && !error && step === "evaluation" && (
         <div className="space-y-8">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>{cityName}, {stateName}</CardTitle>
+                  <CardTitle>
+                    {cityName}, {stateName}
+                  </CardTitle>
                   <CardDescription>
                     Dados da infraestrutura cicloviária
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleUndoLastMerge} disabled={mergeHistory.length === 0}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUndoLastMerge}
+                    disabled={mergeHistory.length === 0}
+                  >
                     <Undo2 className="mr-2 h-4 w-4" />
                     Desfazer mesclagem
                   </Button>
@@ -678,16 +570,28 @@ const Evaluate = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS ESTRUTURAIS</h4>
-                  <p className="text-2xl font-bold">{city?.vias_estruturais_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS ESTRUTURAIS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {city?.vias_estruturais_km} km
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS ALIMENTADORAS</h4>
-                  <p className="text-2xl font-bold">{city?.vias_alimentadoras_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS ALIMENTADORAS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {city?.vias_alimentadoras_km} km
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS LOCAIS</h4>
-                  <p className="text-2xl font-bold">{city?.vias_locais_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS LOCAIS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {city?.vias_locais_km} km
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -696,8 +600,8 @@ const Evaluate = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
-              
-              <TableSortableWrapper 
+
+              <TableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
                 onSelectSegment={handleSelectSegment}
@@ -708,7 +612,9 @@ const Evaluate = () => {
               />
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Visualização do Mapa</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Visualização do Mapa
+              </h3>
               <CityMap segments={segments} />
             </div>
           </div>
