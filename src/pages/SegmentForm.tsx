@@ -7,17 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Form, Segment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import { saveFormToDB, fetchFormBySegmentId } from "@/services/supabase";
 
@@ -76,21 +82,23 @@ const SegmentForm = () => {
   useEffect(() => {
     if (segmentId) {
       // Load segment data from localStorage
-      const storedCityId = localStorage.getItem('currentCityId');
+      const storedCityId = localStorage.getItem("currentCityId");
       if (storedCityId) {
         setCityId(storedCityId);
       }
-      
+
       const storedData = localStorage.getItem(`city_${storedCityId}`);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        const segment = parsedData.segments.find((s: Segment) => s.id === segmentId);
+        const segment = parsedData.segments.find(
+          (s: Segment) => s.id === segmentId
+        );
         if (segment) {
           setSegmentName(segment.name);
           setSegmentType(segment.type);
         }
       }
-      
+
       loadFormData();
     }
   }, [segmentId]);
@@ -110,7 +118,7 @@ const SegmentForm = () => {
   };
 
   const navigateBack = () => {
-    navigate("/avaliar", { state: { preserveData: true } });
+    navigate("/avaliacao", { state: { preserveData: true } });
   };
 
   const saveForm = async (formData: any) => {
@@ -133,40 +141,45 @@ const SegmentForm = () => {
         blocks_count: formData.blocksCount,
         intersections_count: formData.intersectionsCount,
         observations: formData.observations,
-        responses: formData // Store the raw form data for now
+        responses: formData, // Store the raw form data for now
       };
 
       // Save to both localStorage (for backward compatibility) and database
       localStorage.setItem(`form_${segmentId}`, JSON.stringify(formData));
-      
+
       // Mark this segment as evaluated in localStorage
-      const evaluatedSegments = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+      const evaluatedSegments = JSON.parse(
+        localStorage.getItem("evaluatedSegments") || "[]"
+      );
       if (!evaluatedSegments.includes(segmentId)) {
         evaluatedSegments.push(segmentId);
-        localStorage.setItem('evaluatedSegments', JSON.stringify(evaluatedSegments));
+        localStorage.setItem(
+          "evaluatedSegments",
+          JSON.stringify(evaluatedSegments)
+        );
       }
-      
+
       // Save to the database
       const savedForm = await saveFormToDB(form);
-      
+
       if (!savedForm) {
         throw new Error("Failed to save form to database");
       }
-      
+
       // Show success toast
       toast({
         title: "Formulário salvo",
-        description: "A avaliação foi salva com sucesso!"
+        description: "A avaliação foi salva com sucesso!",
       });
-      
+
       // Navigate back to the evaluation page
       navigateBack();
     } catch (error) {
-      console.error('Erro ao salvar o formulário:', error);
+      console.error("Erro ao salvar o formulário:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Houve um erro ao salvar o formulário. Tente novamente."
+        description: "Houve um erro ao salvar o formulário. Tente novamente.",
       });
     } finally {
       setIsSaving(false);
@@ -177,24 +190,24 @@ const SegmentForm = () => {
     try {
       // First try to get from the database
       const formData = await fetchFormBySegmentId(segmentId);
-      
+
       if (formData && formData.responses) {
         // Use the responses object from the database
         setDefaultValues(formData.responses);
         return;
       }
-      
+
       // If not in database, try localStorage as fallback
       const savedForm = localStorage.getItem(`form_${segmentId}`);
       if (savedForm) {
         setDefaultValues(JSON.parse(savedForm));
       }
     } catch (error) {
-      console.error('Erro ao carregar dados do formulário:', error);
+      console.error("Erro ao carregar dados do formulário:", error);
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Houve um erro ao carregar dados do formulário."
+        description: "Houve um erro ao carregar dados do formulário.",
       });
     }
   };
@@ -237,7 +250,7 @@ const SegmentForm = () => {
                 <Input
                   id="date"
                   type="date"
-                  defaultValue={new Date().toISOString().split('T')[0]}
+                  defaultValue={new Date().toISOString().split("T")[0]}
                   {...form.register("date")}
                 />
                 {form.formState.errors.date && (
@@ -356,7 +369,7 @@ const SegmentForm = () => {
                 )}
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="hierarchy">Hierarquia da via</Label>
               <Select>
@@ -370,9 +383,11 @@ const SegmentForm = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
-              <Label>Como você avalia a segurança do tráfego neste segmento?</Label>
+              <Label>
+                Como você avalia a segurança do tráfego neste segmento?
+              </Label>
               <RadioGroup className="flex flex-col space-y-1">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="muito-seguro" id="r1" />
@@ -399,7 +414,9 @@ const SegmentForm = () => {
                 id="intersectionsCount"
                 type="number"
                 placeholder="Digite o número de interseções"
-                {...form.register("intersectionsCount", { valueAsNumber: true })}
+                {...form.register("intersectionsCount", {
+                  valueAsNumber: true,
+                })}
               />
               {form.formState.errors.intersectionsCount && (
                 <p className="text-red-500 text-sm">

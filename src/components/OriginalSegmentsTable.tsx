@@ -1,4 +1,3 @@
-
 import { useRef, useState } from "react";
 import { Segment, SegmentType } from "@/types";
 import {
@@ -92,7 +91,7 @@ const OriginalSegmentsTable = ({
             {!hideSelectColumn && onSelectSegment && (
               <TableHead className="w-[50px]">Selecionar</TableHead>
             )}
-            
+
             <TableHead className="flex items-center gap-2">
               Nome
               {sortDirection !== undefined && onToggleSortDirection && (
@@ -110,10 +109,10 @@ const OriginalSegmentsTable = ({
                 </Button>
               )}
             </TableHead>
-            
+
             <TableHead>Tipo</TableHead>
             <TableHead className="text-right">Extensão (km)</TableHead>
-            
+
             {showEvaluationActions && (
               <>
                 <TableHead className="text-right">Status</TableHead>
@@ -125,7 +124,10 @@ const OriginalSegmentsTable = ({
         <TableBody>
           {segments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={showEvaluationActions ? 5 : 3} className="text-center py-6">
+              <TableCell
+                colSpan={showEvaluationActions ? 5 : 3}
+                className="text-center py-6"
+              >
                 Nenhum segmento encontrado
               </TableCell>
             </TableRow>
@@ -205,7 +207,7 @@ const OriginalSegmentsTable = ({
                 <TableCell className="text-right">
                   {segment.length.toFixed(4)}
                 </TableCell>
-                
+
                 {showEvaluationActions && (
                   <>
                     <TableCell className="text-right">

@@ -1,11 +1,10 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Evaluate from "./pages/Evaluate";
+import Evaluate from "./pages/Refine";
 import Avaliacao from "./pages/Avaliacao";
 import SegmentForm from "./pages/SegmentForm";
 import NotFound from "./pages/NotFound";
@@ -22,7 +21,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/avaliar" element={<Evaluate />} />
           <Route path="/avaliacao" element={<Avaliacao />} />
-          <Route path="/avaliar/formulario/:segmentId" element={<SegmentForm />} />
+          <Route
+            path="/avaliar/formulario/:segmentId"
+            element={<SegmentForm />}
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

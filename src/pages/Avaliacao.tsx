@@ -1,19 +1,24 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { City, Segment } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
@@ -25,7 +30,7 @@ const Avaliacao = () => {
   const [selectedCityId, setSelectedCityId] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [states, setStates] = useState<{id: string, name: string}[]>([]);
+  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -35,20 +40,18 @@ const Avaliacao = () => {
   useEffect(() => {
     const fetchStates = async () => {
       try {
-        const { data, error } = await supabase
-          .from('cities')
-          .select('state');
-        
+        const { data, error } = await supabase.from("cities").select("state");
+
         if (error) {
           console.error("Error fetching states:", error);
           return;
         }
 
         // Extract unique states
-        const uniqueStatesSet = new Set(data.map(item => item.state));
-        const uniqueStates = Array.from(uniqueStatesSet).map(state => ({
+        const uniqueStatesSet = new Set(data.map((item) => item.state));
+        const uniqueStates = Array.from(uniqueStatesSet).map((state) => ({
           id: state,
-          name: state
+          name: state,
         }));
 
         setStates(uniqueStates);
@@ -67,10 +70,10 @@ const Avaliacao = () => {
         setIsLoading(true);
         try {
           const { data, error } = await supabase
-            .from('cities')
-            .select('*')
-            .eq('state', selectedState);
-          
+            .from("cities")
+            .select("*")
+            .eq("state", selectedState);
+
           if (error) {
             console.error("Error fetching cities:", error);
             setError("Erro ao carregar cidades");
@@ -99,9 +102,9 @@ const Avaliacao = () => {
 
   const handleCityChange = (value: string) => {
     setSelectedCityId(value);
-    const city = cities.find(c => c.id === value) || null;
+    const city = cities.find((c) => c.id === value) || null;
     setSelectedCity(city);
-    
+
     if (value) {
       fetchSegmentsForCity(value);
     } else {
@@ -113,10 +116,10 @@ const Avaliacao = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('segments')
-        .select('*')
-        .eq('id_cidade', cityId);
-      
+        .from("segments")
+        .select("*")
+        .eq("id_cidade", cityId);
+
       if (error) {
         console.error("Error fetching segments:", error);
         setError("Erro ao carregar segmentos");
@@ -139,9 +142,13 @@ const Avaliacao = () => {
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Avaliação de Infraestrutura Cicloviária</h2>
+        <h2 className="text-2xl font-bold">
+          Avaliação de Infraestrutura Cicloviária
+        </h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleBackToStart}>Voltar ao Início</Button>
+          <Button variant="outline" onClick={handleBackToStart}>
+            Voltar ao Início
+          </Button>
         </div>
       </div>
 
@@ -169,7 +176,7 @@ const Avaliacao = () => {
                   <SelectValue placeholder="Selecione um estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {states.map(state => (
+                  {states.map((state) => (
                     <SelectItem key={state.id} value={state.id}>
                       {state.name}
                     </SelectItem>
@@ -177,15 +184,19 @@ const Avaliacao = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="city">Cidade</Label>
-              <Select value={selectedCityId} onValueChange={handleCityChange} disabled={!selectedState || cities.length === 0}>
+              <Select
+                value={selectedCityId}
+                onValueChange={handleCityChange}
+                disabled={!selectedState || cities.length === 0}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma cidade" />
                 </SelectTrigger>
                 <SelectContent>
-                  {cities.map(city => (
+                  {cities.map((city) => (
                     <SelectItem key={city.id} value={city.id}>
                       {city.name}
                     </SelectItem>
@@ -212,28 +223,47 @@ const Avaliacao = () => {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>{selectedCity.name}, {selectedCity.state}</CardTitle>
-                  <CardDescription>Segmentos disponíveis para avaliação</CardDescription>
+                  <CardTitle>
+                    {selectedCity.name}, {selectedCity.state}
+                  </CardTitle>
+                  <CardDescription>
+                    Segmentos disponíveis para avaliação
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS ESTRUTURAIS</h4>
-                  <p className="text-2xl font-bold">{selectedCity.vias_estruturais_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS ESTRUTURAIS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {selectedCity.vias_estruturais_km} km
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS ALIMENTADORAS</h4>
-                  <p className="text-2xl font-bold">{selectedCity.vias_alimentadoras_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS ALIMENTADORAS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {selectedCity.vias_alimentadoras_km} km
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">VIAS LOCAIS</h4>
-                  <p className="text-2xl font-bold">{selectedCity.vias_locais_km} km</p>
+                  <h4 className="text-sm font-semibold text-gray-500">
+                    VIAS LOCAIS
+                  </h4>
+                  <p className="text-2xl font-bold">
+                    {selectedCity.vias_locais_km} km
+                  </p>
                 </div>
               </div>
-              
-              <TableSortableWrapper segments={segments} showSortOptions={true} />
+
+              <TableSortableWrapper
+                segments={segments}
+                showSortOptions={true}
+              />
             </CardContent>
           </Card>
         </div>
