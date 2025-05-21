@@ -1,38 +1,12 @@
 import { useState, useEffect } from "react";
-import { Segment, SegmentType } from "@/types";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Segment } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, Filter } from "lucide-react";
 import OriginalSegmentsTable from "./OriginalSegmentsTable";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "./ui/pagination";
+import { SegmentsFilters } from "./SegmentsFilters";
+import { SegmentsPagination } from "./SegmentsPagination";
 
-interface OriginalSegmentsTableProps {
+interface TableSortableWrapperProps {
   segments: Segment[];
   showSortOptions?: boolean;
   onSelectSegment?: (id: string, selected: boolean) => void;
@@ -55,15 +29,19 @@ export const TableSortableWrapper = ({
   selectedSegmentsCount,
   onMergeDataChange,
   onUpdateSegmentName,
-}: OriginalSegmentsTableProps) => {
+}: TableSortableWrapperProps) => {
+  // Filter state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedRating, setSelectedRating] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
+  const [nameFilter, setNameFilter] = useState<string>("");
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
+  
+  // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 10; // Number of items per page
+  const itemsPerPage = 10;
 
   // Update segments when initialSegments change
   useEffect(() => {
@@ -77,14 +55,29 @@ export const TableSortableWrapper = ({
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
+  // Reset filters
+  const resetFilters = () => {
+    setNameFilter("");
+    setMinLength("");
+    setMaxLength("");
+    setSelectedType("all");
+    setSelectedRating("all");
+  };
+
   // Filter and sort segments
   const filteredAndSortedSegments = () => {
     return [...initialSegments]
       .filter((segment) => {
+        // Filter by name
+        if (nameFilter) {
+          return segment.name.toLowerCase().includes(nameFilter.toLowerCase());
+        }
+        return true;
+      })
+      .filter((segment) => {
         // Filter by rating
         if (selectedRating !== "all") {
           // For now, placeholder as we don't have ratings directly in segments
-          // In a real implementation, this would check segment.rating
           return true; // We would filter by rating here if ratings were available
         }
         return true;
@@ -92,7 +85,7 @@ export const TableSortableWrapper = ({
       .filter((segment) => {
         // Filter by segment type
         if (selectedType !== "all") {
-          return segment.type === selectedType;
+          return segment.type.toLowerCase() === selectedType.toLowerCase();
         }
         return true;
       })
@@ -129,10 +122,7 @@ export const TableSortableWrapper = ({
   const totalPages = Math.ceil(processedSegments.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = processedSegments.slice(
-    indexOfFirstItem,
-    indexOfLastItem
-  );
+  const currentItems = processedSegments.slice(indexOfFirstItem, indexOfLastItem);
 
   const paginate = (pageNumber: number) => {
     if (pageNumber > 0 && pageNumber <= totalPages) {
@@ -140,41 +130,10 @@ export const TableSortableWrapper = ({
     }
   };
 
-  // Generate page numbers for pagination
-  const pageNumbers = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) {
-      pageNumbers.push(i);
-    }
-  } else {
-    if (currentPage <= 3) {
-      pageNumbers.push(1, 2, 3, 4, "ellipsis", totalPages);
-    } else if (currentPage >= totalPages - 2) {
-      pageNumbers.push(
-        1,
-        "ellipsis",
-        totalPages - 3,
-        totalPages - 2,
-        totalPages - 1,
-        totalPages
-      );
-    } else {
-      pageNumbers.push(
-        1,
-        "ellipsis",
-        currentPage - 1,
-        currentPage,
-        currentPage + 1,
-        "ellipsis",
-        totalPages
-      );
-    }
-  }
-
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedRating, selectedType, minLength, maxLength, sortDirection]);
+  }, [selectedRating, selectedType, minLength, maxLength, sortDirection, nameFilter]);
 
   // Based on the props passed, determine which version to show
   if (onSelectSegment && onUpdateSegmentName) {
@@ -195,65 +154,23 @@ export const TableSortableWrapper = ({
                   </Button>
                 )}
             </div>
-
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="filter-type">Filtrar por tipo:</Label>
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Ciclovia">Ciclovia</SelectItem>
-                    <SelectItem value="Ciclofaixa">Ciclofaixa</SelectItem>
-                    <SelectItem value="Ciclorrota">Ciclorrota</SelectItem>
-                    <SelectItem value="Compartilhada">Compartilhada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Label htmlFor="min-length">Extensão mínima (km):</Label>
-                <Input
-                  id="min-length"
-                  type="number"
-                  className="w-[100px]"
-                  value={minLength}
-                  onChange={(e) => setMinLength(e.target.value)}
-                  step="0.001"
-                  min="0"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Label htmlFor="max-length">Extensão máxima (km):</Label>
-                <Input
-                  id="max-length"
-                  type="number"
-                  className="w-[100px]"
-                  value={maxLength}
-                  onChange={(e) => setMaxLength(e.target.value)}
-                  step="0.001"
-                  min={minLength || "0"}
-                />
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setMinLength("");
-                  setMaxLength("");
-                  setSelectedType("all");
-                  setSelectedRating("all");
-                }}
-              >
-                Limpar Filtros
-              </Button>
-            </div>
           </div>
         )}
+
+        <SegmentsFilters
+          nameFilter={nameFilter}
+          onNameFilterChange={setNameFilter}
+          selectedRating={selectedRating}
+          onRatingChange={setSelectedRating}
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          minLength={minLength}
+          onMinLengthChange={setMinLength}
+          maxLength={maxLength}
+          onMaxLengthChange={setMaxLength}
+          onResetFilters={resetFilters}
+          showRatingFilter={false}
+        />
 
         <OriginalSegmentsTable
           segments={currentItems}
@@ -261,44 +178,19 @@ export const TableSortableWrapper = ({
           onUpdateSegmentName={onUpdateSegmentName}
           hideSelectColumn={false}
           hideNameEditing={false}
+          sortDirection={sortDirection}
+          onToggleSortDirection={toggleSortDirection}
         />
 
-        {totalPages > 1 && (
-          <Pagination className="mt-4">
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious onClick={() => paginate(currentPage - 1)} />
-              </PaginationItem>
-
-              {pageNumbers.map((page, index) =>
-                page === "ellipsis" ? (
-                  <PaginationItem key={`ellipsis-${index}`}>
-                    <PaginationEllipsis />
-                  </PaginationItem>
-                ) : (
-                  <PaginationItem key={`page-${page}`}>
-                    <PaginationLink
-                      isActive={page === currentPage}
-                      onClick={() => paginate(page as number)}
-                    >
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                )
-              )}
-
-              <PaginationItem>
-                <PaginationNext onClick={() => paginate(currentPage + 1)} />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        )}
-
-        <div className="mt-2 text-sm text-gray-500">
-          Mostrando {Math.min(indexOfFirstItem + 1, processedSegments.length)}-
-          {Math.min(indexOfLastItem, processedSegments.length)} de{" "}
-          {processedSegments.length} segmentos
-        </div>
+        <SegmentsPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={paginate}
+          itemsPerPage={itemsPerPage}
+          totalItems={processedSegments.length}
+          currentItemsStart={Math.min(indexOfFirstItem + 1, processedSegments.length)}
+          currentItemsEnd={Math.min(indexOfLastItem, processedSegments.length)}
+        />
       </div>
     );
   }
@@ -306,175 +198,37 @@ export const TableSortableWrapper = ({
   // Otherwise, this is the "Evaluation" page version without selection and merging
   return (
     <div>
-      <div className="mb-4">
-        <div className="flex flex-wrap items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="filter-rating">Filtrar por nota:</Label>
-            <Select value={selectedRating} onValueChange={setSelectedRating}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="A">A</SelectItem>
-                <SelectItem value="B">B</SelectItem>
-                <SelectItem value="C">C</SelectItem>
-                <SelectItem value="D">D</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <SegmentsFilters
+        nameFilter={nameFilter}
+        onNameFilterChange={setNameFilter}
+        selectedRating={selectedRating}
+        onRatingChange={setSelectedRating}
+        selectedType={selectedType}
+        onTypeChange={setSelectedType}
+        minLength={minLength}
+        onMinLengthChange={setMinLength}
+        maxLength={maxLength}
+        onMaxLengthChange={setMaxLength}
+        onResetFilters={resetFilters}
+        showRatingFilter={true}
+      />
 
-          <div className="flex items-center gap-2">
-            <Label htmlFor="filter-type">Filtrar por tipo:</Label>
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Ciclovia">Ciclovia</SelectItem>
-                <SelectItem value="Ciclofaixa">Ciclofaixa</SelectItem>
-                <SelectItem value="Ciclorrota">Ciclorrota</SelectItem>
-                <SelectItem value="Compartilhada">Compartilhada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <OriginalSegmentsTable
+        segments={currentItems}
+        sortDirection={sortDirection}
+        onToggleSortDirection={toggleSortDirection}
+        showEvaluationActions={true}
+      />
 
-          <div className="flex items-center gap-2">
-            <Label htmlFor="min-length">Extensão mínima (km):</Label>
-            <Input
-              id="min-length"
-              type="number"
-              className="w-[100px]"
-              value={minLength}
-              onChange={(e) => setMinLength(e.target.value)}
-              step="0.001"
-              min="0"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Label htmlFor="max-length">Extensão máxima (km):</Label>
-            <Input
-              id="max-length"
-              type="number"
-              className="w-[100px]"
-              value={maxLength}
-              onChange={(e) => setMaxLength(e.target.value)}
-              step="0.001"
-              min={minLength || "0"}
-            />
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setMinLength("");
-              setMaxLength("");
-              setSelectedType("all");
-              setSelectedRating("all");
-            }}
-          >
-            Limpar Filtros
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableCaption>Lista de segmentos cicloviários</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="flex items-center gap-2">
-                Nome
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 h-6 w-6"
-                  onClick={toggleSortDirection}
-                >
-                  {sortDirection === "asc" ? (
-                    <ArrowUp size={14} />
-                  ) : (
-                    <ArrowDown size={14} />
-                  )}
-                </Button>
-              </TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Extensão (km)</TableHead>
-              <TableHead className="text-right">Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-6">
-                  Nenhum segmento encontrado
-                </TableCell>
-              </TableRow>
-            ) : (
-              currentItems.map((segment) => (
-                <TableRow key={segment.id}>
-                  <TableCell className="font-medium">{segment.name}</TableCell>
-                  <TableCell>{segment.type}</TableCell>
-                  <TableCell className="text-right">
-                    {segment.length.toFixed(4)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {segment.evaluated ? "Avaliado" : "Não avaliado"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/avaliar/formulario/${segment.id}`}>
-                        {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {totalPages > 1 && (
-        <Pagination className="mt-4">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious onClick={() => paginate(currentPage - 1)} />
-            </PaginationItem>
-
-            {pageNumbers.map((page, index) =>
-              page === "ellipsis" ? (
-                <PaginationItem key={`ellipsis-${index}`}>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              ) : (
-                <PaginationItem key={`page-${page}`}>
-                  <PaginationLink
-                    isActive={page === currentPage}
-                    onClick={() => paginate(page as number)}
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              )
-            )}
-
-            <PaginationItem>
-              <PaginationNext onClick={() => paginate(currentPage + 1)} />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
-
-      <div className="mt-2 text-sm text-gray-500">
-        Mostrando {Math.min(indexOfFirstItem + 1, processedSegments.length)}-
-        {Math.min(indexOfLastItem, processedSegments.length)} de{" "}
-        {processedSegments.length} segmentos
-      </div>
+      <SegmentsPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={paginate}
+        itemsPerPage={itemsPerPage}
+        totalItems={processedSegments.length}
+        currentItemsStart={Math.min(indexOfFirstItem + 1, processedSegments.length)}
+        currentItemsEnd={Math.min(indexOfLastItem, processedSegments.length)}
+      />
     </div>
   );
 };

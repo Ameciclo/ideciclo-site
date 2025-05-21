@@ -223,7 +223,7 @@ export type Database = {
     }
     Enums: {
       rating_type: "A" | "B" | "C" | "D"
-      segment_type: "ciclofaixa" | "ciclovia" | "ciclorrota" | "compartilhada"
+      segment_type: "Ciclofaixa" | "Ciclovia" | "Ciclorrota" | "Compartilhada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -340,7 +340,7 @@ export const Constants = {
   public: {
     Enums: {
       rating_type: ["A", "B", "C", "D"],
-      segment_type: ["ciclofaixa", "ciclovia", "ciclorrota", "compartilhada"],
+      segment_type: ["Ciclofaixa", "Ciclovia", "Ciclorrota", "Compartilhada"],
     },
   },
 } as const
