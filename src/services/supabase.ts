@@ -161,6 +161,8 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     }
   }
 
+  console.log("prepare")
+  
   // Prepare segments for insertion by ensuring they match the database schema
   const segmentsToInsert = segments.map(segment => ({
     id: segment.id,
@@ -174,6 +176,7 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     selected: segment.selected,
     evaluated: segment.evaluated
   }));
+  console.log("prepared", segmentsToInsert)
 
   // Now insert all segments
   const { error: insertError } = await supabase

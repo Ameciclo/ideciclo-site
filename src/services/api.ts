@@ -126,17 +126,26 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
   try {
     const areaId = await getOverpassAreaId(cityId);
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-
+    console.log("here")
     const query = `
-      [out:json][timeout:900];
-      area(${areaId})->.searchArea;
-      (
-        way(area.searchArea)["highway"]["cycleway"];
-        way(area.searchArea)["highway"]["cycleway:left"];
-        way(area.searchArea)["highway"]["cycleway:right"];
-        way(area.searchArea)["highway"]["cycleway:both"];
-      );
-      out geom;
+    [out:json];
+    area(${areaId})->.searchArea;
+    
+    (
+      // Likely to contain any kind of cycle infrastructure
+      way["cycleway"](area.searchArea);
+      way["cycleway:left"](area.searchArea);
+      way["cycleway:right"](area.searchArea);
+      way["cycleway:both"](area.searchArea);
+      
+      // Dedicated cycleways
+      way["highway"="cycleway"](area.searchArea);
+    
+      // Shared with pedestrians
+      way["highway"="footway"]["bicycle"](area.searchArea);
+      way["highway"="pedestrian"]["bicycle"](area.searchArea);
+    );
+    out geom;
     `;
 
     const response = await fetchWithRetry(OVERPASS_URL, {
@@ -146,7 +155,8 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
       },
       body: query,
     }, 3, 2000); // More retries and longer delay for complex queries
-
+    
+    console.log("here", response.json)
     return response.json();
   } catch (error) {
     console.error("Error fetching city ways:", error);
@@ -233,32 +243,46 @@ export const determineSegmentType = (tags: Record<string, string>): SegmentType 
   ) {
     return SegmentType.COMPARTILHADA;
   }
-  
-  // Default - ciclorrota
-  return SegmentType.CICLORROTA;
+
+  return undefined;
 };
 
 export const convertToSegments = (data: OverpassResponse, cityId: string): Segment[] => {
+  const seen = new Set<string>();
+  
   return data.elements
     .filter(element => element.type === 'way' && element.geometry)
+    .filter(element => {
+      const id = element.id.toString();
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
     .map(element => {
-      // Convert geometry to GeoJSON format
       const coordinates = element.geometry?.map(point => [point.lon, point.lat]) || [];
       const line = turf.lineString(coordinates);
       const length = turf.length(line, { units: 'kilometers' });
 
+      const type = determineSegmentType(element.tags);
+      if (!type) return null;
+
       return {
         id: element.id.toString(),
         id_cidade: cityId,
-        name: element.tags.name || `Segmento ${element.id}`,
-        type: determineSegmentType(element.tags),
+        name: element.tags.name || element.tags.alt_name || `Segmento ${element.id}`,
+        type: type,
         length: parseFloat(length.toFixed(4)),
-        geometry: element.geometry,
+        geometry: JSON.stringify({
+          type: "LineString",
+          coordinates
+        }),
         selected: false,
         evaluated: false
       };
-    });
+    })
+    .filter((segment): segment is Segment => segment !== null); 
 };
+
 
 export const calculateMergedLength = (segments: Segment[]): number => {
   const selectedSegments = segments.filter(segment => segment.selected);
@@ -274,13 +298,10 @@ export const calculateMergedLength = (segments: Segment[]): number => {
 };
 
 /**
- * Store city data in database and localStorage (for backward compatibility)
+ * Store city data in database
  */
 export const storeCityData = async (cityId: string, data: { city: Partial<City>, segments: Segment[] }): Promise<boolean> => {
   try {
-    // Store in localStorage for backward compatibility
-    localStorage.setItem(`city_${cityId}`, JSON.stringify(data));
-    
     // Store in database
     await saveCityToDB(data.city);
     await saveSegmentsToDB(data.segments);
@@ -293,12 +314,11 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
 };
 
 /**
- * Get city data from database, falling back to localStorage if not found
- * Auto-migrates data from localStorage to database if needed
+ * Get city data from database
  */
 export const getStoredCityData = async (cityId: string): Promise<{ city: Partial<City>, segments: Segment[] } | null> => {
   try {
-    // Try to get from database first
+    // Try to get from database
     const city = await fetchCityFromDB(cityId);
     const segments = await fetchSegmentsFromDB(cityId);
     
@@ -306,39 +326,10 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
       console.log(`Found city ${cityId} in database`);
       return { city, segments };
     }
-    
-    console.log(`City ${cityId} not found in database, checking localStorage...`);
-    
-    // If not in database, try localStorage as fallback
-    const data = localStorage.getItem(`city_${cityId}`);
-    if (data) {
-      console.log(`Found city ${cityId} in localStorage, migrating to database...`);
-      const parsedData = JSON.parse(data);
-      
-      // Save to database for future use
-      if (parsedData.city) {
-        await saveCityToDB(parsedData.city);
-      }
-      
-      if (parsedData.segments && Array.isArray(parsedData.segments)) {
-        await saveSegmentsToDB(parsedData.segments);
-      }
-      
-      console.log(`Successfully migrated city ${cityId} to database`);
-      return parsedData;
-    }
-    
     console.log(`No data found for city ${cityId}`);
     return null;
   } catch (error) {
-    console.error("Error getting stored city data:", error);
-    
-    // Last resort fallback to localStorage
-    const data = localStorage.getItem(`city_${cityId}`);
-    if (data) {
-      return JSON.parse(data);
-    }
-    
+    console.error("Error getting stored city data:", error);    
     return null;
   }
 };

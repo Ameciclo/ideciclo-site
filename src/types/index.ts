@@ -1,9 +1,9 @@
 
 export enum SegmentType {
-  CICLOFAIXA = "ciclofaixa",
-  CICLOVIA = "ciclovia",
-  CICLORROTA = "ciclorrota",
-  COMPARTILHADA = "compartilhada"
+  CICLOFAIXA = "Ciclofaixa",
+  CICLOVIA = "Ciclovia",
+  CICLORROTA = "Ciclorrota",
+  COMPARTILHADA = "Compartilhada"
 }
 
 export enum RatingType {

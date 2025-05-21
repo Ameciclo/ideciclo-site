@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
 import OriginalSegmentsTable from "@/components/OriginalSegmentsTable";
-import CityMap from "@/components/CityMap";
+// import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,7 +38,7 @@ import {
 import TableSortableWrapper from "@/components/TableSortableWrapper";
 
 const Evaluate = () => {
-  const [step, setStep] = useState<"selection" | "evaluation">("selection");
+  const [step, setStep] = useState<"selection" | "refinement">("selection");
   const [cityId, setCityId] = useState<string>("");
   const [cityName, setCityName] = useState<string>("");
   const [stateName, setStateName] = useState<string>("");
@@ -93,26 +93,8 @@ const Evaluate = () => {
 
       if (storedData) {
         setCity(storedData.city);
-
-        // For each segment, check if it has been evaluated by querying the database
-        const enhancedSegments = [...storedData.segments];
-
-        // Check evaluation status for each segment
-        for (let i = 0; i < enhancedSegments.length; i++) {
-          const segment = enhancedSegments[i];
-          const form = await fetchFormBySegmentId(segment.id);
-
-          if (form) {
-            enhancedSegments[i] = {
-              ...segment,
-              evaluated: true,
-              id_form: form.id,
-            };
-          }
-        }
-
-        setSegments(enhancedSegments);
-        setStep("evaluation");
+        setSegments([...storedData.segments]);
+        setStep("refinement");
       } else {
         // If no stored data, we need to fetch it
         handleCitySelected(
@@ -216,13 +198,9 @@ const Evaluate = () => {
       setCityName(selectedCityName);
       setStateName(selectedStateName);
 
-      // Store current selection in localStorage
-      localStorage.setItem("currentCityId", selectedCityId);
-      localStorage.setItem("currentCityName", selectedCityName);
-      localStorage.setItem("currentStateName", selectedStateName);
-
-      // Check if data is in database/localStorage before making API calls
+      // Check if data is in database before making API calls
       const storedData = await getStoredCityData(selectedCityId);
+
       if (storedData) {
         setCity(storedData.city);
         const enhancedSegments = [...storedData.segments];
@@ -256,23 +234,9 @@ const Evaluate = () => {
         // For each segment, check if it has been evaluated
         const enhancedSegments = [...citySegments];
 
-        // Check evaluation status for each segment
-        for (let i = 0; i < enhancedSegments.length; i++) {
-          const segment = enhancedSegments[i];
-          const form = await fetchFormBySegmentId(segment.id);
-
-          if (form) {
-            enhancedSegments[i] = {
-              ...segment,
-              evaluated: true,
-              id_form: form.id,
-            };
-          }
-        }
-
         setSegments(enhancedSegments);
 
-        // Store data in database and localStorage
+        // Store data in database
         await storeCityData(selectedCityId, {
           city: newCity,
           segments: enhancedSegments,
@@ -284,8 +248,8 @@ const Evaluate = () => {
         });
       }
 
-      // Move to evaluation step
-      setStep("evaluation");
+      // Move to refinement step
+      setStep("refinement");
     } catch (error) {
       console.error("Erro ao processar cidade:", error);
       const errorMessage =
@@ -312,139 +276,77 @@ const Evaluate = () => {
   };
 
   const handleMergeSegments = async () => {
-    const selectedSegments = segments.filter((s) => s.selected);
-    if (selectedSegments.length < 2) return;
-
-    // Verificar se algum segmento selecionado já foi avaliado
-    const hasEvaluated = selectedSegments.some((s) => s.evaluated);
-    if (hasEvaluated) {
-      toast({
-        title: "Erro",
-        description: "Segmentos já avaliados não podem ser mesclados",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Gerar um novo ID para o segmento mesclado
-      const mergedId = `merged-${Date.now()}`;
-      const totalLength = calculateMergedLength(selectedSegments);
-
-      // Criar o novo segmento mesclado - utilizando o nome definido pelo usuário no diálogo de mesclagem
-      const mergedSegment: Segment = {
-        id: mergedId,
-        id_cidade: cityId,
-        name:
-          mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
-        type: mergeData?.type || selectedSegments[0].type,
-        length: totalLength,
-        neighborhood: selectedSegments[0].neighborhood,
-        geometry: [], // Em uma implementação real, você mesclaria as geometrias
-        selected: false,
-        evaluated: false,
-      };
-
-      // Save to merge history before removing segments
-      setMergeHistory((prev) => [
-        ...prev,
-        {
-          removedSegments: [...selectedSegments],
-          mergedSegment: { ...mergedSegment },
-        },
-      ]);
-
-      // Remover os segmentos selecionados e adicionar o mesclado
-      const idsToRemove = new Set(selectedSegments.map((s) => s.id));
-      const updatedSegments = [
-        ...segments.filter((s) => !idsToRemove.has(s.id)),
-        mergedSegment,
-      ];
-
-      setSegments(updatedSegments);
-
-      // Atualizar a lista no banco de dados e localStorage
-      await storeCityData(cityId, {
-        city: city as Partial<City>,
-        segments: updatedSegments,
-      });
-
-      // Delete the removed segments from the database
-      const segmentIds = selectedSegments.map((s) => s.id);
-      if (segmentIds.length > 0) {
-        await supabase.from("segments").delete().in("id", segmentIds);
-      }
-
-      toast({
-        title: "Segmentos mesclados",
-        description: `${
-          selectedSegments.length
-        } segmentos mesclados com extensão total de ${totalLength.toFixed(
-          4
-        )} km`,
-      });
-    } catch (error) {
-      console.error("Erro ao mesclar segmentos:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao mesclar os segmentos. Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUndoLastMerge = async () => {
-    if (mergeHistory.length === 0) {
-      toast({
-        title: "Informação",
-        description: "Não há fusões para desfazer",
-      });
-      return;
-    }
-
-    try {
-      // Get the last merge operation
-      const lastMerge = mergeHistory[mergeHistory.length - 1];
-
-      // Remove the merged segment and add back the original segments
-      const updatedSegments = segments.filter(
-        (segment) => segment.id !== lastMerge.mergedSegment.id
-      );
-      const restoredSegments = [
-        ...updatedSegments,
-        ...lastMerge.removedSegments,
-      ];
-
-      // Update state
-      setSegments(restoredSegments);
-
-      // Update database and localStorage
-      await storeCityData(cityId, {
-        city: city as Partial<City>,
-        segments: restoredSegments,
-      });
-
-      // Delete the merged segment from the database
-      await supabase
-        .from("segments")
-        .delete()
-        .eq("id", lastMerge.mergedSegment.id);
-
-      // Update merge history
-      setMergeHistory((prev) => prev.slice(0, -1));
-
-      toast({
-        title: "Fusão desfeita",
-        description: "A última operação de mesclagem foi desfeita com sucesso",
-      });
-    } catch (error) {
-      console.error("Erro ao desfazer mesclagem:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao desfazer a mesclagem. Tente novamente.",
-        variant: "destructive",
-      });
-    }
+    //   const selectedSegments = segments.filter((s) => s.selected);
+    //   if (selectedSegments.length < 2) return;
+    //   // Verificar se algum segmento selecionado já foi avaliado
+    //   const hasEvaluated = selectedSegments.some((s) => s.evaluated);
+    //   if (hasEvaluated) {
+    //     toast({
+    //       title: "Erro",
+    //       description: "Segmentos já avaliados não podem ser mesclados",
+    //       variant: "destructive",
+    //     });
+    //     return;
+    //   }
+    //   try {
+    //     // Gerar um novo ID para o segmento mesclado
+    //     const mergedId = `merged-${Date.now()}`;
+    //     const totalLength = calculateMergedLength(selectedSegments);
+    //     // Criar o novo segmento mesclado - utilizando o nome definido pelo usuário no diálogo de mesclagem
+    //     const mergedSegment: Segment = {
+    //       id: mergedId,
+    //       id_cidade: cityId,
+    //       name:
+    //         mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
+    //       type: mergeData?.type || selectedSegments[0].type,
+    //       length: totalLength,
+    //       neighborhood: selectedSegments[0].neighborhood,
+    //       geometry: [], // Em uma implementação real, você mesclaria as geometrias
+    //       selected: false,
+    //       evaluated: false,
+    //     };
+    //     // Save to merge history before removing segments
+    //     setMergeHistory((prev) => [
+    //       ...prev,
+    //       {
+    //         removedSegments: [...selectedSegments],
+    //         mergedSegment: { ...mergedSegment },
+    //       },
+    //     ]);
+    //     // Remover os segmentos selecionados e adicionar o mesclado
+    //     const idsToRemove = new Set(selectedSegments.map((s) => s.id));
+    //     const updatedSegments = [
+    //       ...segments.filter((s) => !idsToRemove.has(s.id)),
+    //       mergedSegment,
+    //     ];
+    //     setSegments(updatedSegments);
+    //     // Atualizar a lista no banco de dados e localStorage
+    //     await storeCityData(cityId, {
+    //       city: city as Partial<City>,
+    //       segments: updatedSegments,
+    //     });
+    //     // Delete the removed segments from the database
+    //     const segmentIds = selectedSegments.map((s) => s.id);
+    //     if (segmentIds.length > 0) {
+    //       await supabase.from("segments").delete().in("id", segmentIds);
+    //     }
+    //     toast({
+    //       title: "Segmentos mesclados",
+    //       description: `${
+    //         selectedSegments.length
+    //       } segmentos mesclados com extensão total de ${totalLength.toFixed(
+    //         4
+    //       )} km`,
+    //     });
+    //   } catch (error) {
+    //     console.error("Erro ao mesclar segmentos:", error);
+    //     toast({
+    //       title: "Erro",
+    //       description: "Falha ao mesclar os segmentos. Tente novamente.",
+    //       variant: "destructive",
+    //     });
+    //   }
+    console.log("merged?");
   };
 
   const handleUpdateSegmentName = async (
@@ -537,7 +439,7 @@ const Evaluate = () => {
         </Card>
       )}
 
-      {!isLoading && !error && step === "evaluation" && (
+      {!isLoading && !error && step === "refinement" && (
         <div className="space-y-8">
           <Card>
             <CardHeader>
@@ -551,15 +453,6 @@ const Evaluate = () => {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUndoLastMerge}
-                    disabled={mergeHistory.length === 0}
-                  >
-                    <Undo2 className="mr-2 h-4 w-4" />
-                    Desfazer mesclagem
-                  </Button>
                   <Button variant="outline" size="sm" onClick={resetCityData}>
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Recarregar dados
@@ -615,7 +508,7 @@ const Evaluate = () => {
               <h3 className="text-lg font-semibold mb-4">
                 Visualização do Mapa
               </h3>
-              <CityMap segments={segments} />
+              {/* <CityMap segments={segments} /> */}
             </div>
           </div>
         </div>
