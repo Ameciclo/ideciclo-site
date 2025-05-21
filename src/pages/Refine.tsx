@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -29,6 +30,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import TableSortableWrapper from "@/components/TableSortableWrapper";
+import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 
 const Refine = () => {
   const [step, setStep] = useState<"selection" | "refinement">("selection");
@@ -39,10 +41,8 @@ const Refine = () => {
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [mergeData, setMergeData] = useState<{
-    name: string;
-    type: SegmentType;
-  } | null>(null);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -68,17 +68,49 @@ const Refine = () => {
     }
   }, [location, step]);
 
+  const loadLocalSegments = (cityId: string): Segment[] | null => {
+    try {
+      const cachedSegmentsKey = `segments_${cityId}`;
+      const cachedSegmentsJson = localStorage.getItem(cachedSegmentsKey);
+      if (cachedSegmentsJson) {
+        return JSON.parse(cachedSegmentsJson);
+      }
+    } catch (error) {
+      console.error("Error loading segments from local storage:", error);
+    }
+    return null;
+  };
+
+  const saveLocalSegments = (cityId: string, segments: Segment[]) => {
+    try {
+      const cachedSegmentsKey = `segments_${cityId}`;
+      localStorage.setItem(cachedSegmentsKey, JSON.stringify(segments));
+    } catch (error) {
+      console.error("Error saving segments to local storage:", error);
+    }
+  };
+
   const loadStoredCityData = async (selectedCityId: string) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Try to load city data from database
+      // First try to load from local storage for instant response
+      const localSegments = loadLocalSegments(selectedCityId);
+      if (localSegments) {
+        setSegments(localSegments);
+      }
+
+      // Then try to load from database for fresh data
       const storedData = await getStoredCityData(selectedCityId);
 
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
+        
+        // Update local storage with fresh data
+        saveLocalSegments(selectedCityId, storedData.segments);
+        
         setStep("refinement");
       }
     } catch (error) {
@@ -129,6 +161,9 @@ const Refine = () => {
 
       setSegments(enhancedSegments);
 
+      // Update local storage
+      saveLocalSegments(cityId, enhancedSegments);
+
       // Store data in database
       await storeCityData(cityId, {
         city: updatedCity,
@@ -169,6 +204,12 @@ const Refine = () => {
       setCityName(selectedCityName);
       setStateName(selectedStateName);
 
+      // First try to load from local storage for instant response
+      const localSegments = loadLocalSegments(selectedCityId);
+      if (localSegments) {
+        setSegments(localSegments);
+      }
+
       // Check if data is in database before making API calls
       const storedData = await getStoredCityData(selectedCityId);
 
@@ -176,6 +217,9 @@ const Refine = () => {
         setCity(storedData.city);
         const enhancedSegments = [...storedData.segments];
         setSegments(enhancedSegments);
+
+        // Update local storage with fresh data
+        saveLocalSegments(selectedCityId, enhancedSegments);
 
         toast({
           title: "Dados carregados",
@@ -204,6 +248,9 @@ const Refine = () => {
         const enhancedSegments = [...citySegments];
 
         setSegments(enhancedSegments);
+
+        // Store data in local storage
+        saveLocalSegments(selectedCityId, enhancedSegments);
 
         // Store data in database
         await storeCityData(selectedCityId, {
@@ -256,11 +303,20 @@ const Refine = () => {
     try {
       // Update in the database
       await updateSegmentName(cityId, segmentId, newName);
+      
+      // Update state for UI
       setSegments((prevSegments) =>
         prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, name: newName } : seg
         )
       );
+      
+      // Update local storage
+      const updatedSegments = segments.map((seg) => 
+        seg.id === segmentId ? { ...seg, name: newName } : seg
+      );
+      saveLocalSegments(cityId, updatedSegments);
+      
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -271,30 +327,64 @@ const Refine = () => {
     }
   };
 
-  const handleSelectSegment = (id: string, selected: boolean) => {
-    setSegments((prevSegments) =>
-      prevSegments.map((segment) =>
-        segment.id === id ? { ...segment, selected } : segment
-      )
-    );
+  const handleDeleteSegment = async (segmentId: string) => {
+    try {
+      // Remove from database
+      await removeSegments([segmentId]);
+      
+      // Update state
+      const updatedSegments = segments.filter(segment => segment.id !== segmentId);
+      setSegments(updatedSegments);
+      
+      // Update local storage
+      saveLocalSegments(cityId, updatedSegments);
+      
+      toast({
+        title: "Segmento removido",
+        description: "O segmento foi removido com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao remover segmento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao remover o segmento.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw so the UI can handle it
+    }
   };
 
-  const handleMergeSegments = async () => {
+  const handleSelectSegment = (id: string, selected: boolean) => {
+    const updatedSegments = segments.map((segment) =>
+      segment.id === id ? { ...segment, selected } : segment
+    );
+    setSegments(updatedSegments);
+    
+    // Update local storage
+    saveLocalSegments(cityId, updatedSegments);
+  };
+
+  const handleMergeButtonClick = () => {
+    if (selectedSegmentsCount >= 2) {
+      setMergeDialogOpen(true);
+    }
+  };
+
+  const handleMergeSegments = async (mergedName: string, mergedType: SegmentType) => {
     const selectedSegments = segments.filter((s) => s.selected);
     if (selectedSegments.length < 2) return;
+    
     try {
       // Gerar um novo ID para o segmento mesclado
       const mergedId = `merged-${Date.now()}`;
-      // const totalLength = calculateMergedLength(selectedSegments);
       const mergedGeometry = mergeGeometry(selectedSegments);
 
-      // Criar o novo segmento mesclado - utilizando o nome definido pelo usuário no diálogo de mesclagem
+      // Criar o novo segmento mesclado
       const mergedSegment: Segment = {
         id: mergedId,
         id_cidade: cityId,
-        name:
-          mergeData?.name || `Segmento mesclado (${selectedSegments.length})`,
-        type: mergeData?.type || selectedSegments[0].type,
+        name: mergedName,
+        type: mergedType,
         length: mergedGeometry.length,
         neighborhood: selectedSegments[0].neighborhood,
         geometry: mergedGeometry.geometry,
@@ -308,7 +398,11 @@ const Refine = () => {
         ...segments.filter((s) => !idsToRemove.has(s.id)),
         mergedSegment,
       ];
+      
       setSegments(updatedSegments);
+      
+      // Update local storage
+      saveLocalSegments(cityId, updatedSegments);
 
       // Atualizar a lista no banco de dados
       await storeSegment(mergedSegment);
@@ -330,10 +424,10 @@ const Refine = () => {
         variant: "destructive",
       });
     }
-    console.log("merged?");
   };
 
   const selectedSegmentsCount = segments.filter((s) => s.selected).length;
+  const selectedSegments = segments.filter((s) => s.selected);
 
   return (
     <div className="container py-8">
@@ -441,14 +535,32 @@ const Refine = () => {
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
 
+              <div className="flex flex-wrap items-center gap-4 mb-4">
+                {selectedSegmentsCount > 0 && (
+                  <Button
+                    onClick={handleMergeButtonClick}
+                    disabled={selectedSegmentsCount < 2}
+                  >
+                    Mesclar {selectedSegmentsCount} segmentos
+                  </Button>
+                )}
+              </div>
+
               <TableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
                 onSelectSegment={handleSelectSegment}
-                onMergeSelected={handleMergeSegments}
+                onMergeSelected={handleMergeButtonClick}
                 selectedSegmentsCount={selectedSegmentsCount}
-                onMergeDataChange={setMergeData}
                 onUpdateSegmentName={handleUpdateSegmentName}
+                onDeleteSegment={handleDeleteSegment}
+              />
+
+              <MergeSegmentsDialog
+                open={mergeDialogOpen}
+                onOpenChange={setMergeDialogOpen}
+                selectedSegments={selectedSegments}
+                onConfirm={handleMergeSegments}
               />
             </div>
             <div>

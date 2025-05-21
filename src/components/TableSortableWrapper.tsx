@@ -10,7 +10,7 @@ interface TableSortableWrapperProps {
   segments: Segment[];
   showSortOptions?: boolean;
   onSelectSegment?: (id: string, selected: boolean) => void;
-  onMergeSelected?: () => Promise<void>;
+  onMergeSelected?: () => Promise<void> | void;
   selectedSegmentsCount?: number;
   onMergeDataChange?: React.Dispatch<
     React.SetStateAction<{
@@ -19,6 +19,7 @@ interface TableSortableWrapperProps {
     } | null>
   >;
   onUpdateSegmentName?: (segmentId: string, newName: string) => Promise<void>;
+  onDeleteSegment?: (segmentId: string) => Promise<void>;
 }
 
 export const TableSortableWrapper = ({
@@ -29,6 +30,7 @@ export const TableSortableWrapper = ({
   selectedSegmentsCount,
   onMergeDataChange,
   onUpdateSegmentName,
+  onDeleteSegment,
 }: TableSortableWrapperProps) => {
   // Filter state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -77,7 +79,7 @@ export const TableSortableWrapper = ({
         // Filter by rating
         if (selectedRating !== "all") {
           // For now, placeholder as we don't have ratings directly in segments
-          return true; // We would filter by rating here if ratings were available
+          return segment.id_form ? true : false; // Simple filter: if has id_form, it's evaluated
         }
         return true;
       })
@@ -149,23 +151,6 @@ export const TableSortableWrapper = ({
     // This is the "Refine Data" page version with selection, merging, and name editing
     return (
       <div>
-        {showSortOptions && (
-          <div className="mb-4">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              {selectedSegmentsCount !== undefined &&
-                selectedSegmentsCount > 0 &&
-                onMergeSelected && (
-                  <Button
-                    onClick={() => onMergeSelected()}
-                    disabled={selectedSegmentsCount < 2}
-                  >
-                    Mesclar {selectedSegmentsCount} segmentos
-                  </Button>
-                )}
-            </div>
-          </div>
-        )}
-
         <SegmentsFilters
           nameFilter={nameFilter}
           onNameFilterChange={setNameFilter}
@@ -185,6 +170,7 @@ export const TableSortableWrapper = ({
           segments={currentItems}
           onSelectSegment={onSelectSegment}
           onUpdateSegmentName={onUpdateSegmentName}
+          onDeleteSegment={onDeleteSegment}
           hideSelectColumn={false}
           hideNameEditing={false}
           sortDirection={sortDirection}
