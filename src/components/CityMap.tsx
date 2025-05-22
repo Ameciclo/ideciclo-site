@@ -8,12 +8,55 @@ import {
 import "leaflet/dist/leaflet.css";
 import { LatLngExpression, LatLngBounds } from "leaflet";
 import { Segment } from "@/types";
-import { useMemo } from "react";
+import { useEffect } from "react";
 
 interface CityMapProps {
   segments: Segment[];
   className?: string;
 }
+
+interface FitBoundsProps {
+  segments: Segment[];
+}
+
+const FitBounds = ({ segments }: FitBoundsProps) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const allCoords: LatLngExpression[] = [];
+
+    segments.forEach((segment) => {
+      const geom = segment.geometry;
+
+      if (geom.type === "LineString") {
+        allCoords.push(
+          ...geom.coordinates.map(
+            (coord) => [coord[1], coord[0]] as LatLngExpression
+          )
+        );
+      } else if (geom.type === "MultiLineString") {
+        geom.coordinates.forEach((line) => {
+          allCoords.push(
+            ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+          );
+        });
+      } else if (geom.type === "Polygon") {
+        geom.coordinates.forEach((ring) => {
+          allCoords.push(
+            ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+          );
+        });
+      }
+    });
+
+    if (allCoords.length > 0) {
+      const bounds = new LatLngBounds(allCoords);
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }, [segments, map]);
+
+  return null;
+};
 
 const CityMap = ({ segments, className }: CityMapProps) => {
   const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
@@ -48,7 +91,6 @@ const CityMap = ({ segments, className }: CityMapProps) => {
                 />
               );
             } else if (geom.type === "MultiLineString") {
-              console.log("HERE");
               return geom.coordinates.map((line: number[][], idx: number) => {
                 const coordinates = line.map(
                   (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
@@ -84,6 +126,8 @@ const CityMap = ({ segments, className }: CityMapProps) => {
             return null;
           }
         })}
+
+        <FitBounds segments={segments} />
       </MapContainer>
     </div>
   );
