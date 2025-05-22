@@ -5,11 +5,13 @@ import { Link } from "react-router-dom";
 import OriginalSegmentsTable from "./OriginalSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
+import CityMap from "./CityMap";
 
 interface TableSortableWrapperProps {
   segments: Segment[];
   showSortOptions?: boolean;
   onSelectSegment?: (id: string, selected: boolean) => void;
+  selectedSegments?: Segment[];
   onMergeSelected?: () => Promise<void>;
   selectedSegmentsCount?: number;
   onMergeDataChange?: React.Dispatch<
@@ -28,6 +30,7 @@ export const TableSortableWrapper = ({
   onSelectSegment,
   onMergeSelected,
   selectedSegmentsCount,
+  selectedSegments,
   onMergeDataChange,
   onUpdateSegmentName,
 }: TableSortableWrapperProps) => {
@@ -182,15 +185,23 @@ export const TableSortableWrapper = ({
           showRatingFilter={false}
         />
 
-        <OriginalSegmentsTable
-          segments={currentItems}
-          onSelectSegment={onSelectSegment}
-          onUpdateSegmentName={onUpdateSegmentName}
-          hideSelectColumn={false}
-          hideNameEditing={false}
-          sortDirection={sortDirection}
-          onToggleSortDirection={toggleSortDirection}
-        />
+        <div className="grid grid-cols-5 gap-8">
+          <div className="col-span-3">
+            <OriginalSegmentsTable
+              segments={currentItems}
+              onSelectSegment={onSelectSegment}
+              onUpdateSegmentName={onUpdateSegmentName}
+              hideSelectColumn={false}
+              hideNameEditing={false}
+              sortDirection={sortDirection}
+              onToggleSortDirection={toggleSortDirection}
+            />
+          </div>
+
+          <div className="col-span-2">
+            <CityMap segments={selectedSegments} />
+          </div>
+        </div>
 
         <SegmentsPagination
           currentPage={currentPage}

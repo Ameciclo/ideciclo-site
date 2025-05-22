@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
-// import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -541,12 +540,9 @@ const Refine = () => {
             </CardContent>
           </Card>
 
-          <div
-            className={`grid gap-8 ${!showMap ? "grid-cols-2" : "grid-cols-1"}`}
-          >
+          <div className="flex gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
-
               <div className="flex flex-wrap items-center gap-4 mb-4">
                 {selectedSegmentsCount > 0 && (
                   <Button
@@ -557,14 +553,11 @@ const Refine = () => {
                   </Button>
                 )}
               </div>
-              <Button variant="outline" onClick={handleShowMap}>
-                Mostrar mapa
-              </Button>
-
               <TableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
                 onSelectSegment={handleSelectSegment}
+                selectedSegments={selectedSegments}
                 onMergeSelected={handleMergeButtonClick}
                 selectedSegmentsCount={selectedSegmentsCount}
                 onUpdateSegmentName={handleUpdateSegmentName}
@@ -577,9 +570,6 @@ const Refine = () => {
                 selectedSegments={selectedSegments}
                 onConfirm={handleMergeSegments}
               />
-            </div>
-            <div>
-              {showMap == false && <CityMap segments={selectedSegments} />}
             </div>
           </div>
         </div>
