@@ -165,7 +165,7 @@ export type Database = {
         Row: {
           created_at: string
           evaluated: boolean | null
-          geometry: Json | null
+          geometry: [Json] | null
           id: string
           id_cidade: string
           id_form: string | null
@@ -179,7 +179,7 @@ export type Database = {
         Insert: {
           created_at?: string
           evaluated?: boolean | null
-          geometry?: Json | null
+          geometry?: [Json] | null
           id: string
           id_cidade: string
           id_form?: string | null
@@ -193,7 +193,7 @@ export type Database = {
         Update: {
           created_at?: string
           evaluated?: boolean | null
-          geometry?: Json | null
+          geometry?: [Json] | null
           id?: string
           id_cidade?: string
           id_form?: string | null

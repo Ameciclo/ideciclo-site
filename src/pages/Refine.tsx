@@ -387,6 +387,7 @@ const Refine = () => {
       // Gerar um novo ID para o segmento mesclado
       const mergedId = `merged-${Date.now()}`;
       const mergedGeometry = mergeGeometry(selectedSegments);
+      const newLength = calculateMergedLength(selectedSegments);
 
       // Criar o novo segmento mesclado
       const mergedSegment: Segment = {
@@ -394,9 +395,9 @@ const Refine = () => {
         id_cidade: cityId,
         name: mergedName,
         type: mergedType,
-        length: mergedGeometry.length,
+        length: newLength,
         neighborhood: selectedSegments[0].neighborhood,
-        geometry: mergedGeometry.geometry,
+        geometry: mergedGeometry,
         selected: false,
         evaluated: false,
       };
@@ -421,9 +422,7 @@ const Refine = () => {
         title: "Segmentos mesclados",
         description: `${
           selectedSegments.length
-        } segmentos mesclados com extensão total de ${mergedGeometry.length.toFixed(
-          4
-        )} km`,
+        } segmentos mesclados com extensão total de ${newLength.toFixed(4)} km`,
       });
     } catch (error) {
       console.error("Erro ao mesclar segmentos:", error);
@@ -553,6 +552,12 @@ const Refine = () => {
                   </Button>
                 )}
               </div>
+              <MergeSegmentsDialog
+                open={mergeDialogOpen}
+                onOpenChange={setMergeDialogOpen}
+                selectedSegments={selectedSegments}
+                onConfirm={handleMergeSegments}
+              />
               <TableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
@@ -562,13 +567,6 @@ const Refine = () => {
                 selectedSegmentsCount={selectedSegmentsCount}
                 onUpdateSegmentName={handleUpdateSegmentName}
                 onDeleteSegment={handleDeleteSegment}
-              />
-
-              <MergeSegmentsDialog
-                open={mergeDialogOpen}
-                onOpenChange={setMergeDialogOpen}
-                selectedSegments={selectedSegments}
-                onConfirm={handleMergeSegments}
               />
             </div>
           </div>

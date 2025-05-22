@@ -274,10 +274,10 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
         name: element.tags.name || element.tags.alt_name || `Segmento ${element.id}`,
         type: type,
         length: parseFloat(length.toFixed(4)),
-        geometry: JSON.stringify({
+        geometry: [JSON.stringify({
           type: "LineString",
           coordinates
-        }),
+        })],
         selected: false,
         evaluated: false
       };
@@ -285,46 +285,10 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
     .filter((segment): segment is Segment => segment !== null); 
 };
 
-// export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
-//   const lines = segments.map(segment => {
-//     const geometry = JSON.parse(segment.geometry);
-//     return geometry.coordinates;
-//   });
 
-//   const multiLine = turf.multiLineString(lines);
-
-//   const totalLength = segments.reduce((sum, segment) => {
-//     const geometry = JSON.parse(segment.geometry);
-//     const line = turf.lineString(geometry.coordinates);
-//     return sum + turf.length(line, { units: 'kilometers' });
-//   }, 0);
-
-//   return {
-//     length: parseFloat(totalLength.toFixed(4)),
-//     geometry: JSON.stringify(multiLine.geometry),
-//   };
-// };
-
-// mergear garantindo que as linhas estão conectadas com lineMerge
-
-export const mergeGeometry = (segments: Segment[]): { length: number; geometry: string } => {
-  const lines = segments.map(segment => {
-    const geometry = JSON.parse(segment.geometry);
-    const coords = geometry.coordinates;
-    return turf.lineString(coords);
-  });
-
-  const multiLine = turf.multiLineString(
-    lines.map(line => line.geometry.coordinates)
-  );
-
-  const merged = turf.lineMerge(multiLine);
-
-  const length = turf.length(merged, { units: 'kilometers' });
-  return {
-    length: parseFloat(length.toFixed(4)),
-    geometry: JSON.stringify(merged.geometry),
-  };
+export const mergeGeometry = (segments: Segment[]): any => {
+  const allGeometries = segments.flatMap(segment => segment.geometry);
+  return allGeometries;
 };
 
 export const calculateMergedLength = (segments: Segment[]): number => {

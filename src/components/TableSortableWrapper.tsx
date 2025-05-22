@@ -153,23 +153,6 @@ export const TableSortableWrapper = ({
     // This is the "Refine Data" page version with selection, merging, and name editing
     return (
       <div>
-        {showSortOptions && (
-          <div className="mb-4">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              {selectedSegmentsCount !== undefined &&
-                selectedSegmentsCount > 0 &&
-                onMergeSelected && (
-                  <Button
-                    onClick={() => onMergeSelected()}
-                    disabled={selectedSegmentsCount < 2}
-                  >
-                    Mesclar {selectedSegmentsCount} segmentos
-                  </Button>
-                )}
-            </div>
-          </div>
-        )}
-
         <SegmentsFilters
           nameFilter={nameFilter}
           onNameFilterChange={setNameFilter}
