@@ -22,15 +22,25 @@ const FitBounds = ({ segments }: { segments: Segment[] }) => {
 
     segments.forEach((segment) => {
       try {
-        const geom = JSON.parse(segment.geometry);
-        const coords = geom.coordinates.map(
-          (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
-        );
+        const geom = segment.geometry;
+        console.log(geom);
 
         if (geom.type === "Polygon") {
-          coords.forEach((ring: LatLngExpression) => allCoords.push(ring));
-        } else {
-          allCoords.push(...coords);
+          geom.coordinates.forEach((ring: number[][]) => {
+            ring.forEach((coord: number[]) => {
+              allCoords.push([coord[1], coord[0]]);
+            });
+          });
+        } else if (geom.type === "LineString") {
+          geom.coordinates.forEach((coord: number[]) => {
+            allCoords.push([coord[1], coord[0]]);
+          });
+        } else if (geom.type === "MultiLineString") {
+          geom.coordinates.forEach((line: number[][]) => {
+            line.forEach((coord: number[]) => {
+              allCoords.push([coord[1], coord[0]]);
+            });
+          });
         }
       } catch (e) {
         console.error("Invalid geometry", e);
@@ -64,15 +74,14 @@ const CityMap = ({ segments }: CityMapProps) => {
 
         {segments.map((segment) => {
           try {
-            console.log("seg", segment.geometry[0]);
-            const geom = JSON.parse(segment.geometry);
-            const coordinates = geom.coordinates.map(
-              (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
-            );
-
+            const geom = segment.geometry;
             const color = segment.type === "Ciclovia" ? "blue" : "red";
 
             if (geom.type === "LineString") {
+              const coordinates = geom.coordinates.map(
+                (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
+              );
+
               return (
                 <Polyline
                   key={segment.id}
@@ -80,7 +89,28 @@ const CityMap = ({ segments }: CityMapProps) => {
                   pathOptions={{ color }}
                 />
               );
+            } else if (geom.type === "MultiLineString") {
+              console.log("HERE");
+              return geom.coordinates.map((line: number[][], idx: number) => {
+                const coordinates = line.map(
+                  (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
+                );
+
+                return (
+                  <Polyline
+                    key={`${segment.id}-${idx}`}
+                    positions={coordinates}
+                    pathOptions={{ color }}
+                  />
+                );
+              });
             } else if (geom.type === "Polygon") {
+              const coordinates = geom.coordinates.map((ring: number[][]) =>
+                ring.map(
+                  (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
+                )
+              );
+
               return (
                 <Polygon
                   key={segment.id}

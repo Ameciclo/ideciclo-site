@@ -274,22 +274,27 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
         name: element.tags.name || element.tags.alt_name || `Segmento ${element.id}`,
         type: type,
         length: parseFloat(length.toFixed(4)),
-        geometry: [JSON.stringify({
-          type: "LineString",
-          coordinates
-        })],
+        geometry: {
+          type: "MultiLineString",
+          coordinates: [coordinates]
+        },
         selected: false,
         evaluated: false
       };
     })
     .filter((segment): segment is Segment => segment !== null); 
 };
-
-
 export const mergeGeometry = (segments: Segment[]): any => {
-  const allGeometries = segments.flatMap(segment => segment.geometry);
-  return allGeometries;
+  const allCoordinates: number[][][] = segments.flatMap(segment => segment.geometry.coordinates);
+
+  return {
+    type: "MultiLineString",
+    coordinates: allCoordinates
+  };
 };
+
+
+
 
 export const calculateMergedLength = (segments: Segment[]): number => {
   const selectedSegments = segments.filter(segment => segment.selected);
