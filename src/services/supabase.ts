@@ -177,13 +177,12 @@ export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolea
     console.warn("No segment IDs provided for deletion.");
     return false;
   }
-
   try {
     const { error } = await supabase
       .from('segments')
       .delete()
       .in('id', segmentIds);
-
+    console.log(segmentIds)
     if (error) {
       console.error("Error deleting segments:", error);
       return false;

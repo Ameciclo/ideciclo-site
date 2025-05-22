@@ -294,8 +294,6 @@ export const mergeGeometry = (segments: Segment[]): any => {
 };
 
 
-
-
 export const calculateMergedLength = (segments: Segment[]): number => {
   const selectedSegments = segments.filter(segment => segment.selected);
   

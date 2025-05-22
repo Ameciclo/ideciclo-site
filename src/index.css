@@ -76,6 +76,7 @@
 .leaflet-container {
   height: 83vh;
   width: 70vh;
+  z-index: 0 !important;
 }
 
 @layer base {

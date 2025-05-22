@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Segment, SegmentType } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -28,22 +27,29 @@ const MergeSegmentsDialog = ({
   onConfirm,
 }: MergeSegmentsDialogProps) => {
   const [mergedName, setMergedName] = useState<string>("");
-  const [mergedType, setMergedType] = useState<SegmentType>(SegmentType.CICLOFAIXA);
+  const [mergedType, setMergedType] = useState<SegmentType>(
+    SegmentType.CICLOFAIXA
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate total length of all selected segments
-  const totalLength = selectedSegments.reduce((total, segment) => total + segment.length, 0);
-  
+  const totalLength = selectedSegments.reduce(
+    (total, segment) => total + segment.length,
+    0
+  );
+
   // Generate default name based on unique segment names
   useEffect(() => {
     if (selectedSegments.length > 0) {
       // Extract unique names from selected segments
-      const uniqueNames = Array.from(new Set(selectedSegments.map(s => s.name)));
+      const uniqueNames = Array.from(
+        new Set(selectedSegments.map((s) => s.name))
+      );
       // Join unique names with " / " separator
       setMergedName(uniqueNames.join(" / "));
-      
+
       // Set default type
-      const types = Array.from(new Set(selectedSegments.map(s => s.type)));
+      const types = Array.from(new Set(selectedSegments.map((s) => s.type)));
       if (types.length === 1) {
         setMergedType(types[0]);
       } else {
@@ -65,8 +71,9 @@ const MergeSegmentsDialog = ({
   };
 
   // Check if all selected segments have the same type
-  const haveSameType = selectedSegments.length > 0 && 
-    selectedSegments.every(s => s.type === selectedSegments[0].type);
+  const haveSameType =
+    selectedSegments.length > 0 &&
+    selectedSegments.every((s) => s.type === selectedSegments[0].type);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,8 +99,12 @@ const MergeSegmentsDialog = ({
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Extensão</Label>
             <div className="col-span-3">
-              <p className="text-sm font-semibold">{totalLength.toFixed(4)} km</p>
-              <p className="text-xs text-muted-foreground">Soma da extensão dos segmentos selecionados</p>
+              <p className="text-sm font-semibold">
+                {totalLength.toFixed(4)} km
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Soma da extensão dos segmentos selecionados
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
@@ -110,19 +121,31 @@ const MergeSegmentsDialog = ({
                   className="flex flex-col space-y-2"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={SegmentType.CICLOFAIXA} id="ciclofaixa" />
+                    <RadioGroupItem
+                      value={SegmentType.CICLOFAIXA}
+                      id="ciclofaixa"
+                    />
                     <Label htmlFor="ciclofaixa">Ciclofaixa</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={SegmentType.CICLOVIA} id="ciclovia" />
+                    <RadioGroupItem
+                      value={SegmentType.CICLOVIA}
+                      id="ciclovia"
+                    />
                     <Label htmlFor="ciclovia">Ciclovia</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={SegmentType.CICLORROTA} id="ciclorrota" />
+                    <RadioGroupItem
+                      value={SegmentType.CICLORROTA}
+                      id="ciclorrota"
+                    />
                     <Label htmlFor="ciclorrota">Ciclorrota</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value={SegmentType.COMPARTILHADA} id="compartilhada" />
+                    <RadioGroupItem
+                      value={SegmentType.COMPARTILHADA}
+                      id="compartilhada"
+                    />
                     <Label htmlFor="compartilhada">Compartilhada</Label>
                   </div>
                 </RadioGroup>
@@ -134,8 +157,8 @@ const MergeSegmentsDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleConfirm} 
+          <Button
+            onClick={handleConfirm}
             disabled={isSubmitting || !mergedName.trim()}
           >
             {isSubmitting ? "Processando..." : "Mesclar"}
