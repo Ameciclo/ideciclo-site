@@ -27,10 +27,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import TableSortableWrapper from "@/components/TableSortableWrapper";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
-import CityMap from "@/components/CityMap";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
+import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
 
 const Refine = () => {
   const [step, setStep] = useState<"selection" | "refinement">("selection");
@@ -517,13 +516,11 @@ const Refine = () => {
                 selectedSegments={selectedSegments}
                 onConfirm={handleMergeSegments}
               />
-              <TableSortableWrapper
+              <RefinementTableSortableWrapper
                 segments={segments}
-                showSortOptions={true}
                 onSelectSegment={handleSelectSegment}
                 selectedSegments={selectedSegments}
                 onMergeSelected={handleMergeButtonClick}
-                selectedSegmentsCount={selectedSegmentsCount}
                 onUpdateSegmentName={handleUpdateSegmentName}
                 onDeleteSegment={handleDeleteSegment}
               />

@@ -29,20 +29,16 @@ interface SegmentsTableProps {
   onSelectSegment?: (id: string, selected: boolean) => void;
   onUpdateSegmentName?: (id: string, newName: string) => Promise<void>;
   onDeleteSegment?: (id: string) => Promise<void>;
-  hideSelectColumn?: boolean;
-  hideNameEditing?: boolean;
   sortDirection?: "asc" | "desc";
   onToggleSortDirection?: () => void;
   showEvaluationActions?: boolean;
 }
 
-const OriginalSegmentsTable = ({
+const RefinementSegmentsTable = ({
   segments,
   onSelectSegment,
   onUpdateSegmentName,
   onDeleteSegment,
-  hideSelectColumn = false,
-  hideNameEditing = false,
   sortDirection,
   onToggleSortDirection,
   showEvaluationActions = false,
@@ -109,12 +105,11 @@ const OriginalSegmentsTable = ({
     if (segmentToDelete && onDeleteSegment) {
       setIsDeleting(true);
       try {
+        console.log("die");
         await onDeleteSegment(segmentToDelete);
-
         // Update local cache by removing the segment
         const cachedSegmentsKey = `segments_${segments[0]?.id_cidade}`;
         const cachedSegments = localStorage.getItem(cachedSegmentsKey);
-
         if (cachedSegments) {
           try {
             const parsedSegments = JSON.parse(cachedSegments);
@@ -126,7 +121,7 @@ const OriginalSegmentsTable = ({
               JSON.stringify(updatedSegments)
             );
           } catch (error) {
-            console.error("Error updating segments in local storage:", error);
+            console.error("Error deleting segments in local storage:", error);
           }
         }
       } finally {
@@ -158,10 +153,7 @@ const OriginalSegmentsTable = ({
           <TableCaption>Lista de segmentos cicloviários</TableCaption>
           <TableHeader>
             <TableRow>
-              {!hideSelectColumn && onSelectSegment && (
-                <TableHead className="w-[50px]">Selecionar</TableHead>
-              )}
-
+              <TableHead className="w-[50px]">Selecionar</TableHead>
               <TableHead className="flex items-center gap-2">
                 Nome
                 {sortDirection !== undefined && onToggleSortDirection && (
@@ -182,15 +174,7 @@ const OriginalSegmentsTable = ({
 
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Extensão (km)</TableHead>
-
-              {showEvaluationActions ? (
-                <>
-                  <TableHead className="text-right">Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </>
-              ) : (
-                <TableHead className="text-right">Ações</TableHead>
-              )}
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -209,17 +193,15 @@ const OriginalSegmentsTable = ({
                   key={segment.id}
                   className={segment.evaluated ? "bg-muted/30" : undefined}
                 >
-                  {!hideSelectColumn && onSelectSegment && (
-                    <TableCell>
-                      <Checkbox
-                        checked={segment.selected}
-                        onCheckedChange={(checked) => {
-                          onSelectSegment(segment.id, !!checked);
-                        }}
-                        disabled={segment.evaluated}
-                      />
-                    </TableCell>
-                  )}
+                  <TableCell>
+                    <Checkbox
+                      checked={segment.selected}
+                      onCheckedChange={(checked) => {
+                        onSelectSegment(segment.id, !!checked);
+                      }}
+                      disabled={segment.evaluated}
+                    />
+                  </TableCell>
 
                   <TableCell>
                     {editingNameId === segment.id ? (
@@ -253,23 +235,14 @@ const OriginalSegmentsTable = ({
                     ) : (
                       <div className="flex items-center gap-1">
                         <span className="font-medium">{segment.name}</span>
-                        {!hideNameEditing &&
-                          onUpdateSegmentName &&
-                          !segment.evaluated && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => startEditing(segment)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
-                        {segment.evaluated && (
-                          <Badge variant="outline" className="ml-2">
-                            Avaliado
-                          </Badge>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => startEditing(segment)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                       </div>
                     )}
                   </TableCell>
@@ -281,33 +254,15 @@ const OriginalSegmentsTable = ({
                   </TableCell>
 
                   <TableCell className="text-right">
-                    {showEvaluationActions ? (
-                      <>{segment.evaluated ? "Avaliado" : "Não avaliado"}</>
-                    ) : (
-                      <>
-                        {!segment.evaluated && onDeleteSegment && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            onClick={() => setSegmentToDelete(segment.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={() => setSegmentToDelete(segment.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
-
-                  {showEvaluationActions && (
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`/avaliar/formulario/${segment.id}`}>
-                          {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
-                        </a>
-                      </Button>
-                    </TableCell>
-                  )}
                 </TableRow>
               ))
             )}
@@ -345,4 +300,4 @@ const OriginalSegmentsTable = ({
   );
 };
 
-export default OriginalSegmentsTable;
+export default RefinementSegmentsTable;
