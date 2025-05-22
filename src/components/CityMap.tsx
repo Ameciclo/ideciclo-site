@@ -12,56 +12,14 @@ import { useMemo } from "react";
 
 interface CityMapProps {
   segments: Segment[];
+  className?: string;
 }
 
-const FitBounds = ({ segments }: { segments: Segment[] }) => {
-  const map = useMap();
-
-  const bounds = useMemo(() => {
-    const allCoords: LatLngExpression[] = [];
-
-    segments.forEach((segment) => {
-      try {
-        const geom = segment.geometry;
-        console.log(geom);
-
-        if (geom.type === "Polygon") {
-          geom.coordinates.forEach((ring: number[][]) => {
-            ring.forEach((coord: number[]) => {
-              allCoords.push([coord[1], coord[0]]);
-            });
-          });
-        } else if (geom.type === "LineString") {
-          geom.coordinates.forEach((coord: number[]) => {
-            allCoords.push([coord[1], coord[0]]);
-          });
-        } else if (geom.type === "MultiLineString") {
-          geom.coordinates.forEach((line: number[][]) => {
-            line.forEach((coord: number[]) => {
-              allCoords.push([coord[1], coord[0]]);
-            });
-          });
-        }
-      } catch (e) {
-        console.error("Invalid geometry", e);
-      }
-    });
-
-    return allCoords.length > 0 ? new LatLngBounds(allCoords) : null;
-  }, [segments]);
-
-  if (bounds) {
-    map.fitBounds(bounds, { padding: [20, 20] });
-  }
-
-  return null;
-};
-
-const CityMap = ({ segments }: CityMapProps) => {
+const CityMap = ({ segments, className }: CityMapProps) => {
   const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
 
   return (
-    <div>
+    <div className={className}>
       <MapContainer
         className="w-full h-96 rounded shadow"
         center={defaultCenter}
@@ -126,8 +84,6 @@ const CityMap = ({ segments }: CityMapProps) => {
             return null;
           }
         })}
-
-        <FitBounds segments={segments} />
       </MapContainer>
     </div>
   );

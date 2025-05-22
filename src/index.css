@@ -74,8 +74,8 @@
 @import 'leaflet/dist/leaflet.css';
 
 .leaflet-container {
-  height: 83vh;
-  width: 70vh;
+  height: 100%;
+  width: 100%;
   z-index: 0 !important;
 }
 

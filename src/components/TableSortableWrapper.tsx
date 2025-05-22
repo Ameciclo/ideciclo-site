@@ -168,22 +168,17 @@ export const TableSortableWrapper = ({
           showRatingFilter={false}
         />
 
-        <div className="grid grid-cols-5 gap-8">
-          <div className="col-span-3">
-            <OriginalSegmentsTable
-              segments={currentItems}
-              onSelectSegment={onSelectSegment}
-              onUpdateSegmentName={onUpdateSegmentName}
-              hideSelectColumn={false}
-              hideNameEditing={false}
-              sortDirection={sortDirection}
-              onToggleSortDirection={toggleSortDirection}
-            />
-          </div>
-
-          <div className="col-span-2">
-            <CityMap segments={selectedSegments} />
-          </div>
+        <div className="flex gap-8">
+          <OriginalSegmentsTable
+            segments={currentItems}
+            onSelectSegment={onSelectSegment}
+            onUpdateSegmentName={onUpdateSegmentName}
+            hideSelectColumn={false}
+            hideNameEditing={false}
+            sortDirection={sortDirection}
+            onToggleSortDirection={toggleSortDirection}
+          />
+          <CityMap segments={selectedSegments} className="flex-grow" />
         </div>
 
         <SegmentsPagination
