@@ -76,7 +76,14 @@ const CityMap = ({ segments, className }: CityMapProps) => {
         {segments.map((segment) => {
           try {
             const geom = segment.geometry;
-            const color = segment.type === "Ciclovia" ? "blue" : "red";
+            const colorMap = {
+              Ciclovia: "blue",
+              Ciclofaixa: "purple",
+              Ciclorrota: "green",
+              Compartilhada: "red",
+            };
+
+            const color = colorMap[segment.type] || "gray";
 
             if (geom.type === "LineString") {
               const coordinates = geom.coordinates.map(
