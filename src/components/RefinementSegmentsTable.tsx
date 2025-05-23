@@ -27,6 +27,9 @@ import {
 interface SegmentsTableProps {
   segments: Segment[];
   onSelectSegment?: (id: string, selected: boolean) => void;
+  onSelectAllInPage?: (selected: boolean) => void;
+  isAllSelectedInPage?: boolean;
+  isIndeterminate?: boolean;
   onUpdateSegmentName?: (id: string, newName: string) => Promise<void>;
   onDeleteSegment?: (id: string) => Promise<void>;
   sortDirection?: "asc" | "desc";
@@ -37,6 +40,9 @@ interface SegmentsTableProps {
 const RefinementSegmentsTable = ({
   segments,
   onSelectSegment,
+  onSelectAllInPage,
+  isAllSelectedInPage = false,
+  isIndeterminate = false,
   onUpdateSegmentName,
   onDeleteSegment,
   sortDirection,
@@ -146,6 +152,12 @@ const RefinementSegmentsTable = ({
     }
   };
 
+  const handleSelectAllChange = (checked: boolean) => {
+    if (onSelectAllInPage) {
+      onSelectAllInPage(checked);
+    }
+  };
+
   return (
     <>
       <div className="rounded-md border">
@@ -153,7 +165,16 @@ const RefinementSegmentsTable = ({
           <TableCaption>Lista de segmentos cicloviários</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">Selecionar</TableHead>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={isAllSelectedInPage}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isIndeterminate;
+                  }}
+                  onCheckedChange={handleSelectAllChange}
+                  aria-label="Selecionar todos os segmentos da página"
+                />
+              </TableHead>
               <TableHead className="flex items-center gap-2">
                 Nome
                 {sortDirection !== undefined && onToggleSortDirection && (
@@ -197,7 +218,7 @@ const RefinementSegmentsTable = ({
                     <Checkbox
                       checked={segment.selected}
                       onCheckedChange={(checked) => {
-                        onSelectSegment(segment.id, !!checked);
+                        onSelectSegment?.(segment.id, !!checked);
                       }}
                       disabled={segment.evaluated}
                     />

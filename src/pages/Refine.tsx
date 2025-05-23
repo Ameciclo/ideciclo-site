@@ -365,6 +365,16 @@ const Refine = () => {
     saveLocalSegments(cityId, updatedSegments);
   };
 
+  const handleSelectAllSegments = (segmentIds: string[], selected: boolean) => {
+    const updatedSegments = segments.map((segment) =>
+      segmentIds.includes(segment.id) ? { ...segment, selected } : segment
+    );
+    setSegments(updatedSegments);
+
+    // Update local storage
+    saveLocalSegments(cityId, updatedSegments);
+  };
+
   const handleMergeButtonClick = () =>
     Promise.resolve().then(() => {
       if (selectedSegmentsCount >= 2) {
@@ -519,6 +529,7 @@ const Refine = () => {
               <RefinementTableSortableWrapper
                 segments={segments}
                 onSelectSegment={handleSelectSegment}
+                onSelectAllSegments={handleSelectAllSegments}
                 selectedSegments={selectedSegments}
                 onMergeSelected={handleMergeButtonClick}
                 onUpdateSegmentName={handleUpdateSegmentName}
