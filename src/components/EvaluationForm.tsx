@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -199,7 +198,9 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({
       {/* A.1 General Characterization */}
       <Card>
         <CardHeader>
-          <CardTitle>A.1 Caracterização geral da infraestrutura cicloviária</CardTitle>
+          <CardTitle>
+            A.1 Caracterização geral da infraestrutura cicloviária
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -219,7 +220,10 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({
                   className="flex gap-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="unidirectional" id="unidirectional" />
+                    <RadioGroupItem
+                      value="unidirectional"
+                      id="unidirectional"
+                    />
                     <Label htmlFor="unidirectional">Unidirecional</Label>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -247,12 +251,19 @@ export const EvaluationForm: React.FC<EvaluationFormProps> = ({
                     <Label htmlFor="canteiro">Sobre o canteiro</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pista_canteiro" id="pista_canteiro" />
-                    <Label htmlFor="pista_canteiro">Pista, junto ao canteiro</Label>
+                    <RadioGroupItem
+                      value="pista_canteiro"
+                      id="pista_canteiro"
+                    />
+                    <Label htmlFor="pista_canteiro">
+                      Pista, junto ao canteiro
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="pista_calcada" id="pista_calcada" />
-                    <Label htmlFor="pista_calcada">Pista, junto à calçada</Label>
+                    <Label htmlFor="pista_calcada">
+                      Pista, junto à calçada
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="calcada" id="calcada" />

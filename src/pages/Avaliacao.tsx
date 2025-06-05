@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
-import TableSortableWrapper from "@/components/TableSortableWrapper";
+import EvaluationTableSortableWrapper from "@/components/EvaluationTableSortableWrapper";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -260,7 +260,7 @@ const Avaliacao = () => {
                 </div>
               </div>
 
-              <TableSortableWrapper
+              <EvaluationTableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
               />

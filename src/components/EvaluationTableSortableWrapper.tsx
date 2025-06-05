@@ -10,29 +10,11 @@ import CityMap from "./CityMap";
 interface TableSortableWrapperProps {
   segments: Segment[];
   showSortOptions?: boolean;
-  onSelectSegment?: (id: string, selected: boolean) => void;
-  selectedSegments?: Segment[];
-  onMergeSelected?: () => Promise<void>;
-  selectedSegmentsCount?: number;
-  onMergeDataChange?: React.Dispatch<
-    React.SetStateAction<{
-      name: string;
-      type: any;
-    } | null>
-  >;
-  onUpdateSegmentName?: (segmentId: string, newName: string) => Promise<void>;
-  onDeleteSegment: (segmentId: string) => Promise<void>; // Add this line
 }
 
-export const TableSortableWrapper = ({
+export const EvaluationTableSortableWrapper = ({
   segments: initialSegments,
   showSortOptions = false,
-  onSelectSegment,
-  onMergeSelected,
-  selectedSegmentsCount,
-  selectedSegments,
-  onMergeDataChange,
-  onUpdateSegmentName,
 }: TableSortableWrapperProps) => {
   // Filter state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -148,56 +130,6 @@ export const TableSortableWrapper = ({
     nameFilter,
   ]);
 
-  // Based on the props passed, determine which version to show
-  if (onSelectSegment && onUpdateSegmentName) {
-    // This is the "Refine Data" page version with selection, merging, and name editing
-    return (
-      <div>
-        <SegmentsFilters
-          nameFilter={nameFilter}
-          onNameFilterChange={setNameFilter}
-          selectedRating={selectedRating}
-          onRatingChange={setSelectedRating}
-          selectedType={selectedType}
-          onTypeChange={setSelectedType}
-          minLength={minLength}
-          onMinLengthChange={setMinLength}
-          maxLength={maxLength}
-          onMaxLengthChange={setMaxLength}
-          onResetFilters={resetFilters}
-          showRatingFilter={false}
-        />
-
-        <div className="flex gap-8">
-          <OriginalSegmentsTable
-            segments={currentItems}
-            onSelectSegment={onSelectSegment}
-            onUpdateSegmentName={onUpdateSegmentName}
-            hideSelectColumn={false}
-            hideNameEditing={false}
-            sortDirection={sortDirection}
-            onToggleSortDirection={toggleSortDirection}
-          />
-          <CityMap segments={selectedSegments} className="flex-grow" />
-        </div>
-
-        <SegmentsPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={paginate}
-          itemsPerPage={itemsPerPage}
-          totalItems={processedSegments.length}
-          currentItemsStart={Math.min(
-            indexOfFirstItem + 1,
-            processedSegments.length
-          )}
-          currentItemsEnd={Math.min(indexOfLastItem, processedSegments.length)}
-        />
-      </div>
-    );
-  }
-
-  // Otherwise, this is the "Evaluation" page version without selection and merging
   return (
     <div>
       <SegmentsFilters
@@ -219,7 +151,6 @@ export const TableSortableWrapper = ({
         segments={currentItems}
         sortDirection={sortDirection}
         onToggleSortDirection={toggleSortDirection}
-        showEvaluationActions={true}
       />
 
       <SegmentsPagination
@@ -238,4 +169,4 @@ export const TableSortableWrapper = ({
   );
 };
 
-export default TableSortableWrapper;
+export default EvaluationTableSortableWrapper;
