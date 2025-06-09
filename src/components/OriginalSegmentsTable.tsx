@@ -100,7 +100,11 @@ const OriginalSegmentsTable = ({
 
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" asChild>
-                      <a href={`/avaliar/formulario/${segment.id}`}>
+                      <a
+                        href={`/avaliar/formulario/${
+                          segment.id
+                        }?data=${encodeURIComponent(JSON.stringify(segment))}`}
+                      >
                         {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
                       </a>
                     </Button>
