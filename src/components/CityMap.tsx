@@ -1,3 +1,4 @@
+
 import {
   MapContainer,
   TileLayer,
@@ -25,7 +26,10 @@ const FitBounds = ({ segments }: FitBoundsProps) => {
   useEffect(() => {
     const allCoords: LatLngExpression[] = [];
 
-    segments.forEach((segment) => {
+    // Filter out child segments for map display - only show parent merged segments or non-merged segments
+    const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+
+    visibleSegments.forEach((segment) => {
       const geom = segment.geometry;
 
       if (geom.type === "LineString") {
@@ -61,6 +65,9 @@ const FitBounds = ({ segments }: FitBoundsProps) => {
 const CityMap = ({ segments, className }: CityMapProps) => {
   const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
 
+  // Filter out child segments for map display - only show parent merged segments or non-merged segments
+  const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+
   return (
     <div className={className}>
       <MapContainer
@@ -73,7 +80,7 @@ const CityMap = ({ segments, className }: CityMapProps) => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {segments.map((segment) => {
+        {visibleSegments.map((segment) => {
           try {
             const geom = segment.geometry;
             const colorMap = {

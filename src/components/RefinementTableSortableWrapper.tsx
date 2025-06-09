@@ -32,16 +32,10 @@ export const RefinementTableSortableWrapper = ({
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
-  const [segments, setSegments] = useState<Segment[]>(initialSegments);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
-
-  // Update segments when initialSegments change
-  useEffect(() => {
-    setSegments(initialSegments);
-  }, [initialSegments]);
 
   const toggleSortDirection = () => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -55,9 +49,14 @@ export const RefinementTableSortableWrapper = ({
     setSelectedType("all");
   };
 
-  // Filter and sort segments - show ALL segments including merged ones
+  // Filter and sort segments - show all segments that are not children of merged segments
   const filteredAndSortedSegments = () => {
     return [...initialSegments]
+      .filter((segment) => {
+        // Only show segments that are either not merged or are the parent merged segment
+        // Hide child segments (segments with parent_segment_id)
+        return !segment.parent_segment_id;
+      })
       .filter((segment) => {
         // Filter by name
         if (nameFilter) {

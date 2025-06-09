@@ -346,7 +346,7 @@ export const createMergedSegment = async (
   const childSegments: Segment[] = selectedSegments.map(segment => ({
     ...segment,
     parent_segment_id: mergedId,
-    is_merged: true,
+    is_merged: false, // Child segments are not marked as merged themselves
     selected: false
   }));
 
@@ -360,20 +360,28 @@ export const mergeSegmentsInDB = async (
   mergedType: SegmentType
 ): Promise<boolean> => {
   try {
+    console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
+    
     const { mergedSegment, childSegments } = await createMergedSegment(
       selectedSegments, 
       mergedName, 
       mergedType
     );
 
+    console.log("Created merged segment:", mergedSegment.id);
+    console.log("Child segments to update:", childSegments.map(s => s.id));
+
     // Save the merged segment first
     await saveSegmentToDB(mergedSegment);
+    console.log("Saved merged segment to DB");
 
     // Update the original segments to be children of the merged segment
     for (const childSegment of childSegments) {
+      console.log("Updating child segment:", childSegment.id);
       await updateSegmentInDB(childSegment);
     }
 
+    console.log("Merge process completed successfully");
     return true;
   } catch (error) {
     console.error("Error merging segments in database:", error);

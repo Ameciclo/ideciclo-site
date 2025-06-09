@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -223,7 +222,7 @@ const Refine = () => {
         setSegments(enhancedSegments);
 
         // Update local storage with fresh data
-        saveLocalSegments(selectedCityId, enhancedSegments);
+        saveLocalSegments(selectedCityId, enhancedancedSegments);
 
         toast({
           title: "Dados carregados",
@@ -390,16 +389,19 @@ const Refine = () => {
     mergedName: string,
     mergedType: SegmentType
   ) => {
-    const selectedSegments = segments.filter((s) => s.selected);
+    const selectedSegments = segments.filter((s) => s.selected && !s.is_merged);
     if (selectedSegments.length < 2) return;
 
     try {
+      console.log("Merging segments:", selectedSegments.map(s => s.id));
+      
       // Use the new merging logic
       await mergeSegmentsInDB(selectedSegments, mergedName, mergedType);
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
       if (storedData) {
+        console.log("Refreshed segments after merge:", storedData.segments.length);
         setSegments(storedData.segments);
         saveLocalSegments(cityId, storedData.segments);
       }
@@ -423,11 +425,14 @@ const Refine = () => {
     segmentIds: string[]
   ) => {
     try {
+      console.log("Unmerging segments:", parentSegmentId, segmentIds);
+      
       await unmergeSegments(parentSegmentId, segmentIds);
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
       if (storedData) {
+        console.log("Refreshed segments after unmerge:", storedData.segments.length);
         setSegments(storedData.segments);
         saveLocalSegments(cityId, storedData.segments);
       }
