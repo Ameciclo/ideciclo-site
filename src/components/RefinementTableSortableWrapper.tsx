@@ -55,10 +55,9 @@ export const RefinementTableSortableWrapper = ({
     setSelectedType("all");
   };
 
-  // Filter and sort segments - only show top-level segments
+  // Filter and sort segments - show ALL segments including merged ones
   const filteredAndSortedSegments = () => {
     return [...initialSegments]
-      .filter((segment) => !segment.parent_segment_id) // Only top-level segments
       .filter((segment) => {
         // Filter by name
         if (nameFilter) {

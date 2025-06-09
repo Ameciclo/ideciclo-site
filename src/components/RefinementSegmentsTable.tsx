@@ -86,22 +86,19 @@ const RefinementSegmentsTable = ({
     }
   };
 
-  // Filter out segments that are children of merged segments (they should only appear in dropdowns)
-  const topLevelSegments = segments.filter(segment => !segment.parent_segment_id);
-
   const handleSelectAll = (checked: boolean) => {
     // Only select non-merged segments for merging operations
-    const selectableSegmentIds = topLevelSegments
+    const selectableSegmentIds = segments
       .filter(segment => !segment.is_merged)
       .map(segment => segment.id);
     onSelectAllSegments(selectableSegmentIds, checked);
   };
 
-  const allSelectableSelected = topLevelSegments
+  const allSelectableSelected = segments
     .filter(segment => !segment.is_merged)
     .every(segment => segment.selected);
 
-  const someSelectableSelected = topLevelSegments
+  const someSelectableSelected = segments
     .filter(segment => !segment.is_merged)
     .some(segment => segment.selected);
 
@@ -115,11 +112,7 @@ const RefinementSegmentsTable = ({
               <Checkbox
                 checked={allSelectableSelected}
                 onCheckedChange={handleSelectAll}
-                ref={(ref) => {
-                  if (ref) {
-                    ref.indeterminate = someSelectableSelected && !allSelectableSelected;
-                  }
-                }}
+                className={someSelectableSelected && !allSelectableSelected ? "data-[state=checked]:bg-primary/50" : ""}
               />
             </TableHead>
             <TableHead className="flex items-center gap-2">
@@ -146,14 +139,14 @@ const RefinementSegmentsTable = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {topLevelSegments.length === 0 ? (
+          {segments.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="text-center py-6">
                 Nenhum segmento encontrado
               </TableCell>
             </TableRow>
           ) : (
-            topLevelSegments.map((segment) => (
+            segments.map((segment) => (
               <React.Fragment key={segment.id}>
                 <TableRow
                   className={segment.evaluated ? "bg-muted/30" : undefined}

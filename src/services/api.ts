@@ -8,7 +8,8 @@ import {
   updateSegmentInDB,
   migrateLocalStorageToDatabase,
   saveSegmentToDB,
-  removeSegmentsFromDB
+  removeSegmentsFromDB,
+  unmergeSegmentsFromDB
 } from "./supabase";
 import { supabase } from "@/integrations/supabase/client";
 

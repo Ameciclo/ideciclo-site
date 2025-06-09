@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
+import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,7 +29,7 @@ import {
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, RefreshCw, Undo2 } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw, Undo2, Map, TableIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
@@ -510,6 +512,28 @@ const Refine = () => {
           />
 
           <div className="flex flex-col gap-8">
+            {showMap && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Mapa</h3>
+                  <Button variant="outline" onClick={handleShowMap}>
+                    <TableIcon className="h-4 w-4 mr-2" />
+                    Mostrar apenas tabela
+                  </Button>
+                </div>
+                <CityMap segments={segments} />
+              </div>
+            )}
+
+            {!showMap && (
+              <div className="flex justify-end mb-4">
+                <Button variant="outline" onClick={handleShowMap}>
+                  <Map className="h-4 w-4 mr-2" />
+                  Mostrar mapa
+                </Button>
+              </div>
+            )}
+
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
               <div className="flex flex-wrap items-center gap-4 mb-4">
