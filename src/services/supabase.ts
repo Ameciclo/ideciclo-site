@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { City, Segment, Form, Review, SegmentType, RatingType } from "@/types";
 import { Database } from "@/integrations/supabase/types";
@@ -40,6 +39,22 @@ const convertFormRowToForm = (row: FormRow): Form => ({
   velocity: row.velocity || undefined,
   blocks_count: row.blocks_count || undefined,
   intersections_count: row.intersections_count || undefined,
+});
+
+const convertSegmentRowToSegment = (row: SegmentRow): Segment => ({
+  id: row.id,
+  id_form: row.id_form || undefined,
+  id_cidade: row.id_cidade,
+  name: row.name,
+  type: row.type as SegmentType,
+  length: row.length,
+  neighborhood: row.neighborhood || undefined,
+  geometry: row.geometry,
+  selected: row.selected || false,
+  evaluated: row.evaluated || false,
+  is_merged: row.is_merged || false,
+  parent_segment_id: row.parent_segment_id || undefined,
+  merged_segments: row.merged_segments as any[] || [],
 });
 
 /**
@@ -122,25 +137,15 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
   const { data, error } = await supabase
     .from('segments')
     .select('*')
-    .eq('id_cidade', cityId);
+    .eq('id_cidade', cityId)
+    .is('parent_segment_id', null); // Only fetch top-level segments
 
   if (error) {
     console.error("Error fetching segments:", error);
     return [];
   }
 
-  return data.map((segment: SegmentRow): Segment => ({
-    id: segment.id,
-    id_form: segment.id_form || undefined,
-    id_cidade: segment.id_cidade,
-    name: segment.name,
-    type: segment.type as SegmentType,
-    length: segment.length,
-    neighborhood: segment.neighborhood || undefined,
-    geometry: segment.geometry,
-    selected: segment.selected || false,
-    evaluated: segment.evaluated || false,
-  }));
+  return data.map(convertSegmentRowToSegment);
 };
 
 export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
@@ -157,7 +162,10 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
         neighborhood: segment.neighborhood,
         geometry: segment.geometry,
         selected: segment.selected,
-        evaluated: segment.evaluated
+        evaluated: segment.evaluated,
+        is_merged: segment.is_merged || false,
+        parent_segment_id: segment.parent_segment_id,
+        merged_segments: segment.merged_segments || []
       });
 
     if (error) {
@@ -178,11 +186,27 @@ export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolea
     return false;
   }
   try {
+    // First, handle any child segments by moving them back to top-level
+    const { data: childSegments } = await supabase
+      .from('segments')
+      .select('*')
+      .in('parent_segment_id', segmentIds);
+
+    if (childSegments && childSegments.length > 0) {
+      await supabase
+        .from('segments')
+        .update({ 
+          parent_segment_id: null,
+          is_merged: false 
+        })
+        .in('parent_segment_id', segmentIds);
+    }
+
     const { error } = await supabase
       .from('segments')
       .delete()
       .in('id', segmentIds);
-    console.log(segmentIds)
+    
     if (error) {
       console.error("Error deleting segments:", error);
       return false;
@@ -195,14 +219,10 @@ export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolea
   }
 };
 
-
 export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> => {
-  // First, delete all existing segments for the city to avoid duplications
-  // In a real-world scenario, this might need a more sophisticated merge strategy
   if (segments.length > 0) {
     const cityId = segments[0].id_cidade;
     
-    // We'll only do this delete if we're saving a complete set of segments for a city
     const { error: deleteError } = await supabase
       .from('segments')
       .delete()
@@ -214,9 +234,6 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     }
   }
 
-  console.log("prepare")
-  
-  // Prepare segments for insertion by ensuring they match the database schema
   const segmentsToInsert = segments.map(segment => ({
     id: segment.id,
     id_cidade: segment.id_cidade,
@@ -227,11 +244,12 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     neighborhood: segment.neighborhood,
     geometry: segment.geometry,
     selected: segment.selected,
-    evaluated: segment.evaluated
+    evaluated: segment.evaluated,
+    is_merged: segment.is_merged || false,
+    parent_segment_id: segment.parent_segment_id,
+    merged_segments: segment.merged_segments || []
   }));
-  console.log("prepared", segmentsToInsert)
 
-  // Now insert all segments
   const { error: insertError } = await supabase
     .from('segments')
     .insert(segmentsToInsert);
@@ -260,7 +278,10 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
       geometry: segment.geometry,
       selected: segment.selected,
       evaluated: segment.evaluated,
-      id_form: segment.id_form
+      id_form: segment.id_form,
+      is_merged: segment.is_merged,
+      parent_segment_id: segment.parent_segment_id,
+      merged_segments: segment.merged_segments
     })
     .eq('id', segment.id)
     .select()
@@ -271,17 +292,89 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     return null;
   }
 
+  return convertSegmentRowToSegment(data);
+};
+
+// New function to unmerge segments
+export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsToUnmerge: string[]): Promise<boolean> => {
+  try {
+    // Move specified segments back to top-level
+    const { error: updateError } = await supabase
+      .from('segments')
+      .update({ 
+        parent_segment_id: null,
+        is_merged: false 
+      })
+      .in('id', segmentIdsToUnmerge);
+
+    if (updateError) {
+      console.error("Error unmerging segments:", updateError);
+      return false;
+    }
+
+    // Check remaining child segments
+    const { data: remainingChildren } = await supabase
+      .from('segments')
+      .select('*')
+      .eq('parent_segment_id', parentSegmentId);
+
+    // If no children remain or only one child remains, delete the parent
+    if (!remainingChildren || remainingChildren.length <= 1) {
+      if (remainingChildren && remainingChildren.length === 1) {
+        // Move the last child back to top-level
+        await supabase
+          .from('segments')
+          .update({ 
+            parent_segment_id: null,
+            is_merged: false 
+          })
+          .eq('id', remainingChildren[0].id);
+      }
+      
+      // Delete the parent segment
+      await supabase
+        .from('segments')
+        .delete()
+        .eq('id', parentSegmentId);
+    } else {
+      // Update the parent's merged_segments list and recalculate geometry
+      const updatedMergedSegments = remainingChildren.map(child => ({
+        id: child.id,
+        name: child.name,
+        type: child.type,
+        length: child.length,
+        originalGeometry: child.geometry
+      }));
+
+      const newLength = remainingChildren.reduce((total, child) => total + child.length, 0);
+      const newGeometry = mergeGeometries(remainingChildren.map(child => child.geometry));
+
+      await supabase
+        .from('segments')
+        .update({
+          merged_segments: updatedMergedSegments,
+          length: newLength,
+          geometry: newGeometry
+        })
+        .eq('id', parentSegmentId);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error unmerging segments:", error);
+    return false;
+  }
+};
+
+// Helper function to merge geometries
+const mergeGeometries = (geometries: any[]): any => {
+  const allCoordinates: number[][][] = geometries.flatMap(geometry => 
+    geometry?.coordinates || []
+  );
+
   return {
-    id: data.id,
-    id_form: data.id_form || undefined,
-    id_cidade: data.id_cidade,
-    name: data.name,
-    type: data.type as SegmentType,
-    length: data.length,
-    neighborhood: data.neighborhood || undefined,
-    geometry: data.geometry,
-    selected: data.selected || false,
-    evaluated: data.evaluated || false,
+    type: "MultiLineString",
+    coordinates: allCoordinates
   };
 };
 

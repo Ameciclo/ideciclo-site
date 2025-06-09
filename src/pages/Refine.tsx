@@ -22,6 +22,8 @@ import {
   mergeGeometry,
   storeSegment,
   removeSegments,
+  mergeSegmentsInDB,
+  unmergeSegments,
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -351,7 +353,7 @@ const Refine = () => {
         description: "Falha ao remover o segmento.",
         variant: "destructive",
       });
-      throw error; // Re-throw so the UI can handle it
+      throw error;
     }
   };
 
@@ -360,8 +362,6 @@ const Refine = () => {
       segment.id === id ? { ...segment, selected } : segment
     );
     setSegments(updatedSegments);
-
-    // Update local storage
     saveLocalSegments(cityId, updatedSegments);
   };
 
@@ -370,8 +370,6 @@ const Refine = () => {
       segmentIds.includes(segment.id) ? { ...segment, selected } : segment
     );
     setSegments(updatedSegments);
-
-    // Update local storage
     saveLocalSegments(cityId, updatedSegments);
   };
 
@@ -394,45 +392,19 @@ const Refine = () => {
     if (selectedSegments.length < 2) return;
 
     try {
-      // Gerar um novo ID para o segmento mesclado
-      const mergedId = `merged-${Date.now()}`;
-      const mergedGeometry = mergeGeometry(selectedSegments);
-      const newLength = calculateMergedLength(selectedSegments);
+      // Use the new merging logic
+      await mergeSegmentsInDB(selectedSegments, mergedName, mergedType);
 
-      // Criar o novo segmento mesclado
-      const mergedSegment: Segment = {
-        id: mergedId,
-        id_cidade: cityId,
-        name: mergedName,
-        type: mergedType,
-        length: newLength,
-        neighborhood: selectedSegments[0].neighborhood,
-        geometry: mergedGeometry,
-        selected: false,
-        evaluated: false,
-      };
-
-      // Remover os segmentos selecionados e adicionar o mesclado
-      const idsToRemove = new Set(selectedSegments.map((s) => s.id));
-      const updatedSegments = [
-        ...segments.filter((s) => !idsToRemove.has(s.id)),
-        mergedSegment,
-      ];
-
-      setSegments(updatedSegments);
-
-      // Update local storage
-      saveLocalSegments(cityId, updatedSegments);
-
-      // Atualizar a lista no banco de dados
-      await storeSegment(mergedSegment);
-      await removeSegments(Array.from(idsToRemove));
+      // Refresh segments from database to get the updated structure
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(storedData.segments);
+        saveLocalSegments(cityId, storedData.segments);
+      }
 
       toast({
         title: "Segmentos mesclados",
-        description: `${
-          selectedSegments.length
-        } segmentos mesclados com extensão total de ${newLength.toFixed(4)} km`,
+        description: `${selectedSegments.length} segmentos mesclados com sucesso`,
       });
     } catch (error) {
       console.error("Erro ao mesclar segmentos:", error);
@@ -444,7 +416,37 @@ const Refine = () => {
     }
   };
 
-  const selectedSegmentsCount = segments.filter((s) => s.selected).length;
+  const handleUnmergeSegments = async (
+    parentSegmentId: string,
+    segmentIds: string[]
+  ) => {
+    try {
+      await unmergeSegments(parentSegmentId, segmentIds);
+
+      // Refresh segments from database to get the updated structure
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(storedData.segments);
+        saveLocalSegments(cityId, storedData.segments);
+      }
+
+      toast({
+        title: "Segmentos desmesclados",
+        description: "Os segmentos foram desmesclados com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao desmesclar segmentos:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao desmesclar os segmentos.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const selectedSegmentsCount = segments.filter(
+    (s) => s.selected && !s.is_merged
+  ).length;
   const selectedSegments = segments.filter((s) => s.selected);
 
   return (
@@ -523,7 +525,7 @@ const Refine = () => {
               <MergeSegmentsDialog
                 open={mergeDialogOpen}
                 onOpenChange={setMergeDialogOpen}
-                selectedSegments={selectedSegments}
+                selectedSegments={selectedSegments.filter(s => !s.is_merged)}
                 onConfirm={handleMergeSegments}
               />
               <RefinementTableSortableWrapper
@@ -534,6 +536,7 @@ const Refine = () => {
                 onMergeSelected={handleMergeButtonClick}
                 onUpdateSegmentName={handleUpdateSegmentName}
                 onDeleteSegment={handleDeleteSegment}
+                onUnmergeSegments={handleUnmergeSegments}
               />
             </div>
           </div>

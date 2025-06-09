@@ -1,4 +1,3 @@
-
 export enum SegmentType {
   CICLOFAIXA = "Ciclofaixa",
   CICLOVIA = "Ciclovia",
@@ -35,6 +34,9 @@ export interface Segment {
   geometry: any;
   selected: boolean;
   evaluated: boolean;
+  is_merged?: boolean;
+  parent_segment_id?: string;
+  merged_segments?: any[];
 }
 
 export interface Form {

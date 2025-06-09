@@ -169,9 +169,12 @@ export type Database = {
           id: string
           id_cidade: string
           id_form: string | null
+          is_merged: boolean | null
           length: number
+          merged_segments: Json | null
           name: string
           neighborhood: string | null
+          parent_segment_id: string | null
           selected: boolean | null
           type: Database["public"]["Enums"]["segment_type"]
           updated_at: string
@@ -183,9 +186,12 @@ export type Database = {
           id: string
           id_cidade: string
           id_form?: string | null
+          is_merged?: boolean | null
           length: number
+          merged_segments?: Json | null
           name: string
           neighborhood?: string | null
+          parent_segment_id?: string | null
           selected?: boolean | null
           type: Database["public"]["Enums"]["segment_type"]
           updated_at?: string
@@ -197,9 +203,12 @@ export type Database = {
           id?: string
           id_cidade?: string
           id_form?: string | null
+          is_merged?: boolean | null
           length?: number
+          merged_segments?: Json | null
           name?: string
           neighborhood?: string | null
+          parent_segment_id?: string | null
           selected?: boolean | null
           type?: Database["public"]["Enums"]["segment_type"]
           updated_at?: string
@@ -210,6 +219,13 @@ export type Database = {
             columns: ["id_cidade"]
             isOneToOne: false
             referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segments_parent_segment_id_fkey"
+            columns: ["parent_segment_id"]
+            isOneToOne: false
+            referencedRelation: "segments"
             referencedColumns: ["id"]
           },
         ]

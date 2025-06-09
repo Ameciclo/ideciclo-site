@@ -284,6 +284,7 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
     })
     .filter((segment): segment is Segment => segment !== null); 
 };
+
 export const mergeGeometry = (segments: Segment[]): any => {
   const allCoordinates: number[][][] = segments.flatMap(segment => segment.geometry.coordinates);
 
@@ -292,7 +293,6 @@ export const mergeGeometry = (segments: Segment[]): any => {
     coordinates: allCoordinates
   };
 };
-
 
 export const calculateMergedLength = (segments: Segment[]): number => {
   const selectedSegments = segments.filter(segment => segment.selected);
@@ -305,6 +305,92 @@ export const calculateMergedLength = (segments: Segment[]): number => {
   });
   
   return parseFloat(totalLength.toFixed(4));
+};
+
+// New function to create merged segment with child segments
+export const createMergedSegment = async (
+  selectedSegments: Segment[], 
+  mergedName: string, 
+  mergedType: SegmentType
+): Promise<{ mergedSegment: Segment; childSegments: Segment[] }> => {
+  const mergedId = `merged-${Date.now()}`;
+  const mergedGeometry = mergeGeometry(selectedSegments);
+  const newLength = calculateMergedLength(selectedSegments);
+  
+  // Create the merged segment info for storage
+  const mergedSegmentInfo = selectedSegments.map(segment => ({
+    id: segment.id,
+    name: segment.name,
+    type: segment.type,
+    length: segment.length,
+    originalGeometry: segment.geometry
+  }));
+
+  // Create the parent merged segment
+  const mergedSegment: Segment = {
+    id: mergedId,
+    id_cidade: selectedSegments[0].id_cidade,
+    name: mergedName,
+    type: mergedType,
+    length: newLength,
+    neighborhood: selectedSegments[0].neighborhood,
+    geometry: mergedGeometry,
+    selected: false,
+    evaluated: false,
+    is_merged: true,
+    merged_segments: mergedSegmentInfo
+  };
+
+  // Create child segments that reference the parent
+  const childSegments: Segment[] = selectedSegments.map(segment => ({
+    ...segment,
+    parent_segment_id: mergedId,
+    is_merged: true,
+    selected: false
+  }));
+
+  return { mergedSegment, childSegments };
+};
+
+// Updated function to handle new merging logic
+export const mergeSegmentsInDB = async (
+  selectedSegments: Segment[],
+  mergedName: string,
+  mergedType: SegmentType
+): Promise<boolean> => {
+  try {
+    const { mergedSegment, childSegments } = await createMergedSegment(
+      selectedSegments, 
+      mergedName, 
+      mergedType
+    );
+
+    // Save the merged segment first
+    await saveSegmentToDB(mergedSegment);
+
+    // Update the original segments to be children of the merged segment
+    for (const childSegment of childSegments) {
+      await updateSegmentInDB(childSegment);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error merging segments in database:", error);
+    return false;
+  }
+};
+
+// New function to unmerge segments
+export const unmergeSegments = async (
+  parentSegmentId: string, 
+  segmentIdsToUnmerge: string[]
+): Promise<boolean> => {
+  try {
+    return await unmergeSegmentsFromDB(parentSegmentId, segmentIdsToUnmerge);
+  } catch (error) {
+    console.error("Error unmerging segments:", error);
+    return false;
+  }
 };
 
 /**

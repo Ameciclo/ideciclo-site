@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+
+import React, { useState } from "react";
 import { Segment, SegmentType } from "@/types";
 import {
   Table,
@@ -11,131 +12,36 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowDown, ArrowUp, Check, Pencil, Trash2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowDown, ArrowUp, Edit, Trash2, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import MergedSegmentDropdown from "./MergedSegmentDropdown";
 
-interface SegmentsTableProps {
+interface RefinementSegmentsTableProps {
   segments: Segment[];
-  onSelectSegment?: (id: string, selected: boolean) => void;
-  onSelectAllInPage?: (selected: boolean) => void;
-  isAllSelectedInPage?: boolean;
-  isIndeterminate?: boolean;
-  onUpdateSegmentName?: (id: string, newName: string) => Promise<void>;
-  onDeleteSegment?: (id: string) => Promise<void>;
   sortDirection?: "asc" | "desc";
   onToggleSortDirection?: () => void;
-  showEvaluationActions?: boolean;
+  onSelectSegment: (id: string, selected: boolean) => void;
+  onSelectAllSegments: (segmentIds: string[], selected: boolean) => void;
+  selectedSegments: Segment[];
+  onUpdateSegmentName: (segmentId: string, newName: string) => Promise<void>;
+  onDeleteSegment: (segmentId: string) => Promise<void>;
+  onUnmergeSegments: (parentSegmentId: string, segmentIds: string[]) => Promise<void>;
 }
 
 const RefinementSegmentsTable = ({
   segments,
-  onSelectSegment,
-  onSelectAllInPage,
-  isAllSelectedInPage = false,
-  isIndeterminate = false,
-  onUpdateSegmentName,
-  onDeleteSegment,
   sortDirection,
   onToggleSortDirection,
-  showEvaluationActions = false,
-}: SegmentsTableProps) => {
-  const [editingNameId, setEditingNameId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState<string>("");
-  const [segmentToDelete, setSegmentToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const startEditing = (segment: Segment) => {
-    setEditingNameId(segment.id);
-    setEditingName(segment.name);
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
-  };
-
-  const saveNameChange = async () => {
-    if (editingNameId && editingName.trim() && onUpdateSegmentName) {
-      // Save to local storage cache first for immediate UI update
-      updateLocalSegmentName(editingNameId, editingName.trim());
-      // Then update in database
-      await onUpdateSegmentName(editingNameId, editingName.trim());
-    }
-    cancelEditing();
-  };
-
-  const updateLocalSegmentName = (segmentId: string, newName: string) => {
-    // Update local cache of segments if it exists
-    const cachedSegmentsKey = `segments_${segments[0]?.id_cidade}`;
-    const cachedSegments = localStorage.getItem(cachedSegmentsKey);
-
-    if (cachedSegments) {
-      try {
-        const parsedSegments = JSON.parse(cachedSegments);
-        const updatedSegments = parsedSegments.map((seg: Segment) =>
-          seg.id === segmentId ? { ...seg, name: newName } : seg
-        );
-        localStorage.setItem(
-          cachedSegmentsKey,
-          JSON.stringify(updatedSegments)
-        );
-      } catch (error) {
-        console.error("Error updating segment name in local storage:", error);
-      }
-    }
-  };
-
-  const cancelEditing = () => {
-    setEditingNameId(null);
-    setEditingName("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      saveNameChange();
-    } else if (e.key === "Escape") {
-      cancelEditing();
-    }
-  };
-
-  const handleDeleteSegment = async () => {
-    if (segmentToDelete && onDeleteSegment) {
-      setIsDeleting(true);
-      try {
-        console.log("die");
-        await onDeleteSegment(segmentToDelete);
-        // Update local cache by removing the segment
-        const cachedSegmentsKey = `segments_${segments[0]?.id_cidade}`;
-        const cachedSegments = localStorage.getItem(cachedSegmentsKey);
-        if (cachedSegments) {
-          try {
-            const parsedSegments = JSON.parse(cachedSegments);
-            const updatedSegments = parsedSegments.filter(
-              (seg: Segment) => seg.id !== segmentToDelete
-            );
-            localStorage.setItem(
-              cachedSegmentsKey,
-              JSON.stringify(updatedSegments)
-            );
-          } catch (error) {
-            console.error("Error deleting segments in local storage:", error);
-          }
-        }
-      } finally {
-        setSegmentToDelete(null);
-        setIsDeleting(false);
-      }
-    }
-  };
+  onSelectSegment,
+  onSelectAllSegments,
+  selectedSegments,
+  onUpdateSegmentName,
+  onDeleteSegment,
+  onUnmergeSegments,
+}: RefinementSegmentsTableProps) => {
+  const [editingSegment, setEditingSegment] = useState<string | null>(null);
+  const [editName, setEditName] = useState<string>("");
 
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
@@ -152,172 +58,214 @@ const RefinementSegmentsTable = ({
     }
   };
 
-  const handleSelectAllChange = (checked: boolean) => {
-    if (onSelectAllInPage) {
-      onSelectAllInPage(checked);
+  const handleEditStart = (segment: Segment) => {
+    setEditingSegment(segment.id);
+    setEditName(segment.name);
+  };
+
+  const handleEditSave = async (segmentId: string) => {
+    try {
+      await onUpdateSegmentName(segmentId, editName);
+      setEditingSegment(null);
+      setEditName("");
+    } catch (error) {
+      console.error("Failed to update segment name:", error);
     }
   };
 
-  return (
-    <>
-      <div className="rounded-md border">
-        <Table>
-          <TableCaption>Lista de segmentos cicloviários</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={isAllSelectedInPage}
-                  ref={(el) => {
-                    if (el) el.indeterminate = isIndeterminate;
-                  }}
-                  onCheckedChange={handleSelectAllChange}
-                  aria-label="Selecionar todos os segmentos da página"
-                />
-              </TableHead>
-              <TableHead className="flex items-center gap-2">
-                Nome
-                {sortDirection !== undefined && onToggleSortDirection && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-0 h-6 w-6"
-                    onClick={onToggleSortDirection}
-                  >
-                    {sortDirection === "asc" ? (
-                      <ArrowUp size={14} />
-                    ) : (
-                      <ArrowDown size={14} />
-                    )}
-                  </Button>
-                )}
-              </TableHead>
+  const handleEditCancel = () => {
+    setEditingSegment(null);
+    setEditName("");
+  };
 
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Extensão (km)</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {segments.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={showEvaluationActions ? 6 : 5}
-                  className="text-center py-6"
+  const handleDeleteSegment = async (segmentId: string) => {
+    try {
+      await onDeleteSegment(segmentId);
+    } catch (error) {
+      console.error("Failed to delete segment:", error);
+    }
+  };
+
+  // Filter out segments that are children of merged segments (they should only appear in dropdowns)
+  const topLevelSegments = segments.filter(segment => !segment.parent_segment_id);
+
+  const handleSelectAll = (checked: boolean) => {
+    // Only select non-merged segments for merging operations
+    const selectableSegmentIds = topLevelSegments
+      .filter(segment => !segment.is_merged)
+      .map(segment => segment.id);
+    onSelectAllSegments(selectableSegmentIds, checked);
+  };
+
+  const allSelectableSelected = topLevelSegments
+    .filter(segment => !segment.is_merged)
+    .every(segment => segment.selected);
+
+  const someSelectableSelected = topLevelSegments
+    .filter(segment => !segment.is_merged)
+    .some(segment => segment.selected);
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableCaption>Lista de segmentos cicloviários</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">
+              <Checkbox
+                checked={allSelectableSelected}
+                onCheckedChange={handleSelectAll}
+                ref={(ref) => {
+                  if (ref) {
+                    ref.indeterminate = someSelectableSelected && !allSelectableSelected;
+                  }
+                }}
+              />
+            </TableHead>
+            <TableHead className="flex items-center gap-2">
+              Nome
+              {sortDirection !== undefined && onToggleSortDirection && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-0 h-6 w-6"
+                  onClick={onToggleSortDirection}
                 >
-                  Nenhum segmento encontrado
-                </TableCell>
-              </TableRow>
-            ) : (
-              segments.map((segment) => (
+                  {sortDirection === "asc" ? (
+                    <ArrowUp size={14} />
+                  ) : (
+                    <ArrowDown size={14} />
+                  )}
+                </Button>
+              )}
+            </TableHead>
+            <TableHead>Tipo</TableHead>
+            <TableHead className="text-right">Extensão (km)</TableHead>
+            <TableHead className="text-right">Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {topLevelSegments.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-6">
+                Nenhum segmento encontrado
+              </TableCell>
+            </TableRow>
+          ) : (
+            topLevelSegments.map((segment) => (
+              <React.Fragment key={segment.id}>
                 <TableRow
-                  key={segment.id}
                   className={segment.evaluated ? "bg-muted/30" : undefined}
                 >
                   <TableCell>
-                    <Checkbox
-                      checked={segment.selected}
-                      onCheckedChange={(checked) => {
-                        onSelectSegment?.(segment.id, !!checked);
-                      }}
-                      disabled={segment.evaluated}
-                    />
-                  </TableCell>
-
-                  <TableCell>
-                    {editingNameId === segment.id ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          ref={inputRef}
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          className="border rounded px-2 py-1 w-full"
-                          autoFocus
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={saveNameChange}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={cancelEditing}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium">{segment.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => startEditing(segment)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      </div>
+                    {!segment.is_merged && (
+                      <Checkbox
+                        checked={segment.selected || false}
+                        onCheckedChange={(checked) =>
+                          onSelectSegment(segment.id, checked as boolean)
+                        }
+                      />
                     )}
                   </TableCell>
-
+                  <TableCell>
+                    <div className="space-y-1">
+                      {editingSegment === segment.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="h-8"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleEditSave(segment.id);
+                              } else if (e.key === "Escape") {
+                                handleEditCancel();
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditSave(segment.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Check size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleEditCancel}
+                            className="h-8 w-8 p-0"
+                          >
+                            <X size={14} />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{segment.name}</span>
+                          {segment.is_merged && (
+                            <Badge variant="secondary" className="text-xs">
+                              Mesclado
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      <MergedSegmentDropdown 
+                        segment={segment} 
+                        onUnmergeSegments={onUnmergeSegments}
+                      />
+                    </div>
+                  </TableCell>
                   <TableCell>{getSegmentTypeBadge(segment.type)}</TableCell>
-
                   <TableCell className="text-right">
                     {segment.length.toFixed(4)}
                   </TableCell>
-
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      onClick={() => setSegmentToDelete(segment.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {segment.evaluated ? "Avaliado" : "Não avaliado"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end items-center gap-2">
+                      {editingSegment !== segment.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditStart(segment)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit size={14} />
+                        </Button>
+                      )}
+                      {!segment.is_merged && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteSegment(segment.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={`/avaliar/formulario/${
+                            segment.id
+                          }?data=${encodeURIComponent(
+                            JSON.stringify(segment)
+                          )}`}
+                        >
+                          {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
+                        </a>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <AlertDialog
-        open={!!segmentToDelete}
-        onOpenChange={() => !isDeleting && setSegmentToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir segmento</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você tem certeza que deseja excluir este segmento? Esta ação não
-              pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteSegment}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+              </React.Fragment>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 
