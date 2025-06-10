@@ -222,7 +222,7 @@ const Refine = () => {
         setSegments(enhancedSegments);
 
         // Update local storage with fresh data
-        saveLocalSegments(selectedCityId, enhancedancedSegments);
+        saveLocalSegments(selectedCityId, enhancedSegments);
 
         toast({
           title: "Dados carregados",

@@ -49,9 +49,14 @@ export const EvaluationTableSortableWrapper = ({
     setSelectedRating("all");
   };
 
-  // Filter and sort segments
+  // Filter and sort segments - only show parent merged segments or non-merged segments
   const filteredAndSortedSegments = () => {
     return [...initialSegments]
+      .filter((segment) => {
+        // Only show segments that are either not merged or are the parent merged segment
+        // Hide child segments (segments with parent_segment_id)
+        return !segment.parent_segment_id;
+      })
       .filter((segment) => {
         // Filter by name
         if (nameFilter) {
