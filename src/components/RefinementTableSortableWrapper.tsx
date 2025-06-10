@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Segment } from "@/types";
 import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
+import CityMap from "./CityMap";
 
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
@@ -13,7 +13,10 @@ interface RefinementTableSortableWrapperProps {
   onMergeSelected: () => Promise<void>;
   onUpdateSegmentName: (segmentId: string, newName: string) => Promise<void>;
   onDeleteSegment: (segmentId: string) => Promise<void>;
-  onUnmergeSegments: (parentSegmentId: string, segmentIds: string[]) => Promise<void>;
+  onUnmergeSegments: (
+    parentSegmentId: string,
+    segmentIds: string[]
+  ) => Promise<void>;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -136,18 +139,20 @@ export const RefinementTableSortableWrapper = ({
         onResetFilters={resetFilters}
         showRatingFilter={false}
       />
-
-      <RefinementSegmentsTable
-        segments={currentItems}
-        sortDirection={sortDirection}
-        onToggleSortDirection={toggleSortDirection}
-        onSelectSegment={onSelectSegment}
-        onSelectAllSegments={onSelectAllSegments}
-        selectedSegments={selectedSegments}
-        onUpdateSegmentName={onUpdateSegmentName}
-        onDeleteSegment={onDeleteSegment}
-        onUnmergeSegments={onUnmergeSegments}
-      />
+      <div className="flex gap-8">
+        <RefinementSegmentsTable
+          segments={currentItems}
+          sortDirection={sortDirection}
+          onToggleSortDirection={toggleSortDirection}
+          onSelectSegment={onSelectSegment}
+          onSelectAllSegments={onSelectAllSegments}
+          selectedSegments={selectedSegments}
+          onUpdateSegmentName={onUpdateSegmentName}
+          onDeleteSegment={onDeleteSegment}
+          onUnmergeSegments={onUnmergeSegments}
+        />
+        <CityMap segments={selectedSegments} className="flex-grow" />
+      </div>
 
       <SegmentsPagination
         currentPage={currentPage}
