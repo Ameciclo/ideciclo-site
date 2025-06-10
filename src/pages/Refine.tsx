@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
-import CityMap from "@/components/CityMap";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,7 +27,14 @@ import {
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, RefreshCw, Undo2, Map, TableIcon } from "lucide-react";
+import {
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  Undo2,
+  Map,
+  TableIcon,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
@@ -45,7 +50,6 @@ const Refine = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
-  const [showMap, setShowMap] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -382,10 +386,6 @@ const Refine = () => {
       }
     });
 
-  const handleShowMap = () => {
-    setShowMap((showMap) => !showMap);
-  };
-
   const handleMergeSegments = async (
     mergedName: string,
     mergedType: SegmentType
@@ -394,15 +394,21 @@ const Refine = () => {
     if (selectedSegments.length < 2) return;
 
     try {
-      console.log("Merging segments:", selectedSegments.map(s => s.id));
-      
+      console.log(
+        "Merging segments:",
+        selectedSegments.map((s) => s.id)
+      );
+
       // Use the enhanced merging logic that handles both regular and merged segments
       await mergeSegmentsInDB(selectedSegments, mergedName, mergedType);
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
       if (storedData) {
-        console.log("Refreshed segments after merge:", storedData.segments.length);
+        console.log(
+          "Refreshed segments after merge:",
+          storedData.segments.length
+        );
         setSegments(storedData.segments);
         saveLocalSegments(cityId, storedData.segments);
       }
@@ -427,13 +433,16 @@ const Refine = () => {
   ) => {
     try {
       console.log("Unmerging segments:", parentSegmentId, segmentIds);
-      
+
       await unmergeSegments(parentSegmentId, segmentIds);
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
       if (storedData) {
-        console.log("Refreshed segments after unmerge:", storedData.segments.length);
+        console.log(
+          "Refreshed segments after unmerge:",
+          storedData.segments.length
+        );
         setSegments(storedData.segments);
         saveLocalSegments(cityId, storedData.segments);
       }
@@ -452,9 +461,7 @@ const Refine = () => {
     }
   };
 
-  const selectedSegmentsCount = segments.filter(
-    (s) => s.selected
-  ).length;
+  const selectedSegmentsCount = segments.filter((s) => s.selected).length;
   const selectedSegments = segments.filter((s) => s.selected);
 
   return (
@@ -518,28 +525,6 @@ const Refine = () => {
           />
 
           <div className="flex flex-col gap-8">
-            {showMap && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Mapa</h3>
-                  <Button variant="outline" onClick={handleShowMap}>
-                    <TableIcon className="h-4 w-4 mr-2" />
-                    Mostrar apenas tabela
-                  </Button>
-                </div>
-                <CityMap segments={segments} />
-              </div>
-            )}
-
-            {!showMap && (
-              <div className="flex justify-end mb-4">
-                <Button variant="outline" onClick={handleShowMap}>
-                  <Map className="h-4 w-4 mr-2" />
-                  Mostrar mapa
-                </Button>
-              </div>
-            )}
-
             <div>
               <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
               <div className="flex flex-wrap items-center gap-4 mb-4">
