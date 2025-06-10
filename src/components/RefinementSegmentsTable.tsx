@@ -87,20 +87,13 @@ const RefinementSegmentsTable = ({
   };
 
   const handleSelectAll = (checked: boolean) => {
-    // Only select non-merged segments for merging operations
-    const selectableSegmentIds = segments
-      .filter(segment => !segment.is_merged)
-      .map(segment => segment.id);
+    // Allow selection of all segments (including merged ones for merging operations)
+    const selectableSegmentIds = segments.map(segment => segment.id);
     onSelectAllSegments(selectableSegmentIds, checked);
   };
 
-  const allSelectableSelected = segments
-    .filter(segment => !segment.is_merged)
-    .every(segment => segment.selected);
-
-  const someSelectableSelected = segments
-    .filter(segment => !segment.is_merged)
-    .some(segment => segment.selected);
+  const allSegmentsSelected = segments.every(segment => segment.selected);
+  const someSegmentsSelected = segments.some(segment => segment.selected);
 
   return (
     <div className="rounded-md border">
@@ -110,9 +103,9 @@ const RefinementSegmentsTable = ({
           <TableRow>
             <TableHead className="w-12">
               <Checkbox
-                checked={allSelectableSelected}
+                checked={allSegmentsSelected}
                 onCheckedChange={handleSelectAll}
-                className={someSelectableSelected && !allSelectableSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                className={someSegmentsSelected && !allSegmentsSelected ? "data-[state=checked]:bg-primary/50" : ""}
               />
             </TableHead>
             <TableHead className="flex items-center gap-2">
@@ -152,14 +145,12 @@ const RefinementSegmentsTable = ({
                 className={segment.evaluated ? "bg-muted/30" : undefined}
               >
                 <TableCell>
-                  {!segment.is_merged && (
-                    <Checkbox
-                      checked={segment.selected || false}
-                      onCheckedChange={(checked) =>
-                        onSelectSegment(segment.id, checked as boolean)
-                      }
-                    />
-                  )}
+                  <Checkbox
+                    checked={segment.selected || false}
+                    onCheckedChange={(checked) =>
+                      onSelectSegment(segment.id, checked as boolean)
+                    }
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">

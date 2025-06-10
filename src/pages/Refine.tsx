@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
@@ -389,13 +390,13 @@ const Refine = () => {
     mergedName: string,
     mergedType: SegmentType
   ) => {
-    const selectedSegments = segments.filter((s) => s.selected && !s.is_merged);
+    const selectedSegments = segments.filter((s) => s.selected);
     if (selectedSegments.length < 2) return;
 
     try {
       console.log("Merging segments:", selectedSegments.map(s => s.id));
       
-      // Use the new merging logic
+      // Use the enhanced merging logic that handles both regular and merged segments
       await mergeSegmentsInDB(selectedSegments, mergedName, mergedType);
 
       // Refresh segments from database to get the updated structure
@@ -452,7 +453,7 @@ const Refine = () => {
   };
 
   const selectedSegmentsCount = segments.filter(
-    (s) => s.selected && !s.is_merged
+    (s) => s.selected
   ).length;
   const selectedSegments = segments.filter((s) => s.selected);
 
@@ -554,7 +555,7 @@ const Refine = () => {
               <MergeSegmentsDialog
                 open={mergeDialogOpen}
                 onOpenChange={setMergeDialogOpen}
-                selectedSegments={selectedSegments.filter(s => !s.is_merged)}
+                selectedSegments={selectedSegments}
                 onConfirm={handleMergeSegments}
               />
               <RefinementTableSortableWrapper
