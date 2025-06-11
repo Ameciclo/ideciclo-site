@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +35,22 @@ const Avaliacao = () => {
   const [error, setError] = useState<string | null>(null);
   const [isCityCardVisible, setIsCityCardVisible] = useState<boolean>(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Load saved state and city on initial render
+  useEffect(() => {
+    const savedState = sessionStorage.getItem("selectedState");
+    const savedCityId = sessionStorage.getItem("selectedCityId");
+    
+    if (savedState) {
+      setSelectedState(savedState);
+    }
+    
+    if (savedCityId) {
+      setSelectedCityId(savedCityId);
+    }
+  }, []);
 
   // Fetch states from DB
   useEffect(() => {
@@ -82,6 +97,16 @@ const Avaliacao = () => {
           }
 
           setCities(data as City[]);
+          
+          // If we have a saved city ID, load its segments after cities are loaded
+          const savedCityId = sessionStorage.getItem("selectedCityId");
+          if (savedCityId) {
+            const city = data.find((c) => c.id === savedCityId);
+            if (city) {
+              setSelectedCity(city);
+              fetchSegmentsForCity(savedCityId);
+            }
+          }
         } catch (error) {
           console.error("Error fetching cities:", error);
           setError("Erro ao carregar cidades");
@@ -99,6 +124,10 @@ const Avaliacao = () => {
     setSelectedCityId("");
     setSelectedCity(null);
     setSegments([]);
+    
+    // Save to sessionStorage
+    sessionStorage.setItem("selectedState", value);
+    sessionStorage.removeItem("selectedCityId");
   };
 
   const handleCityChange = (value: string) => {
@@ -106,6 +135,9 @@ const Avaliacao = () => {
     const city = cities.find((c) => c.id === value) || null;
     setSelectedCity(city);
 
+    // Save to sessionStorage
+    sessionStorage.setItem("selectedCityId", value);
+    
     if (value) {
       fetchSegmentsForCity(value);
     } else {

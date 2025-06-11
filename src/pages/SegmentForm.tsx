@@ -120,6 +120,7 @@ const SegmentForm = () => {
         description: "Os dados foram salvos com sucesso.",
       });
 
+      // Simply navigate back without any state
       navigate(-1);
     } catch (error) {
       console.error("Error saving form:", error);
@@ -158,7 +159,10 @@ const SegmentForm = () => {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Avaliação de Segmento</h2>
-        <Button variant="outline" onClick={() => navigate(-1)}>
+        <Button
+          variant="outline"
+          onClick={() => navigate(-1)}
+        >
           Voltar
         </Button>
       </div>
