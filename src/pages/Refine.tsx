@@ -521,7 +521,6 @@ const Refine = () => {
             cityName={cityName}
             stateName={stateName}
             city={city}
-            resetCityData={resetCityData}
           />
 
           <div className="flex flex-col gap-8">
@@ -553,6 +552,17 @@ const Refine = () => {
                 onDeleteSegment={handleDeleteSegment}
                 onUnmergeSegments={handleUnmergeSegments}
               />
+              
+              <div className="mt-8 flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={resetCityData}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Resetar dados
+                </Button>
+              </div>
             </div>
           </div>
         </div>

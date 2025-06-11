@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,8 +40,8 @@ export const SegmentsFilters = ({
   showRatingFilter = true,
 }: SegmentsFiltersProps) => {
   return (
-    <div className="mb-4 space-y-4">
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+    <div className="mb-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Label htmlFor="filter-name">Procurar por nome:</Label>
           <Input
@@ -88,9 +87,7 @@ export const SegmentsFilters = ({
             </Select>
           </div>
         )}
-      </div>
 
-      <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <Label htmlFor="min-length">Extensão mínima (km):</Label>
           <Input

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Segment, SegmentType } from "@/types";
 import {
@@ -26,7 +25,10 @@ interface RefinementSegmentsTableProps {
   selectedSegments: Segment[];
   onUpdateSegmentName: (segmentId: string, newName: string) => Promise<void>;
   onDeleteSegment: (segmentId: string) => Promise<void>;
-  onUnmergeSegments: (parentSegmentId: string, segmentIds: string[]) => Promise<void>;
+  onUnmergeSegments: (
+    parentSegmentId: string,
+    segmentIds: string[]
+  ) => Promise<void>;
 }
 
 const RefinementSegmentsTable = ({
@@ -88,12 +90,12 @@ const RefinementSegmentsTable = ({
 
   const handleSelectAll = (checked: boolean) => {
     // Allow selection of all segments (including merged ones for merging operations)
-    const selectableSegmentIds = segments.map(segment => segment.id);
+    const selectableSegmentIds = segments.map((segment) => segment.id);
     onSelectAllSegments(selectableSegmentIds, checked);
   };
 
-  const allSegmentsSelected = segments.every(segment => segment.selected);
-  const someSegmentsSelected = segments.some(segment => segment.selected);
+  const allSegmentsSelected = segments.every((segment) => segment.selected);
+  const someSegmentsSelected = segments.some((segment) => segment.selected);
 
   return (
     <div className="rounded-md border">
@@ -105,7 +107,11 @@ const RefinementSegmentsTable = ({
               <Checkbox
                 checked={allSegmentsSelected}
                 onCheckedChange={handleSelectAll}
-                className={someSegmentsSelected && !allSegmentsSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                className={
+                  someSegmentsSelected && !allSegmentsSelected
+                    ? "data-[state=checked]:bg-primary/50"
+                    : ""
+                }
               />
             </TableHead>
             <TableHead className="flex items-center gap-2">
@@ -127,7 +133,6 @@ const RefinementSegmentsTable = ({
             </TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead className="text-right">Extensão (km)</TableHead>
-            <TableHead className="text-right">Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -193,10 +198,21 @@ const RefinementSegmentsTable = ({
                             Mesclado
                           </Badge>
                         )}
+                        {editingSegment !== segment.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditStart(segment)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit size={14} />
+                          </Button>
+                        )}
                       </div>
                     )}
-                    <MergedSegmentDropdown 
-                      segment={segment} 
+
+                    <MergedSegmentDropdown
+                      segment={segment}
                       onUnmergeSegments={onUnmergeSegments}
                     />
                   </div>
@@ -206,20 +222,7 @@ const RefinementSegmentsTable = ({
                   {segment.length.toFixed(4)}
                 </TableCell>
                 <TableCell className="text-right">
-                  {segment.evaluated ? "Avaliado" : "Não avaliado"}
-                </TableCell>
-                <TableCell className="text-right">
                   <div className="flex justify-end items-center gap-2">
-                    {editingSegment !== segment.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditStart(segment)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit size={14} />
-                      </Button>
-                    )}
                     {!segment.is_merged && (
                       <Button
                         variant="ghost"
@@ -230,17 +233,6 @@ const RefinementSegmentsTable = ({
                         <Trash2 size={14} />
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" asChild>
-                      <a
-                        href={`/avaliar/formulario/${
-                          segment.id
-                        }?data=${encodeURIComponent(
-                          JSON.stringify(segment)
-                        )}`}
-                      >
-                        {segment.evaluated ? "Ver Avaliação" : "Avaliar"}
-                      </a>
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
