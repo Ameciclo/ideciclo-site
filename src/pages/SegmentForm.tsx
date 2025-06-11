@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,10 +24,11 @@ import { supabase } from "@/integrations/supabase/client";
 const SegmentForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { segmentId } = useParams();
+  const location = useLocation();
+  const { segmentId, formId } = useParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [existingFormId, setExistingFormId] = useState<string | null>(null);
+  const [existingFormId, setExistingFormId] = useState<string | null>(formId || null);
   const [formData, setFormData] = useState({
     researcher: "",
     date: new Date().toISOString().split("T")[0],
@@ -88,54 +89,76 @@ const SegmentForm = () => {
 
   const totalPages = 8;
 
-  // Fetch segment and form data if segmentId is provided
+  // Fetch segment and form data
   useEffect(() => {
-    const fetchSegmentData = async () => {
-      if (!segmentId) return;
+    const fetchData = async () => {
       setIsLoading(true);
       try {
-        // First, get the segment details
-        const { data: segmentData, error: segmentError } = await supabase
-          .from("segments")
-          .select("*")
-          .eq("id", segmentId)
-          .single();
-
-        if (segmentError) throw segmentError;
-
-        // Check if this segment has an associated form
-        if (segmentData.id_form) {
+        // If formId is provided directly, fetch the form first
+        if (formId) {
           const { data: formData, error: formError } = await supabase
             .from("forms")
             .select("*")
-            .eq("id", segmentData.id_form)
+            .eq("id", formId)
             .single();
-
+          
           if (formError) throw formError;
-
-          // If we have form data, populate the form with it
+          
           if (formData) {
-            setExistingFormId(formData.id);
+            // Set the segment ID from the form data
+            const segmentIdFromForm = formData.segment_id;
+            
+            setExistingFormId(formId);
             setFormData({
               ...formData.responses,
-              id: segmentId,
+              id: segmentIdFromForm
             });
           }
-        } else {
-          // If no form exists yet, just populate basic segment info
-          setFormData((prevData) => ({
-            ...prevData,
-            id: segmentId,
-            segment_name: segmentData.name || "",
-            infra_typology: segmentData.type || "",
-            // Add any other segment fields that should be pre-populated
-          }));
+        } 
+        // If only segmentId is provided
+        else if (segmentId) {
+          // Get the segment details
+          const { data: segmentData, error: segmentError } = await supabase
+            .from("segments")
+            .select("*")
+            .eq("id", segmentId)
+            .single();
+          
+          if (segmentError) throw segmentError;
+          
+          // Check if this segment has an associated form
+          if (segmentData.id_form) {
+            const { data: formData, error: formError } = await supabase
+              .from("forms")
+              .select("*")
+              .eq("id", segmentData.id_form)
+              .single();
+            
+            if (formError) throw formError;
+            
+            // If we have form data, populate the form with it
+            if (formData) {
+              setExistingFormId(formData.id);
+              setFormData({
+                ...formData.responses,
+                id: segmentId
+              });
+            }
+          } else {
+            // If no form exists yet, just populate basic segment info
+            setFormData((prevData) => ({
+              ...prevData,
+              id: segmentId,
+              segment_name: segmentData.name || "",
+              infra_typology: segmentData.type || "",
+            }));
+          }
         }
       } catch (error) {
-        console.error("Error fetching segment data:", error);
+        console.error("Error fetching data:", error);
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os dados do segmento.",
+          description: "Não foi possível carregar os dados.",
           variant: "destructive",
         });
       } finally {
@@ -143,8 +166,8 @@ const SegmentForm = () => {
       }
     };
 
-    fetchSegmentData();
-  }, [segmentId, toast]);
+    fetchData();
+  }, [segmentId, formId, toast]);
 
   const handleDataChange = (newData: any) => {
     setFormData({ ...formData, ...newData });
