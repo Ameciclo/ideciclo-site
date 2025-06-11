@@ -170,7 +170,11 @@ const Avaliacao = () => {
                 Escolha o estado e a cidade para visualizar os segmentos
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setIsCityCardVisible(!isCityCardVisible)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCityCardVisible(!isCityCardVisible)}
+            >
               {isCityCardVisible ? (
                 <ChevronUp className="h-4 w-4" />
               ) : (
@@ -247,33 +251,6 @@ const Avaliacao = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">
-                    VIAS ESTRUTURAIS
-                  </h4>
-                  <p className="text-2xl font-bold">
-                    {selectedCity.vias_estruturais_km} km
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">
-                    VIAS ALIMENTADORAS
-                  </h4>
-                  <p className="text-2xl font-bold">
-                    {selectedCity.vias_alimentadoras_km} km
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-semibold text-gray-500">
-                    VIAS LOCAIS
-                  </h4>
-                  <p className="text-2xl font-bold">
-                    {selectedCity.vias_locais_km} km
-                  </p>
-                </div>
-              </div>
-
               <EvaluationTableSortableWrapper
                 segments={segments}
                 showSortOptions={true}
