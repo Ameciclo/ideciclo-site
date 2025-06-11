@@ -1,434 +1,251 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Segment } from "@/types";
-import { useToast } from "@/hooks/use-toast";
-import { saveFormToDB, fetchFormBySegmentId } from "@/services/supabase";
-import { ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
-
-// Import your page components here
+import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
+import Page4 from "./Page4";
+import Page5 from "./Page5";
+import Page6 from "./Page6";
+import Page7 from "./Page7";
+import Page8 from "./Page8";
+import { useToast } from "@/hooks/use-toast";
 
 const SegmentForm = () => {
-  const { segmentId } = useParams<{ segmentId: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { segmentId } = useParams();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [formData, setFormData] = useState({
+    researcher: "",
+    date: new Date().toISOString().split("T")[0],
+    city: "",
+    neighborhood: "",
+    id: segmentId || "",
+    segment_name: "",
+    extension_m: 0,
+    velocity_kmh: 0,
+    start_point: "",
+    end_point: "",
+    road_hierarchy: "",
+    blocks_count: 0,
+    intersections_count: 0,
+    infra_typology: "",
+    infra_flow: "unidirectional",
+    position_on_road: "pista_calcada",
+    width_meters: 0,
+    includes_gutter: false,
+    speed_measures: [],
+    avg_distance_measures_m: 0,
+    pavement_type: "betuminoso_cimenticio",
+    conservation_state: "nivelado",
+    separation_devices_ciclofaixa: "nao_ha",
+    separation_devices_ciclovia: "total",
+    separation_devices_calcada: "nao_ha",
+    devices_conservation: "todo_trecho",
+    lateral_spacing_type: "linha",
+    lateral_spacing_width_m: 0,
+    spacing_conservation: "otimo",
+    space_identification: "pavimento_vermelho",
+    identification_conservation: "total_vermelho",
+    pictograms_per_block: 0,
+    pictograms_conservation: "visiveis",
+    regulation_signs_per_block: 0,
+    signs_both_directions: false,
+    vertical_signs_conservation: "bom_estado",
+    traffic_lanes_count: 2,
+    signalized_crossings_per_block: 0,
+    bus_school_conflict: false,
+    horizontal_obstacles: false,
+    vertical_obstacles: false,
+    side_change_mid_block: false,
+    opposite_flow_direction: false,
+    intersection_signaling: "vermelho_tracejadas",
+    intersection_conservation: "bom_estado",
+    connection_accessibility: "universal_visivel",
+    motorized_conflicts: [],
+    lighting_post_type: "convencionais",
+    lighting_distance_m: 0,
+    lighting_directed: false,
+    lighting_barriers: false,
+    lighting_distance_to_infra: "junto",
+    shading_coverage: "nao_ha",
+    vegetation_size: "baixo",
+    cycling_furniture: [],
+  });
 
-  // Form state
-  const [currentPage, setCurrentPage] = useState(0);
-  const [formData, setFormData] = useState({});
-  const [pageValidation, setPageValidation] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
+  const totalPages = 8;
 
-  // Segment info
-  const [cityId, setCityId] = useState("");
-  const [segmentName, setSegmentName] = useState("");
-  const [segmentType, setSegmentType] = useState("");
-
-  // Page configuration - Add/modify pages here
-  const pages = [
-    {
-      id: "dados-gerais",
-      title: "Dados Gerais",
-      description: "Informações básicas sobre a avaliação",
-      component: Page1,
-      requiredFields: [
-        "researcher",
-        "date",
-        "city",
-        "neighborhood",
-        "id",
-        "segment_name",
-        "extension_m",
-        "velocity_kmh",
-        "start_point",
-        "end_point",
-        "road_hierarchy",
-        "blocks_count",
-        "intersections_count",
-      ],
-    },
-    {
-      id: "section-a",
-      title: "A. Caracterização Geral",
-      description: "Caracterização geral da infraestrutura cicloviária",
-      component: Page2,
-      requiredFields: ["infra_typology", "infra_flow", "position_on_road"],
-    },
-    {
-      id: "section-b",
-      title: "B. Dimensões e Pavimento",
-      description: "Largura da infraestrutura e características do pavimento",
-      component: Page3,
-      requiredFields: [
-        "width_meters",
-        "includes_gutter",
-        "pavement_type",
-        "conservation_state",
-      ],
-    },
-  ];
-
-  useEffect(() => {
-    if (segmentId) {
-      loadSegmentInfo();
-      loadFormData();
-    }
-  }, [segmentId]);
-
-  const loadSegmentInfo = () => {
-    const storedCityId = localStorage.getItem("currentCityId");
-    if (storedCityId) {
-      setCityId(storedCityId);
-    }
-
-    const storedData = localStorage.getItem(`city_${storedCityId}`);
-    if (storedData) {
-      const parsedData = JSON.parse(storedData);
-      const segment = parsedData.segments.find(
-        (s: Segment) => s.id === segmentId
-      );
-      if (segment) {
-        setSegmentName(segment.name);
-        setSegmentType(segment.type);
-      }
-    }
-  };
-
-  const loadFormData = async () => {
-    try {
-      const formDataFromDB = await fetchFormBySegmentId(segmentId);
-
-      if (formDataFromDB && formDataFromDB.responses) {
-        setFormData(formDataFromDB.responses);
-        validateAllPages(formDataFromDB.responses);
-        return;
-      }
-
-      const savedForm = localStorage.getItem(`form_${segmentId}`);
-      if (savedForm) {
-        const parsedData = JSON.parse(savedForm);
-        setFormData(parsedData);
-        validateAllPages(parsedData);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar dados do formulário:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Houve um erro ao carregar dados do formulário.",
-      });
-    }
-  };
-
-  const validatePage = (pageIndex, data = formData) => {
-    const page = pages[pageIndex];
-    if (!page) return false;
-
-    const isValid = page.requiredFields.every((field) => {
-      const value = data[field];
-      return value !== undefined && value !== null && value !== "";
-    });
-
-    setPageValidation((prev) => ({
-      ...prev,
-      [pageIndex]: isValid,
-    }));
-
-    return isValid;
-  };
-
-  const validateAllPages = (data = formData) => {
-    const validation = {};
-    pages.forEach((page, index) => {
-      validation[index] = page.requiredFields.every((field) => {
-        const value = data[field];
-        return value !== undefined && value !== null && value !== "";
-      });
-    });
-    setPageValidation(validation);
-  };
-
-  const updateFormData = (pageData) => {
-    const newFormData = { ...formData, ...pageData };
-    setFormData(newFormData);
-    validateAllPages(newFormData);
-
-    // Auto-save to localStorage
-    localStorage.setItem(`form_${segmentId}`, JSON.stringify(newFormData));
-  };
-
-  const canGoNext = () => {
-    return pageValidation[currentPage] === true;
-  };
-
-  const canGoPrevious = () => {
-    return currentPage > 0;
-  };
-
-  const canSubmit = () => {
-    return Object.keys(pageValidation).every(
-      (key) =>
-        pages[key]?.requiredFields.length === 0 || pageValidation[key] === true
-    );
+  const handleDataChange = (newData: any) => {
+    setFormData({ ...formData, ...newData });
   };
 
   const nextPage = () => {
-    if (canGoNext() && currentPage < pages.length - 1) {
+    if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
-    } else if (!canGoNext()) {
-      toast({
-        variant: "destructive",
-        title: "Campos obrigatórios",
-        description:
-          "Preencha todos os campos obrigatórios antes de continuar.",
-      });
     }
   };
 
-  const previousPage = () => {
-    if (canGoPrevious()) {
+  const prevPage = () => {
+    if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
   };
 
-  const navigateBack = () => {
-    navigate("/avaliacao", { state: { preserveData: true } });
-  };
-
-  const submitForm = async () => {
-    if (!canSubmit()) {
-      toast({
-        variant: "destructive",
-        title: "Formulário incompleto",
-        description: "Complete todas as páginas obrigatórias antes de enviar.",
-      });
-      return;
-    }
-
-    setIsSaving(true);
+  const handleSubmit = async () => {
     try {
-      const form = {
-        id: `form-${segmentId}`,
-        segment_id: segmentId,
-        city_id: cityId,
-        researcher: formData.researcher,
-        date: new Date(),
-        street_name: formData.segment_name,
-        neighborhood: formData.neighborhood,
-        extension: formData.extension_m,
-        start_point: formData.start_point,
-        end_point: formData.end_point,
-        hierarchy: formData.road_hierarchy,
-        velocity: formData.velocity_kmh,
-        blocks_count: formData.blocks_count,
-        intersections_count: formData.intersections_count,
-        observations: formData.observations || "",
-        responses: formData,
+      // Here you would save the data to your backend
+      console.log("Form data to submit:", formData);
+
+      // Store all responses in a JSONB field
+      const dataToSubmit = {
+        ...formData,
+        responses: formData, // Store all form data in the responses field
       };
 
-      const evaluatedSegments = JSON.parse(
-        localStorage.getItem("evaluatedSegments") || "[]"
-      );
-      if (!evaluatedSegments.includes(segmentId)) {
-        evaluatedSegments.push(segmentId);
-        localStorage.setItem(
-          "evaluatedSegments",
-          JSON.stringify(evaluatedSegments)
-        );
-      }
-
-      const savedForm = await saveFormToDB(form);
-
-      if (!savedForm) {
-        throw new Error("Failed to save form to database");
-      }
+      // Mock API call
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       toast({
-        title: "Formulário salvo",
-        description: "A avaliação foi salva com sucesso!",
+        title: "Avaliação salva",
+        description: "Os dados foram salvos com sucesso.",
       });
 
-      navigateBack();
+      navigate(-1);
     } catch (error) {
-      console.error("Erro ao salvar o formulário:", error);
+      console.error("Error saving form:", error);
       toast({
-        variant: "destructive",
         title: "Erro",
-        description: "Houve um erro ao salvar o formulário. Tente novamente.",
+        description: "Ocorreu um erro ao salvar os dados.",
+        variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  const renderCurrentPage = () => {
-    const currentPageData = pages[currentPage];
-    if (!currentPageData) return null;
-
-    // If component is available, render it
-    if (currentPageData.component) {
-      const PageComponent = currentPageData.component;
-      return (
-        <PageComponent
-          data={formData}
-          onDataChange={updateFormData}
-          segmentName={segmentName}
-          segmentType={segmentType}
-        />
-      );
+  const getPageTitle = () => {
+    switch (currentPage) {
+      case 1:
+        return "Dados Gerais";
+      case 2:
+        return "Caracterização da Infraestrutura";
+      case 3:
+        return "Espaço Útil de Circulação";
+      case 4:
+        return "Pavimento e Estado de Conservação";
+      case 5:
+        return "Delimitação da Infraestrutura";
+      case 6:
+        return "Sinalização Horizontal e Vertical";
+      case 7:
+        return "Acessibilidade e Interseções";
+      case 8:
+        return "Iluminação e Conforto";
+      default:
+        return "Avaliação de Segmento";
     }
-
-    // Placeholder for when component is not yet created
-    return (
-      <div className="min-h-[400px] flex items-center justify-center border-2 border-dashed border-muted rounded-lg">
-        <div className="text-center text-muted-foreground">
-          <p className="text-lg font-medium mb-2">{currentPageData.title}</p>
-          <p className="text-sm mb-2">
-            Crie o componente: <code>./pages/{currentPageData.id}.jsx</code>
-          </p>
-          <p className="text-xs">
-            Campos obrigatórios:{" "}
-            {currentPageData.requiredFields.join(", ") || "Nenhum"}
-          </p>
-        </div>
-      </div>
-    );
   };
-
-  const currentPageData = pages[currentPage];
-  const progress = ((currentPage + 1) / pages.length) * 100;
-
-  if (!currentPageData) {
-    return <div>Página não encontrada</div>;
-  }
 
   return (
-    <div className="container py-8 max-w-4xl mx-auto">
-      {/* Header */}
+    <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold">Formulário de Avaliação</h2>
-          <p className="text-muted-foreground mt-1">
-            Segmento: {segmentName} ({segmentType})
-          </p>
-        </div>
-        <Button variant="outline" onClick={navigateBack}>
+        <h2 className="text-2xl font-bold">Avaliação de Segmento</h2>
+        <Button variant="outline" onClick={() => navigate(-1)}>
           Voltar
         </Button>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium">
-            Página {currentPage + 1} de {pages.length}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {Math.round(progress)}% completo
-          </span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Page Navigation Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
-        {pages.map((page, index) => (
-          <div
-            key={page.id}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm whitespace-nowrap ${
-              index === currentPage
-                ? "bg-primary text-primary-foreground"
-                : index < currentPage || pageValidation[index]
-                ? "bg-green-50 border-green-200 text-green-700"
-                : "bg-muted"
-            }`}
-          >
-            {pageValidation[index] && index !== currentPage && (
-              <CheckCircle className="h-4 w-4" />
-            )}
-            <span>{page.title}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Form Card */}
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            {currentPageData.title}
-            <Badge
-              variant={pageValidation[currentPage] ? "default" : "secondary"}
-            >
-              {pageValidation[currentPage] ? "Completa" : "Pendente"}
-            </Badge>
-          </CardTitle>
-          <CardDescription>{currentPageData.description}</CardDescription>
+          <CardTitle>{getPageTitle()}</CardTitle>
+          <CardDescription>
+            Página {currentPage} de {totalPages}
+          </CardDescription>
         </CardHeader>
-        <CardContent>{renderCurrentPage()}</CardContent>
-      </Card>
 
-      {/* Navigation Controls */}
-      <div className="flex justify-between items-center mt-6">
-        <Button
-          variant="outline"
-          onClick={previousPage}
-          disabled={!canGoPrevious()}
-          className="flex items-center gap-2"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Anterior
-        </Button>
+        {currentPage === 1 && (
+          <Page1
+            data={formData}
+            onDataChange={handleDataChange}
+            segmentName={formData.segment_name}
+            segmentType={formData.infra_typology}
+          />
+        )}
 
-        <div className="flex gap-2">
-          {currentPage < pages.length - 1 ? (
-            <Button
-              onClick={nextPage}
-              disabled={!canGoNext()}
-              className="flex items-center gap-2"
-            >
-              Próxima
-              <ChevronRight className="h-4 w-4" />
+        {currentPage === 2 && (
+          <Page2
+            data={formData}
+            onDataChange={handleDataChange}
+            segmentType={formData.infra_typology}
+          />
+        )}
+
+        {currentPage === 3 && (
+          <Page3 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        {currentPage === 4 && (
+          <Page4 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        {currentPage === 5 && (
+          <Page5 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        {currentPage === 6 && (
+          <Page6 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        {currentPage === 7 && (
+          <Page7 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        {currentPage === 8 && (
+          <Page8 data={formData} onDataChange={handleDataChange} />
+        )}
+
+        <CardFooter className="flex justify-between pt-6">
+          <Button
+            variant="outline"
+            onClick={prevPage}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+          </Button>
+
+          {currentPage < totalPages ? (
+            <Button onClick={nextPage}>
+              Próximo <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <Button
-              onClick={submitForm}
-              disabled={!canSubmit() || isSaving}
-              className="flex items-center gap-2"
-            >
-              {isSaving ? "Salvando..." : "Finalizar Avaliação"}
+            <Button onClick={handleSubmit}>
+              <Save className="mr-2 h-4 w-4" /> Salvar Avaliação
             </Button>
           )}
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
 
-      {/* Debug Info (remove in production) */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <h4 className="font-medium mb-2">Debug Info:</h4>
-          <p className="text-sm">
-            Current Page: {currentPage} ({currentPageData.id})
-          </p>
-          <p className="text-sm">
-            Page Valid: {String(pageValidation[currentPage])}
-          </p>
-          <p className="text-sm">Can Submit: {String(canSubmit())}</p>
-          <p className="text-sm">
-            Form Data Keys: {Object.keys(formData).join(", ")}
-          </p>
-        </div>
-      )}
+      {/* Navigation indicator */}
+      <div className="flex justify-center items-center gap-1 pt-2">
+        {Array.from({ length: totalPages }).map((_, index) => (
+          <div
+            key={index}
+            className={`h-2 w-2 rounded-full ${
+              currentPage === index + 1 ? "bg-primary" : "bg-gray-300"
+            }`}
+            onClick={() => setCurrentPage(index + 1)}
+            style={{ cursor: "pointer" }}
+          />
+        ))}
+      </div>
     </div>
   );
 };

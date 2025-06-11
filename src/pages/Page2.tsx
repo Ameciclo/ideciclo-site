@@ -1,49 +1,44 @@
 import React from "react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
-const Page2 = ({ data, onDataChange, segmentName, segmentType }) => {
-  const handleInputChange = (field, value) => {
-    onDataChange({ [field]: value });
+interface Page2Props {
+  data: any;
+  onDataChange: (data: any) => void;
+  segmentType: string;
+}
+
+const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    onDataChange({ [name]: value });
+  };
+
+  const handleRadioChange = (name: string, value: string) => {
+    onDataChange({ [name]: value });
   };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>
-          A.1 Caracterização geral da infraestrutura cicloviária
-        </CardTitle>
-        <CardDescription>
-          Características gerais da infraestrutura do segmento
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="pt-6 space-y-4">
         <div>
-          <Label htmlFor="infra_typology">Tipologia da infra: *</Label>
+          <Label htmlFor="infra_typology">Tipologia da infra:</Label>
           <Input
             id="infra_typology"
-            value={data.infra_typology || ""}
-            onChange={(e) =>
-              handleInputChange("infra_typology", e.target.value)
-            }
-            placeholder="Tipo de infraestrutura"
+            name="infra_typology"
+            value={data.infra_typology || segmentType || ""}
+            onChange={handleChange}
           />
         </div>
 
         <div>
-          <Label className="text-base font-medium">Fluxo da infra: *</Label>
+          <Label>Fluxo da infra:</Label>
           <RadioGroup
-            value={data.infra_flow || ""}
-            onValueChange={(value) => handleInputChange("infra_flow", value)}
-            className="flex gap-6 mt-2"
+            value={data.infra_flow || "unidirectional"}
+            onValueChange={(value) => handleRadioChange("infra_flow", value)}
+            className="flex gap-4"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="unidirectional" id="unidirectional" />
@@ -57,13 +52,11 @@ const Page2 = ({ data, onDataChange, segmentName, segmentType }) => {
         </div>
 
         <div>
-          <Label className="text-base font-medium">Posição na via: *</Label>
+          <Label>Posição na via:</Label>
           <RadioGroup
-            value={data.position_on_road || ""}
-            onValueChange={(value) =>
-              handleInputChange("position_on_road", value)
-            }
-            className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2"
+            value={data.position_on_road || "pista_calcada"}
+            onValueChange={(value) => handleRadioChange("position_on_road", value)}
+            className="grid grid-cols-2 gap-2"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="canteiro" id="canteiro" />
