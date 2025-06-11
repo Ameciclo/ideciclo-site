@@ -33,56 +33,66 @@ export const EvaluationTableSortableWrapper = ({
   useEffect(() => {
     const verifyFormsAndUpdateSegments = async () => {
       // Get all segments that are marked as evaluated
-      const evaluatedSegments = initialSegments.filter(s => s.evaluated && s.id_form);
-      
+      const evaluatedSegments = initialSegments.filter(
+        (s) => s.evaluated && s.id_form
+      );
+
       if (evaluatedSegments.length === 0) {
         setSegments(initialSegments);
         return;
       }
-      
+
       // Get all form IDs
-      const formIds = evaluatedSegments.map(s => s.id_form).filter(Boolean);
-      
+      const formIds = evaluatedSegments.map((s) => s.id_form).filter(Boolean);
+
       try {
         // Check which forms actually exist in the database
         const { data, error } = await supabase
           .from("forms")
           .select("id")
           .in("id", formIds);
-          
+
         if (error) {
           console.error("Error verifying forms:", error);
           setSegments(initialSegments);
           return;
         }
-        
+
         // Create a set of existing form IDs for quick lookup
-        const existingFormIds = new Set(data.map(form => form.id));
-        
+        const existingFormIds = new Set(data.map((form) => form.id));
+
         // Update segments to mark those with missing forms as not evaluated
-        const updatedSegments = initialSegments.map(segment => {
-          if (segment.evaluated && segment.id_form && !existingFormIds.has(segment.id_form)) {
+        const updatedSegments = initialSegments.map((segment) => {
+          if (
+            segment.evaluated &&
+            segment.id_form &&
+            !existingFormIds.has(segment.id_form)
+          ) {
             // Form doesn't exist, update segment in database
             supabase
               .from("segments")
               .update({ evaluated: false, id_form: null })
               .eq("id", segment.id)
-              .then(() => console.log(`Updated segment ${segment.id} to not evaluated`))
-              .catch(err => console.error(`Error updating segment ${segment.id}:`, err));
-              
+              .then(() =>
+                console.log(`Updated segment ${segment.id} to not evaluated`)
+              )
+              .catch((err) =>
+                console.error(`Error updating segment ${segment.id}:`, err)
+              );
+
             // Return updated segment for UI
             return { ...segment, evaluated: false, id_form: null };
           }
           return segment;
         });
-        
+
         setSegments(updatedSegments);
       } catch (error) {
         console.error("Error verifying forms:", error);
         setSegments(initialSegments);
       }
     };
-    
+
     verifyFormsAndUpdateSegments();
   }, [initialSegments]);
 

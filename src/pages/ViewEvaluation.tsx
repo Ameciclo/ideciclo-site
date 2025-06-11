@@ -68,7 +68,9 @@ const ViewEvaluation = () => {
         <Card>
           <CardHeader>
             <CardTitle>Erro</CardTitle>
-            <CardDescription>{error || "Dados não encontrados"}</CardDescription>
+            <CardDescription>
+              {error || "Dados não encontrados"}
+            </CardDescription>
           </CardHeader>
           <CardFooter>
             <Button variant="outline" onClick={() => navigate(-1)}>
@@ -104,7 +106,9 @@ const ViewEvaluation = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <h3 className="font-medium">Pesquisador(a):</h3>
-              <p>{responses.researcher || formData.researcher || "Não informado"}</p>
+              <p>
+                {responses.researcher || formData.researcher || "Não informado"}
+              </p>
             </div>
             <div>
               <h3 className="font-medium">Data:</h3>
@@ -171,12 +175,6 @@ const ViewEvaluation = () => {
           </div>
         </CardContent>
       </Card>
-
-      <div className="flex justify-end mt-6">
-        <Button onClick={() => navigate(`/edit-evaluation/${formId}`)}>
-          <Edit className="mr-2 h-4 w-4" /> Editar Avaliação
-        </Button>
-      </div>
     </div>
   );
 };

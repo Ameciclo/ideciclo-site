@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,8 @@ const SegmentForm = () => {
   const navigate = useNavigate();
   const { segmentId } = useParams();
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [existingFormId, setExistingFormId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     researcher: "",
     date: new Date().toISOString().split("T")[0],
@@ -86,6 +88,64 @@ const SegmentForm = () => {
 
   const totalPages = 8;
 
+  // Fetch segment and form data if segmentId is provided
+  useEffect(() => {
+    const fetchSegmentData = async () => {
+      if (!segmentId) return;
+      setIsLoading(true);
+      try {
+        // First, get the segment details
+        const { data: segmentData, error: segmentError } = await supabase
+          .from("segments")
+          .select("*")
+          .eq("id", segmentId)
+          .single();
+
+        if (segmentError) throw segmentError;
+
+        // Check if this segment has an associated form
+        if (segmentData.id_form) {
+          const { data: formData, error: formError } = await supabase
+            .from("forms")
+            .select("*")
+            .eq("id", segmentData.id_form)
+            .single();
+
+          if (formError) throw formError;
+
+          // If we have form data, populate the form with it
+          if (formData) {
+            setExistingFormId(formData.id);
+            setFormData({
+              ...formData.responses,
+              id: segmentId,
+            });
+          }
+        } else {
+          // If no form exists yet, just populate basic segment info
+          setFormData((prevData) => ({
+            ...prevData,
+            id: segmentId,
+            segment_name: segmentData.name || "",
+            infra_typology: segmentData.type || "",
+            // Add any other segment fields that should be pre-populated
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching segment data:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados do segmento.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSegmentData();
+  }, [segmentId, toast]);
+
   const handleDataChange = (newData: any) => {
     setFormData({ ...formData, ...newData });
   };
@@ -106,56 +166,73 @@ const SegmentForm = () => {
     try {
       // Get city ID from sessionStorage
       const cityId = sessionStorage.getItem("selectedCityId");
-      
+
       if (!cityId) {
         throw new Error("Cidade não selecionada");
       }
-      
+
       if (!segmentId) {
         throw new Error("ID do segmento não encontrado");
       }
-      
-      // Create a unique form ID
-      const formId = `form-${segmentId}-${Date.now()}`;
-      
-      // Prepare form data for database - only include fields that exist in the schema
+
+      // Determine if we're updating or creating
+      const isUpdating = !!existingFormId;
+
+      // Prepare form data for database
       const formToSave = {
-        id: formId,
         segment_id: segmentId,
         city_id: cityId,
         researcher: formData.researcher || "",
-        responses: formData // Store all form data in the responses JSONB field
+        responses: formData, // Store all form data in the responses JSONB field
       };
-      
-      console.log("Saving form to database:", formToSave);
-      
-      // Save to database
-      const { data, error } = await supabase
-        .from('forms')
-        .insert(formToSave)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("Error saving form:", error);
-        throw new Error("Falha ao salvar o formulário: " + error.message);
-      }
-      
-      // Update the segment to mark it as evaluated
-      const { error: updateError } = await supabase
-        .from('segments')
-        .update({ 
-          evaluated: true,
-          id_form: formId 
-        })
-        .eq('id', segmentId);
 
-      if (updateError) {
-        console.error("Error updating segment evaluation status:", updateError);
+      let result;
+
+      if (isUpdating) {
+        // Update existing form
+        console.log("Updating existing form:", existingFormId);
+        result = await supabase
+          .from("forms")
+          .update(formToSave)
+          .eq("id", existingFormId)
+          .select()
+          .single();
+      } else {
+        // Create new form with unique ID
+        const formId = `form-${segmentId}-${Date.now()}`;
+        console.log("Creating new form:", formId);
+        result = await supabase
+          .from("forms")
+          .insert({ ...formToSave, id: formId })
+          .select()
+          .single();
+
+        // Update the segment to mark it as evaluated
+        const { error: updateError } = await supabase
+          .from("segments")
+          .update({
+            evaluated: true,
+            id_form: formId,
+          })
+          .eq("id", segmentId);
+
+        if (updateError) {
+          console.error(
+            "Error updating segment evaluation status:",
+            updateError
+          );
+        }
+      }
+
+      if (result.error) {
+        console.error("Error saving form:", result.error);
+        throw new Error(
+          "Falha ao salvar o formulário: " + result.error.message
+        );
       }
 
       toast({
-        title: "Avaliação salva",
+        title: isUpdating ? "Avaliação atualizada" : "Avaliação salva",
         description: "Os dados foram salvos com sucesso no banco de dados.",
       });
 
@@ -165,7 +242,10 @@ const SegmentForm = () => {
       console.error("Error saving form:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao salvar os dados.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao salvar os dados.",
         variant: "destructive",
       });
     }
@@ -197,81 +277,89 @@ const SegmentForm = () => {
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Avaliação de Segmento</h2>
+        <h2 className="text-2xl font-bold">
+          {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Segmento
+        </h2>
         <Button variant="outline" onClick={() => navigate(-1)}>
           Voltar
         </Button>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>{getPageTitle()}</CardTitle>
-          <CardDescription>
-            Página {currentPage} de {totalPages}
-          </CardDescription>
-        </CardHeader>
+      {isLoading ? (
+        <Card className="mb-6 p-6 flex justify-center items-center">
+          <p>Carregando dados do segmento...</p>
+        </Card>
+      ) : (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{getPageTitle()}</CardTitle>
+            <CardDescription>
+              Página {currentPage} de {totalPages}
+            </CardDescription>
+          </CardHeader>
 
-        {currentPage === 1 && (
-          <Page1
-            data={formData}
-            onDataChange={handleDataChange}
-            segmentName={formData.segment_name}
-            segmentType={formData.infra_typology}
-          />
-        )}
-
-        {currentPage === 2 && (
-          <Page2
-            data={formData}
-            onDataChange={handleDataChange}
-            segmentType={formData.infra_typology}
-          />
-        )}
-
-        {currentPage === 3 && (
-          <Page3 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        {currentPage === 4 && (
-          <Page4 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        {currentPage === 5 && (
-          <Page5 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        {currentPage === 6 && (
-          <Page6 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        {currentPage === 7 && (
-          <Page7 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        {currentPage === 8 && (
-          <Page8 data={formData} onDataChange={handleDataChange} />
-        )}
-
-        <CardFooter className="flex justify-between pt-6">
-          <Button
-            variant="outline"
-            onClick={prevPage}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
-          </Button>
-
-          {currentPage < totalPages ? (
-            <Button onClick={nextPage}>
-              Próximo <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit}>
-              <Save className="mr-2 h-4 w-4" /> Salvar Avaliação
-            </Button>
+          {currentPage === 1 && (
+            <Page1
+              data={formData}
+              onDataChange={handleDataChange}
+              segmentName={formData.segment_name}
+              segmentType={formData.infra_typology}
+            />
           )}
-        </CardFooter>
-      </Card>
+
+          {currentPage === 2 && (
+            <Page2
+              data={formData}
+              onDataChange={handleDataChange}
+              segmentType={formData.infra_typology}
+            />
+          )}
+
+          {currentPage === 3 && (
+            <Page3 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          {currentPage === 4 && (
+            <Page4 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          {currentPage === 5 && (
+            <Page5 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          {currentPage === 6 && (
+            <Page6 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          {currentPage === 7 && (
+            <Page7 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          {currentPage === 8 && (
+            <Page8 data={formData} onDataChange={handleDataChange} />
+          )}
+
+          <CardFooter className="flex justify-between pt-6">
+            <Button
+              variant="outline"
+              onClick={prevPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+            </Button>
+
+            {currentPage < totalPages ? (
+              <Button onClick={nextPage}>
+                Próximo <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit}>
+                <Save className="mr-2 h-4 w-4" /> Salvar Avaliação
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      )}
 
       {/* Navigation indicator */}
       <div className="flex justify-center items-center gap-1 pt-2">
