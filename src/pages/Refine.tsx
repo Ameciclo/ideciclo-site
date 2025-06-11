@@ -525,7 +525,7 @@ const Refine = () => {
 
           <div className="flex flex-col gap-8">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Segmentos</h3>
+              {/* <h3 className="text-lg font-semibold mb-4">Segmentos</h3> */}
               <div className="flex flex-wrap items-center gap-4 mb-4">
                 {selectedSegmentsCount > 0 && (
                   <Button
@@ -552,10 +552,10 @@ const Refine = () => {
                 onDeleteSegment={handleDeleteSegment}
                 onUnmergeSegments={handleUnmergeSegments}
               />
-              
+
               <div className="mt-8 flex justify-end">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={resetCityData}
                   className="flex items-center gap-2"
                 >

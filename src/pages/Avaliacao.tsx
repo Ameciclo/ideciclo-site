@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
@@ -33,6 +33,7 @@ const Avaliacao = () => {
   const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [isCityCardVisible, setIsCityCardVisible] = useState<boolean>(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -162,50 +163,63 @@ const Avaliacao = () => {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Selecionar Cidade</CardTitle>
-          <CardDescription>
-            Escolha o estado e a cidade para visualizar os segmentos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="state">Estado</Label>
-              <Select value={selectedState} onValueChange={handleStateChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state) => (
-                    <SelectItem key={state.id} value={state.id}>
-                      {state.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Selecionar Cidade</CardTitle>
+              <CardDescription>
+                Escolha o estado e a cidade para visualizar os segmentos
+              </CardDescription>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="city">Cidade</Label>
-              <Select
-                value={selectedCityId}
-                onValueChange={handleCityChange}
-                disabled={!selectedState || cities.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma cidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cities.map((city) => (
-                    <SelectItem key={city.id} value={city.id}>
-                      {city.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => setIsCityCardVisible(!isCityCardVisible)}>
+              {isCityCardVisible ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-        </CardContent>
+        </CardHeader>
+        {isCityCardVisible && (
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="state">Estado</Label>
+                <Select value={selectedState} onValueChange={handleStateChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((state) => (
+                      <SelectItem key={state.id} value={state.id}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Select
+                  value={selectedCityId}
+                  onValueChange={handleCityChange}
+                  disabled={!selectedState || cities.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma cidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.id}>
+                        {city.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {isLoading && (
