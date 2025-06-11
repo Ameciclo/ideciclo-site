@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import OriginalSegmentsTable from "./OriginalSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
-import CityMap from "./CityMap";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TableSortableWrapperProps {
   segments: Segment[];
@@ -23,17 +23,67 @@ export const EvaluationTableSortableWrapper = ({
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
-  const [segments, setSegments] = useState<Segment[]>(initialSegments);
+  const [segments, setSegments] = useState<Segment[]>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
-  // Update segments when initialSegments change
+  // Update segments when initialSegments change and verify form existence
   useEffect(() => {
-    if (JSON.stringify(initialSegments) !== JSON.stringify(segments)) {
-      setSegments(initialSegments);
-    }
+    const verifyFormsAndUpdateSegments = async () => {
+      // Get all segments that are marked as evaluated
+      const evaluatedSegments = initialSegments.filter(s => s.evaluated && s.id_form);
+      
+      if (evaluatedSegments.length === 0) {
+        setSegments(initialSegments);
+        return;
+      }
+      
+      // Get all form IDs
+      const formIds = evaluatedSegments.map(s => s.id_form).filter(Boolean);
+      
+      try {
+        // Check which forms actually exist in the database
+        const { data, error } = await supabase
+          .from("forms")
+          .select("id")
+          .in("id", formIds);
+          
+        if (error) {
+          console.error("Error verifying forms:", error);
+          setSegments(initialSegments);
+          return;
+        }
+        
+        // Create a set of existing form IDs for quick lookup
+        const existingFormIds = new Set(data.map(form => form.id));
+        
+        // Update segments to mark those with missing forms as not evaluated
+        const updatedSegments = initialSegments.map(segment => {
+          if (segment.evaluated && segment.id_form && !existingFormIds.has(segment.id_form)) {
+            // Form doesn't exist, update segment in database
+            supabase
+              .from("segments")
+              .update({ evaluated: false, id_form: null })
+              .eq("id", segment.id)
+              .then(() => console.log(`Updated segment ${segment.id} to not evaluated`))
+              .catch(err => console.error(`Error updating segment ${segment.id}:`, err));
+              
+            // Return updated segment for UI
+            return { ...segment, evaluated: false, id_form: null };
+          }
+          return segment;
+        });
+        
+        setSegments(updatedSegments);
+      } catch (error) {
+        console.error("Error verifying forms:", error);
+        setSegments(initialSegments);
+      }
+    };
+    
+    verifyFormsAndUpdateSegments();
   }, [initialSegments]);
 
   const toggleSortDirection = () => {
@@ -51,7 +101,7 @@ export const EvaluationTableSortableWrapper = ({
 
   // Filter and sort segments - only show parent merged segments or non-merged segments
   const filteredAndSortedSegments = () => {
-    return [...initialSegments]
+    return [...segments]
       .filter((segment) => {
         // Only show segments that are either not merged or are the parent merged segment
         // Hide child segments (segments with parent_segment_id)
