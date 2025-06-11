@@ -19,6 +19,7 @@ import Page6 from "./Page6";
 import Page7 from "./Page7";
 import Page8 from "./Page8";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const SegmentForm = () => {
   const { toast } = useToast();
@@ -103,30 +104,68 @@ const SegmentForm = () => {
 
   const handleSubmit = async () => {
     try {
-      // Here you would save the data to your backend
-      console.log("Form data to submit:", formData);
-
-      // Store all responses in a JSONB field
-      const dataToSubmit = {
-        ...formData,
-        responses: formData, // Store all form data in the responses field
+      // Get city ID from sessionStorage
+      const cityId = sessionStorage.getItem("selectedCityId");
+      
+      if (!cityId) {
+        throw new Error("Cidade não selecionada");
+      }
+      
+      if (!segmentId) {
+        throw new Error("ID do segmento não encontrado");
+      }
+      
+      // Create a unique form ID
+      const formId = `form-${segmentId}-${Date.now()}`;
+      
+      // Prepare form data for database - only include fields that exist in the schema
+      const formToSave = {
+        id: formId,
+        segment_id: segmentId,
+        city_id: cityId,
+        researcher: formData.researcher || "",
+        responses: formData // Store all form data in the responses JSONB field
       };
+      
+      console.log("Saving form to database:", formToSave);
+      
+      // Save to database
+      const { data, error } = await supabase
+        .from('forms')
+        .insert(formToSave)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("Error saving form:", error);
+        throw new Error("Falha ao salvar o formulário: " + error.message);
+      }
+      
+      // Update the segment to mark it as evaluated
+      const { error: updateError } = await supabase
+        .from('segments')
+        .update({ 
+          evaluated: true,
+          id_form: formId 
+        })
+        .eq('id', segmentId);
 
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (updateError) {
+        console.error("Error updating segment evaluation status:", updateError);
+      }
 
       toast({
         title: "Avaliação salva",
-        description: "Os dados foram salvos com sucesso.",
+        description: "Os dados foram salvos com sucesso no banco de dados.",
       });
 
-      // Simply navigate back without any state
+      // Navigate back
       navigate(-1);
     } catch (error) {
       console.error("Error saving form:", error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro ao salvar os dados.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao salvar os dados.",
         variant: "destructive",
       });
     }
