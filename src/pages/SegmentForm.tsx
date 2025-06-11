@@ -159,10 +159,7 @@ const SegmentForm = () => {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Avaliação de Segmento</h2>
-        <Button
-          variant="outline"
-          onClick={() => navigate(-1)}
-        >
+        <Button variant="outline" onClick={() => navigate(-1)}>
           Voltar
         </Button>
       </div>
