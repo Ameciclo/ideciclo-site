@@ -28,7 +28,9 @@ const SegmentForm = () => {
   const { segmentId, formId } = useParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [existingFormId, setExistingFormId] = useState<string | null>(formId || null);
+  const [existingFormId, setExistingFormId] = useState<string | null>(
+    formId || null
+  );
   const [formData, setFormData] = useState({
     researcher: "",
     date: new Date().toISOString().split("T")[0],
@@ -101,20 +103,20 @@ const SegmentForm = () => {
             .select("*")
             .eq("id", formId)
             .single();
-          
+
           if (formError) throw formError;
-          
+
           if (formData) {
             // Set the segment ID from the form data
             const segmentIdFromForm = formData.segment_id;
-            
+
             setExistingFormId(formId);
             setFormData({
               ...formData.responses,
-              id: segmentIdFromForm
+              id: segmentIdFromForm,
             });
           }
-        } 
+        }
         // If only segmentId is provided
         else if (segmentId) {
           // Get the segment details
@@ -123,9 +125,9 @@ const SegmentForm = () => {
             .select("*")
             .eq("id", segmentId)
             .single();
-          
+
           if (segmentError) throw segmentError;
-          
+
           // Check if this segment has an associated form
           if (segmentData.id_form) {
             const { data: formData, error: formError } = await supabase
@@ -133,15 +135,15 @@ const SegmentForm = () => {
               .select("*")
               .eq("id", segmentData.id_form)
               .single();
-            
+
             if (formError) throw formError;
-            
+
             // If we have form data, populate the form with it
             if (formData) {
               setExistingFormId(formData.id);
               setFormData({
                 ...formData.responses,
-                id: segmentId
+                id: segmentId,
               });
             }
           } else {
