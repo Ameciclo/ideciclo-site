@@ -26,13 +26,10 @@ const App = () => (
             path="/avaliar/formulario/:segmentId"
             element={<SegmentForm />}
           />
-          <Route 
-            path="/view-evaluation/:formId" 
-            element={<ViewEvaluation />} 
-          />
-          <Route 
-            path="/edit-evaluation/:formId" 
-            element={<SegmentForm />} 
+          <Route path="/view-evaluation/:formId" element={<ViewEvaluation />} />
+          <Route
+            path="/edit-evaluation/:segmentId/:formId"
+            element={<SegmentForm />}
           />
           <Route path="*" element={<NotFound />} />
         </Routes>

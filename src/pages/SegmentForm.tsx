@@ -119,41 +119,58 @@ const SegmentForm = () => {
         }
         // If only segmentId is provided
         else if (segmentId) {
-          // Get the segment details
-          const { data: segmentData, error: segmentError } = await supabase
-            .from("segments")
-            .select("*")
-            .eq("id", segmentId)
-            .single();
-
-          if (segmentError) throw segmentError;
-
-          // Check if this segment has an associated form
-          if (segmentData.id_form) {
-            const { data: formData, error: formError } = await supabase
+          // First check if this segmentId is actually a form ID
+          const { data: formBySegmentId, error: formBySegmentIdError } =
+            await supabase
               .from("forms")
               .select("*")
-              .eq("id", segmentData.id_form)
+              .eq("segment_id", segmentId)
               .single();
 
-            if (formError) throw formError;
-
-            // If we have form data, populate the form with it
-            if (formData) {
-              setExistingFormId(formData.id);
-              setFormData({
-                ...formData.responses,
-                id: segmentId,
-              });
-            }
-          } else {
-            // If no form exists yet, just populate basic segment info
-            setFormData((prevData) => ({
-              ...prevData,
+          if (formBySegmentId) {
+            // We found a form with this segment ID
+            setExistingFormId(formBySegmentId.id);
+            setFormData({
+              ...formBySegmentId.responses,
               id: segmentId,
-              segment_name: segmentData.name || "",
-              infra_typology: segmentData.type || "",
-            }));
+            });
+          } else {
+            // Get the segment details
+            const { data: segmentData, error: segmentError } = await supabase
+              .from("segments")
+              .select("*")
+              .eq("id", segmentId)
+              .single();
+
+            if (segmentError) throw segmentError;
+
+            // Check if this segment has an associated form
+            if (segmentData.id_form) {
+              const { data: formData, error: formError } = await supabase
+                .from("forms")
+                .select("*")
+                .eq("id", segmentData.id_form)
+                .single();
+
+              if (formError) throw formError;
+
+              // If we have form data, populate the form with it
+              if (formData) {
+                setExistingFormId(formData.id);
+                setFormData({
+                  ...formData.responses,
+                  id: segmentId,
+                });
+              }
+            } else {
+              // If no form exists yet, just populate basic segment info
+              setFormData((prevData) => ({
+                ...prevData,
+                id: segmentId,
+                segment_name: segmentData.name || "",
+                infra_typology: segmentData.type || "",
+              }));
+            }
           }
         }
       } catch (error) {

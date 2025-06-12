@@ -92,7 +92,11 @@ const ViewEvaluation = () => {
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
-          <Button onClick={() => navigate(`/edit-evaluation/${formId}`)}>
+          <Button
+            onClick={() =>
+              navigate(`/edit-evaluation/${formData.segment_id}/${formId}`)
+            }
+          >
             <Edit className="mr-2 h-4 w-4" /> Editar
           </Button>
         </div>
