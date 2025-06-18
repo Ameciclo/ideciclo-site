@@ -409,8 +409,15 @@ const Refine = () => {
           "Refreshed segments after merge:",
           storedData.segments.length
         );
-        setSegments(storedData.segments);
-        saveLocalSegments(cityId, storedData.segments);
+        
+        // Simply use the segments from the database and reset selection state
+        const updatedSegments = storedData.segments.map(segment => ({
+          ...segment,
+          selected: false // Reset selection state after merge
+        }));
+        
+        setSegments(updatedSegments);
+        saveLocalSegments(cityId, updatedSegments);
       }
 
       toast({
@@ -443,8 +450,15 @@ const Refine = () => {
           "Refreshed segments after unmerge:",
           storedData.segments.length
         );
-        setSegments(storedData.segments);
-        saveLocalSegments(cityId, storedData.segments);
+        
+        // Simply use the segments from the database and reset selection state
+        const updatedSegments = storedData.segments.map(segment => ({
+          ...segment,
+          selected: false // Reset selection state after unmerge
+        }));
+        
+        setSegments(updatedSegments);
+        saveLocalSegments(cityId, updatedSegments);
       }
 
       toast({
