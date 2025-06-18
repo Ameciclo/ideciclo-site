@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Edit, ArrowLeft } from "lucide-react";
-import { fetchFormWithDetails } from "@/services/supabase";
+import { fetchFormWithDetails } from "@/services/database";
 import { Form } from "@/types";
 
 const ViewEvaluation = () => {

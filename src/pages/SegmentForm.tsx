@@ -26,7 +26,7 @@ import {
   updateFormInDB, 
   createFormInDB, 
   updateSegmentEvaluationStatus 
-} from "@/services/supabase";
+} from "@/services/database";
 
 const SegmentForm = () => {
   const { toast } = useToast();

@@ -11,7 +11,7 @@ import {
   saveSegmentToDB,
   removeSegmentsFromDB,
   unmergeSegmentsFromDB
-} from "./supabase";
+} from "./database";
 
 // Helper function to retry failed API calls
 const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, delay = 1000) => {

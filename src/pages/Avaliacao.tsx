@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import EvaluationTableSortableWrapper from "@/components/EvaluationTableSortableWrapper";
-import { fetchUniqueStatesFromDB, fetchCitiesByState, fetchSegmentsByCity } from "@/services/supabase";
+import { fetchUniqueStatesFromDB, fetchCitiesByState, fetchSegmentsByCity } from "@/services/database";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);

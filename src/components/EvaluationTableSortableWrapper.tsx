@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import OriginalSegmentsTable from "./OriginalSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
-import { updateSegmentInDB, checkFormsExistByIds } from "@/services/supabase";
+import { updateSegmentInDB, checkFormsExistByIds } from "@/services/database";
 
 interface TableSortableWrapperProps {
   segments: Segment[];
@@ -48,7 +48,7 @@ export const EvaluationTableSortableWrapper = ({
       try {
         // Check which forms actually exist in the database using the service layer
         const existingFormIdsArray = await checkFormsExistByIds(formIds);
-        
+
         if (!existingFormIdsArray) {
           setSegments(initialSegments);
           return;
@@ -65,10 +65,10 @@ export const EvaluationTableSortableWrapper = ({
             !existingFormIds.has(segment.id_form)
           ) {
             // Form doesn't exist, update segment in database
-            updateSegmentInDB({ 
-              id: segment.id, 
-              evaluated: false, 
-              id_form: null 
+            updateSegmentInDB({
+              id: segment.id,
+              evaluated: false,
+              id_form: null,
             })
               .then(() =>
                 console.log(`Updated segment ${segment.id} to not evaluated`)
