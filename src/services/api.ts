@@ -12,7 +12,6 @@ import {
   removeSegmentsFromDB,
   unmergeSegmentsFromDB
 } from "./supabase";
-import { supabase } from "@/integrations/supabase/client";
 
 // Helper function to retry failed API calls
 const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, delay = 1000) => {

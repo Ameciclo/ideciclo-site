@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Edit, ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchFormWithDetails } from "@/services/supabase";
 import { Form } from "@/types";
 
 const ViewEvaluation = () => {
@@ -29,14 +29,9 @@ const ViewEvaluation = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from("forms")
-          .select("*")
-          .eq("id", formId)
-          .single();
+        const data = await fetchFormWithDetails(formId);
 
-        if (error) {
-          console.error("Error fetching form:", error);
+        if (!data) {
           setError("Erro ao carregar dados da avaliação");
           setIsLoading(false);
           return;

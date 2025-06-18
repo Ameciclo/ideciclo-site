@@ -539,6 +539,173 @@ export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => 
  * Backup the localStorage data to the database
  */
 /**
+ * Functions for Refine page
+ */
+export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase.from("cities").delete().eq("id", cityId);
+    
+    if (error) {
+      console.error("Error deleting city:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error deleting city:", error);
+    return false;
+  }
+};
+
+/**
+ * Functions for SegmentForm page
+ */
+export const fetchFormById = async (formId: string): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("forms")
+      .select("*")
+      .eq("id", formId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching form by ID:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching form by ID:", error);
+    return null;
+  }
+};
+
+export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("forms")
+      .select("*")
+      .eq("segment_id", segmentId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      console.error("Error fetching form by segment ID:", error);
+    }
+
+    return data || null;
+  } catch (error) {
+    console.error("Error fetching form by segment ID:", error);
+    return null;
+  }
+};
+
+export const fetchSegmentById = async (segmentId: string): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("segments")
+      .select("*")
+      .eq("id", segmentId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching segment by ID:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching segment by ID:", error);
+    return null;
+  }
+};
+
+export const updateFormInDB = async (formId: string, formData: any): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("forms")
+      .update(formData)
+      .eq("id", formId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating form:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error updating form:", error);
+    return null;
+  }
+};
+
+export const createFormInDB = async (formData: any): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("forms")
+      .insert(formData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating form:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error creating form:", error);
+    return null;
+  }
+};
+
+export const updateSegmentEvaluationStatus = async (segmentId: string, formId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from("segments")
+      .update({
+        evaluated: true,
+        id_form: formId,
+      })
+      .eq("id", segmentId);
+
+    if (error) {
+      console.error("Error updating segment evaluation status:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error updating segment evaluation status:", error);
+    return false;
+  }
+};
+
+/**
+ * Functions for ViewEvaluation page
+ */
+export const fetchFormWithDetails = async (formId: string): Promise<any | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("forms")
+      .select("*")
+      .eq("id", formId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching form details:", error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching form details:", error);
+    return null;
+  }
+};
+
+/**
  * Functions for Avaliacao page
  */
 export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: string }[]> => {

@@ -19,7 +19,14 @@ import Page6 from "./Page6";
 import Page7 from "./Page7";
 import Page8 from "./Page8";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { 
+  fetchFormById, 
+  getFormBySegmentId, 
+  fetchSegmentById, 
+  updateFormInDB, 
+  createFormInDB, 
+  updateSegmentEvaluationStatus 
+} from "@/services/supabase";
 
 const SegmentForm = () => {
   const { toast } = useToast();
@@ -98,13 +105,9 @@ const SegmentForm = () => {
       try {
         // If formId is provided directly, fetch the form first
         if (formId) {
-          const { data: formData, error: formError } = await supabase
-            .from("forms")
-            .select("*")
-            .eq("id", formId)
-            .single();
+          const formData = await fetchFormById(formId);
 
-          if (formError) throw formError;
+          if (!formData) throw new Error("Form not found");
 
           if (formData) {
             // Set the segment ID from the form data
@@ -120,12 +123,7 @@ const SegmentForm = () => {
         // If only segmentId is provided
         else if (segmentId) {
           // First check if this segmentId is actually a form ID
-          const { data: formBySegmentId, error: formBySegmentIdError } =
-            await supabase
-              .from("forms")
-              .select("*")
-              .eq("segment_id", segmentId)
-              .single();
+          const formBySegmentId = await getFormBySegmentId(segmentId);
 
           if (formBySegmentId) {
             // We found a form with this segment ID
@@ -136,23 +134,15 @@ const SegmentForm = () => {
             });
           } else {
             // Get the segment details
-            const { data: segmentData, error: segmentError } = await supabase
-              .from("segments")
-              .select("*")
-              .eq("id", segmentId)
-              .single();
+            const segmentData = await fetchSegmentById(segmentId);
 
-            if (segmentError) throw segmentError;
+            if (!segmentData) throw new Error("Segment not found");
 
             // Check if this segment has an associated form
             if (segmentData.id_form) {
-              const { data: formData, error: formError } = await supabase
-                .from("forms")
-                .select("*")
-                .eq("id", segmentData.id_form)
-                .single();
+              const formData = await fetchFormById(segmentData.id_form);
 
-              if (formError) throw formError;
+              if (!formData) throw new Error("Form not found");
 
               // If we have form data, populate the form with it
               if (formData) {
@@ -233,36 +223,18 @@ const SegmentForm = () => {
       if (isUpdating) {
         // Update existing form
         console.log("Updating existing form:", existingFormId);
-        result = await supabase
-          .from("forms")
-          .update(formToSave)
-          .eq("id", existingFormId)
-          .select()
-          .single();
+        result = await updateFormInDB(existingFormId, formToSave);
       } else {
         // Create new form with unique ID
         const formId = `form-${segmentId}-${Date.now()}`;
         console.log("Creating new form:", formId);
-        result = await supabase
-          .from("forms")
-          .insert({ ...formToSave, id: formId })
-          .select()
-          .single();
+        result = await createFormInDB({ ...formToSave, id: formId });
 
         // Update the segment to mark it as evaluated
-        const { error: updateError } = await supabase
-          .from("segments")
-          .update({
-            evaluated: true,
-            id_form: formId,
-          })
-          .eq("id", segmentId);
+        await updateSegmentEvaluationStatus(segmentId, formId);
 
-        if (updateError) {
-          console.error(
-            "Error updating segment evaluation status:",
-            updateError
-          );
+        if (!result) {
+          console.error("Error updating segment evaluation status");
         }
       }
 

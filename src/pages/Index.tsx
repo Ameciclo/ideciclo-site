@@ -1,6 +1,4 @@
-import { migrateLocalStorageToDatabase } from "@/services/supabase";
 import { Button } from "@/components/ui/button";
-import { Database, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -11,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {

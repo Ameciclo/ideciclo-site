@@ -35,7 +35,7 @@ import {
   Map,
   TableIcon,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteCityFromDB } from "@/services/supabase";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
@@ -137,7 +137,7 @@ const Refine = () => {
       setError(null);
 
       // Delete data from database (segments will cascade delete due to FK constraints)
-      await supabase.from("cities").delete().eq("id", cityId);
+      await deleteCityFromDB(cityId);
 
       // Refetch data from API
       const highwayStats = await fetchCityHighwayStats(cityId);
