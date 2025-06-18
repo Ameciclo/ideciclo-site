@@ -497,6 +497,16 @@ export const removeSegments = async (segmentIds: string[]): Promise<boolean> => 
   }
 };
 
+export const deleteMultipleSegments = async (segmentIds: string[]): Promise<boolean> => {
+  try {
+    await removeSegmentsFromDB(segmentIds);
+    return true;
+  } catch (error) {
+    console.error("Error deleting multiple segments:", error);
+    return false;
+  }
+};
+
 /**
  * Get city data from database
  */

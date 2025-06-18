@@ -24,6 +24,7 @@ import {
   removeSegments,
   mergeSegmentsInDB,
   unmergeSegments,
+  deleteMultipleSegments,
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -385,6 +386,37 @@ const Refine = () => {
         setMergeDialogOpen(true);
       }
     });
+    
+  const handleDeleteMultipleSegments = async () => {
+    if (selectedSegmentsCount === 0) return;
+    
+    const selectedSegmentIds = segments
+      .filter(s => s.selected)
+      .map(s => s.id);
+      
+    try {
+      await deleteMultipleSegments(selectedSegmentIds);
+      
+      // Update the UI by removing the deleted segments
+      const updatedSegments = segments.filter(segment => !segment.selected);
+      setSegments(updatedSegments);
+      
+      // Update local storage
+      saveLocalSegments(cityId, updatedSegments);
+      
+      toast({
+        title: "Segmentos removidos",
+        description: `${selectedSegmentIds.length} segmentos foram removidos com sucesso.`,
+      });
+    } catch (error) {
+      console.error("Erro ao remover múltiplos segmentos:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao remover os segmentos selecionados.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleMergeSegments = async (
     mergedName: string,
@@ -542,12 +574,20 @@ const Refine = () => {
               {/* <h3 className="text-lg font-semibold mb-4">Segmentos</h3> */}
               <div className="flex flex-wrap items-center gap-4 mb-4">
                 {selectedSegmentsCount > 0 && (
-                  <Button
-                    onClick={handleMergeButtonClick}
-                    disabled={selectedSegmentsCount < 2}
-                  >
-                    Mesclar {selectedSegmentsCount} segmentos
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleMergeButtonClick}
+                      disabled={selectedSegmentsCount < 2}
+                    >
+                      Mesclar {selectedSegmentsCount} segmentos
+                    </Button>
+                    <Button
+                      onClick={handleDeleteMultipleSegments}
+                      variant="destructive"
+                    >
+                      Excluir {selectedSegmentsCount} segmentos
+                    </Button>
+                  </>
                 )}
               </div>
               <MergeSegmentsDialog

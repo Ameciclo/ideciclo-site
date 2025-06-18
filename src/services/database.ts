@@ -219,6 +219,10 @@ export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolea
   }
 };
 
+export const deleteMultipleSegments = async (segmentIds: string[]): Promise<boolean> => {
+  return await removeSegmentsFromDB(segmentIds);
+};
+
 export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> => {
   if (segments.length > 0) {
     const cityId = segments[0].id_cidade;
