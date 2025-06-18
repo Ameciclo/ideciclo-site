@@ -538,6 +538,70 @@ export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => 
 /**
  * Backup the localStorage data to the database
  */
+/**
+ * Functions for Avaliacao page
+ */
+export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: string }[]> => {
+  try {
+    const { data, error } = await supabase.from("cities").select("state");
+
+    if (error) {
+      console.error("Error fetching states:", error);
+      return [];
+    }
+
+    // Extract unique states
+    const uniqueStatesSet = new Set(data.map((item) => item.state));
+    const uniqueStates = Array.from(uniqueStatesSet).map((state) => ({
+      id: state,
+      name: state,
+    }));
+
+    return uniqueStates;
+  } catch (error) {
+    console.error("Error fetching states:", error);
+    return [];
+  }
+};
+
+export const fetchCitiesByState = async (state: string): Promise<City[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("cities")
+      .select("*")
+      .eq("state", state);
+
+    if (error) {
+      console.error("Error fetching cities:", error);
+      return [];
+    }
+
+    return data as City[];
+  } catch (error) {
+    console.error("Error fetching cities:", error);
+    return [];
+  }
+};
+
+export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("segments")
+      .select("*")
+      .eq("id_cidade", cityId);
+
+    if (error) {
+      console.error("Error fetching segments:", error);
+      return [];
+    }
+
+    return data as Segment[];
+  } catch (error) {
+    console.error("Error fetching segments:", error);
+    return [];
+  }
+};
+
 export const migrateLocalStorageToDatabase = async (): Promise<boolean> => {
   try {
     // Get all city IDs from localStorage

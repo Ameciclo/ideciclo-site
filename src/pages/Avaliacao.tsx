@@ -12,7 +12,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Select,
   SelectContent,
@@ -23,6 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import EvaluationTableSortableWrapper from "@/components/EvaluationTableSortableWrapper";
+import { fetchUniqueStatesFromDB, fetchCitiesByState, fetchSegmentsByCity } from "@/services/supabase";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -55,25 +55,8 @@ const Avaliacao = () => {
   // Fetch states from DB
   useEffect(() => {
     const fetchStates = async () => {
-      try {
-        const { data, error } = await supabase.from("cities").select("state");
-
-        if (error) {
-          console.error("Error fetching states:", error);
-          return;
-        }
-
-        // Extract unique states
-        const uniqueStatesSet = new Set(data.map((item) => item.state));
-        const uniqueStates = Array.from(uniqueStatesSet).map((state) => ({
-          id: state,
-          name: state,
-        }));
-
-        setStates(uniqueStates);
-      } catch (error) {
-        console.error("Error fetching states:", error);
-      }
+      const uniqueStates = await fetchUniqueStatesFromDB();
+      setStates(uniqueStates);
     };
 
     fetchStates();
@@ -85,18 +68,14 @@ const Avaliacao = () => {
       const fetchCities = async () => {
         setIsLoading(true);
         try {
-          const { data, error } = await supabase
-            .from("cities")
-            .select("*")
-            .eq("state", selectedState);
-
-          if (error) {
-            console.error("Error fetching cities:", error);
-            setError("Erro ao carregar cidades");
+          const data = await fetchCitiesByState(selectedState);
+          
+          if (data.length === 0) {
+            setError("Nenhuma cidade encontrada para este estado");
             return;
           }
 
-          setCities(data as City[]);
+          setCities(data);
           
           // If we have a saved city ID, load its segments after cities are loaded
           const savedCityId = sessionStorage.getItem("selectedCityId");
@@ -148,18 +127,8 @@ const Avaliacao = () => {
   const fetchSegmentsForCity = async (cityId: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("segments")
-        .select("*")
-        .eq("id_cidade", cityId);
-
-      if (error) {
-        console.error("Error fetching segments:", error);
-        setError("Erro ao carregar segmentos");
-        return;
-      }
-
-      setSegments(data as Segment[]);
+      const data = await fetchSegmentsByCity(cityId);
+      setSegments(data);
     } catch (error) {
       console.error("Error fetching segments:", error);
       setError("Erro ao carregar segmentos");
