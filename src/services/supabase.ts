@@ -470,6 +470,25 @@ export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | nu
 };
 
 /**
+ * Check which form IDs exist in the database
+ */
+export const checkFormsExistByIds = async (formIds: string[]): Promise<string[]> => {
+  if (formIds.length === 0) return [];
+  
+  const { data, error } = await supabase
+    .from('forms')
+    .select('id')
+    .in('id', formIds);
+
+  if (error) {
+    console.error("Error checking forms existence:", error);
+    return [];
+  }
+
+  return data.map(form => form.id);
+};
+
+/**
  * Review CRUD operations
  */
 export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {

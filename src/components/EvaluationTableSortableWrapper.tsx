@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import OriginalSegmentsTable from "./OriginalSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
-import { supabase } from "@/integrations/supabase/client";
+import { updateSegmentInDB, checkFormsExistByIds } from "@/services/supabase";
 
 interface TableSortableWrapperProps {
   segments: Segment[];
@@ -46,20 +46,16 @@ export const EvaluationTableSortableWrapper = ({
       const formIds = evaluatedSegments.map((s) => s.id_form).filter(Boolean);
 
       try {
-        // Check which forms actually exist in the database
-        const { data, error } = await supabase
-          .from("forms")
-          .select("id")
-          .in("id", formIds);
-
-        if (error) {
-          console.error("Error verifying forms:", error);
+        // Check which forms actually exist in the database using the service layer
+        const existingFormIdsArray = await checkFormsExistByIds(formIds);
+        
+        if (!existingFormIdsArray) {
           setSegments(initialSegments);
           return;
         }
 
         // Create a set of existing form IDs for quick lookup
-        const existingFormIds = new Set(data.map((form) => form.id));
+        const existingFormIds = new Set(existingFormIdsArray);
 
         // Update segments to mark those with missing forms as not evaluated
         const updatedSegments = initialSegments.map((segment) => {
@@ -69,10 +65,11 @@ export const EvaluationTableSortableWrapper = ({
             !existingFormIds.has(segment.id_form)
           ) {
             // Form doesn't exist, update segment in database
-            supabase
-              .from("segments")
-              .update({ evaluated: false, id_form: null })
-              .eq("id", segment.id)
+            updateSegmentInDB({ 
+              id: segment.id, 
+              evaluated: false, 
+              id_form: null 
+            })
               .then(() =>
                 console.log(`Updated segment ${segment.id} to not evaluated`)
               )
