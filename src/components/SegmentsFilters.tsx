@@ -17,12 +17,15 @@ interface SegmentsFiltersProps {
   onRatingChange: (value: string) => void;
   selectedType: string;
   onTypeChange: (value: string) => void;
+  selectedClassification?: string;
+  onClassificationChange?: (value: string) => void;
   minLength: string;
   onMinLengthChange: (value: string) => void;
   maxLength: string;
   onMaxLengthChange: (value: string) => void;
   onResetFilters: () => void;
   showRatingFilter?: boolean;
+  showClassificationFilter?: boolean;
 }
 
 export const SegmentsFilters = ({
@@ -32,12 +35,15 @@ export const SegmentsFilters = ({
   onRatingChange,
   selectedType,
   onTypeChange,
+  selectedClassification = "all",
+  onClassificationChange = () => {},
   minLength,
   onMinLengthChange,
   maxLength,
   onMaxLengthChange,
   onResetFilters,
   showRatingFilter = true,
+  showClassificationFilter = true,
 }: SegmentsFiltersProps) => {
   return (
     <div className="mb-4">
@@ -69,6 +75,24 @@ export const SegmentsFilters = ({
             </SelectContent>
           </Select>
         </div>
+
+        {showClassificationFilter && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="filter-classification">Filtrar por classificação:</Label>
+            <Select value={selectedClassification} onValueChange={onClassificationChange}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="estrutural">Estrutural</SelectItem>
+                <SelectItem value="alimentadora">Alimentadora</SelectItem>
+                <SelectItem value="local">Local</SelectItem>
+                <SelectItem value="undefined">Não classificada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {showRatingFilter && (
           <div className="flex items-center gap-2">

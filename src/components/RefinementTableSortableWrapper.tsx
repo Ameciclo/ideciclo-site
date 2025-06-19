@@ -17,6 +17,7 @@ interface RefinementTableSortableWrapperProps {
     parentSegmentId: string,
     segmentIds: string[]
   ) => Promise<void>;
+  onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -28,10 +29,12 @@ export const RefinementTableSortableWrapper = ({
   onUpdateSegmentName,
   onDeleteSegment,
   onUnmergeSegments,
+  onUpdateSegmentClassification,
 }: RefinementTableSortableWrapperProps) => {
   // Filter and sort state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [selectedClassification, setSelectedClassification] = useState<string>("all");
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
@@ -50,6 +53,7 @@ export const RefinementTableSortableWrapper = ({
     setMinLength("");
     setMaxLength("");
     setSelectedType("all");
+    setSelectedClassification("all");
   };
 
   // Filter and sort segments - show all segments that are not children of merged segments
@@ -73,6 +77,16 @@ export const RefinementTableSortableWrapper = ({
           return segment.type.toLowerCase() === selectedType.toLowerCase();
         }
         return true;
+      })
+      .filter((segment) => {
+        // Filter by classification
+        if (selectedClassification === "all") {
+          return true;
+        } else if (selectedClassification === "undefined") {
+          return segment.classification === undefined;
+        } else {
+          return segment.classification === selectedClassification;
+        }
       })
       .filter((segment) => {
         // Filter by length
@@ -121,7 +135,7 @@ export const RefinementTableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedType, minLength, maxLength, sortDirection, nameFilter]);
+  }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter]);
 
   return (
     <div>
@@ -132,12 +146,15 @@ export const RefinementTableSortableWrapper = ({
         onRatingChange={() => {}} // Not used in refinement
         selectedType={selectedType}
         onTypeChange={setSelectedType}
+        selectedClassification={selectedClassification}
+        onClassificationChange={setSelectedClassification}
         minLength={minLength}
         onMinLengthChange={setMinLength}
         maxLength={maxLength}
         onMaxLengthChange={setMaxLength}
         onResetFilters={resetFilters}
         showRatingFilter={false}
+        showClassificationFilter={true}
       />
       <div className="flex gap-8">
         <RefinementSegmentsTable
@@ -150,6 +167,7 @@ export const RefinementTableSortableWrapper = ({
           onUpdateSegmentName={onUpdateSegmentName}
           onDeleteSegment={onDeleteSegment}
           onUnmergeSegments={onUnmergeSegments}
+          onUpdateSegmentClassification={onUpdateSegmentClassification}
         />
         <CityMap segments={selectedSegments} className="flex-grow" />
       </div>

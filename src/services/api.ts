@@ -250,40 +250,95 @@ export const determineSegmentType = (tags: Record<string, string>): SegmentType 
   return undefined;
 };
 
+export const determineSegmentClassification = (tags: Record<string, string>): string | undefined => {
+  const highway = tags['highway'];
+  
+  // If no highway tag exists, return undefined
+  if (!highway) {
+    return undefined;
+  }
+  
+  // Estruturais: motorway, motorway_link, trunk, trunk_link, primary, primary_link
+  if (['motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link'].includes(highway)) {
+    return "estrutural";
+  } 
+  // Alimentadoras: secondary, secondary_link, tertiary, tertiary_link
+  else if (['secondary', 'secondary_link', 'tertiary', 'tertiary_link'].includes(highway)) {
+    return "alimentadora";
+  } 
+  // Locais: residential, unclassified
+  else if (['residential', 'unclassified'].includes(highway)) {
+    return "local";
+  }
+  
+  // For cycleway and other highway types, return undefined (não classificada)
+  return undefined;
+};
+
 export const convertToSegments = (data: OverpassResponse, cityId: string): Segment[] => {
   const seen = new Set<string>();
   
-  return data.elements
-    .filter(element => element.type === 'way' && element.geometry)
-    .filter(element => {
-      const id = element.id.toString();
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    })
-    .map(element => {
-      const coordinates = element.geometry?.map(point => [point.lon, point.lat]) || [];
-      const line = turf.lineString(coordinates);
-      const length = turf.length(line, { units: 'kilometers' });
+  try {
+    return data.elements
+      .filter(element => element.type === 'way' && element.geometry)
+      .filter(element => {
+        const id = element.id.toString();
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map(element => {
+        try {
+          // Ensure geometry exists and has valid coordinates
+          if (!element.geometry || element.geometry.length < 2) {
+            console.warn(`Skipping segment ${element.id} due to invalid geometry`);
+            return null;
+          }
+          
+          const coordinates = element.geometry.map(point => [point.lon, point.lat]) || [];
+          
+          // Validate coordinates
+          if (coordinates.length < 2) {
+            console.warn(`Skipping segment ${element.id} due to insufficient coordinates`);
+            return null;
+          }
+          
+          // Create a valid line string for length calculation
+          const line = turf.lineString(coordinates);
+          const length = turf.length(line, { units: 'kilometers' });
 
-      const type = determineSegmentType(element.tags);
-      if (!type) return null;
+          const type = determineSegmentType(element.tags);
+          if (!type) {
+            console.warn(`Skipping segment ${element.id} due to undetermined type`);
+            return null;
+          }
+          
+          const classification = determineSegmentClassification(element.tags);
 
-      return {
-        id: element.id.toString(),
-        id_cidade: cityId,
-        name: element.tags.name || element.tags.alt_name || `Segmento ${element.id}`,
-        type: type,
-        length: parseFloat(length.toFixed(4)),
-        geometry: {
-          type: "MultiLineString",
-          coordinates: [coordinates]
-        },
-        selected: false,
-        evaluated: false
-      };
-    })
-    .filter((segment): segment is Segment => segment !== null); 
+          return {
+            id: element.id.toString(),
+            id_cidade: cityId,
+            name: element.tags.name || element.tags.alt_name || `Segmento ${element.id}`,
+            type: type,
+            classification: classification,
+            length: parseFloat(length.toFixed(4)),
+            geometry: {
+              type: "MultiLineString",
+              coordinates: [coordinates]
+            },
+            selected: false,
+            evaluated: false
+          };
+        } catch (error) {
+          console.error(`Error processing segment ${element.id}:`, error);
+          return null;
+        }
+      })
+      .filter((segment): segment is Segment => segment !== null);
+  } catch (error) {
+    console.error("Error in convertToSegments:", error);
+    return [];
+  }
 };
 
 export const mergeGeometry = (segments: Segment[]): any => {
@@ -312,17 +367,40 @@ export const calculateMergedLength = (segments: Segment[]): number => {
 export const createMergedSegment = async (
   selectedSegments: Segment[], 
   mergedName: string, 
-  mergedType: SegmentType
+  mergedType: SegmentType,
+  mergedClassification?: string
 ): Promise<{ mergedSegment: Segment; childSegments: Segment[] }> => {
   const mergedId = `merged-${Date.now()}`;
   const mergedGeometry = mergeGeometry(selectedSegments);
   const newLength = calculateMergedLength(selectedSegments);
+  
+  // Determine classification for merged segment
+  // If all segments have the same classification, use that
+  // Otherwise, use the most common classification or undefined if there's a tie
+  let mergedClassification: string | undefined;
+  const classifications = selectedSegments
+    .map(segment => segment.classification)
+    .filter((c): c is string => c !== undefined);
+  
+  if (classifications.length > 0) {
+    const classificationCounts = classifications.reduce((acc, curr) => {
+      acc[curr] = (acc[curr] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Check if all segments have the same classification
+    if (Object.keys(classificationCounts).length === 1) {
+      mergedClassification = Object.keys(classificationCounts)[0];
+    }
+    // Otherwise, we'll let the user choose in the UI
+  }
   
   // Create the merged segment info for storage
   const mergedSegmentInfo = selectedSegments.map(segment => ({
     id: segment.id,
     name: segment.name,
     type: segment.type,
+    classification: segment.classification,
     length: segment.length,
     originalGeometry: segment.geometry
   }));
@@ -333,6 +411,7 @@ export const createMergedSegment = async (
     id_cidade: selectedSegments[0].id_cidade,
     name: mergedName,
     type: mergedType,
+    classification: mergedClassification, // Use the explicitly provided classification
     length: newLength,
     neighborhood: selectedSegments[0].neighborhood,
     geometry: mergedGeometry,
@@ -357,7 +436,8 @@ export const createMergedSegment = async (
 export const mergeSegmentsInDB = async (
   selectedSegments: Segment[],
   mergedName: string,
-  mergedType: SegmentType
+  mergedType: SegmentType,
+  mergedClassification?: string
 ): Promise<boolean> => {
   try {
     console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
@@ -397,6 +477,7 @@ export const mergeSegmentsInDB = async (
         ...alreadyMergedSegment,
         name: mergedName,
         type: mergedType,
+        classification: mergedClassification,
         length: parseFloat(updatedLength.toFixed(4)),
         geometry: updatedGeometry,
         merged_segments: allMergedSegments,
@@ -423,7 +504,8 @@ export const mergeSegmentsInDB = async (
       const { mergedSegment, childSegments } = await createMergedSegment(
         selectedSegments, 
         mergedName, 
-        mergedType
+        mergedType,
+        mergedClassification
       );
 
       console.log("Created merged segment:", mergedSegment.id);

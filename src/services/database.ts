@@ -55,6 +55,7 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => ({
   is_merged: row.is_merged || false,
   parent_segment_id: row.parent_segment_id || undefined,
   merged_segments: row.merged_segments as any[] || [],
+  classification: row.classification || undefined,
 });
 
 /**
@@ -165,7 +166,8 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
         evaluated: segment.evaluated,
         is_merged: segment.is_merged || false,
         parent_segment_id: segment.parent_segment_id,
-        merged_segments: segment.merged_segments || []
+        merged_segments: segment.merged_segments || [],
+        classification: segment.classification
       });
 
     if (error) {
@@ -227,43 +229,63 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
   if (segments.length > 0) {
     const cityId = segments[0].id_cidade;
     
-    const { error: deleteError } = await supabase
-      .from('segments')
-      .delete()
-      .eq('id_cidade', cityId);
+    try {
+      console.log(`Deleting existing segments for city ${cityId}`);
+      const { error: deleteError } = await supabase
+        .from('segments')
+        .delete()
+        .eq('id_cidade', cityId);
 
-    if (deleteError) {
-      console.error("Error deleting existing segments:", deleteError);
+      if (deleteError) {
+        console.error("Error deleting existing segments:", deleteError);
+        return false;
+      }
+      
+      // Map segments to the format expected by the database
+      const segmentsToInsert = segments.map(segment => ({
+        id: segment.id,
+        id_cidade: segment.id_cidade,
+        id_form: segment.id_form,
+        name: segment.name,
+        type: segment.type,
+        length: segment.length,
+        neighborhood: segment.neighborhood,
+        geometry: segment.geometry,
+        selected: segment.selected,
+        evaluated: segment.evaluated,
+        is_merged: segment.is_merged || false,
+        parent_segment_id: segment.parent_segment_id,
+        merged_segments: segment.merged_segments || [],
+        classification: segment.classification || null // Ensure null instead of undefined
+      }));
+
+      // Split segments into batches of 100 to avoid timeouts or payload size limits
+      const BATCH_SIZE = 100;
+      console.log(`Inserting ${segmentsToInsert.length} segments in batches of ${BATCH_SIZE}`);
+      
+      for (let i = 0; i < segmentsToInsert.length; i += BATCH_SIZE) {
+        const batch = segmentsToInsert.slice(i, i + BATCH_SIZE);
+        console.log(`Inserting batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(segmentsToInsert.length/BATCH_SIZE)}`);
+        
+        const { error: insertError } = await supabase
+          .from('segments')
+          .insert(batch);
+
+        if (insertError) {
+          console.error(`Error inserting batch ${Math.floor(i/BATCH_SIZE) + 1}:`, insertError);
+          return false;
+        }
+      }
+      
+      console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
+      return true;
+    } catch (error) {
+      console.error("Unexpected error in saveSegmentsToDB:", error);
       return false;
     }
   }
-
-  const segmentsToInsert = segments.map(segment => ({
-    id: segment.id,
-    id_cidade: segment.id_cidade,
-    id_form: segment.id_form,
-    name: segment.name,
-    type: segment.type,
-    length: segment.length,
-    neighborhood: segment.neighborhood,
-    geometry: segment.geometry,
-    selected: segment.selected,
-    evaluated: segment.evaluated,
-    is_merged: segment.is_merged || false,
-    parent_segment_id: segment.parent_segment_id,
-    merged_segments: segment.merged_segments || []
-  }));
-
-  const { error: insertError } = await supabase
-    .from('segments')
-    .insert(segmentsToInsert);
-
-  if (insertError) {
-    console.error("Error inserting segments:", insertError);
-    return false;
-  }
-
-  return true;
+  
+  return true; // No segments to insert
 };
 
 export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segment | null> => {
@@ -285,7 +307,8 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
       id_form: segment.id_form,
       is_merged: segment.is_merged,
       parent_segment_id: segment.parent_segment_id,
-      merged_segments: segment.merged_segments
+      merged_segments: segment.merged_segments,
+      classification: segment.classification
     })
     .eq('id', segment.id)
     .select()

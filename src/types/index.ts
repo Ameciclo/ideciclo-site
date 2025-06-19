@@ -37,6 +37,7 @@ export interface Segment {
   is_merged?: boolean;
   parent_segment_id?: string;
   merged_segments?: any[];
+  classification?: string; // 'estrutural', 'alimentadora', or 'local'
 }
 
 export interface Form {

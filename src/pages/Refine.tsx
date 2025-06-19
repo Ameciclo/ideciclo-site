@@ -212,17 +212,22 @@ const Refine = () => {
       setCityId(selectedCityId);
       setCityName(selectedCityName);
       setStateName(selectedStateName);
+      
+      console.log(`Loading city data for ${selectedCityName}/${selectedStateName} (ID: ${selectedCityId})`);
 
       // First try to load from local storage for instant response
       const localSegments = loadLocalSegments(selectedCityId);
       if (localSegments) {
+        console.log(`Found ${localSegments.length} segments in local storage`);
         setSegments(localSegments);
       }
 
       // Check if data is in database before making API calls
+      console.log("Checking for data in database...");
       const storedData = await getStoredCityData(selectedCityId);
 
       if (storedData) {
+        console.log(`Found city data in database with ${storedData.segments.length} segments`);
         setCity(storedData.city);
         const enhancedSegments = [...storedData.segments];
         setSegments(enhancedSegments);
@@ -235,9 +240,11 @@ const Refine = () => {
           description: `Dados de ${selectedCityName}/${selectedStateName} carregados do armazenamento!`,
         });
       } else {
+        console.log("No data found in database, fetching from API...");
         // Fetch highway stats
         const highwayStats = await fetchCityHighwayStats(selectedCityId);
         const cityStats = calculateCityStats(highwayStats);
+        console.log("City stats calculated:", cityStats);
 
         // Create city record
         const newCity: Partial<City> = {
@@ -252,20 +259,47 @@ const Refine = () => {
         setCity(newCity);
 
         // Fetch segments
+        console.log("Fetching cycling infrastructure data...");
         const waysData = await fetchCityWays(selectedCityId);
+        console.log(`Received ${waysData.elements.length} elements from API`);
+        
         const citySegments = convertToSegments(waysData, selectedCityId);
+        console.log(`Converted to ${citySegments.length} segments`);
+        
         const enhancedSegments = [...citySegments];
 
         setSegments(enhancedSegments);
 
         // Store data in local storage
+        console.log("Saving segments to local storage");
         saveLocalSegments(selectedCityId, enhancedSegments);
 
         // Store data in database
-        await storeCityData(selectedCityId, {
-          city: newCity,
-          segments: enhancedSegments,
-        });
+        console.log(`Storing city data in database (${enhancedSegments.length} segments)`);
+        try {
+          const result = await storeCityData(selectedCityId, {
+            city: newCity,
+            segments: enhancedSegments,
+          });
+          
+          if (result) {
+            console.log("Successfully stored city data in database");
+          } else {
+            console.error("Failed to store city data in database");
+            toast({
+              title: "Aviso",
+              description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
+              variant: "warning",
+            });
+          }
+        } catch (dbError) {
+          console.error("Error storing city data:", dbError);
+          toast({
+            title: "Aviso",
+            description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
+            variant: "warning",
+          });
+        }
 
         toast({
           title: "Sucesso",
@@ -330,6 +364,41 @@ const Refine = () => {
       toast({
         title: "Erro",
         description: "Falha ao atualizar o nome do segmento.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleUpdateSegmentClassification = async (
+    segmentId: string,
+    classification: string
+  ) => {
+    try {
+      // Update in the database
+      await updateSegmentInDB({ id: segmentId, classification });
+
+      // Update state for UI
+      setSegments((prevSegments) =>
+        prevSegments.map((seg) =>
+          seg.id === segmentId ? { ...seg, classification } : seg
+        )
+      );
+
+      // Update local storage
+      const updatedSegments = segments.map((seg) =>
+        seg.id === segmentId ? { ...seg, classification } : seg
+      );
+      saveLocalSegments(cityId, updatedSegments);
+      
+      toast({
+        title: "Classificação atualizada",
+        description: "A classificação do segmento foi atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar classificação do segmento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar a classificação do segmento.",
         variant: "destructive",
       });
     }
@@ -420,7 +489,8 @@ const Refine = () => {
 
   const handleMergeSegments = async (
     mergedName: string,
-    mergedType: SegmentType
+    mergedType: SegmentType,
+    mergedClassification?: string
   ) => {
     const selectedSegments = segments.filter((s) => s.selected);
     if (selectedSegments.length < 2) return;
@@ -432,7 +502,7 @@ const Refine = () => {
       );
 
       // Use the enhanced merging logic that handles both regular and merged segments
-      await mergeSegmentsInDB(selectedSegments, mergedName, mergedType);
+      await mergeSegmentsInDB(selectedSegments, mergedName, mergedType, mergedClassification);
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
@@ -605,6 +675,7 @@ const Refine = () => {
                 onUpdateSegmentName={handleUpdateSegmentName}
                 onDeleteSegment={handleDeleteSegment}
                 onUnmergeSegments={handleUnmergeSegments}
+                onUpdateSegmentClassification={handleUpdateSegmentClassification}
               />
 
               <div className="mt-8 flex justify-end">

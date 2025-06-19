@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowDown, ArrowUp, Edit, Trash2, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MergedSegmentDropdown from "./MergedSegmentDropdown";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
@@ -29,6 +30,7 @@ interface RefinementSegmentsTableProps {
     parentSegmentId: string,
     segmentIds: string[]
   ) => Promise<void>;
+  onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
 }
 
 const RefinementSegmentsTable = ({
@@ -41,9 +43,11 @@ const RefinementSegmentsTable = ({
   onUpdateSegmentName,
   onDeleteSegment,
   onUnmergeSegments,
+  onUpdateSegmentClassification,
 }: RefinementSegmentsTableProps) => {
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
+  const [editingClassification, setEditingClassification] = useState<string | null>(null);
 
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
@@ -57,6 +61,30 @@ const RefinementSegmentsTable = ({
         return <Badge variant="destructive">Compartilhada</Badge>;
       default:
         return <Badge>{type}</Badge>;
+    }
+  };
+  
+  const getClassificationBadge = (classification: string | undefined) => {
+    switch (classification) {
+      case "estrutural":
+        return <Badge variant="default" className="bg-blue-500">Estrutural</Badge>;
+      case "alimentadora":
+        return <Badge variant="secondary" className="bg-green-500">Alimentadora</Badge>;
+      case "local":
+        return <Badge variant="outline" className="border-amber-500 text-amber-500">Local</Badge>;
+      default:
+        return <Badge variant="outline" className="border-gray-400 text-gray-500">Não classificada</Badge>;
+    }
+  };
+  
+  const handleClassificationChange = async (segmentId: string, value: string) => {
+    if (onUpdateSegmentClassification) {
+      try {
+        await onUpdateSegmentClassification(segmentId, value);
+        setEditingClassification(null);
+      } catch (error) {
+        console.error("Failed to update segment classification:", error);
+      }
     }
   };
 
@@ -132,6 +160,7 @@ const RefinementSegmentsTable = ({
               )}
             </TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead>Classificação</TableHead>
             <TableHead className="text-right">Extensão (km)</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -218,6 +247,9 @@ const RefinementSegmentsTable = ({
                   </div>
                 </TableCell>
                 <TableCell>{getSegmentTypeBadge(segment.type)}</TableCell>
+                <TableCell>
+                  {getClassificationBadge(segment.classification)}
+                </TableCell>
                 <TableCell className="text-right">
                   {segment.length.toFixed(4)}
                 </TableCell>
