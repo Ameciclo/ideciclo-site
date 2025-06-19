@@ -178,6 +178,7 @@ export type Database = {
           selected: boolean | null
           type: Database["public"]["Enums"]["segment_type"]
           updated_at: string
+          classification: string | null
         }
         Insert: {
           created_at?: string
@@ -195,6 +196,7 @@ export type Database = {
           selected?: boolean | null
           type: Database["public"]["Enums"]["segment_type"]
           updated_at?: string
+          classification?: string | null
         }
         Update: {
           created_at?: string
@@ -212,6 +214,7 @@ export type Database = {
           selected?: boolean | null
           type?: Database["public"]["Enums"]["segment_type"]
           updated_at?: string
+          classification?: string | null
         }
         Relationships: [
           {
