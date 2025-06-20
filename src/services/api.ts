@@ -129,9 +129,10 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
   try {
     const areaId = await getOverpassAreaId(cityId);
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-    console.log("here")
-    const query = `
-    [out:json];
+    
+    // First query: Get all bicycle infrastructure
+    const cycleQuery = `
+    [out:json][timeout:60];
     area(${areaId})->.searchArea;
     
     (
@@ -151,16 +152,73 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     out geom;
     `;
 
-    const response = await fetchWithRetry(OVERPASS_URL, {
+    const cycleResponse = await fetchWithRetry(OVERPASS_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: query,
-    }, 3, 2000); // More retries and longer delay for complex queries
+      body: cycleQuery,
+    }, 3, 2000);
     
-    console.log("here", response.json)
-    return response.json();
+    const cycleData = await cycleResponse.json();
+    
+    // Extract dedicated cycleways that need classification
+    const cyclewaysToClassify = cycleData.elements.filter(
+      element => element.type === 'way' && 
+                element.tags.highway === 'cycleway' && 
+                element.geometry
+    );
+    
+    // If there are no cycleways to classify, return the original data
+    if (cyclewaysToClassify.length === 0) {
+      return cycleData;
+    }
+    
+    // Create a bounding box for all cycleways to limit the road query area
+    const allCoords = cyclewaysToClassify.flatMap(way => way.geometry || []);
+    if (allCoords.length === 0) {
+      return cycleData;
+    }
+    
+    const lats = allCoords.map(coord => coord.lat);
+    const lons = allCoords.map(coord => coord.lon);
+    
+    const minLat = Math.min(...lats) - 0.001; // Add small buffer
+    const maxLat = Math.max(...lats) + 0.001;
+    const minLon = Math.min(...lons) - 0.001;
+    const maxLon = Math.max(...lons) + 0.001;
+    
+    // Second query: Get only roads that might be near cycleways
+    const roadsQuery = `
+    [out:json][timeout:60];
+    (
+      // Primary roads
+      way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+      
+      // Secondary roads
+      way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+      
+      // Local roads
+      way["highway"~"^(residential|unclassified)$"](${minLat},${minLon},${maxLat},${maxLon});
+    );
+    out geom;
+    `;
+    
+    const roadsResponse = await fetchWithRetry(OVERPASS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: roadsQuery,
+    }, 3, 2000);
+    
+    const roadsData = await roadsResponse.json();
+    
+    // Combine both responses
+    return {
+      ...cycleData,
+      elements: [...cycleData.elements, ...roadsData.elements]
+    };
   } catch (error) {
     console.error("Error fetching city ways:", error);
     throw new Error(`Falha ao obter dados cicloviários para a cidade ${cityId}. O serviço Overpass API pode estar indisponível ou com lentidão. Por favor, tente novamente mais tarde.`);
@@ -250,6 +308,20 @@ export const determineSegmentType = (tags: Record<string, string>): SegmentType 
   return undefined;
 };
 
+/**
+ * Determines the classification of a segment based on its highway tag.
+ * 
+ * Classification mapping:
+ * - "estrutural": motorway, motorway_link, trunk, trunk_link, primary, primary_link
+ * - "alimentadora": secondary, secondary_link, tertiary, tertiary_link
+ * - "local": residential, unclassified
+ * 
+ * For cycleways (highway=cycleway), the classification is determined by looking at nearby roads
+ * using the findNearbyRoad function, which checks for roads within a certain distance of the cycleway.
+ * 
+ * @param tags - The OSM tags of the segment
+ * @returns The classification as "estrutural", "alimentadora", "local", or undefined if not classifiable
+ */
 export const determineSegmentClassification = (tags: Record<string, string>): string | undefined => {
   const highway = tags['highway'];
   
@@ -275,12 +347,121 @@ export const determineSegmentClassification = (tags: Record<string, string>): st
   return undefined;
 };
 
+// Function to find nearby roads for cycleways
+export const findNearbyRoad = (
+  cycleway: OverpassElement, 
+  roads: OverpassElement[], 
+  maxDistance: number = 0.02 // 20 meters in kilometers
+): OverpassElement | null => {
+  try {
+    if (!cycleway.geometry || cycleway.geometry.length < 2) {
+      return null;
+    }
+    
+    // First, try to match by name if available
+    if (cycleway.tags.name) {
+      // Look for roads with the same name or matching ref
+      const nameMatch = roads.find(road => 
+        (road.tags.name && road.tags.name === cycleway.tags.name) || 
+        (road.tags.ref && cycleway.tags.name.includes(road.tags.ref))
+      );
+      
+      if (nameMatch) {
+        return nameMatch;
+      }
+    }
+    
+    // If no name match, use spatial proximity
+    const cyclewayCoords = cycleway.geometry.map(point => [point.lon, point.lat]);
+    const cyclewayLine = turf.lineString(cyclewayCoords);
+    
+    // For performance, only check roads that are potentially close
+    // Get the bounding box of the cycleway
+    const bbox = turf.bbox(cyclewayLine);
+    const buffer = 0.001; // ~100m buffer
+    const expandedBbox = [
+      bbox[0] - buffer, // minX
+      bbox[1] - buffer, // minY
+      bbox[2] + buffer, // maxX
+      bbox[3] + buffer  // maxY
+    ];
+    
+    // Filter roads that might be close using bounding box
+    const potentialRoads = roads.filter(road => {
+      if (!road.geometry || road.geometry.length < 2) return false;
+      
+      // Check if any point of the road is within the expanded bbox
+      return road.geometry.some(point => 
+        point.lon >= expandedBbox[0] && 
+        point.lon <= expandedBbox[2] && 
+        point.lat >= expandedBbox[1] && 
+        point.lat <= expandedBbox[3]
+      );
+    });
+    
+    let closestRoad = null;
+    let minDistance = Infinity;
+    
+    for (const road of potentialRoads) {
+      try {
+        const roadCoords = road.geometry.map(point => [point.lon, point.lat]);
+        const roadLine = turf.lineString(roadCoords);
+        
+        // Calculate distance between the lines
+        const nearestPoint = turf.nearestPointOnLine(roadLine, cyclewayLine.geometry.coordinates[0]);
+        const distance = nearestPoint.properties.dist;
+        
+        if (distance < minDistance && distance <= maxDistance) {
+          minDistance = distance;
+          closestRoad = road;
+        }
+      } catch (err) {
+        // Skip this road if there's an error calculating distance
+        continue;
+      }
+    }
+    
+    return closestRoad;
+  } catch (error) {
+    console.error("Error finding nearby road:", error);
+    return null;
+  }
+};
+
 export const convertToSegments = (data: OverpassResponse, cityId: string): Segment[] => {
   const seen = new Set<string>();
   
   try {
-    return data.elements
-      .filter(element => element.type === 'way' && element.geometry)
+    // Separate cycleways from roads
+    const cycleways = data.elements.filter(element => 
+      element.type === 'way' && 
+      element.geometry && 
+      (
+        element.tags.highway === 'cycleway' || 
+        element.tags.cycleway || 
+        element.tags['cycleway:left'] || 
+        element.tags['cycleway:right'] || 
+        element.tags['cycleway:both'] ||
+        (element.tags.highway === 'footway' && element.tags.bicycle) ||
+        (element.tags.highway === 'pedestrian' && element.tags.bicycle)
+      )
+    );
+    
+    // Regular roads for classification
+    const roads = data.elements.filter(element => 
+      element.type === 'way' && 
+      element.geometry && 
+      element.tags.highway && 
+      !element.tags.cycleway &&
+      !element.tags['cycleway:left'] &&
+      !element.tags['cycleway:right'] &&
+      !element.tags['cycleway:both'] &&
+      element.tags.highway !== 'cycleway' &&
+      !(element.tags.highway === 'footway' && element.tags.bicycle) &&
+      !(element.tags.highway === 'pedestrian' && element.tags.bicycle)
+    );
+    
+    return cycleways
       .filter(element => {
         const id = element.id.toString();
         if (seen.has(id)) return false;
@@ -313,7 +494,16 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
             return null;
           }
           
-          const classification = determineSegmentClassification(element.tags);
+          // Get classification from the segment's own tags
+          let classification = determineSegmentClassification(element.tags);
+          
+          // If it's a cycleway without classification, try to find a nearby road
+          if (!classification && element.tags.highway === 'cycleway') {
+            const nearbyRoad = findNearbyRoad(element, roads);
+            if (nearbyRoad) {
+              classification = determineSegmentClassification(nearbyRoad.tags);
+            }
+          }
 
           return {
             id: element.id.toString(),
@@ -615,4 +805,32 @@ export const updateSegmentName = async (cityId: string, segmentId: string, newNa
     console.error("Error updating segment name:", error);    
     return false;
   }
+};
+
+// Debug function to analyze cycleway classification results
+export const analyzeCyclewayClassification = (segments: Segment[]): { 
+  total: number, 
+  classified: number, 
+  unclassified: number,
+  byClassification: Record<string, number>
+} => {
+  const cycleways = segments.filter(segment => segment.type === SegmentType.CICLOVIA);
+  
+  const classified = cycleways.filter(segment => segment.classification).length;
+  const unclassified = cycleways.length - classified;
+  
+  const byClassification: Record<string, number> = {};
+  
+  cycleways.forEach(segment => {
+    if (segment.classification) {
+      byClassification[segment.classification] = (byClassification[segment.classification] || 0) + 1;
+    }
+  });
+  
+  return {
+    total: cycleways.length,
+    classified,
+    unclassified,
+    byClassification
+  };
 };
