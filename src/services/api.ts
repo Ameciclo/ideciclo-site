@@ -189,17 +189,19 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     const maxLon = Math.max(...lons) + 0.001;
     
     // Second query: Get only roads that might be near cycleways
+    // Use a larger buffer to ensure we get all relevant roads
+    const bufferDegrees = 0.005; // Approximately 500m at the equator
     const roadsQuery = `
     [out:json][timeout:60];
     (
       // Primary roads
-      way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+      way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
       
       // Secondary roads
-      way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+      way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
       
       // Local roads
-      way["highway"~"^(residential|unclassified)$"](${minLat},${minLon},${maxLat},${maxLon});
+      way["highway"~"^(residential|unclassified)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
     );
     out geom;
     `;
@@ -351,23 +353,65 @@ export const determineSegmentClassification = (tags: Record<string, string>): st
 export const findNearbyRoad = (
   cycleway: OverpassElement, 
   roads: OverpassElement[], 
-  maxDistance: number = 0.02 // 20 meters in kilometers
+  maxDistance: number = 0.05 // 50 meters in kilometers
 ): OverpassElement | null => {
   try {
     if (!cycleway.geometry || cycleway.geometry.length < 2) {
       return null;
     }
     
+    // Highway types in order of priority (highest to lowest)
+    const highwayPriority = [
+      'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link',
+      'secondary', 'secondary_link', 'tertiary', 'tertiary_link',
+      'residential', 'unclassified'
+    ];
+    
     // First, try to match by name if available
     if (cycleway.tags.name) {
       // Look for roads with the same name or matching ref
-      const nameMatch = roads.find(road => 
-        (road.tags.name && road.tags.name === cycleway.tags.name) || 
-        (road.tags.ref && cycleway.tags.name.includes(road.tags.ref))
-      );
+      const nameMatches = roads.filter(road => {
+        // Exact name match
+        if (road.tags.name && road.tags.name === cycleway.tags.name) {
+          return true;
+        }
+        
+        // Partial name match (for cases like "Ciclovia Avenida X" and "Avenida X")
+        if (road.tags.name && 
+            (cycleway.tags.name.includes(road.tags.name) || 
+             road.tags.name.includes(cycleway.tags.name))) {
+          return true;
+        }
+        
+        // Reference number match
+        if (road.tags.ref && cycleway.tags.name.includes(road.tags.ref)) {
+          return true;
+        }
+        
+        return false;
+      });
       
-      if (nameMatch) {
-        return nameMatch;
+      if (nameMatches.length > 0) {
+        // Sort roads by highway priority
+        const sortedRoads = [...nameMatches].sort((a, b) => {
+          const aIndex = highwayPriority.indexOf(a.tags.highway);
+          const bIndex = highwayPriority.indexOf(b.tags.highway);
+          
+          // If both roads have a priority, sort by priority (lower index = higher priority)
+          if (aIndex !== -1 && bIndex !== -1) {
+            return aIndex - bIndex;
+          }
+          
+          // If only one road has a priority, it comes first
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          
+          // If neither has a priority, keep original order
+          return 0;
+        });
+        
+        // Return the highest priority road
+        return sortedRoads[0];
       }
     }
     
@@ -375,51 +419,112 @@ export const findNearbyRoad = (
     const cyclewayCoords = cycleway.geometry.map(point => [point.lon, point.lat]);
     const cyclewayLine = turf.lineString(cyclewayCoords);
     
-    // For performance, only check roads that are potentially close
-    // Get the bounding box of the cycleway
-    const bbox = turf.bbox(cyclewayLine);
-    const buffer = 0.001; // ~100m buffer
-    const expandedBbox = [
-      bbox[0] - buffer, // minX
-      bbox[1] - buffer, // minY
-      bbox[2] + buffer, // maxX
-      bbox[3] + buffer  // maxY
-    ];
+    // Create a buffer around the cycleway
+    const buffer = turf.buffer(cyclewayLine, maxDistance, { units: 'kilometers' });
     
-    // Filter roads that might be close using bounding box
-    const potentialRoads = roads.filter(road => {
+    // Find roads that intersect with the buffer
+    const nearbyRoads = roads.filter(road => {
       if (!road.geometry || road.geometry.length < 2) return false;
       
-      // Check if any point of the road is within the expanded bbox
-      return road.geometry.some(point => 
-        point.lon >= expandedBbox[0] && 
-        point.lon <= expandedBbox[2] && 
-        point.lat >= expandedBbox[1] && 
-        point.lat <= expandedBbox[3]
-      );
-    });
-    
-    let closestRoad = null;
-    let minDistance = Infinity;
-    
-    for (const road of potentialRoads) {
       try {
         const roadCoords = road.geometry.map(point => [point.lon, point.lat]);
         const roadLine = turf.lineString(roadCoords);
         
-        // Calculate distance between the lines
-        const nearestPoint = turf.nearestPointOnLine(roadLine, cyclewayLine.geometry.coordinates[0]);
-        const distance = nearestPoint.properties.dist;
+        // Check if the road intersects with the buffer
+        return turf.booleanIntersects(roadLine, buffer);
+      } catch (err) {
+        return false;
+      }
+    });
+    
+    if (nearbyRoads.length === 0) {
+      return null;
+    }
+    
+    // Filter roads with classification
+    const classifiableRoads = nearbyRoads.filter(road => 
+      highwayPriority.includes(road.tags.highway)
+    );
+    
+    if (classifiableRoads.length === 0) {
+      return nearbyRoads[0];
+    }
+    
+    // Group roads by highway type
+    const roadsByType: Record<string, OverpassElement[]> = {};
+    
+    for (const road of classifiableRoads) {
+      const highway = road.tags.highway;
+      if (!roadsByType[highway]) {
+        roadsByType[highway] = [];
+      }
+      roadsByType[highway].push(road);
+    }
+    
+    // Process road types in priority order
+    for (const highwayType of highwayPriority) {
+      const roadsOfType = roadsByType[highwayType];
+      if (!roadsOfType || roadsOfType.length === 0) continue;
+      
+      // Find the closest road of this type
+      let closestRoad = roadsOfType[0];
+      let minDistance = Infinity;
+      
+      for (const road of roadsOfType) {
+        try {
+          const roadCoords = road.geometry.map(point => [point.lon, point.lat]);
+          const roadLine = turf.lineString(roadCoords);
+          
+          // Calculate minimum distance between the cycleway and road
+          const distance = turf.pointToLineDistance(
+            turf.point(cyclewayCoords[0]), 
+            roadLine, 
+            { units: 'kilometers' }
+          );
+          
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestRoad = road;
+          }
+        } catch (err) {
+          continue;
+        }
+      }
+      
+      // If we found a road of this type within the distance threshold, return it
+      if (minDistance <= maxDistance) {
+        console.log(`Found ${highwayType} road "${closestRoad.tags.name || 'unnamed'}" at distance ${minDistance.toFixed(5)}km`);
+        return closestRoad;
+      }
+    }
+    
+    // If we didn't find any high-priority roads within the threshold,
+    // fall back to the closest road of any type
+    let closestRoad = classifiableRoads[0];
+    let minDistance = Infinity;
+    
+    for (const road of classifiableRoads) {
+      try {
+        const roadCoords = road.geometry.map(point => [point.lon, point.lat]);
+        const roadLine = turf.lineString(roadCoords);
         
-        if (distance < minDistance && distance <= maxDistance) {
+        const distance = turf.pointToLineDistance(
+          turf.point(cyclewayCoords[0]), 
+          roadLine, 
+          { units: 'kilometers' }
+        );
+        
+        if (distance < minDistance) {
           minDistance = distance;
           closestRoad = road;
         }
       } catch (err) {
-        // Skip this road if there's an error calculating distance
         continue;
       }
     }
+    
+    console.log(`Falling back to closest road "${closestRoad.tags.name || 'unnamed'}" (${closestRoad.tags.highway}) at distance ${minDistance.toFixed(5)}km`);
+    return closestRoad;
     
     return closestRoad;
   } catch (error) {
@@ -497,11 +602,21 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
           // Get classification from the segment's own tags
           let classification = determineSegmentClassification(element.tags);
           
-          // If it's a cycleway without classification, try to find a nearby road
-          if (!classification && element.tags.highway === 'cycleway') {
+          // For cycleways, always try to find a nearby road for classification
+          // This ensures cycleways like Avenida Beira Mar get properly classified
+          if (element.tags.highway === 'cycleway') {
+            console.log(`Looking for classification for cycleway ${element.id} (${element.tags.name || 'unnamed'})`);
             const nearbyRoad = findNearbyRoad(element, roads);
             if (nearbyRoad) {
-              classification = determineSegmentClassification(nearbyRoad.tags);
+              const roadClassification = determineSegmentClassification(nearbyRoad.tags);
+              if (roadClassification) {
+                classification = roadClassification;
+                console.log(`Classified cycleway ${element.id} (${element.tags.name || 'unnamed'}) as ${classification} based on nearby road ${nearbyRoad.id} (${nearbyRoad.tags.name || 'unnamed'}) with highway=${nearbyRoad.tags.highway}`);
+              } else {
+                console.log(`Found nearby road ${nearbyRoad.id} (${nearbyRoad.tags.name || 'unnamed'}) with highway=${nearbyRoad.tags.highway} but couldn't determine classification`);
+              }
+            } else {
+              console.log(`No nearby road found for cycleway ${element.id} (${element.tags.name || 'unnamed'})`);
             }
           }
 
@@ -812,7 +927,8 @@ export const analyzeCyclewayClassification = (segments: Segment[]): {
   total: number, 
   classified: number, 
   unclassified: number,
-  byClassification: Record<string, number>
+  byClassification: Record<string, number>,
+  unclassifiedNames: string[]
 } => {
   const cycleways = segments.filter(segment => segment.type === SegmentType.CICLOVIA);
   
@@ -820,10 +936,13 @@ export const analyzeCyclewayClassification = (segments: Segment[]): {
   const unclassified = cycleways.length - classified;
   
   const byClassification: Record<string, number> = {};
+  const unclassifiedNames: string[] = [];
   
   cycleways.forEach(segment => {
     if (segment.classification) {
       byClassification[segment.classification] = (byClassification[segment.classification] || 0) + 1;
+    } else {
+      unclassifiedNames.push(segment.name);
     }
   });
   
@@ -831,6 +950,7 @@ export const analyzeCyclewayClassification = (segments: Segment[]): {
     total: cycleways.length,
     classified,
     unclassified,
-    byClassification
+    byClassification,
+    unclassifiedNames
   };
 };
