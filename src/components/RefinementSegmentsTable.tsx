@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { ArrowDown, ArrowUp, Edit, Trash2, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MergedSegmentDropdown from "./MergedSegmentDropdown";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
@@ -47,7 +46,6 @@ const RefinementSegmentsTable = ({
 }: RefinementSegmentsTableProps) => {
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
-  const [editingClassification, setEditingClassification] = useState<string | null>(null);
 
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
@@ -74,17 +72,6 @@ const RefinementSegmentsTable = ({
         return <Badge variant="outline" className="border-amber-500 text-amber-500">Local</Badge>;
       default:
         return <Badge variant="outline" className="border-gray-400 text-gray-500">Não classificada</Badge>;
-    }
-  };
-  
-  const handleClassificationChange = async (segmentId: string, value: string) => {
-    if (onUpdateSegmentClassification) {
-      try {
-        await onUpdateSegmentClassification(segmentId, value);
-        setEditingClassification(null);
-      } catch (error) {
-        console.error("Failed to update segment classification:", error);
-      }
     }
   };
 

@@ -367,8 +367,7 @@ export const calculateMergedLength = (segments: Segment[]): number => {
 export const createMergedSegment = async (
   selectedSegments: Segment[], 
   mergedName: string, 
-  mergedType: SegmentType,
-  mergedClassification?: string
+  mergedType: SegmentType
 ): Promise<{ mergedSegment: Segment; childSegments: Segment[] }> => {
   const mergedId = `merged-${Date.now()}`;
   const mergedGeometry = mergeGeometry(selectedSegments);
@@ -411,7 +410,7 @@ export const createMergedSegment = async (
     id_cidade: selectedSegments[0].id_cidade,
     name: mergedName,
     type: mergedType,
-    classification: mergedClassification, // Use the explicitly provided classification
+    classification: mergedClassification,
     length: newLength,
     neighborhood: selectedSegments[0].neighborhood,
     geometry: mergedGeometry,
@@ -436,8 +435,7 @@ export const createMergedSegment = async (
 export const mergeSegmentsInDB = async (
   selectedSegments: Segment[],
   mergedName: string,
-  mergedType: SegmentType,
-  mergedClassification?: string
+  mergedType: SegmentType
 ): Promise<boolean> => {
   try {
     console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
@@ -477,7 +475,6 @@ export const mergeSegmentsInDB = async (
         ...alreadyMergedSegment,
         name: mergedName,
         type: mergedType,
-        classification: mergedClassification,
         length: parseFloat(updatedLength.toFixed(4)),
         geometry: updatedGeometry,
         merged_segments: allMergedSegments,
@@ -504,8 +501,7 @@ export const mergeSegmentsInDB = async (
       const { mergedSegment, childSegments } = await createMergedSegment(
         selectedSegments, 
         mergedName, 
-        mergedType,
-        mergedClassification
+        mergedType
       );
 
       console.log("Created merged segment:", mergedSegment.id);

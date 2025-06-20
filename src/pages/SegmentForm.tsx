@@ -102,113 +102,71 @@ const SegmentForm = () => {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      console.log("SegmentForm: Starting data fetch with segmentId:", segmentId, "formId:", formId);
-      
-      // Check if we have segment data in location state
-      const segmentDataFromState = location.state?.segmentData;
-      console.log("SegmentForm: Segment data from location state:", segmentDataFromState);
-      
       try {
         // If formId is provided directly, fetch the form first
         if (formId) {
-          console.log("SegmentForm: Fetching form by ID:", formId);
           const formData = await fetchFormById(formId);
-          console.log("SegmentForm: Form data received:", formData);
 
-          if (!formData) {
-            console.error("SegmentForm: Form not found");
-            throw new Error("Form not found");
+          if (!formData) throw new Error("Form not found");
+
+          if (formData) {
+            // Set the segment ID from the form data
+            const segmentIdFromForm = formData.segment_id;
+
+            setExistingFormId(formId);
+            setFormData({
+              ...formData.responses,
+              id: segmentIdFromForm,
+            });
           }
-
-          // Set the segment ID from the form data
-          const segmentIdFromForm = formData.segment_id;
-          console.log("SegmentForm: Setting form data with segment ID:", segmentIdFromForm);
-
-          setExistingFormId(formId);
-          setFormData({
-            ...formData.responses,
-            id: segmentIdFromForm,
-          });
         }
         // If only segmentId is provided
         else if (segmentId) {
-          console.log("SegmentForm: Checking if segmentId is a form ID:", segmentId);
           // First check if this segmentId is actually a form ID
           const formBySegmentId = await getFormBySegmentId(segmentId);
-          console.log("SegmentForm: Form by segment ID result:", formBySegmentId);
 
           if (formBySegmentId) {
             // We found a form with this segment ID
-            console.log("SegmentForm: Found form for segment:", formBySegmentId.id);
             setExistingFormId(formBySegmentId.id);
             setFormData({
               ...formBySegmentId.responses,
               id: segmentId,
             });
           } else {
-            // If we have segment data from state, use it directly
-            if (segmentDataFromState) {
-              console.log("SegmentForm: Using segment data from state:", segmentDataFromState);
-              setFormData((prevData) => ({
-                ...prevData,
-                id: segmentId,
-                segment_name: segmentDataFromState.name || "",
-                infra_typology: segmentDataFromState.type || "",
-                classification: segmentDataFromState.classification || undefined,
-              }));
-            } else {
-              // Otherwise, get the segment details from the database
-              console.log("SegmentForm: Fetching segment details for:", segmentId);
-              const segmentData = await fetchSegmentById(segmentId);
-              console.log("SegmentForm: Segment data received:", segmentData);
+            // Get the segment details
+            const segmentData = await fetchSegmentById(segmentId);
 
-              if (!segmentData) {
-                console.error("SegmentForm: Segment not found");
-                throw new Error("Segment not found");
-              }
+            if (!segmentData) throw new Error("Segment not found");
 
-              // Check if this segment has an associated form
-              if (segmentData.id_form) {
-                console.log("SegmentForm: Segment has associated form:", segmentData.id_form);
-                const formData = await fetchFormById(segmentData.id_form);
-                console.log("SegmentForm: Associated form data:", formData);
+            // Check if this segment has an associated form
+            if (segmentData.id_form) {
+              const formData = await fetchFormById(segmentData.id_form);
 
-                if (!formData) {
-                  console.error("SegmentForm: Associated form not found");
-                  throw new Error("Form not found");
-                }
+              if (!formData) throw new Error("Form not found");
 
-                // If we have form data, populate the form with it
+              // If we have form data, populate the form with it
+              if (formData) {
                 setExistingFormId(formData.id);
                 setFormData({
                   ...formData.responses,
                   id: segmentId,
                 });
-              } else {
-                // If no form exists yet, just populate basic segment info
-                console.log("SegmentForm: No form exists, populating with segment info:", {
-                  id: segmentId,
-                  name: segmentData.name,
-                  type: segmentData.type,
-                  classification: segmentData.classification
-                });
-                
-                setFormData((prevData) => ({
-                  ...prevData,
-                  id: segmentId,
-                  segment_name: segmentData.name || "",
-                  infra_typology: segmentData.type || "",
-                  // Safely handle the new classification field
-                  classification: segmentData.classification || undefined,
-                }));
               }
+            } else {
+              // If no form exists yet, just populate basic segment info
+              setFormData((prevData) => ({
+                ...prevData,
+                id: segmentId,
+                segment_name: segmentData.name || "",
+                infra_typology: segmentData.type || "",
+                // Safely handle the new classification field
+                classification: segmentData.classification || undefined,
+              }));
             }
           }
-        } else {
-          console.error("SegmentForm: No segmentId or formId provided");
         }
       } catch (error) {
-        console.error("SegmentForm: Error fetching data:", error);
+        console.error("Error fetching data:", error);
         toast({
           title: "Erro",
           description: "Não foi possível carregar os dados.",
@@ -220,7 +178,7 @@ const SegmentForm = () => {
     };
 
     fetchData();
-  }, [segmentId, formId, toast, location.state]);
+  }, [segmentId, formId, toast]);
 
   const handleDataChange = (newData: any) => {
     setFormData({ ...formData, ...newData });

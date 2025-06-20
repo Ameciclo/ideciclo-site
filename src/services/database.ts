@@ -639,8 +639,7 @@ export const fetchSegmentById = async (segmentId: string): Promise<any | null> =
       return null;
     }
 
-    // Convert the database row to a Segment object
-    return convertSegmentRowToSegment(data);
+    return data;
   } catch (error) {
     console.error("Error fetching segment by ID:", error);
     return null;

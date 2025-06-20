@@ -36,7 +36,7 @@ import {
   Map,
   TableIcon,
 } from "lucide-react";
-import { deleteCityFromDB } from "@/services/database";
+import { deleteCityFromDB, updateSegmentInDB } from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";

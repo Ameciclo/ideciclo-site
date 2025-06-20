@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
 
 interface SegmentsTableProps {
   segments: Segment[];
@@ -101,15 +100,14 @@ const OriginalSegmentsTable = ({
 
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" asChild>
-                      <Link
-                        to={segment.evaluated && segment.id_form 
+                      <a
+                        href={segment.evaluated && segment.id_form 
                           ? `/view-evaluation/${segment.id_form}` 
                           : `/avaliar/formulario/${segment.id}`
                         }
-                        state={{ segmentData: segment }}
                       >
                         {segment.evaluated && segment.id_form ? "Ver Avaliação" : "Avaliar"}
-                      </Link>
+                      </a>
                     </Button>
                   </TableCell>
                 </TableRow>
