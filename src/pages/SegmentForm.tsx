@@ -294,7 +294,7 @@ const SegmentForm = () => {
         <h2 className="text-2xl font-bold">
           {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Segmento
         </h2>
-        <Button variant="outline" onClick={() => navigate("/segments")}>
+        <Button variant="outline" onClick={() => navigate("/avaliacao")}>
           Voltar
         </Button>
       </div>
