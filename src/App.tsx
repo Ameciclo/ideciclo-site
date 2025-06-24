@@ -8,6 +8,7 @@ import Refine from "./pages/Refine";
 import Avaliacao from "./pages/Avaliacao";
 import SegmentForm from "./pages/SegmentForm";
 import ViewEvaluation from "./pages/ViewEvaluation";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/avaliar" element={<Refine />} />
           <Route path="/avaliacao" element={<Avaliacao />} />
+          <Route path="/sobre" element={<About />} />
           <Route
             path="/avaliar/formulario/:segmentId"
             element={<SegmentForm />}

@@ -251,7 +251,7 @@ const SegmentForm = () => {
       });
 
       // Navigate to the segments list page instead of using navigate(-1)
-      navigate("/avaliacao");
+      navigate("/segments");
     } catch (error) {
       console.error("Error saving form:", error);
       toast({
@@ -294,7 +294,7 @@ const SegmentForm = () => {
         <h2 className="text-2xl font-bold">
           {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Segmento
         </h2>
-        <Button variant="outline" onClick={() => navigate("/avaliacao")}>
+        <Button variant="outline" onClick={() => navigate("/segments")}>
           Voltar
         </Button>
       </div>
