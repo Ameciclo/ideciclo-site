@@ -258,53 +258,84 @@ const Refine = () => {
 
         setCity(newCity);
 
-        // Fetch segments
+        // Fetch segments with chunking for large cities
         console.log("Fetching cycling infrastructure data...");
-        const waysData = await fetchCityWays(selectedCityId);
-        console.log(`Received ${waysData.elements.length} elements from API`);
         
-        const citySegments = convertToSegments(waysData, selectedCityId);
-        console.log(`Converted to ${citySegments.length} segments`);
-        
-        const enhancedSegments = [...citySegments];
-
-        setSegments(enhancedSegments);
-
-        // Store data in local storage
-        console.log("Saving segments to local storage");
-        saveLocalSegments(selectedCityId, enhancedSegments);
-
-        // Store data in database
-        console.log(`Storing city data in database (${enhancedSegments.length} segments)`);
         try {
-          const result = await storeCityData(selectedCityId, {
-            city: newCity,
-            segments: enhancedSegments,
+          // Show a progress toast for large cities
+          const progressToast = toast({
+            title: "Carregando dados",
+            description: "Buscando infraestrutura cicloviária. Isso pode levar alguns minutos para cidades grandes.",
+            duration: 10000,
           });
           
-          if (result) {
-            console.log("Successfully stored city data in database");
-          } else {
-            console.error("Failed to store city data in database");
+          const waysData = await fetchCityWays(selectedCityId);
+          console.log(`Received ${waysData.elements?.length || 0} elements from API`);
+          
+          if (!waysData.elements || waysData.elements.length === 0) {
+            throw new Error("Nenhum dado de infraestrutura cicloviária encontrado");
+          }
+          
+          // Process segments in chunks to avoid memory issues
+          const CHUNK_SIZE = 500;
+          let allSegments: Segment[] = [];
+          
+          // Convert segments in chunks
+          console.log("Converting segments in chunks...");
+          for (let i = 0; i < waysData.elements.length; i += CHUNK_SIZE) {
+            const chunk = {
+              elements: waysData.elements.slice(i, i + CHUNK_SIZE)
+            };
+            
+            const segmentChunk = convertToSegments(chunk, selectedCityId);
+            allSegments = [...allSegments, ...segmentChunk];
+            
+            // Update progress every chunk
+            console.log(`Processed ${Math.min(i + CHUNK_SIZE, waysData.elements.length)} of ${waysData.elements.length} elements`);
+          }
+          
+          console.log(`Converted to ${allSegments.length} segments`);
+          setSegments(allSegments);
+          
+          // Store data in chunks to avoid transaction size limits
+          console.log("Saving segments to local storage");
+          saveLocalSegments(selectedCityId, allSegments);
+          
+          console.log(`Storing city data in database (${allSegments.length} segments)`);
+          try {
+            // Store city data first
+            const result = await storeCityData(selectedCityId, {
+              city: newCity,
+              segments: allSegments,
+            });
+            
+            if (result) {
+              console.log("Successfully stored city data in database");
+            } else {
+              console.error("Failed to store city data in database");
+              toast({
+                title: "Aviso",
+                description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
+                variant: "warning",
+              });
+            }
+          } catch (dbError) {
+            console.error("Error storing city data:", dbError);
             toast({
               title: "Aviso",
               description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
               variant: "warning",
             });
           }
-        } catch (dbError) {
-          console.error("Error storing city data:", dbError);
+          
           toast({
-            title: "Aviso",
-            description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
-            variant: "warning",
+            title: "Sucesso",
+            description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
           });
+        } catch (apiError) {
+          console.error("Error fetching or processing API data:", apiError);
+          throw new Error(`Falha ao buscar dados da API: ${apiError instanceof Error ? apiError.message : 'Erro desconhecido'}`);
         }
-
-        toast({
-          title: "Sucesso",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
-        });
       }
 
       // Move to refinement step
