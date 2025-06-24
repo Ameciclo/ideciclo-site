@@ -250,8 +250,8 @@ const SegmentForm = () => {
         description: "Os dados foram salvos com sucesso no banco de dados.",
       });
 
-      // Navigate to the segments list page instead of using navigate(-1)
-      navigate("/segments");
+      // Navigate to the evaluation page
+      navigate("/avaliacao");
     } catch (error) {
       console.error("Error saving form:", error);
       toast({
