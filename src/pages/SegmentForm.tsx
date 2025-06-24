@@ -26,6 +26,7 @@ import {
   updateFormInDB,
   createFormInDB,
   updateSegmentEvaluationStatus,
+  fetchCityFromDB,
 } from "@/services/database";
 
 const SegmentForm = () => {
@@ -138,6 +139,15 @@ const SegmentForm = () => {
 
             if (!segmentData) throw new Error("Segment not found");
 
+            // Get city name from city ID
+            let cityName = "";
+            if (segmentData.id_cidade) {
+              const cityData = await fetchCityFromDB(segmentData.id_cidade);
+              if (cityData) {
+                cityName = cityData.name;
+              }
+            }
+
             // Check if this segment has an associated form
             if (segmentData.id_form) {
               const formData = await fetchFormById(segmentData.id_form);
@@ -153,12 +163,16 @@ const SegmentForm = () => {
                 });
               }
             } else {
-              // If no form exists yet, just populate basic segment info
+              // If no form exists yet, populate basic segment info and auto-fill fields
               setFormData((prevData) => ({
                 ...prevData,
                 id: segmentId,
                 segment_name: segmentData.name || "",
                 infra_typology: segmentData.type || "",
+                // Auto-fill city, extension, and road hierarchy
+                city: cityName,
+                extension_m: segmentData.length || 0,
+                road_hierarchy: segmentData.classification || "",
                 // Safely handle the new classification field
                 classification: segmentData.classification || undefined,
               }));

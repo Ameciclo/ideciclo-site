@@ -64,7 +64,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               id="id"
               name="id"
               value={data.id || ""}
-              onChange={handleChange}
+              readOnly
+              disabled
+              className="bg-gray-100"
             />
           </div>
           <div>
