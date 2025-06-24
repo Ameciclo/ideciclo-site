@@ -148,66 +148,68 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
           </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-medium mb-2">B.3.2. Afastamento lateral do fluxo veicular</h3>
-          <div className="space-y-4">
-            <div>
-              <Label>Afastamento:</Label>
-              <RadioGroup
-                value={data.lateral_spacing_type || "linha"}
-                onValueChange={(value) => handleRadioChange("lateral_spacing_type", value)}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="linha" id="spacing_linha" />
-                  <Label htmlFor="spacing_linha">Somente linha de delimitação</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="dispositivos" id="spacing_dispositivos" />
-                  <Label htmlFor="spacing_dispositivos">Existência de dispositivos de separação ou segregação</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            <div>
-              <Label htmlFor="lateral_spacing_width_m">Largura do afastamento lateral (m):</Label>
-              <Input
-                id="lateral_spacing_width_m"
-                name="lateral_spacing_width_m"
-                type="number"
-                step="0.1"
-                value={data.lateral_spacing_width_m || ""}
-                onChange={handleChange}
-              />
-            </div>
+        {(infraType === "ciclofaixa" || infraType === "ciclovia") && (
+          <div>
+            <h3 className="text-lg font-medium mb-2">B.3.2. Afastamento lateral do fluxo veicular</h3>
+            <div className="space-y-4">
+              <div>
+                <Label>Afastamento:</Label>
+                <RadioGroup
+                  value={data.lateral_spacing_type || "linha"}
+                  onValueChange={(value) => handleRadioChange("lateral_spacing_type", value)}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="linha" id="spacing_linha" />
+                    <Label htmlFor="spacing_linha">Somente linha de delimitação</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dispositivos" id="spacing_dispositivos" />
+                    <Label htmlFor="spacing_dispositivos">Existência de dispositivos de separação ou segregação</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              <div>
+                <Label htmlFor="lateral_spacing_width_m">Largura do afastamento lateral (m):</Label>
+                <Input
+                  id="lateral_spacing_width_m"
+                  name="lateral_spacing_width_m"
+                  type="number"
+                  step="0.1"
+                  value={data.lateral_spacing_width_m || ""}
+                  onChange={handleChange}
+                />
+              </div>
 
-            <div>
-              <Label>Estado de conservação do afastamento lateral:</Label>
-              <RadioGroup
-                value={data.spacing_conservation || "otimo"}
-                onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
-                className="grid grid-cols-1 gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="otimo" id="spacing_otimo" />
-                  <Label htmlFor="spacing_otimo">Há demarcação em ótimo estado, visível em toda a extensão.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="bom_mais_metade" id="spacing_bom_mais_metade" />
-                  <Label htmlFor="spacing_bom_mais_metade">Há demarcação em bom estado em mais da metade do trecho.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="menos_metade" id="spacing_menos_metade" />
-                  <Label htmlFor="spacing_menos_metade">Há demarcação em menos da metade do trecho ou está muito danificada.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inexiste" id="spacing_inexiste" />
-                  <Label htmlFor="spacing_inexiste">Praticamente inexiste</Label>
-                </div>
-              </RadioGroup>
+              <div>
+                <Label>Estado de conservação do afastamento lateral:</Label>
+                <RadioGroup
+                  value={data.spacing_conservation || "otimo"}
+                  onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
+                  className="grid grid-cols-1 gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="otimo" id="spacing_otimo" />
+                    <Label htmlFor="spacing_otimo">Há demarcação em ótimo estado, visível em toda a extensão.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="bom_mais_metade" id="spacing_bom_mais_metade" />
+                    <Label htmlFor="spacing_bom_mais_metade">Há demarcação em bom estado em mais da metade do trecho.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="menos_metade" id="spacing_menos_metade" />
+                    <Label htmlFor="spacing_menos_metade">Há demarcação em menos da metade do trecho ou está muito danificada.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="inexiste" id="spacing_inexiste" />
+                    <Label htmlFor="spacing_inexiste">Praticamente inexiste</Label>
+                  </div>
+                </RadioGroup>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

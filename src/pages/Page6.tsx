@@ -20,6 +20,21 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
     onDataChange({ [name]: value });
   };
 
+  // Determine infrastructure type
+  const getInfraType = () => {
+    const type = data.infra_typology?.toLowerCase() || "";
+    if (type.includes("ciclofaixa")) return "ciclofaixa";
+    if (type.includes("ciclovia")) return "ciclovia";
+    if (type.includes("ciclorrota")) return "ciclorrota";
+    if (type.includes("compartilhada")) return "compartilhada";
+    return "ciclofaixa"; // Default
+  };
+
+  const infraType = getInfraType();
+  const isCiclorrota = infraType === "ciclorrota";
+  const isCicloviaOrCiclofaixa = infraType === "ciclovia" || infraType === "ciclofaixa";
+  const isCompartilhadaOrCiclorrota = infraType === "compartilhada" || infraType === "ciclorrota";
+
   return (
     <Card>
       <CardContent className="pt-6 space-y-6">
@@ -81,61 +96,68 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
           </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-medium mb-2">B.4.2. Inscrições no pavimento - pictogramas (para ciclorrotas)</h3>
-          <div className="space-y-4">
-            <div>
-              <Label className="block mb-2">N° de pictogramas por quadra:</Label>
-              <RadioGroup
-                value={data.pictograms_per_block?.toString() || "0"}
-                onValueChange={(value) => handleRadioChange("pictograms_per_block", parseInt(value))}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="0" id="picto_0" />
-                  <Label htmlFor="picto_0">0</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1" id="picto_1" />
-                  <Label htmlFor="picto_1">1</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="2" id="picto_2" />
-                  <Label htmlFor="picto_2">2</Label>
-                </div>
-              </RadioGroup>
-            </div>
+        {isCiclorrota && (
+          <div>
+            <h3 className="text-lg font-medium mb-2">B.4.2. Inscrições no pavimento - pictogramas (para ciclorrotas)</h3>
+            <div className="space-y-4">
+              <div>
+                <Label className="block mb-2">N° de pictogramas por quadra:</Label>
+                <RadioGroup
+                  value={data.pictograms_per_block?.toString() || "0"}
+                  onValueChange={(value) => handleRadioChange("pictograms_per_block", parseInt(value))}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="0" id="picto_0" />
+                    <Label htmlFor="picto_0">0</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="1" id="picto_1" />
+                    <Label htmlFor="picto_1">1</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="2" id="picto_2" />
+                    <Label htmlFor="picto_2">2</Label>
+                  </div>
+                </RadioGroup>
+              </div>
 
-            <div>
-              <Label className="block mb-2">Estado de conservação dos pictogramas:</Label>
-              <RadioGroup
-                value={data.pictograms_conservation || "visiveis"}
-                onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
-                className="grid grid-cols-1 gap-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="visiveis" id="picto_visiveis" />
-                  <Label htmlFor="picto_visiveis">Pictogramas visíveis em toda a extensão.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="desgastados" id="picto_desgastados" />
-                  <Label htmlFor="picto_desgastados">Pictogramas desgastados em toda a extensão.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="menos_metade" id="picto_menos_metade" />
-                  <Label htmlFor="picto_menos_metade">Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="apagados" id="picto_apagados" />
-                  <Label htmlFor="picto_apagados">Praticamente apagados ou não há.</Label>
-                </div>
-              </RadioGroup>
+              <div>
+                <Label className="block mb-2">Estado de conservação dos pictogramas (para ciclorrotas):</Label>
+                <RadioGroup
+                  value={data.pictograms_conservation || "visiveis"}
+                  onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
+                  className="grid grid-cols-1 gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="visiveis" id="picto_visiveis" />
+                    <Label htmlFor="picto_visiveis">Pictogramas visíveis em toda a extensão.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="desgastados" id="picto_desgastados" />
+                    <Label htmlFor="picto_desgastados">Pictogramas desgastados em toda a extensão.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="menos_metade" id="picto_menos_metade" />
+                    <Label htmlFor="picto_menos_metade">Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="apagados" id="picto_apagados" />
+                    <Label htmlFor="picto_apagados">Praticamente apagados ou não há.</Label>
+                  </div>
+                </RadioGroup>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div>
-          <h3 className="text-lg font-medium mb-2">B.4.3. Sinalização Vertical de Regulamentação</h3>
+          {isCicloviaOrCiclofaixa && (
+            <h3 className="text-lg font-medium mb-2">B.4.3. Sinalização Vertical de Regulamentação: ciclovias ou ciclofaixas</h3>
+          )}
+          {isCompartilhadaOrCiclorrota && (
+            <h3 className="text-lg font-medium mb-2">B.4.3. Sinalização Vertical de Regulamentação: ciclorrotas ou calçadas partilhadas</h3>
+          )}
           <div className="space-y-4">
             <div>
               <Label className="block mb-2">N° de placas por quadra:</Label>
