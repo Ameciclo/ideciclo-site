@@ -19,13 +19,13 @@ import Page6 from "./Page6";
 import Page7 from "./Page7";
 import Page8 from "./Page8";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  fetchFormById, 
-  getFormBySegmentId, 
-  fetchSegmentById, 
-  updateFormInDB, 
-  createFormInDB, 
-  updateSegmentEvaluationStatus 
+import {
+  fetchFormById,
+  getFormBySegmentId,
+  fetchSegmentById,
+  updateFormInDB,
+  createFormInDB,
+  updateSegmentEvaluationStatus,
 } from "@/services/database";
 
 const SegmentForm = () => {
@@ -222,7 +222,7 @@ const SegmentForm = () => {
 
       let result;
 
-      if (isUpdating) {
+      if (isUpdating && existingFormId) {
         // Update existing form
         console.log("Updating existing form:", existingFormId);
         result = await updateFormInDB(existingFormId, formToSave);
@@ -232,15 +232,13 @@ const SegmentForm = () => {
         console.log("Creating new form:", formId);
         result = await createFormInDB({ ...formToSave, id: formId });
 
-        // Update the segment to mark it as evaluated
-        await updateSegmentEvaluationStatus(segmentId, formId);
-
-        if (!result) {
-          console.error("Error updating segment evaluation status");
+        if (result && !result.error) {
+          // Update the segment to mark it as evaluated
+          await updateSegmentEvaluationStatus(segmentId, formId);
         }
       }
 
-      if (result.error) {
+      if (result && result.error) {
         console.error("Error saving form:", result.error);
         throw new Error(
           "Falha ao salvar o formulário: " + result.error.message
@@ -252,8 +250,8 @@ const SegmentForm = () => {
         description: "Os dados foram salvos com sucesso no banco de dados.",
       });
 
-      // Navigate back
-      navigate(-1);
+      // Navigate to the segments list page instead of using navigate(-1)
+      navigate("/avaliacao");
     } catch (error) {
       console.error("Error saving form:", error);
       toast({
@@ -296,7 +294,7 @@ const SegmentForm = () => {
         <h2 className="text-2xl font-bold">
           {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Segmento
         </h2>
-        <Button variant="outline" onClick={() => navigate(-1)}>
+        <Button variant="outline" onClick={() => navigate("/avaliacao")}>
           Voltar
         </Button>
       </div>
