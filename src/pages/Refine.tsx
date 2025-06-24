@@ -434,6 +434,41 @@ const Refine = () => {
       });
     }
   };
+  
+  const handleUpdateSegmentType = async (
+    segmentId: string,
+    type: SegmentType
+  ) => {
+    try {
+      // Update in the database
+      await updateSegmentInDB({ id: segmentId, type });
+
+      // Update state for UI
+      setSegments((prevSegments) =>
+        prevSegments.map((seg) =>
+          seg.id === segmentId ? { ...seg, type } : seg
+        )
+      );
+
+      // Update local storage
+      const updatedSegments = segments.map((seg) =>
+        seg.id === segmentId ? { ...seg, type } : seg
+      );
+      saveLocalSegments(cityId, updatedSegments);
+      
+      toast({
+        title: "Tipo atualizado",
+        description: "O tipo do segmento foi atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar tipo do segmento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar o tipo do segmento.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDeleteSegment = async (segmentId: string) => {
     try {
@@ -707,6 +742,7 @@ const Refine = () => {
                 onDeleteSegment={handleDeleteSegment}
                 onUnmergeSegments={handleUnmergeSegments}
                 onUpdateSegmentClassification={handleUpdateSegmentClassification}
+                onUpdateSegmentType={handleUpdateSegmentType}
               />
 
               <div className="mt-8 flex justify-end">

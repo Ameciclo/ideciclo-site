@@ -12,7 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { ArrowDown, ArrowUp, Edit, Trash2, Check, X, ChevronDown } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Edit,
+  Trash2,
+  Check,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MergedSegmentDropdown from "./MergedSegmentDropdown";
 import {
@@ -35,7 +43,11 @@ interface RefinementSegmentsTableProps {
     parentSegmentId: string,
     segmentIds: string[]
   ) => Promise<void>;
-  onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
+  onUpdateSegmentClassification?: (
+    segmentId: string,
+    classification: string
+  ) => Promise<void>;
+  onUpdateSegmentType?: (segmentId: string, type: SegmentType) => Promise<void>;
 }
 
 const RefinementSegmentsTable = ({
@@ -49,10 +61,11 @@ const RefinementSegmentsTable = ({
   onDeleteSegment,
   onUnmergeSegments,
   onUpdateSegmentClassification,
+  onUpdateSegmentType,
 }: RefinementSegmentsTableProps) => {
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
-  
+
   // Available classification options
   const classificationOptions = ["estrutural", "alimentadora", "local"];
 
@@ -70,17 +83,33 @@ const RefinementSegmentsTable = ({
         return <Badge>{type}</Badge>;
     }
   };
-  
+
   const getClassificationBadge = (classification: string | undefined) => {
     switch (classification) {
       case "estrutural":
-        return <Badge variant="default" className="bg-blue-500">Estrutural</Badge>;
+        return (
+          <Badge variant="default" className="bg-blue-500">
+            Estrutural
+          </Badge>
+        );
       case "alimentadora":
-        return <Badge variant="secondary" className="bg-green-500">Alimentadora</Badge>;
+        return (
+          <Badge variant="secondary" className="bg-green-500">
+            Alimentadora
+          </Badge>
+        );
       case "local":
-        return <Badge variant="outline" className="border-amber-500 text-amber-500">Local</Badge>;
+        return (
+          <Badge variant="outline" className="border-amber-500 text-amber-500">
+            Local
+          </Badge>
+        );
       default:
-        return <Badge variant="outline" className="border-gray-400 text-gray-500">Não classificada</Badge>;
+        return (
+          <Badge variant="outline" className="border-gray-400 text-gray-500">
+            Não classificada
+          </Badge>
+        );
     }
   };
 
@@ -111,13 +140,29 @@ const RefinementSegmentsTable = ({
       console.error("Failed to delete segment:", error);
     }
   };
-  
-  const handleUpdateClassification = async (segmentId: string, classification: string) => {
+
+  const handleUpdateClassification = async (
+    segmentId: string,
+    classification: string
+  ) => {
     if (onUpdateSegmentClassification) {
       try {
         await onUpdateSegmentClassification(segmentId, classification);
       } catch (error) {
         console.error("Failed to update segment classification:", error);
+      }
+    }
+  };
+
+  const handleUpdateSegmentType = async (
+    segmentId: string,
+    type: SegmentType
+  ) => {
+    if (onUpdateSegmentType) {
+      try {
+        await onUpdateSegmentType(segmentId, type);
+      } catch (error) {
+        console.error("Failed to update segment type:", error);
       }
     }
   };
@@ -167,7 +212,7 @@ const RefinementSegmentsTable = ({
             </TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead>Classificação</TableHead>
-            <TableHead className="text-right">Extensão (km)</TableHead>
+            <TableHead className="text-right">km</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -252,14 +297,45 @@ const RefinementSegmentsTable = ({
                     />
                   </div>
                 </TableCell>
-                <TableCell>{getSegmentTypeBadge(segment.type)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {getSegmentTypeBadge(segment.type)}
+                    {!segment.is_merged && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
+                            <ChevronDown size={14} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {Object.values(SegmentType).map((type) => (
+                            <DropdownMenuItem
+                              key={type}
+                              onClick={() => handleUpdateSegmentType(segment.id, type)}
+                            >
+                              {type}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {getClassificationBadge(segment.classification)}
                     {onUpdateSegmentClassification && !segment.is_merged && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
                             <ChevronDown size={14} />
                           </Button>
                         </DropdownMenuTrigger>
@@ -267,20 +343,14 @@ const RefinementSegmentsTable = ({
                           {classificationOptions.map((option) => (
                             <DropdownMenuItem
                               key={option}
-                              onClick={() => handleUpdateClassification(segment.id, option)}
+                              onClick={() =>
+                                handleUpdateClassification(segment.id, option)
+                              }
                               className="capitalize"
                             >
                               {option}
                             </DropdownMenuItem>
                           ))}
-                          {segment.classification && (
-                            <DropdownMenuItem
-                              onClick={() => handleUpdateClassification(segment.id, "")}
-                              className="text-destructive"
-                            >
-                              Remover classificação
-                            </DropdownMenuItem>
-                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}

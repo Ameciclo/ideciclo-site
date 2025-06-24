@@ -17,7 +17,11 @@ interface MergeSegmentsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedSegments: Segment[];
-  onConfirm: (name: string, type: SegmentType, classification?: string) => Promise<void>;
+  onConfirm: (
+    name: string,
+    type: SegmentType,
+    classification?: string
+  ) => Promise<void>;
 }
 
 const MergeSegmentsDialog = ({
@@ -30,7 +34,9 @@ const MergeSegmentsDialog = ({
   const [mergedType, setMergedType] = useState<SegmentType>(
     SegmentType.CICLOFAIXA
   );
-  const [mergedClassification, setMergedClassification] = useState<string | undefined>(undefined);
+  const [mergedClassification, setMergedClassification] = useState<
+    string | undefined
+  >(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate total length of all selected segments
@@ -56,12 +62,12 @@ const MergeSegmentsDialog = ({
       } else {
         setMergedType(SegmentType.CICLOFAIXA); // Default type if multiple
       }
-      
+
       // Set default classification
       const classifications = selectedSegments
-        .map(s => s.classification)
+        .map((s) => s.classification)
         .filter((c): c is string => c !== undefined);
-      
+
       if (classifications.length > 0) {
         const uniqueClassifications = Array.from(new Set(classifications));
         if (uniqueClassifications.length === 1) {
@@ -91,11 +97,13 @@ const MergeSegmentsDialog = ({
   const haveSameType =
     selectedSegments.length > 0 &&
     selectedSegments.every((s) => s.type === selectedSegments[0].type);
-    
+
   // Check if all selected segments have the same classification
   const haveSameClassification =
     selectedSegments.length > 0 &&
-    selectedSegments.every((s) => s.classification === selectedSegments[0].classification);
+    selectedSegments.every(
+      (s) => s.classification === selectedSegments[0].classification
+    );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +182,7 @@ const MergeSegmentsDialog = ({
               )}
             </div>
           </div>
-          
+
           <div className="grid grid-cols-4 items-start gap-4">
             <Label className="text-right pt-2">Classificação</Label>
             <div className="col-span-3">
@@ -185,35 +193,25 @@ const MergeSegmentsDialog = ({
               ) : (
                 <RadioGroup
                   value={mergedClassification || ""}
-                  onValueChange={(value) => setMergedClassification(value || undefined)}
+                  onValueChange={(value) =>
+                    setMergedClassification(value || undefined)
+                  }
                   className="flex flex-col space-y-2"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="estrutural"
-                      id="estrutural"
-                    />
+                    <RadioGroupItem value="estrutural" id="estrutural" />
                     <Label htmlFor="estrutural">Estrutural</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="alimentadora"
-                      id="alimentadora"
-                    />
+                    <RadioGroupItem value="alimentadora" id="alimentadora" />
                     <Label htmlFor="alimentadora">Alimentadora</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value="local"
-                      id="local"
-                    />
+                    <RadioGroupItem value="local" id="local" />
                     <Label htmlFor="local">Local</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem
-                      value=""
-                      id="nao-classificada"
-                    />
+                    <RadioGroupItem value="" id="nao-classificada" />
                     <Label htmlFor="nao-classificada">Não classificada</Label>
                   </div>
                 </RadioGroup>

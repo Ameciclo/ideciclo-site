@@ -18,6 +18,7 @@ interface RefinementTableSortableWrapperProps {
     segmentIds: string[]
   ) => Promise<void>;
   onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
+  onUpdateSegmentType?: (segmentId: string, type: any) => Promise<void>;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -30,6 +31,7 @@ export const RefinementTableSortableWrapper = ({
   onDeleteSegment,
   onUnmergeSegments,
   onUpdateSegmentClassification,
+  onUpdateSegmentType,
 }: RefinementTableSortableWrapperProps) => {
   // Filter and sort state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -168,6 +170,7 @@ export const RefinementTableSortableWrapper = ({
           onDeleteSegment={onDeleteSegment}
           onUnmergeSegments={onUnmergeSegments}
           onUpdateSegmentClassification={onUpdateSegmentClassification}
+          onUpdateSegmentType={onUpdateSegmentType}
         />
         <CityMap segments={selectedSegments} className="flex-grow" />
       </div>
