@@ -10,6 +10,124 @@ import {
 } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect } from "react";
+import { 
+  Table, 
+  TableBody, 
+  TableCaption, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { fetchUniqueStatesFromDB, fetchCitiesByState } from "@/services/database";
+
+const RankingTable = () => {
+  const [cities, setCities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch states
+        const uniqueStates = await fetchUniqueStatesFromDB();
+        setStates(uniqueStates);
+        
+        // Fetch cities for each state
+        const allCities = [];
+        for (const state of uniqueStates) {
+          const stateCities = await fetchCitiesByState(state.id);
+          allCities.push(...stateCities);
+        }
+        
+        // Add placeholder ranking data
+        const citiesWithRanking = allCities.map((city, index) => ({
+          ...city,
+          rank: index + 1,
+          score: (Math.random() * 10).toFixed(1), // Random score between 0-10
+          evaluatedSegments: Math.floor(Math.random() * 50), // Random number of segments
+          status: Math.random() > 0.5 ? "completo" : "parcial" // Random status
+        }));
+        
+        // Sort by score (descending)
+        citiesWithRanking.sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+        
+        setCities(citiesWithRanking);
+      } catch (error) {
+        console.error("Error fetching data for ranking:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados do ranking.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p>Carregando ranking...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Table>
+        <TableCaption>Ranking de cidades baseado no índice IDECICLO</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">Posição</TableHead>
+            <TableHead>Cidade</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Índice IDECICLO</TableHead>
+            <TableHead>Segmentos Avaliados</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {cities.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-6">
+                Nenhuma cidade encontrada
+              </TableCell>
+            </TableRow>
+          ) : (
+            cities.map((city) => (
+              <TableRow key={city.id}>
+                <TableCell className="font-medium">{city.rank}</TableCell>
+                <TableCell>{city.name}</TableCell>
+                <TableCell>{city.state}</TableCell>
+                <TableCell>{city.score}</TableCell>
+                <TableCell>{city.evaluatedSegments}</TableCell>
+                <TableCell>
+                  <Badge variant={city.status === "completo" ? "default" : "secondary"}>
+                    {city.status === "completo" ? "Completo" : "Parcial"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+      <div className="mt-4 text-sm text-muted-foreground">
+        <p>* Os dados de ranking são provisórios e serão atualizados conforme as avaliações forem concluídas.</p>
+      </div>
+    </div>
+  );
+};
 
 const Index = () => {
   const { toast } = useToast();
@@ -70,13 +188,13 @@ const Index = () => {
         <TabsContent value="ranking">
           <Card>
             <CardHeader>
-              <CardTitle>Ranking</CardTitle>
+              <CardTitle>Ranking de Cidades</CardTitle>
               <CardDescription>
                 Visualize o ranking das cidades de acordo com o índice IDECICLO.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p>Funcionalidade em desenvolvimento.</p>
+              <RankingTable />
             </CardContent>
           </Card>
         </TabsContent>
