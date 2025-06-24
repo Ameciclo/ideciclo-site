@@ -29,7 +29,9 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
             id="infra_typology"
             name="infra_typology"
             value={data.infra_typology || segmentType || ""}
-            onChange={handleChange}
+            readOnly
+            disabled
+            className="bg-gray-100"
           />
         </div>
 

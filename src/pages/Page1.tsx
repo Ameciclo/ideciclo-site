@@ -46,7 +46,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               id="city"
               name="city"
               value={data.city || ""}
-              onChange={handleChange}
+              readOnly
+              disabled
+              className="bg-gray-100"
             />
           </div>
           <div>
@@ -75,7 +77,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               id="segment_name"
               name="segment_name"
               value={data.segment_name || segmentName || ""}
-              onChange={handleChange}
+              readOnly
+              disabled
+              className="bg-gray-100"
             />
           </div>
           <div>
@@ -85,7 +89,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               name="extension_m"
               type="number"
               value={data.extension_m || ""}
-              onChange={handleChange}
+              readOnly
+              disabled
+              className="bg-gray-100"
             />
           </div>
           <div>
@@ -122,7 +128,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               id="road_hierarchy"
               name="road_hierarchy"
               value={data.road_hierarchy || ""}
-              onChange={handleChange}
+              readOnly
+              disabled
+              className="bg-gray-100"
             />
           </div>
           <div>
