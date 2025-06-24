@@ -12,9 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { ArrowDown, ArrowUp, Edit, Trash2, Check, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Edit, Trash2, Check, X, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MergedSegmentDropdown from "./MergedSegmentDropdown";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
@@ -46,6 +52,9 @@ const RefinementSegmentsTable = ({
 }: RefinementSegmentsTableProps) => {
   const [editingSegment, setEditingSegment] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
+  
+  // Available classification options
+  const classificationOptions = ["estrutural", "alimentadora", "local"];
 
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
@@ -100,6 +109,16 @@ const RefinementSegmentsTable = ({
       await onDeleteSegment(segmentId);
     } catch (error) {
       console.error("Failed to delete segment:", error);
+    }
+  };
+  
+  const handleUpdateClassification = async (segmentId: string, classification: string) => {
+    if (onUpdateSegmentClassification) {
+      try {
+        await onUpdateSegmentClassification(segmentId, classification);
+      } catch (error) {
+        console.error("Failed to update segment classification:", error);
+      }
     }
   };
 
@@ -235,7 +254,37 @@ const RefinementSegmentsTable = ({
                 </TableCell>
                 <TableCell>{getSegmentTypeBadge(segment.type)}</TableCell>
                 <TableCell>
-                  {getClassificationBadge(segment.classification)}
+                  <div className="flex items-center gap-2">
+                    {getClassificationBadge(segment.classification)}
+                    {onUpdateSegmentClassification && !segment.is_merged && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <ChevronDown size={14} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {classificationOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option}
+                              onClick={() => handleUpdateClassification(segment.id, option)}
+                              className="capitalize"
+                            >
+                              {option}
+                            </DropdownMenuItem>
+                          ))}
+                          {segment.classification && (
+                            <DropdownMenuItem
+                              onClick={() => handleUpdateClassification(segment.id, "")}
+                              className="text-destructive"
+                            >
+                              Remover classificação
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   {segment.length.toFixed(4)}
