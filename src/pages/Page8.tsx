@@ -45,17 +45,17 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Tipo de poste:</Label>
               <RadioGroup
-                value={data.lighting_post_type || "convencionais"}
+                value={data.lighting_post_type || "B"}
                 onValueChange={(value) => handleRadioChange("lighting_post_type", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="pedestonais" id="post_pedestonais" />
-                  <Label htmlFor="post_pedestonais">Postes peatonais</Label>
+                  <RadioGroupItem value="A" id="post_A" />
+                  <Label htmlFor="post_A">Postes peatonais</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="convencionais" id="post_convencionais" />
-                  <Label htmlFor="post_convencionais">Postes convencionais</Label>
+                  <RadioGroupItem value="B" id="post_B" />
+                  <Label htmlFor="post_B">Postes convencionais</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -110,17 +110,17 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Distância dos postes à infraestrutura:</Label>
               <RadioGroup
-                value={data.lighting_distance_to_infra || "junto"}
+                value={data.lighting_distance_to_infra || "A"}
                 onValueChange={(value) => handleRadioChange("lighting_distance_to_infra", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="junto" id="distance_junto" />
-                  <Label htmlFor="distance_junto">Postes juntos à infraestrutura</Label>
+                  <RadioGroupItem value="A" id="distance_A" />
+                  <Label htmlFor="distance_A">Postes juntos à infraestrutura</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="mais_5m" id="distance_mais_5m" />
-                  <Label htmlFor="distance_mais_5m">Postes a mais de 5 m da infraestrutura</Label>
+                  <RadioGroupItem value="B" id="distance_B" />
+                  <Label htmlFor="distance_B">Postes a mais de 5 m da infraestrutura</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -133,25 +133,25 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Há sombreamento:</Label>
               <RadioGroup
-                value={data.shading_coverage || "nao_ha"}
+                value={data.shading_coverage || "D"}
                 onValueChange={(value) => handleRadioChange("shading_coverage", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="toda_extensao" id="shade_toda_extensao" />
-                  <Label htmlFor="shade_toda_extensao">Toda extensão</Label>
+                  <RadioGroupItem value="A" id="shade_A" />
+                  <Label htmlFor="shade_A">Toda extensão</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="mais_metade" id="shade_mais_metade" />
-                  <Label htmlFor="shade_mais_metade">Mais da metade</Label>
+                  <RadioGroupItem value="B" id="shade_B" />
+                  <Label htmlFor="shade_B">Mais da metade</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="menos_metade" id="shade_menos_metade" />
-                  <Label htmlFor="shade_menos_metade">Menos da metade</Label>
+                  <RadioGroupItem value="C" id="shade_C" />
+                  <Label htmlFor="shade_C">Menos da metade</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao_ha" id="shade_nao_ha" />
-                  <Label htmlFor="shade_nao_ha">Não há</Label>
+                  <RadioGroupItem value="D" id="shade_D" />
+                  <Label htmlFor="shade_D">Não há</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -159,21 +159,21 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Arborização:</Label>
               <RadioGroup
-                value={data.vegetation_size || "baixo"}
+                value={data.vegetation_size || "C"}
                 onValueChange={(value) => handleRadioChange("vegetation_size", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="alto" id="veg_alto" />
-                  <Label htmlFor="veg_alto">Porte alto</Label>
+                  <RadioGroupItem value="A" id="veg_A" />
+                  <Label htmlFor="veg_A">Porte alto</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="medio" id="veg_medio" />
-                  <Label htmlFor="veg_medio">Médio porte</Label>
+                  <RadioGroupItem value="B" id="veg_B" />
+                  <Label htmlFor="veg_B">Médio porte</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="baixo" id="veg_baixo" />
-                  <Label htmlFor="veg_baixo">Baixo porte</Label>
+                  <RadioGroupItem value="C" id="veg_C" />
+                  <Label htmlFor="veg_C">Baixo porte</Label>
                 </div>
               </RadioGroup>
             </div>

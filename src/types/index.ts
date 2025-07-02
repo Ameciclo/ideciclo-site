@@ -136,38 +136,38 @@ export interface SurveyResponses {
   avg_distance_measures_m: number;
 
   // B.2 Pavement type
-  pavement_type: 'betuminoso_cimenticio' | 'modular' | 'pedras_irregulares' | 'barro_grelhas';
+  pavement_type: 'A' | 'B' | 'C' | 'D';
 
   // E.1 Pavement conservation state
-  conservation_state: 'nivelado' | 'leve_desnivel' | 'desnivel_buraco' | 'degraus_buracos';
+  conservation_state: 'A' | 'B' | 'C' | 'D';
 
   // B.3/E.2 Infrastructure delimitation
-  separation_devices_ciclofaixa: 'ate_1m' | '1_5_3m' | 'mais_3_5m' | 'nao_ha';
-  separation_devices_ciclovia: 'total' | 'total_aberturas' | 'ate_2m' | 'mais_2_5m';
-  separation_devices_calcada: 'demarcacao_clara' | 'demarcacao_separada' | 'linha_pictograma' | 'nao_ha';
+  separation_devices_ciclofaixa: 'A' | 'B' | 'C' | 'D';
+  separation_devices_ciclovia: 'A' | 'B' | 'C' | 'D';
+  separation_devices_calcada: 'A' | 'B' | 'C' | 'D';
 
   // E.2.1 Conservation state of separation devices
-  devices_conservation: 'todo_trecho' | 'mais_metade' | 'menos_metade' | 'nao_ha';
+  devices_conservation: 'A' | 'B' | 'C' | 'D';
 
   // B.3.2 Lateral spacing from vehicular flow
   lateral_spacing_type: 'linha' | 'dispositivos';
   lateral_spacing_width_m: number;
 
   // E.2.1 Conservation state of lateral spacing
-  spacing_conservation: 'otimo' | 'bom_mais_metade' | 'menos_metade' | 'inexiste';
+  spacing_conservation: 'A' | 'B' | 'C' | 'D';
 
   // B.4/E.3 Horizontal and vertical signaling
-  space_identification: 'pavimento_vermelho' | 'faixa_dois_bordos' | 'faixa_um_bordo' | 'nao_ha';
-  identification_conservation: 'total_vermelho' | 'mais_metade' | 'menos_metade' | 'apagada';
+  space_identification: 'A' | 'B' | 'C' | 'D';
+  identification_conservation: 'A' | 'B' | 'C' | 'D';
 
   // B.4.2 Pavement inscriptions - pictograms (for cyclorrotas)
   pictograms_per_block: number;
-  pictograms_conservation: 'visiveis' | 'desgastados' | 'menos_metade' | 'apagados';
+  pictograms_conservation: 'A' | 'B' | 'C' | 'D';
 
   // B.4.3 Vertical regulation signaling
   regulation_signs_per_block: number;
   signs_both_directions: boolean;
-  vertical_signs_conservation: 'bom_estado' | 'menos_metade_danos' | 'bastante_danificadas' | 'nao_ha';
+  vertical_signs_conservation: 'A' | 'B' | 'C' | 'D';
 
   // B.5 Accessibility relative to adjacent land use
   traffic_lanes_count: number;
@@ -181,25 +181,25 @@ export interface SurveyResponses {
   opposite_flow_direction: boolean;
 
   // C.1/E.4 Horizontal cycling signaling at intersections
-  intersection_signaling: 'vermelho_tracejadas' | 'vermelho_estreito' | 'tracejadas_pictogramas' | 'nenhuma';
-  intersection_conservation: 'bom_estado' | 'danificada' | 'nao_ha';
+  intersection_signaling: 'A' | 'B' | 'C' | 'D';
+  intersection_conservation: 'A' | 'B' | 'C';
 
   // C.2 Accessibility between cycling connections
-  connection_accessibility: 'universal_visivel' | 'degraus' | 'nao_visivel';
+  connection_accessibility: 'A' | 'B' | 'C';
 
   // C.3 Conflicts with motorized circulation
   motorized_conflicts: string[];
 
   // D.1 Public lighting
-  lighting_post_type: 'pedestonais' | 'convencionais';
+  lighting_post_type: 'A' | 'B';
   lighting_distance_m: number;
   lighting_directed: boolean;
   lighting_barriers: boolean;
-  lighting_distance_to_infra: 'junto' | 'mais_5m';
+  lighting_distance_to_infra: 'A' | 'B';
 
   // D.2 Thermal comfort (shading)
-  shading_coverage: 'toda_extensao' | 'mais_metade' | 'menos_metade' | 'nao_ha';
-  vegetation_size: 'alto' | 'medio' | 'baixo';
+  shading_coverage: 'A' | 'B' | 'C' | 'D';
+  vegetation_size: 'A' | 'B' | 'C';
 
   // D.3 Cycling furniture
   cycling_furniture: string[];

@@ -60,22 +60,22 @@ const SegmentForm = () => {
     includes_gutter: false,
     speed_measures: [],
     avg_distance_measures_m: 0,
-    pavement_type: "betuminoso_cimenticio",
-    conservation_state: "nivelado",
-    separation_devices_ciclofaixa: "nao_ha",
-    separation_devices_ciclovia: "total",
-    separation_devices_calcada: "nao_ha",
-    devices_conservation: "todo_trecho",
+    pavement_type: "A", // Changed from "betuminoso_cimenticio"
+    conservation_state: "A", // Changed from "nivelado"
+    separation_devices_ciclofaixa: "D", // Changed from "nao_ha"
+    separation_devices_ciclovia: "A", // Changed from "total"
+    separation_devices_calcada: "D", // Changed from "nao_ha"
+    devices_conservation: "A", // Changed from "todo_trecho"
     lateral_spacing_type: "linha",
     lateral_spacing_width_m: 0,
-    spacing_conservation: "otimo",
-    space_identification: "pavimento_vermelho",
-    identification_conservation: "total_vermelho",
+    spacing_conservation: "A", // Changed from "otimo"
+    space_identification: "A", // Changed from "pavimento_vermelho"
+    identification_conservation: "A", // Changed from "total_vermelho"
     pictograms_per_block: 0,
-    pictograms_conservation: "visiveis",
+    pictograms_conservation: "A", // Changed from "visiveis"
     regulation_signs_per_block: 0,
     signs_both_directions: false,
-    vertical_signs_conservation: "bom_estado",
+    vertical_signs_conservation: "A", // Changed from "bom_estado"
     traffic_lanes_count: 2,
     signalized_crossings_per_block: 0,
     bus_school_conflict: false,
@@ -83,17 +83,17 @@ const SegmentForm = () => {
     vertical_obstacles: false,
     side_change_mid_block: false,
     opposite_flow_direction: false,
-    intersection_signaling: "vermelho_tracejadas",
-    intersection_conservation: "bom_estado",
-    connection_accessibility: "universal_visivel",
+    intersection_signaling: "A", // Changed from "vermelho_tracejadas"
+    intersection_conservation: "A", // Changed from "bom_estado"
+    connection_accessibility: "A", // Changed from "universal_visivel"
     motorized_conflicts: [],
-    lighting_post_type: "convencionais",
+    lighting_post_type: "B", // Changed from "convencionais"
     lighting_distance_m: 0,
     lighting_directed: false,
     lighting_barriers: false,
-    lighting_distance_to_infra: "junto",
-    shading_coverage: "nao_ha",
-    vegetation_size: "baixo",
+    lighting_distance_to_infra: "A", // Changed from "junto"
+    shading_coverage: "D", // Changed from "nao_ha"
+    vegetation_size: "C", // Changed from "baixo"
     cycling_furniture: [],
   });
 

@@ -156,25 +156,25 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Sinalização:</Label>
               <RadioGroup
-                value={data.intersection_signaling || "vermelho_tracejadas"}
+                value={data.intersection_signaling || "A"}
                 onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
                 className="grid grid-cols-1 gap-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="vermelho_tracejadas" id="int_vermelho_tracejadas" />
-                  <Label htmlFor="int_vermelho_tracejadas">Interseção apresenta pavimento vermelho na largura da infra e linhas tracejadas brancas</Label>
+                  <RadioGroupItem value="A" id="int_A" />
+                  <Label htmlFor="int_A">Interseção apresenta pavimento vermelho na largura da infra e linhas tracejadas brancas</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="vermelho_estreito" id="int_vermelho_estreito" />
-                  <Label htmlFor="int_vermelho_estreito">Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas</Label>
+                  <RadioGroupItem value="B" id="int_B" />
+                  <Label htmlFor="int_B">Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="tracejadas_pictogramas" id="int_tracejadas_pictogramas" />
-                  <Label htmlFor="int_tracejadas_pictogramas">Só linhas tracejadadas ou só pictogramas</Label>
+                  <RadioGroupItem value="C" id="int_C" />
+                  <Label htmlFor="int_C">Só linhas tracejadadas ou só pictogramas</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nenhuma" id="int_nenhuma" />
-                  <Label htmlFor="int_nenhuma">Nenhuma sinalização</Label>
+                  <RadioGroupItem value="D" id="int_D" />
+                  <Label htmlFor="int_D">Nenhuma sinalização</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -182,21 +182,21 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Estado de conservação da sinalização horizontal:</Label>
               <RadioGroup
-                value={data.intersection_conservation || "bom_estado"}
+                value={data.intersection_conservation || "A"}
                 onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="bom_estado" id="int_cons_bom_estado" />
-                  <Label htmlFor="int_cons_bom_estado">Sinalização em bom estado</Label>
+                  <RadioGroupItem value="A" id="int_cons_A" />
+                  <Label htmlFor="int_cons_A">Sinalização em bom estado</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="danificada" id="int_cons_danificada" />
-                  <Label htmlFor="int_cons_danificada">Sinalização danificada</Label>
+                  <RadioGroupItem value="B" id="int_cons_B" />
+                  <Label htmlFor="int_cons_B">Sinalização danificada</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao_ha" id="int_cons_nao_ha" />
-                  <Label htmlFor="int_cons_nao_ha">Não há sinalização</Label>
+                  <RadioGroupItem value="C" id="int_cons_C" />
+                  <Label htmlFor="int_cons_C">Não há sinalização</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -206,21 +206,21 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
         <div>
           <h3 className="text-lg font-medium mb-2">C.2. Acessibilidade entre Conexões Cicloviárias</h3>
           <RadioGroup
-            value={data.connection_accessibility || "universal_visivel"}
+            value={data.connection_accessibility || "A"}
             onValueChange={(value) => handleRadioChange("connection_accessibility", value)}
             className="grid grid-cols-1 gap-2"
           >
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="universal_visivel" id="conn_universal_visivel" />
-              <Label htmlFor="conn_universal_visivel">A conexão entre infraestruturas possui acessbilidade universal, e é bem visível.</Label>
+              <RadioGroupItem value="A" id="conn_A" />
+              <Label htmlFor="conn_A">A conexão entre infraestruturas possui acessbilidade universal, e é bem visível.</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="degraus" id="conn_degraus" />
-              <Label htmlFor="conn_degraus">A conexão possui degraus (com ou sem canaletas).</Label>
+              <RadioGroupItem value="B" id="conn_B" />
+              <Label htmlFor="conn_B">A conexão possui degraus (com ou sem canaletas).</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="nao_visivel" id="conn_nao_visivel" />
-              <Label htmlFor="conn_nao_visivel">Não é possível ver a conexão.</Label>
+              <RadioGroupItem value="C" id="conn_C" />
+              <Label htmlFor="conn_C">Não é possível ver a conexão.</Label>
             </div>
           </RadioGroup>
         </div>

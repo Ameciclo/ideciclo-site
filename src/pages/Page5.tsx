@@ -41,25 +41,25 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Dispositivos de Separação (Ciclofaixa):</Label>
               <RadioGroup
-                value={data.separation_devices_ciclofaixa || "nao_ha"}
+                value={data.separation_devices_ciclofaixa || "D"}
                 onValueChange={(value) => handleRadioChange("separation_devices_ciclofaixa", value)}
                 className="grid grid-cols-1 gap-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="ate_1m" id="ciclofaixa_ate_1m" />
-                  <Label htmlFor="ciclofaixa_ate_1m">Dispositivos (tachas, tachinhas ou balizadores) distanciados até 1 m entre si.</Label>
+                  <RadioGroupItem value="A" id="ciclofaixa_A" />
+                  <Label htmlFor="ciclofaixa_A">Dispositivos (tachas, tachinhas ou balizadores) distanciados até 1 m entre si.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1_5_3m" id="ciclofaixa_1_5_3m" />
-                  <Label htmlFor="ciclofaixa_1_5_3m">Dispositivos distanciados entre 1,5 e 3 m entre si; trechos com aberturas pontuais para acessar estacionamento dentro dos lotes.</Label>
+                  <RadioGroupItem value="B" id="ciclofaixa_B" />
+                  <Label htmlFor="ciclofaixa_B">Dispositivos distanciados entre 1,5 e 3 m entre si; trechos com aberturas pontuais para acessar estacionamento dentro dos lotes.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="mais_3_5m" id="ciclofaixa_mais_3_5m" />
-                  <Label htmlFor="ciclofaixa_mais_3_5m">Dispositivos distanciados a mais de 3,5 metros entre si; trechos com muitas aberturas para acessar estacionamentos dentro dos lotes.</Label>
+                  <RadioGroupItem value="C" id="ciclofaixa_C" />
+                  <Label htmlFor="ciclofaixa_C">Dispositivos distanciados a mais de 3,5 metros entre si; trechos com muitas aberturas para acessar estacionamentos dentro dos lotes.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao_ha" id="ciclofaixa_nao_ha" />
-                  <Label htmlFor="ciclofaixa_nao_ha">Não há dispositivos na infraestrutura cicloviária.</Label>
+                  <RadioGroupItem value="D" id="ciclofaixa_D" />
+                  <Label htmlFor="ciclofaixa_D">Não há dispositivos na infraestrutura cicloviária.</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -69,25 +69,25 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Dispositivos de Separação (Ciclovia):</Label>
               <RadioGroup
-                value={data.separation_devices_ciclovia || "total"}
+                value={data.separation_devices_ciclovia || "A"}
                 onValueChange={(value) => handleRadioChange("separation_devices_ciclovia", value)}
                 className="grid grid-cols-1 gap-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="total" id="ciclovia_total" />
-                  <Label htmlFor="ciclovia_total">Segregação total dos veículos motorizados (segregadores, ilhas físicas e níveis diferentes)</Label>
+                  <RadioGroupItem value="A" id="ciclovia_A" />
+                  <Label htmlFor="ciclovia_A">Segregação total dos veículos motorizados (segregadores, ilhas físicas e níveis diferentes)</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="total_aberturas" id="ciclovia_total_aberturas" />
-                  <Label htmlFor="ciclovia_total_aberturas">Segregação total, com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.</Label>
+                  <RadioGroupItem value="B" id="ciclovia_B" />
+                  <Label htmlFor="ciclovia_B">Segregação total, com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="ate_2m" id="ciclovia_ate_2m" />
-                  <Label htmlFor="ciclovia_ate_2m">Elementos de segregação distanciados entre si até 2 m ao longo do trecho; com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.</Label>
+                  <RadioGroupItem value="C" id="ciclovia_C" />
+                  <Label htmlFor="ciclovia_C">Elementos de segregação distanciados entre si até 2 m ao longo do trecho; com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="mais_2_5m" id="ciclovia_mais_2_5m" />
-                  <Label htmlFor="ciclovia_mais_2_5m">Elementos de segregação com distância superior a 2,5 m entre si ao longo do trecho; com muitas aberturas para acessar estacionamentos dentro dos lotes.</Label>
+                  <RadioGroupItem value="D" id="ciclovia_D" />
+                  <Label htmlFor="ciclovia_D">Elementos de segregação com distância superior a 2,5 m entre si ao longo do trecho; com muitas aberturas para acessar estacionamentos dentro dos lotes.</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -97,25 +97,25 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             <div>
               <Label className="block mb-2">Dispositivos de Separação (Calçada Compartilhada):</Label>
               <RadioGroup
-                value={data.separation_devices_calcada || "nao_ha"}
+                value={data.separation_devices_calcada || "D"}
                 onValueChange={(value) => handleRadioChange("separation_devices_calcada", value)}
                 className="grid grid-cols-1 gap-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="demarcacao_clara" id="calcada_demarcacao_clara" />
-                  <Label htmlFor="calcada_demarcacao_clara">Demarcação clara no piso que diferencia os espaços de circulação dos ciclistas, separado dos pedestres, com o uso de diferentes pavimentos.</Label>
+                  <RadioGroupItem value="A" id="calcada_A" />
+                  <Label htmlFor="calcada_A">Demarcação clara no piso que diferencia os espaços de circulação dos ciclistas, separado dos pedestres, com o uso de diferentes pavimentos.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="demarcacao_separada" id="calcada_demarcacao_separada" />
-                  <Label htmlFor="calcada_demarcacao_separada">Demarcação dos espaços de pedestres e ciclistas em áreas separadas sobre um mesmo tipo de pavimento, por sinalização horizontal vermelha, marcas horizontais e pictogramas.</Label>
+                  <RadioGroupItem value="B" id="calcada_B" />
+                  <Label htmlFor="calcada_B">Demarcação dos espaços de pedestres e ciclistas em áreas separadas sobre um mesmo tipo de pavimento, por sinalização horizontal vermelha, marcas horizontais e pictogramas.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="linha_pictograma" id="calcada_linha_pictograma" />
-                  <Label htmlFor="calcada_linha_pictograma">Demarcação apenas com marca/linha horizontal ao longo do trecho; (ou) apenas pictogramas orientando fluxos de circulação.</Label>
+                  <RadioGroupItem value="C" id="calcada_C" />
+                  <Label htmlFor="calcada_C">Demarcação apenas com marca/linha horizontal ao longo do trecho; (ou) apenas pictogramas orientando fluxos de circulação.</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="nao_ha" id="calcada_nao_ha" />
-                  <Label htmlFor="calcada_nao_ha">Não há delimitação ou diferenciação dos espaços de ciclistas e de pedestres.</Label>
+                  <RadioGroupItem value="D" id="calcada_D" />
+                  <Label htmlFor="calcada_D">Não há delimitação ou diferenciação dos espaços de ciclistas e de pedestres.</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -124,25 +124,25 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
           <div className="mt-4">
             <Label className="block mb-2">Estado de conservação dos dispositivos de segregação ou separação:</Label>
             <RadioGroup
-              value={data.devices_conservation || "todo_trecho"}
+              value={data.devices_conservation || "A"}
               onValueChange={(value) => handleRadioChange("devices_conservation", value)}
               className="grid grid-cols-1 gap-2"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="todo_trecho" id="devices_todo_trecho" />
-                <Label htmlFor="devices_todo_trecho">Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.</Label>
+                <RadioGroupItem value="A" id="devices_A" />
+                <Label htmlFor="devices_A">Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="mais_metade" id="devices_mais_metade" />
-                <Label htmlFor="devices_mais_metade">Dispositivos em mais da metade do trecho em bom estado de conservação.</Label>
+                <RadioGroupItem value="B" id="devices_B" />
+                <Label htmlFor="devices_B">Dispositivos em mais da metade do trecho em bom estado de conservação.</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="menos_metade" id="devices_menos_metade" />
-                <Label htmlFor="devices_menos_metade">Dispositivos em menos da metade do trecho ou estão muito danificados.</Label>
+                <RadioGroupItem value="C" id="devices_C" />
+                <Label htmlFor="devices_C">Dispositivos em menos da metade do trecho ou estão muito danificados.</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nao_ha" id="devices_nao_ha" />
-                <Label htmlFor="devices_nao_ha">Praticamente não há dispositivos.</Label>
+                <RadioGroupItem value="D" id="devices_D" />
+                <Label htmlFor="devices_D">Praticamente não há dispositivos.</Label>
               </div>
             </RadioGroup>
           </div>
@@ -185,25 +185,25 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               <div>
                 <Label>Estado de conservação do afastamento lateral:</Label>
                 <RadioGroup
-                  value={data.spacing_conservation || "otimo"}
+                  value={data.spacing_conservation || "A"}
                   onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
                   className="grid grid-cols-1 gap-2"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="otimo" id="spacing_otimo" />
-                    <Label htmlFor="spacing_otimo">Há demarcação em ótimo estado, visível em toda a extensão.</Label>
+                    <RadioGroupItem value="A" id="spacing_A" />
+                    <Label htmlFor="spacing_A">Há demarcação em ótimo estado, visível em toda a extensão.</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="bom_mais_metade" id="spacing_bom_mais_metade" />
-                    <Label htmlFor="spacing_bom_mais_metade">Há demarcação em bom estado em mais da metade do trecho.</Label>
+                    <RadioGroupItem value="B" id="spacing_B" />
+                    <Label htmlFor="spacing_B">Há demarcação em bom estado em mais da metade do trecho.</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="menos_metade" id="spacing_menos_metade" />
-                    <Label htmlFor="spacing_menos_metade">Há demarcação em menos da metade do trecho ou está muito danificada.</Label>
+                    <RadioGroupItem value="C" id="spacing_C" />
+                    <Label htmlFor="spacing_C">Há demarcação em menos da metade do trecho ou está muito danificada.</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="inexiste" id="spacing_inexiste" />
-                    <Label htmlFor="spacing_inexiste">Praticamente inexiste</Label>
+                    <RadioGroupItem value="D" id="spacing_D" />
+                    <Label htmlFor="spacing_D">Praticamente inexiste</Label>
                   </div>
                 </RadioGroup>
               </div>
