@@ -1,0 +1,54 @@
+Avaliação da Qualidade da Infraestrutura Cicloviária
+Para que a infraestrutura cicloviária seja considerada no cálculo do IDECICLO, não basta apenas sua presença — ela precisa ter qualidade suficiente para garantir o uso seguro pelos ciclistas. Infraestruturas de baixa qualidade podem acabar sendo ignoradas pelos ciclistas, o que reduz sua efetividade na cidade.
+Cada segmento de infraestrutura é avaliado e recebe uma nota:
+Avaliação
+Melhor (A) = 1,0
+Intermediário (B) = 0,7
+Pouco adequado (C) = 0,4
+Inadequado (D) = 0,0
+
+Para o cálculo do IDECICLO, seguiremos os passos:
+
+1. CONTRIBUIÇÃO DA ESTRUTURA
+O comprimento de cada trecho cicloviário é multiplicado pela nota recebida na avaliação de qualidade.
+Trechos inadequados ou inexistentes recebem nota zero.
+
+2. GRAU DE ATENDIMENTO DA MALHA
+O somatório de todas as CONTRIBUIÇÕES de uma malha classificada é dividido pelo comprimento total da malha avaliada.
+
+3. IDECICLO
+O GRAU DE ATENDIMENTO de cada malha (Estrutural, Alimentadora e Local) é ponderado pelo peso correspondente e os valores são somados.
+O resultado final representa o IDECICLO da cidade, indicando o nível de cobertura e qualidade da infraestrutura cicloviária.
+
+Em linguagem matemática:
+
+Seja Li o comprimento total das vias na malhai (Estrutural, Alimentadora ou Local).
+
+Seja lij ​ o comprimento do trecho j dentro da malha i.
+
+Seja nij a nota atribuída ao trecho j dentro da malha i, conforme a tabela de avaliação de qualidade.
+
+Definimos a Contribuição da Estrutura do trechoj como: Cij= lij * nij
+
+O Grau de Atendimento da Malha i é dado por: GAMi = (Somatório de 0 a j de Cij)/(Somatório de 0 a j de lij)
+
+Ou seja, a soma das contribuições dos trechos dentro da malha iii, dividida pelo total de vias daquela malha.
+
+Cada malha i tem um peso pi conforme a tabela:
+
+pEstrutural=0,590;
+pAlimentadora=0,262;
+pLocal=0,148;
+
+Fórmula do IDECICLO: 
+
+IDECICLO = (Somatório de todos os i pertencentes a {Estrutural, Alimentadora, Local}  de pi * GAMi
+
+Ou, de forma expandida:
+
+IDECICLO =i{Estrutural, Alimentadora, Local}pj jlj nijjlij
+
+​Explicação da Fórmula
+GAM (Grau de Atendimento da Malha): Mede a qualidade média da infraestrutura cicloviária dentro de cada malha viária (Estrutural, Alimentadora e Local).
+Ponderação: Cada GAM é ponderado pelo peso​, pois a malha estrutural tem mais impacto na nota final do que as malhas locais.
+Somatório Final: O IDECICLO é a soma ponderada dos graus de atendimento das três malhas, resultando em um indicador geral da infraestrutura cicloviária da cidade.

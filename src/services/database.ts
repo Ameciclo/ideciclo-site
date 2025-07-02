@@ -408,6 +408,20 @@ const mergeGeometries = (geometries: any[]): any => {
 /**
  * Form CRUD operations
  */
+export const fetchFormsByCityId = async (cityId: string): Promise<Form[]> => {
+  const { data, error } = await supabase
+    .from('forms')
+    .select('*')
+    .eq('city_id', cityId);
+
+  if (error) {
+    console.error("Error fetching forms by city ID:", error);
+    return [];
+  }
+
+  return data.map(convertFormRowToForm);
+};
+
 export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> => {
   // Ensure required fields are present
   if (!form.id || !form.segment_id || !form.city_id) {
