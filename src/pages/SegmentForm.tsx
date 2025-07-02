@@ -87,13 +87,13 @@ const SegmentForm = () => {
     intersection_conservation: "A", // Changed from "bom_estado"
     connection_accessibility: "A", // Changed from "universal_visivel"
     motorized_conflicts: [],
-    lighting_post_type: "B", // Changed from "convencionais"
+    lighting_post_type: "A", // Changed from "convencionais"
     lighting_distance_m: 0,
     lighting_directed: false,
     lighting_barriers: false,
     lighting_distance_to_infra: "A", // Changed from "junto"
-    shading_coverage: "D", // Changed from "nao_ha"
-    vegetation_size: "C", // Changed from "baixo"
+    shading_coverage: "A", // Changed from "nao_ha"
+    vegetation_size: "A", // Changed from "baixo"
     cycling_furniture: [],
   });
 
