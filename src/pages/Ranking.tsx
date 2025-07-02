@@ -107,12 +107,7 @@ const Ranking = () => {
 
   return (
     <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Ranking de Cidades</h2>
-        <Link to="/">
-          <Button variant="outline">Voltar ao início</Button>
-        </Link>
-      </div>
+      <h2 className="text-2xl font-bold mb-6">Ranking de Cidades</h2>
 
       {loading ? (
         <div className="flex justify-center">
