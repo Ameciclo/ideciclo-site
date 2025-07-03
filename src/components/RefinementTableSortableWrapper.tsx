@@ -138,6 +138,11 @@ export const RefinementTableSortableWrapper = ({
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter]);
+  
+  // Reset to first page when segments change (e.g., after merge)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [initialSegments.length]);
 
   return (
     <div>

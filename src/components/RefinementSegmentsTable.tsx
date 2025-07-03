@@ -168,13 +168,21 @@ const RefinementSegmentsTable = ({
   };
 
   const handleSelectAll = (checked: boolean) => {
-    // Allow selection of all segments (including merged ones for merging operations)
-    const selectableSegmentIds = segments.map((segment) => segment.id);
-    onSelectAllSegments(selectableSegmentIds, checked);
+    // Get IDs of all segments on the current page
+    const currentPageIds = segments.map(segment => segment.id);
+    onSelectAllSegments(currentPageIds, checked);
   };
 
-  const allSegmentsSelected = segments.every((segment) => segment.selected);
-  const someSegmentsSelected = segments.some((segment) => segment.selected);
+  // Check if all segments on the current page are selected
+  const allSegmentsSelected = segments.length > 0 && 
+    segments.every(segment => 
+      selectedSegments.some(selected => selected.id === segment.id)
+    );
+  
+  // Check if some segments on the current page are selected
+  const someSegmentsSelected = segments.some(segment => 
+    selectedSegments.some(selected => selected.id === segment.id)
+  );
 
   return (
     <div className="rounded-md border">
@@ -231,7 +239,7 @@ const RefinementSegmentsTable = ({
               >
                 <TableCell>
                   <Checkbox
-                    checked={segment.selected || false}
+                    checked={selectedSegments.some(selected => selected.id === segment.id)}
                     onCheckedChange={(checked) =>
                       onSelectSegment(segment.id, checked as boolean)
                     }
