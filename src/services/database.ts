@@ -791,6 +791,29 @@ export const fetchCitiesByState = async (state: string): Promise<City[]> => {
   }
 };
 
+/**
+ * Fetch all cities that are stored in the database
+ */
+export const fetchAllStoredCities = async (): Promise<City[]> => {
+  try {
+    const { data, error } = await supabase
+      .from("cities")
+      .select("*")
+      .order("state", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching stored cities:", error);
+      return [];
+    }
+
+    return data.map(convertCityRowToCity);
+  } catch (error) {
+    console.error("Error fetching stored cities:", error);
+    return [];
+  }
+};
+
 export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> => {
   try {
     const { data, error } = await supabase

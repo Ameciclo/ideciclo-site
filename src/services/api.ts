@@ -10,7 +10,8 @@ import {
   migrateLocalStorageToDatabase,
   saveSegmentToDB,
   removeSegmentsFromDB,
-  unmergeSegmentsFromDB
+  unmergeSegmentsFromDB,
+  fetchAllStoredCities
 } from "./database";
 
 // Helper function to retry failed API calls
@@ -892,6 +893,19 @@ export const deleteMultipleSegments = async (segmentIds: string[]): Promise<bool
   } catch (error) {
     console.error("Error deleting multiple segments:", error);
     return false;
+  }
+};
+
+/**
+ * Fetch all cities that have been stored in the database
+ */
+export const fetchStoredCities = async (): Promise<City[]> => {
+  try {
+    const cities = await fetchAllStoredCities();
+    return cities;
+  } catch (error) {
+    console.error("Error fetching stored cities:", error);
+    return [];
   }
 };
 

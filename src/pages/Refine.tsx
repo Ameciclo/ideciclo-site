@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import CitySelection from "@/components/CitySelection";
+import StoredCitiesSelection from "@/components/StoredCitiesSelection";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -685,17 +686,31 @@ const Refine = () => {
       )}
 
       {!isLoading && !error && step === "selection" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Selecionar Cidade</CardTitle>
-            <CardDescription>
-              Escolha o estado e a cidade para refinar os dados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CitySelection onCitySelected={handleCitySelected} />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Selecionar Cidade</CardTitle>
+              <CardDescription>
+                Escolha o estado e a cidade para refinar os dados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CitySelection onCitySelected={handleCitySelected} />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Cidades em Refinamento</CardTitle>
+              <CardDescription>
+                Acesse cidades que já estão em processo de refinamento
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StoredCitiesSelection onCitySelected={handleCitySelected} />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {!isLoading && !error && step === "refinement" && (
