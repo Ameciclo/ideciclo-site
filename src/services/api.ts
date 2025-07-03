@@ -672,31 +672,33 @@ export const calculateMergedLength = (segments: Segment[]): number => {
 export const createMergedSegment = async (
   selectedSegments: Segment[], 
   mergedName: string, 
-  mergedType: SegmentType
+  mergedType: SegmentType,
+  mergedClassification?: string
 ): Promise<{ mergedSegment: Segment; childSegments: Segment[] }> => {
   const mergedId = `merged-${Date.now()}`;
   const mergedGeometry = mergeGeometry(selectedSegments);
   const newLength = calculateMergedLength(selectedSegments);
   
-  // Determine classification for merged segment
+  // Use the provided classification if available
+  // Otherwise, determine classification for merged segment
   // If all segments have the same classification, use that
-  // Otherwise, use the most common classification or undefined if there's a tie
-  let mergedClassification: string | undefined;
-  const classifications = selectedSegments
-    .map(segment => segment.classification)
-    .filter((c): c is string => c !== undefined);
-  
-  if (classifications.length > 0) {
-    const classificationCounts = classifications.reduce((acc, curr) => {
-      acc[curr] = (acc[curr] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  if (mergedClassification === undefined) {
+    const classifications = selectedSegments
+      .map(segment => segment.classification)
+      .filter((c): c is string => c !== undefined);
     
-    // Check if all segments have the same classification
-    if (Object.keys(classificationCounts).length === 1) {
-      mergedClassification = Object.keys(classificationCounts)[0];
+    if (classifications.length > 0) {
+      const classificationCounts = classifications.reduce((acc, curr) => {
+        acc[curr] = (acc[curr] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Check if all segments have the same classification
+      if (Object.keys(classificationCounts).length === 1) {
+        mergedClassification = Object.keys(classificationCounts)[0];
+      }
+      // Otherwise, we'll let the user choose in the UI
     }
-    // Otherwise, we'll let the user choose in the UI
   }
   
   // Create the merged segment info for storage
@@ -740,7 +742,8 @@ export const createMergedSegment = async (
 export const mergeSegmentsInDB = async (
   selectedSegments: Segment[],
   mergedName: string,
-  mergedType: SegmentType
+  mergedType: SegmentType,
+  mergedClassification?: string
 ): Promise<boolean> => {
   try {
     console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
@@ -780,6 +783,7 @@ export const mergeSegmentsInDB = async (
         ...alreadyMergedSegment,
         name: mergedName,
         type: mergedType,
+        classification: mergedClassification,
         length: parseFloat(updatedLength.toFixed(4)),
         geometry: updatedGeometry,
         merged_segments: allMergedSegments,
@@ -806,7 +810,8 @@ export const mergeSegmentsInDB = async (
       const { mergedSegment, childSegments } = await createMergedSegment(
         selectedSegments, 
         mergedName, 
-        mergedType
+        mergedType,
+        mergedClassification
       );
 
       console.log("Created merged segment:", mergedSegment.id);

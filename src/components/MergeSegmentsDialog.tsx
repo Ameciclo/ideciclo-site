@@ -84,6 +84,8 @@ const MergeSegmentsDialog = ({
   const handleConfirm = async () => {
     setIsSubmitting(true);
     try {
+      // If mergedClassification is an empty string, pass it as is (for "Não classificada")
+      // This ensures empty string is properly passed through and not converted to undefined
       await onConfirm(mergedName, mergedType, mergedClassification);
       onOpenChange(false);
     } catch (error) {

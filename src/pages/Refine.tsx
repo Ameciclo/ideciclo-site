@@ -568,6 +568,7 @@ const Refine = () => {
       );
 
       // Use the enhanced merging logic that handles both regular and merged segments
+      // Pass mergedClassification even if it's an empty string (for "Não classificada")
       await mergeSegmentsInDB(selectedSegments, mergedName, mergedType, mergedClassification);
 
       // Refresh segments from database to get the updated structure
