@@ -80,7 +80,9 @@ const getRegionNameById = (regionId: string): string | null => {
 export const fetchStates = async (): Promise<IBGEState[]> => {
   try {
     const response = await fetchWithRetry('https://servicodados.ibge.gov.br/api/v1/localidades/estados');
-    return response.json();
+    const states = await response.json();
+    // Sort states alphabetically by name
+    return states.sort((a, b) => a.nome.localeCompare(b.nome));
   } catch (error) {
     console.error("Error fetching states:", error);
     throw new Error("Não foi possível carregar os estados. Por favor, tente novamente mais tarde.");
