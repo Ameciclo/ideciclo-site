@@ -38,6 +38,45 @@ const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 
   throw lastError;
 };
 
+// Helper function to get DF region name by ID
+const getRegionNameById = (regionId: string): string | null => {
+  const dfRegions: Record<string, string> = {
+    '5300108001': 'Plano Piloto',
+    '5300108002': 'Gama',
+    '5300108003': 'Taguatinga',
+    '5300108004': 'Brazlândia',
+    '5300108005': 'Sobradinho',
+    '5300108006': 'Planaltina',
+    '5300108007': 'Paranoá',
+    '5300108008': 'Núcleo Bandeirante',
+    '5300108009': 'Ceilândia',
+    '5300108010': 'Guará',
+    '5300108011': 'Cruzeiro',
+    '5300108012': 'Samambaia',
+    '5300108013': 'Santa Maria',
+    '5300108014': 'São Sebastião',
+    '5300108015': 'Recanto das Emas',
+    '5300108016': 'Lago Sul',
+    '5300108017': 'Riacho Fundo',
+    '5300108018': 'Lago Norte',
+    '5300108019': 'Candangolândia',
+    '5300108020': 'Águas Claras',
+    '5300108021': 'Riacho Fundo II',
+    '5300108022': 'Sudoeste/Octogonal',
+    '5300108023': 'Varjão',
+    '5300108024': 'Park Way',
+    '5300108025': 'SCIA',
+    '5300108026': 'Sobradinho II',
+    '5300108027': 'Jardim Botânico',
+    '5300108028': 'Itapoã',
+    '5300108029': 'SIA',
+    '5300108030': 'Vicente Pires',
+    '5300108031': 'Fercal'
+  };
+  
+  return dfRegions[regionId] || null;
+};
+
 export const fetchStates = async (): Promise<IBGEState[]> => {
   try {
     const response = await fetchWithRetry('https://servicodados.ibge.gov.br/api/v1/localidades/estados');
@@ -50,6 +89,46 @@ export const fetchStates = async (): Promise<IBGEState[]> => {
 
 export const fetchCities = async (stateId: string): Promise<IBGECity[]> => {
   try {
+    // Special case for Distrito Federal (DF) - stateId 53
+    if (stateId === '53') {
+      // Manually return Brasília and other Regiões Administrativas of DF
+      return [
+        { id: 5300108, nome: "Brasília" },
+        { id: 5300108001, nome: "Plano Piloto" },
+        { id: 5300108002, nome: "Gama" },
+        { id: 5300108003, nome: "Taguatinga" },
+        { id: 5300108004, nome: "Brazlândia" },
+        { id: 5300108005, nome: "Sobradinho" },
+        { id: 5300108006, nome: "Planaltina" },
+        { id: 5300108007, nome: "Paranoá" },
+        { id: 5300108008, nome: "Núcleo Bandeirante" },
+        { id: 5300108009, nome: "Ceilândia" },
+        { id: 5300108010, nome: "Guará" },
+        { id: 5300108011, nome: "Cruzeiro" },
+        { id: 5300108012, nome: "Samambaia" },
+        { id: 5300108013, nome: "Santa Maria" },
+        { id: 5300108014, nome: "São Sebastião" },
+        { id: 5300108015, nome: "Recanto das Emas" },
+        { id: 5300108016, nome: "Lago Sul" },
+        { id: 5300108017, nome: "Riacho Fundo" },
+        { id: 5300108018, nome: "Lago Norte" },
+        { id: 5300108019, nome: "Candangolândia" },
+        { id: 5300108020, nome: "Águas Claras" },
+        { id: 5300108021, nome: "Riacho Fundo II" },
+        { id: 5300108022, nome: "Sudoeste/Octogonal" },
+        { id: 5300108023, nome: "Varjão" },
+        { id: 5300108024, nome: "Park Way" },
+        { id: 5300108025, nome: "SCIA" },
+        { id: 5300108026, nome: "Sobradinho II" },
+        { id: 5300108027, nome: "Jardim Botânico" },
+        { id: 5300108028, nome: "Itapoã" },
+        { id: 5300108029, nome: "SIA" },
+        { id: 5300108030, nome: "Vicente Pires" },
+        { id: 5300108031, nome: "Fercal" }
+      ];
+    }
+    
+    // Normal case for other states
     const response = await fetchWithRetry(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateId}/municipios`);
     return response.json();
   } catch (error) {
@@ -60,6 +139,97 @@ export const fetchCities = async (stateId: string): Promise<IBGECity[]> => {
 
 export const getOverpassAreaId = async (cityId: string): Promise<number> => {
   try {
+    // Special case for Distrito Federal regions
+    if (cityId.startsWith('5300108') && cityId !== '5300108') {
+      // For RAs of DF, use the main Brasília area ID
+      // We'll use the name-based query instead of IBGE code
+      const raName = getRegionNameById(cityId);
+      if (raName) {
+        const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+        const query = `
+          [out:json][timeout:900];
+          area["name"="${raName}"]["admin_level"="9"]["is_in:state"="Distrito Federal"];
+          out ids;
+        `;
+
+        const response = await fetchWithRetry(OVERPASS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: query,
+        });
+
+        const data = await response.json();
+        const areaId = data.elements[0]?.id;
+        
+        if (areaId) {
+          return areaId;
+        }
+        
+        // Fallback to Brasília if specific RA not found
+        console.log(`RA ${raName} not found in OSM, falling back to Brasília`);
+        return await getOverpassAreaId('5300108');
+      }
+    }
+    
+    // Special case for Brasília (main city of DF)
+    if (cityId === '5300108') {
+      // Try multiple approaches to find Brasília/DF
+      const queries = [
+        // Try by name and admin level
+        `
+        [out:json][timeout:900];
+        area["name"="Distrito Federal"]["admin_level"="4"]["ISO3166-2"="BR-DF"];
+        out ids;
+        `,
+        // Try by relation ID directly (Distrito Federal relation in OSM)
+        `
+        [out:json][timeout:900];
+        area(3406826);
+        out ids;
+        `,
+        // Try by name only
+        `
+        [out:json][timeout:900];
+        area["name"="Distrito Federal"]["admin_level"="4"];
+        out ids;
+        `
+      ];
+      
+      const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+      
+      // Try each query until we find a valid area ID
+      for (const query of queries) {
+        try {
+          const response = await fetchWithRetry(OVERPASS_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: query,
+          });
+          
+          const data = await response.json();
+          const areaId = data.elements[0]?.id;
+          
+          if (areaId) {
+            console.log(`Found area ID ${areaId} for Distrito Federal`);
+            return areaId;
+          }
+        } catch (err) {
+          console.log(`Query failed, trying next approach: ${err}`);
+          continue;
+        }
+      }
+      
+      // If all queries fail, use a hardcoded area ID for Distrito Federal
+      // This is the area ID for Distrito Federal in OSM (3600003406826 + 3600000000)
+      console.log("Using hardcoded area ID for Distrito Federal");
+      return 3603406826;
+    }
+    
+    // Standard approach for other cities using IBGE code
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     const query = `
       [out:json][timeout:900];
@@ -95,8 +265,11 @@ export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassRes
     const areaId = await getOverpassAreaId(cityId);
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
+    // Increase timeout for Distrito Federal regions
+    const timeout = cityId.startsWith('53001') ? 1200 : 900;
+
     const query = `
-      [out:json][timeout:900];
+      [out:json][timeout:${timeout}];
       area(${areaId})->.searchArea;
       way ["highway"]
       ["highway"!~"^(construction|cycleway|footway|path|proposed|service|track|bus_stop|corridor|living_street|pedestrian|raceway|steps)$"]
@@ -131,9 +304,12 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     const areaId = await getOverpassAreaId(cityId);
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     
+    // Increase timeout for Distrito Federal regions
+    const timeout = cityId.startsWith('53001') ? 120 : 60;
+    
     // First query: Get all bicycle infrastructure
     const cycleQuery = `
-    [out:json][timeout:60];
+    [out:json][timeout:${timeout}];
     area(${areaId})->.searchArea;
     
     (
@@ -192,8 +368,11 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     // Second query: Get only roads that might be near cycleways
     // Use a larger buffer to ensure we get all relevant roads
     const bufferDegrees = 0.005; // Approximately 500m at the equator
+    // Increase timeout for Distrito Federal regions
+    const roadsTimeout = cityId.startsWith('53001') ? 120 : 60;
+    
     const roadsQuery = `
-    [out:json][timeout:60];
+    [out:json][timeout:${roadsTimeout}];
     (
       // Primary roads
       way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
