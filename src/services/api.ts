@@ -7,7 +7,7 @@ import {
   fetchSegmentsFromDB, 
   saveSegmentsToDB, 
   updateSegmentInDB,
-  migrateLocalStorageToDatabase,
+  clearLocalStorage,
   saveSegmentToDB,
   removeSegmentsFromDB,
   unmergeSegmentsFromDB,
@@ -1038,10 +1038,21 @@ export const unmergeSegments = async (
  */
 export const storeCityData = async (cityId: string, data: { city: Partial<City>, segments: Segment[] }): Promise<boolean> => {
   try {
-    // Store in database
-    await saveCityToDB(data.city);
-    await saveSegmentsToDB(data.segments);
+    // Store city in database
+    const cityResult = await saveCityToDB(data.city);
+    if (!cityResult) {
+      console.error("Failed to save city to database");
+      return false;
+    }
     
+    // Store segments in database
+    const segmentsResult = await saveSegmentsToDB(data.segments);
+    if (!segmentsResult) {
+      console.error("Failed to save segments to database");
+      return false;
+    }
+    
+    console.log(`Successfully stored city ${cityId} in database`);
     return true;
   } catch (error) {
     console.error("Error storing city data:", error);
@@ -1051,8 +1062,8 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
 
 export const storeSegment = async (segment: Segment): Promise<boolean> => {
   try {
-    await saveSegmentToDB(segment);
-    return true;
+    const result = await saveSegmentToDB(segment);
+    return result;
   } catch (error) {
     console.error("Error storing segment:", error);
     return false;
@@ -1084,6 +1095,9 @@ export const deleteMultipleSegments = async (segmentIds: string[]): Promise<bool
  */
 export const fetchStoredCities = async (): Promise<City[]> => {
   try {
+    // Clear any localStorage data to ensure we're only using database data
+    clearLocalStorage();
+    
     const cities = await fetchAllStoredCities();
     return cities;
   } catch (error) {
@@ -1097,15 +1111,19 @@ export const fetchStoredCities = async (): Promise<City[]> => {
  */
 export const getStoredCityData = async (cityId: string): Promise<{ city: Partial<City>, segments: Segment[] } | null> => {
   try {
-    // Try to get from database
+    // Only get data from database
     const city = await fetchCityFromDB(cityId);
     const segments = await fetchSegmentsFromDB(cityId);
     
     if (city && segments.length > 0) {
-      console.log(`Found city ${cityId} in database`);
+      console.log(`Found city ${cityId} in database with ${segments.length} segments`);
       return { city, segments };
     }
-    console.log(`No data found for city ${cityId}`);
+    
+    // Clear any localStorage data that might exist
+    localStorage.removeItem(`city_${cityId}`);
+    
+    console.log(`No data found for city ${cityId} in database`);
     return null;
   } catch (error) {
     console.error("Error getting stored city data:", error);    
@@ -1115,9 +1133,9 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
 
 export const updateSegmentName = async (cityId: string, segmentId: string, newName: string): Promise<boolean> => {
   try {
-    // Update in database
-    await updateSegmentInDB({ id: segmentId, name: newName });    
-    return true;
+    // Update in database only
+    const result = await updateSegmentInDB({ id: segmentId, name: newName });
+    return result !== null;
   } catch (error) {
     console.error("Error updating segment name:", error);    
     return false;

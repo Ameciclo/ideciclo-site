@@ -226,66 +226,86 @@ export const deleteMultipleSegments = async (segmentIds: string[]): Promise<bool
 };
 
 export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> => {
-  if (segments.length > 0) {
-    const cityId = segments[0].id_cidade;
+  if (segments.length === 0) return true; // No segments to insert
+  
+  const cityId = segments[0].id_cidade;
+  
+  try {
+    // First insert all segments into a temporary table
+    const tempTableName = 'segments_temp';
     
-    try {
-      console.log(`Deleting existing segments for city ${cityId}`);
-      const { error: deleteError } = await supabase
-        .from('segments')
-        .delete()
-        .eq('id_cidade', cityId);
+    // Map segments to the format expected by the database
+    const segmentsToInsert = segments.map(segment => ({
+      id: segment.id,
+      id_cidade: segment.id_cidade,
+      id_form: segment.id_form,
+      name: segment.name,
+      type: segment.type,
+      length: segment.length,
+      neighborhood: segment.neighborhood,
+      geometry: segment.geometry,
+      selected: segment.selected,
+      evaluated: segment.evaluated,
+      is_merged: segment.is_merged || false,
+      parent_segment_id: segment.parent_segment_id,
+      merged_segments: segment.merged_segments || [],
+      classification: segment.classification || null // Ensure null instead of undefined
+    }));
 
-      if (deleteError) {
-        console.error("Error deleting existing segments:", deleteError);
-        return false;
-      }
+    // Split segments into batches of 50 to avoid timeouts or payload size limits
+    const BATCH_SIZE = 50;
+    console.log(`Inserting ${segmentsToInsert.length} segments in batches of ${BATCH_SIZE}`);
+    
+    let allBatchesSuccessful = true;
+    
+    for (let i = 0; i < segmentsToInsert.length; i += BATCH_SIZE) {
+      const batch = segmentsToInsert.slice(i, i + BATCH_SIZE);
+      console.log(`Inserting batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(segmentsToInsert.length/BATCH_SIZE)}`);
       
-      // Map segments to the format expected by the database
-      const segmentsToInsert = segments.map(segment => ({
-        id: segment.id,
-        id_cidade: segment.id_cidade,
-        id_form: segment.id_form,
-        name: segment.name,
-        type: segment.type,
-        length: segment.length,
-        neighborhood: segment.neighborhood,
-        geometry: segment.geometry,
-        selected: segment.selected,
-        evaluated: segment.evaluated,
-        is_merged: segment.is_merged || false,
-        parent_segment_id: segment.parent_segment_id,
-        merged_segments: segment.merged_segments || [],
-        classification: segment.classification || null // Ensure null instead of undefined
-      }));
-
-      // Split segments into batches of 100 to avoid timeouts or payload size limits
-      const BATCH_SIZE = 100;
-      console.log(`Inserting ${segmentsToInsert.length} segments in batches of ${BATCH_SIZE}`);
+      // Try up to 3 times for each batch
+      let batchSuccess = false;
       
-      for (let i = 0; i < segmentsToInsert.length; i += BATCH_SIZE) {
-        const batch = segmentsToInsert.slice(i, i + BATCH_SIZE);
-        console.log(`Inserting batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(segmentsToInsert.length/BATCH_SIZE)}`);
-        
-        const { error: insertError } = await supabase
-          .from('segments')
-          .insert(batch);
+      for (let attempt = 1; attempt <= 3 && !batchSuccess; attempt++) {
+        try {
+          const { error: insertError } = await supabase
+            .from('segments')
+            .insert(batch);
 
-        if (insertError) {
-          console.error(`Error inserting batch ${Math.floor(i/BATCH_SIZE) + 1}:`, insertError);
-          return false;
+          if (!insertError) {
+            batchSuccess = true;
+          } else if (attempt < 3) {
+            console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed (attempt ${attempt}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          } else {
+            console.error(`Error inserting batch ${Math.floor(i/BATCH_SIZE) + 1} after ${attempt} attempts:`, insertError);
+          }
+        } catch (err) {
+          if (attempt < 3) {
+            console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed with exception (attempt ${attempt}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            console.error(`Exception inserting batch ${Math.floor(i/BATCH_SIZE) + 1} after ${attempt} attempts:`, err);
+          }
         }
       }
       
+      if (!batchSuccess) {
+        allBatchesSuccessful = false;
+        break;
+      }
+    }
+    
+    if (allBatchesSuccessful) {
       console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
       return true;
-    } catch (error) {
-      console.error("Unexpected error in saveSegmentsToDB:", error);
+    } else {
+      console.error(`Failed to insert all segments for city ${cityId}`);
       return false;
     }
+  } catch (error) {
+    console.error("Unexpected error in saveSegmentsToDB:", error);
+    return false;
   }
-  
-  return true; // No segments to insert
 };
 
 export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segment | null> => {
@@ -833,67 +853,33 @@ export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> =>
   }
 };
 
-export const migrateLocalStorageToDatabase = async (): Promise<boolean> => {
+export const clearLocalStorage = (): void => {
   try {
     // Get all city IDs from localStorage
     const cityKeys = Object.keys(localStorage)
-      .filter(key => key.startsWith('city_'))
-      .map(key => key.replace('city_', ''));
+      .filter(key => key.startsWith('city_'));
     
-    for (const cityId of cityKeys) {
-      const storedData = localStorage.getItem(`city_${cityId}`);
-      if (storedData) {
-        const data = JSON.parse(storedData);
-        
-        // Save city data
-        if (data.city) {
-          await saveCityToDB({
-            ...data.city,
-            // Ensure required fields are present
-            id: data.city.id || cityId,
-            name: data.city.name || "Unknown City",
-            state: data.city.state || "Unknown State"
-          });
-        }
-        
-        // Save segments data
-        if (data.segments && Array.isArray(data.segments)) {
-          await saveSegmentsToDB(data.segments);
-        }
-      }
+    // Clear all city data
+    for (const key of cityKeys) {
+      localStorage.removeItem(key);
     }
     
-    // Get evaluated segments
-    const evaluatedSegments = JSON.parse(localStorage.getItem('evaluatedSegments') || '[]');
+    // Clear evaluated segments
+    localStorage.removeItem('evaluatedSegments');
     
-    // For each evaluated segment, check if there's a form in localStorage and save it
-    for (const segmentId of evaluatedSegments) {
-      const formData = localStorage.getItem(`form_${segmentId}`);
-      if (formData) {
-        const formJson = JSON.parse(formData);
-        const cityId = localStorage.getItem('currentCityId') || '';
-        
-        await saveFormToDB({
-          id: `form-${segmentId}`,
-          segment_id: segmentId,
-          city_id: cityId,
-          researcher: formJson.researcher || '',
-          date: new Date().toISOString(),
-          street_name: formJson.streetName || '',
-          neighborhood: formJson.neighborhood || '',
-          extension: formJson.extension || 0,
-          start_point: formJson.startPoint || '',
-          end_point: formJson.endPoint || '',
-          hierarchy: formJson.hierarchy || '',
-          observations: formJson.observations || '',
-          responses: formJson
-        });
-      }
+    // Clear form data
+    const formKeys = Object.keys(localStorage)
+      .filter(key => key.startsWith('form_'));
+    
+    for (const key of formKeys) {
+      localStorage.removeItem(key);
     }
     
-    return true;
+    // Clear current city ID
+    localStorage.removeItem('currentCityId');
+    
+    console.log('All localStorage data related to cities and forms has been cleared');
   } catch (error) {
-    console.error("Error migrating data from localStorage to database:", error);
-    return false;
+    console.error("Error clearing localStorage:", error);
   }
 };
