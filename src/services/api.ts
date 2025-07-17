@@ -1026,6 +1026,7 @@ export const unmergeSegments = async (
   segmentIdsToUnmerge: string[]
 ): Promise<boolean> => {
   try {
+    console.log("Unmerging segments:", parentSegmentId, segmentIdsToUnmerge);
     return await unmergeSegmentsFromDB(parentSegmentId, segmentIdsToUnmerge);
   } catch (error) {
     console.error("Error unmerging segments:", error);

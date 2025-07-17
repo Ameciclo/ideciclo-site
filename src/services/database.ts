@@ -546,65 +546,93 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
 // New function to unmerge segments
 export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsToUnmerge: string[]): Promise<boolean> => {
   try {
-    // Move specified segments back to top-level
-    const { error: updateError } = await supabase
-      .from('segments')
-      .update({ 
-        parent_segment_id: null,
-        is_merged: false 
-      })
-      .in('id', segmentIdsToUnmerge);
-
-    if (updateError) {
-      console.error("Error unmerging segments:", updateError);
-      return false;
-    }
-
-    // Check remaining child segments
-    const { data: remainingChildren } = await supabase
+    console.log("Unmerging segments from parent:", parentSegmentId);
+    console.log("Segments to unmerge:", segmentIdsToUnmerge);
+    
+    // Try to find the parent segment directly
+    let { data: parentSegment, error: fetchError } = await supabase
       .from('segments')
       .select('*')
-      .eq('parent_segment_id', parentSegmentId);
-
-    // If no children remain or only one child remains, delete the parent
-    if (!remainingChildren || remainingChildren.length <= 1) {
-      if (remainingChildren && remainingChildren.length === 1) {
-        // Move the last child back to top-level
-        await supabase
-          .from('segments')
-          .update({ 
-            parent_segment_id: null,
-            is_merged: false 
-          })
-          .eq('id', remainingChildren[0].id);
+      .eq('id', parentSegmentId);
+    
+    // If not found, try with a wildcard search (for prefixed IDs)
+    if (fetchError || !parentSegment || parentSegment.length === 0) {
+      console.log("Parent segment not found with exact ID, trying wildcard search");
+      const { data: segments, error: wildcardError } = await supabase
+        .from('segments')
+        .select('*')
+        .like('id', `%${parentSegmentId}`);
+      
+      if (wildcardError || !segments || segments.length === 0) {
+        console.error("Parent segment not found with wildcard search:", wildcardError || "No results");
+        return false;
       }
       
-      // Delete the parent segment
-      await supabase
+      parentSegment = segments;
+    }
+    
+    // Ensure we have exactly one parent segment
+    if (parentSegment.length !== 1) {
+      console.error(`Expected 1 parent segment, found ${parentSegment.length}`);
+      return false;
+    }
+    
+    const parent = parentSegment[0];
+    console.log("Found parent segment:", parent.id);
+    
+    if (!parent.merged_segments || !Array.isArray(parent.merged_segments) || parent.merged_segments.length === 0) {
+      console.error("Parent segment has no merged segments");
+      return false;
+    }
+    
+    // 2. Filter out the segments to unmerge from the merged_segments array
+    const remainingMergedSegments = parent.merged_segments.filter(
+      (segment: any) => !segmentIdsToUnmerge.includes(segment.id)
+    );
+    
+    console.log(`Filtered merged segments: ${parent.merged_segments.length} -> ${remainingMergedSegments.length}`);
+    
+    // 3. Update the parent segment with the remaining merged segments
+    const { error: updateError } = await supabase
+      .from('segments')
+      .update({
+        merged_segments: remainingMergedSegments,
+        is_merged: remainingMergedSegments.length > 0
+      })
+      .eq('id', parent.id);
+
+    if (updateError) {
+      console.error("Error updating parent segment:", updateError);
+      return false;
+    }
+    
+    // Set parent_segment_id to null for unmerged segments
+    for (const segmentId of segmentIdsToUnmerge) {
+      // Try to find the segment with exact ID or with city prefix
+      const { error: resetError } = await supabase
+        .from('segments')
+        .update({ 
+          parent_segment_id: null,
+          is_merged: false
+        })
+        .or(`id.eq.${segmentId},id.like.%_${segmentId}`);
+      
+      if (resetError) {
+        console.error(`Error resetting parent_segment_id for segment ${segmentId}:`, resetError);
+      }
+    }
+
+    // 4. If no segments remain, delete the parent segment
+    if (remainingMergedSegments.length === 0) {
+      const { error: deleteError } = await supabase
         .from('segments')
         .delete()
-        .eq('id', parentSegmentId);
-    } else {
-      // Update the parent's merged_segments list and recalculate geometry
-      const updatedMergedSegments = remainingChildren.map(child => ({
-        id: child.id,
-        name: child.name,
-        type: child.type,
-        length: child.length,
-        originalGeometry: child.geometry
-      }));
+        .eq('id', parent.id);
 
-      const newLength = remainingChildren.reduce((total, child) => total + child.length, 0);
-      const newGeometry = mergeGeometries(remainingChildren.map(child => child.geometry));
-
-      await supabase
-        .from('segments')
-        .update({
-          merged_segments: updatedMergedSegments,
-          length: newLength,
-          geometry: newGeometry
-        })
-        .eq('id', parentSegmentId);
+      if (deleteError) {
+        console.error("Error deleting parent segment:", deleteError);
+        return false;
+      }
     }
 
     return true;
