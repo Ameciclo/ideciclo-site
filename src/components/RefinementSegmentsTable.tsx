@@ -232,9 +232,9 @@ const RefinementSegmentsTable = ({
               </TableCell>
             </TableRow>
           ) : (
-            segments.map((segment) => (
+            segments.map((segment, index) => (
               <TableRow
-                key={segment.id}
+                key={`${segment.id}-${index}`}
                 className={segment.evaluated ? "bg-muted/30" : undefined}
               >
                 <TableCell>

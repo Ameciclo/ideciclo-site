@@ -36,8 +36,13 @@ import {
   Undo2,
   Map,
   TableIcon,
+  Trash2,
 } from "lucide-react";
-import { deleteCityFromDB, updateSegmentInDB } from "@/services/database";
+import {
+  deleteCityFromDB,
+  updateSegmentInDB,
+  clearAllCaches,
+} from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
@@ -59,45 +64,33 @@ const Refine = () => {
 
   // Check if we're returning from form with preserved data
   useEffect(() => {
-    const state = location.state as { preserveData?: boolean } | undefined;
-
-    if (state?.preserveData) {
-      const storedCityId = localStorage.getItem("currentCityId");
-      if (storedCityId) {
-        const storedCityName = localStorage.getItem("currentCityName") || "";
-        const storedStateName = localStorage.getItem("currentStateName") || "";
-
-        setCityId(storedCityId);
-        setCityName(storedCityName);
-        setStateName(storedStateName);
-
-        if (step === "selection") {
-          loadStoredCityData(storedCityId);
+    const state = location.state as
+      | {
+          preserveData?: boolean;
+          cityId?: string;
+          cityName?: string;
+          stateName?: string;
         }
+      | undefined;
+
+    if (state?.preserveData && state.cityId) {
+      setCityId(state.cityId);
+      setCityName(state.cityName || "");
+      setStateName(state.stateName || "");
+
+      if (step === "selection") {
+        loadStoredCityData(state.cityId);
       }
     }
   }, [location, step]);
 
+  // These functions are no longer needed as we're using database exclusively
   const loadLocalSegments = (cityId: string): Segment[] | null => {
-    try {
-      const cachedSegmentsKey = `segments_${cityId}`;
-      const cachedSegmentsJson = localStorage.getItem(cachedSegmentsKey);
-      if (cachedSegmentsJson) {
-        return JSON.parse(cachedSegmentsJson);
-      }
-    } catch (error) {
-      console.error("Error loading segments from local storage:", error);
-    }
     return null;
   };
 
   const saveLocalSegments = (cityId: string, segments: Segment[]) => {
-    try {
-      const cachedSegmentsKey = `segments_${cityId}`;
-      localStorage.setItem(cachedSegmentsKey, JSON.stringify(segments));
-    } catch (error) {
-      console.error("Error saving segments to local storage:", error);
-    }
+    // No-op - we don't save to localStorage anymore
   };
 
   const loadStoredCityData = async (selectedCityId: string) => {
@@ -105,23 +98,15 @@ const Refine = () => {
       setIsLoading(true);
       setError(null);
 
-      // First try to load from local storage for instant response
-      const localSegments = loadLocalSegments(selectedCityId);
-      if (localSegments) {
-        setSegments(localSegments);
-      }
-
-      // Then try to load from database for fresh data
+      // Load data only from database
       const storedData = await getStoredCityData(selectedCityId);
 
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
-
-        // Update local storage with fresh data
-        saveLocalSegments(selectedCityId, storedData.segments);
-
         setStep("refinement");
+      } else {
+        setError("Nenhum dado encontrado para esta cidade");
       }
     } catch (error) {
       console.error("Erro ao carregar dados armazenados:", error);
@@ -171,8 +156,7 @@ const Refine = () => {
 
       setSegments(enhancedSegments);
 
-      // Update local storage
-      saveLocalSegments(cityId, enhancedSegments);
+      // No need to update localStorage anymore
 
       // Store data in database
       await storeCityData(cityId, {
@@ -213,28 +197,23 @@ const Refine = () => {
       setCityId(selectedCityId);
       setCityName(selectedCityName);
       setStateName(selectedStateName);
-      
-      console.log(`Loading city data for ${selectedCityName}/${selectedStateName} (ID: ${selectedCityId})`);
 
-      // First try to load from local storage for instant response
-      const localSegments = loadLocalSegments(selectedCityId);
-      if (localSegments) {
-        console.log(`Found ${localSegments.length} segments in local storage`);
-        setSegments(localSegments);
-      }
+      console.log(
+        `Loading city data for ${selectedCityName}/${selectedStateName} (ID: ${selectedCityId})`
+      );
 
       // Check if data is in database before making API calls
-      console.log("Checking for data in database...");
+      console.log("Checking for data in database...", selectedCityId);
       const storedData = await getStoredCityData(selectedCityId);
-
       if (storedData) {
-        console.log(`Found city data in database with ${storedData.segments.length} segments`);
+        console.log(
+          `Found city data in database with ${storedData.segments.length} segments`
+        );
         setCity(storedData.city);
         const enhancedSegments = [...storedData.segments];
         setSegments(enhancedSegments);
 
-        // Update local storage with fresh data
-        saveLocalSegments(selectedCityId, enhancedSegments);
+        // No need to update localStorage anymore
 
         toast({
           title: "Dados carregados",
@@ -261,55 +240,65 @@ const Refine = () => {
 
         // Fetch segments with chunking for large cities
         console.log("Fetching cycling infrastructure data...");
-        
+
         try {
           // Show a progress toast for large cities
           const progressToast = toast({
             title: "Carregando dados",
-            description: "Buscando infraestrutura cicloviária. Isso pode levar alguns minutos para cidades grandes.",
+            description:
+              "Buscando infraestrutura cicloviária. Isso pode levar alguns minutos para cidades grandes.",
             duration: 10000,
           });
-          
+
           const waysData = await fetchCityWays(selectedCityId);
-          console.log(`Received ${waysData.elements?.length || 0} elements from API`);
-          
+          console.log(
+            `Received ${waysData.elements?.length || 0} elements from API`
+          );
+
           if (!waysData.elements || waysData.elements.length === 0) {
-            throw new Error("Nenhum dado de infraestrutura cicloviária encontrado");
+            throw new Error(
+              "Nenhum dado de infraestrutura cicloviária encontrado"
+            );
           }
-          
+
           // Process segments in chunks to avoid memory issues
           const CHUNK_SIZE = 500;
           let allSegments: Segment[] = [];
-          
+
           // Convert segments in chunks
           console.log("Converting segments in chunks...");
           for (let i = 0; i < waysData.elements.length; i += CHUNK_SIZE) {
             const chunk = {
-              elements: waysData.elements.slice(i, i + CHUNK_SIZE)
+              elements: waysData.elements.slice(i, i + CHUNK_SIZE),
             };
-            
+
             const segmentChunk = convertToSegments(chunk, selectedCityId);
             allSegments = [...allSegments, ...segmentChunk];
-            
+
             // Update progress every chunk
-            console.log(`Processed ${Math.min(i + CHUNK_SIZE, waysData.elements.length)} of ${waysData.elements.length} elements`);
+            console.log(
+              `Processed ${Math.min(
+                i + CHUNK_SIZE,
+                waysData.elements.length
+              )} of ${waysData.elements.length} elements`
+            );
           }
-          
+
           console.log(`Converted to ${allSegments.length} segments`);
           setSegments(allSegments);
-          
-          // Store data in chunks to avoid transaction size limits
-          console.log("Saving segments to local storage");
-          saveLocalSegments(selectedCityId, allSegments);
-          
-          console.log(`Storing city data in database (${allSegments.length} segments)`);
+
+          // No need to save to localStorage anymore
+
+          console.log(
+            `Storing city data in database (${allSegments.length} segments)`
+          );
           try {
             // Store city data first
             const result = await storeCityData(selectedCityId, {
               city: newCity,
               segments: allSegments,
             });
-            
+
             if (result) {
               console.log("Successfully stored city data in database");
             } else {
@@ -328,14 +317,18 @@ const Refine = () => {
               variant: "warning",
             });
           }
-          
+
           toast({
             title: "Sucesso",
             description: `Dados de ${selectedCityName}/${selectedStateName} carregados com sucesso!`,
           });
         } catch (apiError) {
           console.error("Error fetching or processing API data:", apiError);
-          throw new Error(`Falha ao buscar dados da API: ${apiError instanceof Error ? apiError.message : 'Erro desconhecido'}`);
+          throw new Error(
+            `Falha ao buscar dados da API: ${
+              apiError instanceof Error ? apiError.message : "Erro desconhecido"
+            }`
+          );
         }
       }
 
@@ -386,11 +379,7 @@ const Refine = () => {
         )
       );
 
-      // Update local storage
-      const updatedSegments = segments.map((seg) =>
-        seg.id === segmentId ? { ...seg, name: newName } : seg
-      );
-      saveLocalSegments(cityId, updatedSegments);
+      // No need to update localStorage anymore
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -400,7 +389,7 @@ const Refine = () => {
       });
     }
   };
-  
+
   const handleUpdateSegmentClassification = async (
     segmentId: string,
     classification: string
@@ -416,12 +405,8 @@ const Refine = () => {
         )
       );
 
-      // Update local storage
-      const updatedSegments = segments.map((seg) =>
-        seg.id === segmentId ? { ...seg, classification } : seg
-      );
-      saveLocalSegments(cityId, updatedSegments);
-      
+      // No need to update localStorage anymore
+
       toast({
         title: "Classificação atualizada",
         description: "A classificação do segmento foi atualizada com sucesso.",
@@ -435,7 +420,7 @@ const Refine = () => {
       });
     }
   };
-  
+
   const handleUpdateSegmentType = async (
     segmentId: string,
     type: SegmentType
@@ -451,12 +436,8 @@ const Refine = () => {
         )
       );
 
-      // Update local storage
-      const updatedSegments = segments.map((seg) =>
-        seg.id === segmentId ? { ...seg, type } : seg
-      );
-      saveLocalSegments(cityId, updatedSegments);
-      
+      // No need to update localStorage anymore
+
       toast({
         title: "Tipo atualizado",
         description: "O tipo do segmento foi atualizado com sucesso.",
@@ -482,8 +463,7 @@ const Refine = () => {
       );
       setSegments(updatedSegments);
 
-      // Update local storage
-      saveLocalSegments(cityId, updatedSegments);
+      // No need to update localStorage anymore
 
       toast({
         title: "Segmento removido",
@@ -505,7 +485,7 @@ const Refine = () => {
       segment.id === id ? { ...segment, selected } : segment
     );
     setSegments(updatedSegments);
-    saveLocalSegments(cityId, updatedSegments);
+    // No need to update localStorage anymore
   };
 
   const handleSelectAllSegments = (segmentIds: string[], selected: boolean) => {
@@ -513,7 +493,7 @@ const Refine = () => {
       segmentIds.includes(segment.id) ? { ...segment, selected } : segment
     );
     setSegments(updatedSegments);
-    saveLocalSegments(cityId, updatedSegments);
+    // No need to update localStorage anymore
   };
 
   const handleMergeButtonClick = () =>
@@ -522,24 +502,23 @@ const Refine = () => {
         setMergeDialogOpen(true);
       }
     });
-    
+
   const handleDeleteMultipleSegments = async () => {
     if (selectedSegmentsCount === 0) return;
-    
+
     const selectedSegmentIds = segments
-      .filter(s => s.selected)
-      .map(s => s.id);
-      
+      .filter((s) => s.selected)
+      .map((s) => s.id);
+
     try {
       await deleteMultipleSegments(selectedSegmentIds);
-      
+
       // Update the UI by removing the deleted segments
-      const updatedSegments = segments.filter(segment => !segment.selected);
+      const updatedSegments = segments.filter((segment) => !segment.selected);
       setSegments(updatedSegments);
-      
-      // Update local storage
-      saveLocalSegments(cityId, updatedSegments);
-      
+
+      // No need to update localStorage anymore
+
       toast({
         title: "Segmentos removidos",
         description: `${selectedSegmentIds.length} segmentos foram removidos com sucesso.`,
@@ -570,7 +549,12 @@ const Refine = () => {
 
       // Use the enhanced merging logic that handles both regular and merged segments
       // Pass mergedClassification even if it's an empty string (for "Não classificada")
-      await mergeSegmentsInDB(selectedSegments, mergedName, mergedType, mergedClassification);
+      await mergeSegmentsInDB(
+        selectedSegments,
+        mergedName,
+        mergedType,
+        mergedClassification
+      );
 
       // Refresh segments from database to get the updated structure
       const storedData = await getStoredCityData(cityId);
@@ -579,15 +563,15 @@ const Refine = () => {
           "Refreshed segments after merge:",
           storedData.segments.length
         );
-        
+
         // Simply use the segments from the database and reset selection state
-        const updatedSegments = storedData.segments.map(segment => ({
+        const updatedSegments = storedData.segments.map((segment) => ({
           ...segment,
-          selected: false // Reset selection state after merge
+          selected: false, // Reset selection state after merge
         }));
-        
+
         setSegments(updatedSegments);
-        saveLocalSegments(cityId, updatedSegments);
+        // No need to update localStorage anymore
       }
 
       toast({
@@ -620,15 +604,15 @@ const Refine = () => {
           "Refreshed segments after unmerge:",
           storedData.segments.length
         );
-        
+
         // Simply use the segments from the database and reset selection state
-        const updatedSegments = storedData.segments.map(segment => ({
+        const updatedSegments = storedData.segments.map((segment) => ({
           ...segment,
-          selected: false // Reset selection state after unmerge
+          selected: false, // Reset selection state after unmerge
         }));
-        
+
         setSegments(updatedSegments);
-        saveLocalSegments(cityId, updatedSegments);
+        // No need to update localStorage anymore
       }
 
       toast({
@@ -655,6 +639,18 @@ const Refine = () => {
           Refinar Dados de Infraestrutura Cicloviária
         </h2>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setIsLoading(true);
+              await clearAllCaches();
+              window.location.reload(); // Force a full page reload
+            }}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Limpar Cache
+          </Button>
           <Button variant="outline" onClick={handleBackToStart}>
             Voltar ao Início
           </Button>
@@ -698,7 +694,7 @@ const Refine = () => {
               <CitySelection onCitySelected={handleCitySelected} />
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Cidades em Refinamento</CardTitle>
@@ -757,7 +753,9 @@ const Refine = () => {
                 onUpdateSegmentName={handleUpdateSegmentName}
                 onDeleteSegment={handleDeleteSegment}
                 onUnmergeSegments={handleUnmergeSegments}
-                onUpdateSegmentClassification={handleUpdateSegmentClassification}
+                onUpdateSegmentClassification={
+                  handleUpdateSegmentClassification
+                }
                 onUpdateSegmentType={handleUpdateSegmentType}
               />
 

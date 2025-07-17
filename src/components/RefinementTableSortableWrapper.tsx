@@ -60,7 +60,14 @@ export const RefinementTableSortableWrapper = ({
 
   // Filter and sort segments - show all segments that are not children of merged segments
   const filteredAndSortedSegments = () => {
-    return [...initialSegments]
+    // First, deduplicate segments by ID
+    const uniqueSegments = Array.from(
+      new Map(initialSegments.map(segment => [segment.id, segment])).values()
+    );
+    
+    console.log(`Filtered ${initialSegments.length - uniqueSegments.length} duplicate segments`);
+    
+    return uniqueSegments
       .filter((segment) => {
         // Only show segments that are either not merged or are the parent merged segment
         // Hide child segments (segments with parent_segment_id)

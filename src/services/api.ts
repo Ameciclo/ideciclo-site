@@ -1113,8 +1113,9 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
   try {
     // Only get data from database
     const city = await fetchCityFromDB(cityId);
+    console.log(`Fetched city ${cityId} from database`);
     const segments = await fetchSegmentsFromDB(cityId);
-    
+    console.log(segments.length);
     if (city && segments.length > 0) {
       console.log(`Found city ${cityId} in database with ${segments.length} segments`);
       return { city, segments };
