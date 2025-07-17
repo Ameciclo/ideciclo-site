@@ -12,42 +12,68 @@ import {
 const Index = () => {
   return (
     <div className="container py-8">
+      <div className="w-full mb-8 flex justify-center">
+        <a href="/manual_ideciclo.pdf" download>
+          <img src="/ideciclo_logo.png" alt="IDECICLO Banner" className="max-h-48 cursor-pointer" />
+        </a>
+      </div>
+      
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">
           Sistema de Avaliação IDECICLO
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Avalie a qualidade da infraestrutura cicloviária da sua cidade e
-          contribua para a melhoria da mobilidade urbana.
+        <p className="text-gray-700 max-w-3xl mx-auto mb-4">
+          Esta plataforma digital foi desenvolvida para facilitar o processo de coleta, análise e visualização dos dados do IDECICLO. Através dela, pesquisadores podem registrar avaliações de campo, gestores podem acessar relatórios e cidadãos podem consultar informações sobre a qualidade da infraestrutura cicloviária em suas cidades.
+        </p>
+        <p className="text-gray-700 max-w-3xl mx-auto">
+          O sistema permite o gerenciamento completo do ciclo de avaliação, desde o mapeamento inicial dos segmentos até a geração de relatórios finais, contribuindo para a transparência e eficiência do processo de avaliação.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         <Card>
           <CardHeader>
-            <CardTitle>Avaliação</CardTitle>
+            <CardTitle>Manual</CardTitle>
             <CardDescription>
-              Avalie os segmentos cicloviários da sua cidade
+              Documentação do IDECICLO
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p>
-              Selecione uma cidade e avalie os segmentos cicloviários para
-              contribuir com o índice IDECICLO.
+              O manual, lançado em agosto de 2025, está disponível para download gratuito.
             </p>
           </CardContent>
           <CardFooter>
-            <Link to="/avaliacao" className="w-full">
-              <Button className="w-full">Avaliar Segmentos</Button>
-            </Link>
+            <a href="/manual_ideciclo.pdf" download className="w-full">
+              <Button className="w-full">Baixar Manual</Button>
+            </a>
           </CardFooter>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Ranking</CardTitle>
+            <CardTitle>Formulário</CardTitle>
             <CardDescription>
-              Veja o ranking das cidades avaliadas
+              Avaliação de vias cicláveis
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>
+              O formulário para avaliar as vias está disponível para download.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <a href="/manual_ideciclo.pdf" download className="w-full">
+              <Button className="w-full">Baixar Formulário</Button>
+            </a>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Cálculo IDECICLO</CardTitle>
+            <CardDescription>
+              Cálculo do IDECICLO
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -59,26 +85,6 @@ const Index = () => {
           <CardFooter>
             <Link to="/ranking" className="w-full">
               <Button className="w-full">Ver Ranking</Button>
-            </Link>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Aprimorar Dados</CardTitle>
-            <CardDescription>
-              Refine os dados da infraestrutura cicloviária
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>
-              Selecione uma cidade e refine os dados da infraestrutura
-              cicloviária.
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Link to="/avaliar" className="w-full">
-              <Button className="w-full">Aprimorar Dados</Button>
             </Link>
           </CardFooter>
         </Card>

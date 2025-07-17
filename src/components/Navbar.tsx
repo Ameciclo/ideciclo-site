@@ -50,7 +50,7 @@ const Navbar = () => {
           <div className="flex flex-1 items-center justify-between">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="font-bold text-xl text-blue-600">
-                IDECICLO
+                <img src="/ideciclo_logo.png" alt="IDECICLO" className="h-8" />
               </Link>
             </div>
 
