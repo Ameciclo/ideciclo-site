@@ -11,12 +11,13 @@ import {
 
 const Index = () => {
   return (
-    <div className="container py-8">
-      <div className="w-full mb-8 flex justify-center">
-        <a href="/manual_ideciclo.pdf" download>
-          <img src="/ideciclo_logo.png" alt="IDECICLO Banner" className="max-h-48 cursor-pointer" />
+    <>
+      <div className="w-full mb-8 flex justify-center bg-blue-50">
+        <a href="/manual_ideciclo.pdf" download className="w-full">
+          <img src="/ideciclo_logo.png" alt="IDECICLO Banner" className="w-full max-h-48 object-contain cursor-pointer" />
         </a>
       </div>
+      <div className="container py-8">
       
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">
@@ -105,6 +106,7 @@ const Index = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
