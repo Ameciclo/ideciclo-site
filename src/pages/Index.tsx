@@ -13,10 +13,12 @@ const Index = () => {
   return (
     <div className="container py-8">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Sistema de Avaliação IDECICLO</h1>
+        <h1 className="text-4xl font-bold mb-4">
+          Sistema de Avaliação IDECICLO
+        </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Avalie a qualidade da infraestrutura cicloviária da sua cidade e contribua para
-          a melhoria da mobilidade urbana.
+          Avalie a qualidade da infraestrutura cicloviária da sua cidade e
+          contribua para a melhoria da mobilidade urbana.
         </p>
       </div>
 
@@ -30,7 +32,8 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <p>
-              Selecione uma cidade e avalie os segmentos cicloviários para contribuir com o índice IDECICLO.
+              Selecione uma cidade e avalie os segmentos cicloviários para
+              contribuir com o índice IDECICLO.
             </p>
           </CardContent>
           <CardFooter>
@@ -49,7 +52,8 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <p>
-              Confira o ranking das cidades brasileiras de acordo com o índice IDECICLO.
+              Confira o ranking das cidades brasileiras de acordo com o índice
+              IDECICLO.
             </p>
           </CardContent>
           <CardFooter>
@@ -61,19 +65,20 @@ const Index = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Refinar Dados</CardTitle>
+            <CardTitle>Aprimorar Dados</CardTitle>
             <CardDescription>
               Refine os dados da infraestrutura cicloviária
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p>
-              Selecione uma cidade e refine os dados da infraestrutura cicloviária.
+              Selecione uma cidade e refine os dados da infraestrutura
+              cicloviária.
             </p>
           </CardContent>
           <CardFooter>
             <Link to="/avaliar" className="w-full">
-              <Button className="w-full">Refinar Dados</Button>
+              <Button className="w-full">Aprimorar Dados</Button>
             </Link>
           </CardFooter>
         </Card>
@@ -82,9 +87,10 @@ const Index = () => {
       <div className="bg-gray-50 p-8 rounded-lg">
         <h2 className="text-2xl font-bold mb-4">Sobre o IDECICLO</h2>
         <p className="mb-4">
-          O IDECICLO é um índice de desenvolvimento cicloviário que avalia a qualidade da infraestrutura 
-          para bicicletas nas cidades brasileiras. Desenvolvido por especialistas em mobilidade urbana, 
-          o índice utiliza uma metodologia padronizada para avaliar segmentos cicloviários.
+          O IDECICLO é um índice de desenvolvimento cicloviário que avalia a
+          qualidade da infraestrutura para bicicletas nas cidades brasileiras.
+          Desenvolvido por especialistas em mobilidade urbana, o índice utiliza
+          uma metodologia padronizada para avaliar segmentos cicloviários.
         </p>
         <div className="flex justify-end">
           <Link to="/sobre">

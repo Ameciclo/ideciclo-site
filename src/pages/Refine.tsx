@@ -636,7 +636,7 @@ const Refine = () => {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">
-          Refinar Dados de Infraestrutura Cicloviária
+          Aprimorar Dados de Infraestrutura Cicloviária
         </h2>
         <div className="flex gap-2">
           <Button
@@ -687,7 +687,7 @@ const Refine = () => {
             <CardHeader>
               <CardTitle>Selecionar Cidade</CardTitle>
               <CardDescription>
-                Escolha o estado e a cidade para refinar os dados
+                Escolha o estado e a cidade para aprimorar os dados
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -697,9 +697,9 @@ const Refine = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Cidades em Refinamento</CardTitle>
+              <CardTitle>Cidades em Aprimoramento</CardTitle>
               <CardDescription>
-                Acesse cidades que já estão em processo de refinamento
+                Acesse cidades que já estão em processo de aprimoramento
               </CardDescription>
             </CardHeader>
             <CardContent>

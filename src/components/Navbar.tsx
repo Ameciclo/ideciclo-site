@@ -1,11 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Navbar = () => {
   const location = useLocation();
@@ -17,7 +13,7 @@ const Navbar = () => {
 
   const navLinks = [
     { path: "/", label: "Início" },
-    { path: "/avaliar", label: "Refinar" },
+    { path: "/avaliar", label: "Aprimoramento" },
     { path: "/avaliacao", label: "Avaliação" },
     { path: "/ranking", label: "Ranking" },
     { path: "/sobre", label: "Sobre" },
@@ -57,12 +53,12 @@ const Navbar = () => {
                 IDECICLO
               </Link>
             </div>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {renderNavLinks()}
             </div>
-            
+
             {/* Mobile Hamburger Menu */}
             {isMobile && (
               <Sheet>
@@ -77,9 +73,7 @@ const Navbar = () => {
                   </button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-[250px] sm:w-[300px]">
-                  <div className="py-4 space-y-1">
-                    {renderNavLinks(true)}
-                  </div>
+                  <div className="py-4 space-y-1">{renderNavLinks(true)}</div>
                 </SheetContent>
               </Sheet>
             )}
