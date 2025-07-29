@@ -45,6 +45,10 @@ export const RefinementTableSortableWrapper = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
+  // Splitter state
+  const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
   const toggleSortDirection = () => {
     setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   };
@@ -151,6 +155,36 @@ export const RefinementTableSortableWrapper = ({
     setCurrentPage(1);
   }, [initialSegments.length]);
 
+  // Splitter handlers
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    const container = document.getElementById('splitter-container');
+    if (!container) return;
+    
+    const rect = container.getBoundingClientRect();
+    const newLeftWidth = ((e.clientX - rect.left) / rect.width) * 100;
+    setLeftWidth(Math.max(20, Math.min(80, newLeftWidth))); // Limit between 20% and 80%
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
+
   return (
     <div>
       <SegmentsFilters
@@ -170,21 +204,29 @@ export const RefinementTableSortableWrapper = ({
         showRatingFilter={false}
         showClassificationFilter={true}
       />
-      <div className="flex gap-8">
-        <RefinementSegmentsTable
-          segments={currentItems}
-          sortDirection={sortDirection}
-          onToggleSortDirection={toggleSortDirection}
-          onSelectSegment={onSelectSegment}
-          onSelectAllSegments={onSelectAllSegments}
-          selectedSegments={selectedSegments}
-          onUpdateSegmentName={onUpdateSegmentName}
-          onDeleteSegment={onDeleteSegment}
-          onUnmergeSegments={onUnmergeSegments}
-          onUpdateSegmentClassification={onUpdateSegmentClassification}
-          onUpdateSegmentType={onUpdateSegmentType}
+      <div id="splitter-container" className="flex">
+        <div style={{ width: `${leftWidth}%` }} className="pr-2">
+          <RefinementSegmentsTable
+            segments={currentItems}
+            sortDirection={sortDirection}
+            onToggleSortDirection={toggleSortDirection}
+            onSelectSegment={onSelectSegment}
+            onSelectAllSegments={onSelectAllSegments}
+            selectedSegments={selectedSegments}
+            onUpdateSegmentName={onUpdateSegmentName}
+            onDeleteSegment={onDeleteSegment}
+            onUnmergeSegments={onUnmergeSegments}
+            onUpdateSegmentClassification={onUpdateSegmentClassification}
+            onUpdateSegmentType={onUpdateSegmentType}
+          />
+        </div>
+        <div 
+          className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize flex-shrink-0"
+          onMouseDown={handleMouseDown}
         />
-        <CityMap segments={selectedSegments} className="flex-grow" />
+        <div style={{ width: `${100 - leftWidth}%` }} className="pl-2">
+          <CityMap segments={selectedSegments} className="w-full h-[500px]" />
+        </div>
       </div>
 
       <SegmentsPagination
