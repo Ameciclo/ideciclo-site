@@ -14,55 +14,63 @@ import { useEffect } from "react";
 interface CityMapProps {
   segments: Segment[];
   className?: string;
+  containerWidth?: number; // Add this to trigger re-render when splitter changes
 }
 
 interface FitBoundsProps {
   segments: Segment[];
+  containerWidth?: number;
 }
 
-const FitBounds = ({ segments }: FitBoundsProps) => {
+const FitBounds = ({ segments, containerWidth }: FitBoundsProps) => {
   const map = useMap();
 
   useEffect(() => {
-    const allCoords: LatLngExpression[] = [];
+    const timer = setTimeout(() => {
+      map.invalidateSize(); // Force map to recalculate its size
+      
+      const allCoords: LatLngExpression[] = [];
 
-    // Filter out child segments for map display - only show parent merged segments or non-merged segments
-    const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+      // Filter out child segments for map display - only show parent merged segments or non-merged segments
+      const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
 
-    visibleSegments.forEach((segment) => {
-      const geom = segment.geometry;
+      visibleSegments.forEach((segment) => {
+        const geom = segment.geometry;
 
-      if (geom.type === "LineString") {
-        allCoords.push(
-          ...geom.coordinates.map(
-            (coord) => [coord[1], coord[0]] as LatLngExpression
-          )
-        );
-      } else if (geom.type === "MultiLineString") {
-        geom.coordinates.forEach((line) => {
+        if (geom.type === "LineString") {
           allCoords.push(
-            ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+            ...geom.coordinates.map(
+              (coord) => [coord[1], coord[0]] as LatLngExpression
+            )
           );
-        });
-      } else if (geom.type === "Polygon") {
-        geom.coordinates.forEach((ring) => {
-          allCoords.push(
-            ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
-          );
-        });
+        } else if (geom.type === "MultiLineString") {
+          geom.coordinates.forEach((line) => {
+            allCoords.push(
+              ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+            );
+          });
+        } else if (geom.type === "Polygon") {
+          geom.coordinates.forEach((ring) => {
+            allCoords.push(
+              ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+            );
+          });
+        }
+      });
+
+      if (allCoords.length > 0) {
+        const bounds = new LatLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [20, 20] });
       }
-    });
+    }, 100); // Small delay to ensure DOM has updated
 
-    if (allCoords.length > 0) {
-      const bounds = new LatLngBounds(allCoords);
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
-  }, [segments, map]);
+    return () => clearTimeout(timer);
+  }, [segments, containerWidth, map]);
 
   return null;
 };
 
-const CityMap = ({ segments, className }: CityMapProps) => {
+const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
   const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
 
   // Filter out child segments for map display - only show parent merged segments or non-merged segments
@@ -141,7 +149,7 @@ const CityMap = ({ segments, className }: CityMapProps) => {
           }
         })}
 
-        <FitBounds segments={segments} />
+        <FitBounds segments={segments} containerWidth={containerWidth} />
       </MapContainer>
     </div>
   );

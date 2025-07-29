@@ -226,7 +226,7 @@ export const RefinementTableSortableWrapper = ({
           onMouseDown={handleMouseDown}
         />
         <div style={{ width: `${100 - leftWidth}%` }} className="pl-2">
-          <CityMap segments={selectedSegments} className="w-full h-[500px]" />
+          <CityMap segments={selectedSegments} className="w-full h-[500px]" containerWidth={100 - leftWidth} />
         </div>
       </div>
 
