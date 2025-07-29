@@ -634,27 +634,22 @@ const Refine = () => {
 
   return (
     <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">
           Aprimorar Dados de Infraestrutura Cicloviária
         </h2>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              setIsLoading(true);
-              await clearAllCaches();
-              window.location.reload(); // Force a full page reload
-            }}
-            className="flex items-center gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Limpar Cache
-          </Button>
-          <Button variant="outline" onClick={handleBackToStart}>
-            Voltar ao Início
-          </Button>
-        </div>
+        <Button variant="outline" onClick={handleBackToStart}>
+          Voltar ao Início
+        </Button>
+      </div>
+      
+      <div className="mb-6 text-gray-700">
+        <p className="mb-2">
+          Ajuste e complemente os dados já avaliados de uma cidade.
+        </p>
+        <p>
+          Ajude a manter as informações atualizadas e mais precisas sobre a infraestrutura cicloviária das cidades.
+        </p>
       </div>
 
       {error && (
