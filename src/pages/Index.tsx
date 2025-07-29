@@ -12,12 +12,12 @@ import {
 const Index = () => {
   return (
     <>
-      <div className="w-full mb-8 flex justify-center bg-blue-50">
+      <div className="w-full mb-8 flex justify-center bg-[#5050AA80]">
         <a href="/manual_ideciclo.pdf" download className="w-full">
           <img
             src="/ideciclo_logo.png"
             alt="IDECICLO Banner"
-            className="w-full max-h-48 object-contain cursor-pointer"
+            className="w-full max-h-72 object-contain cursor-pointer"
           />
         </a>
       </div>

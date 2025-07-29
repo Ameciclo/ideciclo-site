@@ -46,11 +46,11 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-sm">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-20">
           <div className="flex flex-1 items-center justify-between">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="font-bold text-xl text-blue-600">
-                <img src="/ideciclo_logo.png" alt="IDECICLO" className="h-8" />
+                <img src="/ideciclo_logo.png" alt="IDECICLO" className="h-16" />
               </Link>
             </div>
 
