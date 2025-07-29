@@ -204,7 +204,8 @@ export const RefinementTableSortableWrapper = ({
         showRatingFilter={false}
         showClassificationFilter={true}
       />
-      <div id="splitter-container" className="flex">
+      {/* Desktop layout with splitter */}
+      <div id="splitter-container" className="hidden lg:flex">
         <div style={{ width: `${leftWidth}%` }} className="pr-2">
           <RefinementSegmentsTable
             segments={currentItems}
@@ -227,6 +228,24 @@ export const RefinementTableSortableWrapper = ({
         <div style={{ width: `${100 - leftWidth}%` }} className="pl-2">
           <CityMap segments={selectedSegments} className="w-full h-[500px]" />
         </div>
+      </div>
+
+      {/* Mobile/tablet layout - stacked vertically */}
+      <div className="lg:hidden space-y-4">
+        <RefinementSegmentsTable
+          segments={currentItems}
+          sortDirection={sortDirection}
+          onToggleSortDirection={toggleSortDirection}
+          onSelectSegment={onSelectSegment}
+          onSelectAllSegments={onSelectAllSegments}
+          selectedSegments={selectedSegments}
+          onUpdateSegmentName={onUpdateSegmentName}
+          onDeleteSegment={onDeleteSegment}
+          onUnmergeSegments={onUnmergeSegments}
+          onUpdateSegmentClassification={onUpdateSegmentClassification}
+          onUpdateSegmentType={onUpdateSegmentType}
+        />
+        <CityMap segments={selectedSegments} className="w-full h-[400px]" />
       </div>
 
       <SegmentsPagination
