@@ -22,7 +22,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import EvaluationTableSortableWrapper from "@/components/EvaluationTableSortableWrapper";
-import { fetchUniqueStatesFromDB, fetchCitiesByState, fetchSegmentsByCity } from "@/services/database";
+import {
+  fetchUniqueStatesFromDB,
+  fetchCitiesByState,
+  fetchSegmentsByCity,
+} from "@/services/database";
 
 const Avaliacao = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -42,11 +46,11 @@ const Avaliacao = () => {
   useEffect(() => {
     const savedState = sessionStorage.getItem("selectedState");
     const savedCityId = sessionStorage.getItem("selectedCityId");
-    
+
     if (savedState) {
       setSelectedState(savedState);
     }
-    
+
     if (savedCityId) {
       setSelectedCityId(savedCityId);
     }
@@ -69,14 +73,14 @@ const Avaliacao = () => {
         setIsLoading(true);
         try {
           const data = await fetchCitiesByState(selectedState);
-          
+
           if (data.length === 0) {
             setError("Nenhuma cidade encontrada para este estado");
             return;
           }
 
           setCities(data);
-          
+
           // If we have a saved city ID, load its segments after cities are loaded
           const savedCityId = sessionStorage.getItem("selectedCityId");
           if (savedCityId) {
@@ -103,7 +107,7 @@ const Avaliacao = () => {
     setSelectedCityId("");
     setSelectedCity(null);
     setSegments([]);
-    
+
     // Save to sessionStorage
     sessionStorage.setItem("selectedState", value);
     sessionStorage.removeItem("selectedCityId");
@@ -116,7 +120,7 @@ const Avaliacao = () => {
 
     // Save to sessionStorage
     sessionStorage.setItem("selectedCityId", value);
-    
+
     if (value) {
       fetchSegmentsForCity(value);
     } else {
@@ -166,9 +170,9 @@ const Avaliacao = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle>Selecionar Cidade</CardTitle>
+              <CardTitle>Selecionar cidade</CardTitle>
               <CardDescription>
-                Escolha o estado e a cidade para visualizar os segmentos
+                Selecione uma cidade e avalie os trechos cicloviários
               </CardDescription>
             </div>
             <Button
@@ -246,7 +250,7 @@ const Avaliacao = () => {
                     {selectedCity.name}, {selectedCity.state}
                   </CardTitle>
                   <CardDescription>
-                    Segmentos disponíveis para avaliação
+                    Trechos disponíveis para avaliação
                   </CardDescription>
                 </div>
               </div>

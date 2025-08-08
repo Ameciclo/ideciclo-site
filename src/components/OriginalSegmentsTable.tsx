@@ -42,7 +42,7 @@ const OriginalSegmentsTable = ({
     <>
       <div className="rounded-md border">
         <Table>
-          <TableCaption>Lista de segmentos cicloviários</TableCaption>
+          <TableCaption>Lista de trechos cicloviários</TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead className="flex items-center gap-2">
@@ -101,12 +101,15 @@ const OriginalSegmentsTable = ({
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" asChild>
                       <a
-                        href={segment.evaluated && segment.id_form 
-                          ? `/view-evaluation/${segment.id_form}` 
-                          : `/avaliar/formulario/${segment.id}`
+                        href={
+                          segment.evaluated && segment.id_form
+                            ? `/view-evaluation/${segment.id_form}`
+                            : `/avaliar/formulario/${segment.id}`
                         }
                       >
-                        {segment.evaluated && segment.id_form ? "Ver Avaliação" : "Avaliar"}
+                        {segment.evaluated && segment.id_form
+                          ? "Ver Avaliação"
+                          : "Avaliar"}
                       </a>
                     </Button>
                   </TableCell>

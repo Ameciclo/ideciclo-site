@@ -58,7 +58,7 @@ const About = () => {
         <div className="space-y-4">
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="mt-4">
-              <Card>
+              <Card className="hover:bg-purple-50 transition-colors duration-300">
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <h3 className="text-xl font-semibold text-left">
                     Por que o IDECICLO é diferente?
@@ -87,7 +87,7 @@ const About = () => {
             </AccordionItem>
 
             <AccordionItem value="item-2" className="mt-4">
-              <Card>
+              <Card className="hover:bg-purple-50 transition-colors duration-300">
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <h3 className="text-xl font-semibold text-left">
                     Para quem é o IDECICLO?
@@ -145,7 +145,7 @@ const About = () => {
             </AccordionItem>
 
             <AccordionItem value="item-3" className="mt-4">
-              <Card>
+              <Card className="hover:bg-purple-50 transition-colors duration-300">
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <h3 className="text-xl font-semibold text-left">
                     Como funciona?
@@ -168,107 +168,6 @@ const About = () => {
                       </Button>
                     </div>
 
-                    <h4 className="text-lg font-medium mt-6 mb-3">
-                      A. PLANEJAMENTO CICLOVIÁRIO
-                    </h4>
-                    <ul className="list-disc pl-6 mb-4">
-                      <li className="mb-1">
-                        A.1. Adequação da tipologia de tratamento em relação à
-                        velocidade da via e sua respectiva hierarquia
-                      </li>
-                      <li className="mb-1">
-                        A.2. Conectividade da Rede Cicloviária
-                      </li>
-                    </ul>
-
-                    <h4 className="text-lg font-medium mt-6 mb-3">
-                      B. PROJETO CICLOVIÁRIO AO LONGO DA QUADRA
-                    </h4>
-                    <ul className="list-disc pl-6 mb-4">
-                      <li className="mb-1">
-                        B.1. Espaço útil da Infraestrutura Cicloviária
-                      </li>
-                      <li className="mb-1">B.2. Tipo de Pavimento</li>
-                      <li className="mb-1">
-                        B.3. Delimitação da Infraestrutura Cicloviária
-                      </li>
-                      <li className="mb-1">
-                        B.4. Identificação do espaço cicloviário
-                      </li>
-                      <li className="mb-1">
-                        B.5. Acessibilidade relativa ao uso do solo lindeiro
-                      </li>
-                      <li className="mb-1">
-                        B.6. Medidas de moderação no compartilhamento viário
-                      </li>
-                      <li className="mb-1">
-                        B.x.1. Conflitos com pontos de ônibus ou escolas
-                      </li>
-                      <li className="mb-1">
-                        B.x.2. Existência de obstáculos horizontais no trecho
-                      </li>
-                      <li className="mb-1">
-                        B.x.3. Existência de obstáculos verticais no trecho
-                      </li>
-                      <li className="mb-1">
-                        B.x.4. Mudança de lado da infraestrutura no meio da
-                        quadra
-                      </li>
-                      <li className="mb-1">
-                        B.x.5. Sentido de circulação da infraestrutura contrário
-                        ao fluxo veicular
-                      </li>
-                    </ul>
-
-                    <h4 className="text-lg font-medium mt-6 mb-3">
-                      C. PROJETO CICLOVIÁRIO NAS INTERSEÇÕES
-                    </h4>
-                    <ul className="list-disc pl-6 mb-4">
-                      <li className="mb-1">
-                        C.1. Sinalização horizontal cicloviária na(s)
-                        interseção(ões)
-                      </li>
-                      <li className="mb-1">
-                        C.2. Acessibilidade entre conexões cicloviárias
-                      </li>
-                      <li className="mb-1">
-                        C.3. Tratamento dos conflitos com a circulação de modos
-                        motorizados
-                      </li>
-                    </ul>
-
-                    <h4 className="text-lg font-medium mt-6 mb-3">
-                      D. URBANIDADE
-                    </h4>
-                    <ul className="list-disc pl-6 mb-4">
-                      <li className="mb-1">D.1. Iluminação Pública</li>
-                      <li className="mb-1">D.2. Conforto térmico</li>
-                      <li className="mb-1">
-                        D.3. Existência de mobiliário cicloviário
-                      </li>
-                    </ul>
-
-                    <h4 className="text-lg font-medium mt-6 mb-3">
-                      E. MANUTENÇÃO DA INFRAESTRUTURA CICLOVIÁRIA
-                    </h4>
-                    <ul className="list-disc pl-6 mb-4">
-                      <li className="mb-1">
-                        E.1. Estado de conservação do pavimento
-                      </li>
-                      <li className="mb-1">
-                        E.2. Estado de conservação dos elementos de delimitação
-                        da infraestrutura
-                      </li>
-                      <li className="mb-1">
-                        E.3. Estado de conservação da identificação do espaço
-                        cicloviário
-                      </li>
-                      <li className="mb-1">
-                        E.4. Estado de conservação da sinalização horizontal nas
-                        interseções
-                      </li>
-                    </ul>
-
                     <p className="mt-6 mb-4">
                       A avaliação deve ser feita em campo, por meio de um
                       formulário impresso ou diretamente na plataforma digital,
@@ -290,7 +189,7 @@ const About = () => {
             </AccordionItem>
 
             <AccordionItem value="item-4" className="mt-4">
-              <Card>
+              <Card className="hover:bg-purple-50 transition-colors duration-300">
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <h3 className="text-xl font-semibold text-left">
                     Como aplicar?
@@ -314,7 +213,7 @@ const About = () => {
             </AccordionItem>
 
             <AccordionItem value="item-5" className="mt-4">
-              <Card>
+              <Card className="hover:bg-purple-50 transition-colors duration-300">
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
                   <h3 className="text-xl font-semibold text-left">E depois?</h3>
                 </AccordionTrigger>
@@ -412,248 +311,111 @@ const About = () => {
               <h3 className="text-lg font-semibold mb-2">
                 A. PLANEJAMENTO CICLOVIÁRIO
               </h3>
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    A.1. Adequação da tipologia de tratamento
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris. Vivamus hendrerit arcu sed erat
-                    molestie vehicula.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    A.2. Conectividade da Rede Cicloviária
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris. Vivamus hendrerit arcu sed erat
-                    molestie vehicula.
-                  </p>
-                </div>
-              </div>
+              <ul className="list-disc pl-6 mb-4">
+                <li className="mb-1">
+                  A.1. Adequação da tipologia de tratamento em relação à
+                  velocidade da via e sua respectiva hierarquia
+                </li>
+                <li className="mb-1">
+                  A.2. Conectividade da Rede Cicloviária
+                </li>
+              </ul>
             </div>
 
             <div>
               <h3 className="text-lg font-semibold mb-2">
                 B. PROJETO CICLOVIÁRIO AO LONGO DA QUADRA
               </h3>
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.1. Espaço útil da Infraestrutura Cicloviária
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">B.2. Tipo de Pavimento</h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.3. Delimitação da Infraestrutura Cicloviária
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.4. Identificação do espaço cicloviário
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.5. Acessibilidade relativa ao uso do solo lindeiro
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.6. Medidas de moderação no compartilhamento viário
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.x.1. Conflitos com pontos de ônibus ou escolas
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.x.2. Existência de obstáculos horizontais no trecho
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.x.3. Existência de obstáculos verticais no trecho
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.x.4. Mudança de lado da infraestrutura no meio da quadra
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    B.x.5. Sentido de circulação da infraestrutura contrário ao
-                    fluxo veicular
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-              </div>
+              <ul className="list-disc pl-6 mb-4">
+                <li className="mb-1">
+                  B.1. Espaço útil da Infraestrutura Cicloviária
+                </li>
+                <li className="mb-1">B.2. Tipo de Pavimento</li>
+                <li className="mb-1">
+                  B.3. Delimitação da Infraestrutura Cicloviária
+                </li>
+                <li className="mb-1">
+                  B.4. Identificação do espaço cicloviário
+                </li>
+                <li className="mb-1">
+                  B.5. Acessibilidade relativa ao uso do solo lindeiro
+                </li>
+                <li className="mb-1">
+                  B.6. Medidas de moderação no compartilhamento viário
+                </li>
+                <li className="mb-1">
+                  B.x.1. Conflitos com pontos de ônibus ou escolas
+                </li>
+                <li className="mb-1">
+                  B.x.2. Existência de obstáculos horizontais no trecho
+                </li>
+                <li className="mb-1">
+                  B.x.3. Existência de obstáculos verticais no trecho
+                </li>
+                <li className="mb-1">
+                  B.x.4. Mudança de lado da infraestrutura no meio da
+                  quadra
+                </li>
+                <li className="mb-1">
+                  B.x.5. Sentido de circulação da infraestrutura contrário
+                  ao fluxo veicular
+                </li>
+              </ul>
             </div>
 
             <div>
               <h3 className="text-lg font-semibold mb-2">
                 C. PROJETO CICLOVIÁRIO NAS INTERSEÇÕES
               </h3>
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    C.1. Sinalização horizontal cicloviária na(s)
-                    interseção(ões)
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    C.2. Acessibilidade entre conexões cicloviárias
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    C.3. Tratamento dos conflitos com a circulação de modos
-                    motorizados
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-              </div>
+              <ul className="list-disc pl-6 mb-4">
+                <li className="mb-1">
+                  C.1. Sinalização horizontal cicloviária na(s)
+                  interseção(ões)
+                </li>
+                <li className="mb-1">
+                  C.2. Acessibilidade entre conexões cicloviárias
+                </li>
+                <li className="mb-1">
+                  C.3. Tratamento dos conflitos com a circulação de modos
+                  motorizados
+                </li>
+              </ul>
             </div>
 
             <div>
               <h3 className="text-lg font-semibold mb-2">D. URBANIDADE</h3>
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">D.1. Iluminação Pública</h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">D.2. Conforto térmico</h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    D.3. Existência de mobiliário cicloviário
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-              </div>
+              <ul className="list-disc pl-6 mb-4">
+                <li className="mb-1">D.1. Iluminação Pública</li>
+                <li className="mb-1">D.2. Conforto térmico</li>
+                <li className="mb-1">
+                  D.3. Existência de mobiliário cicloviário
+                </li>
+              </ul>
             </div>
 
             <div>
               <h3 className="text-lg font-semibold mb-2">
                 E. MANUTENÇÃO DA INFRAESTRUTURA CICLOVIÁRIA
               </h3>
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    E.1. Estado de conservação do pavimento
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    E.2. Estado de conservação dos elementos de delimitação da
-                    infraestrutura
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    E.3. Estado de conservação da identificação do espaço
-                    cicloviário
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-                <div className="border rounded-md p-4">
-                  <h4 className="font-medium">
-                    E.4. Estado de conservação da sinalização horizontal nas
-                    interseções
-                  </h4>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                    Nullam in dui mauris.
-                  </p>
-                </div>
-              </div>
+              <ul className="list-disc pl-6 mb-4">
+                <li className="mb-1">
+                  E.1. Estado de conservação do pavimento
+                </li>
+                <li className="mb-1">
+                  E.2. Estado de conservação dos elementos de delimitação
+                  da infraestrutura
+                </li>
+                <li className="mb-1">
+                  E.3. Estado de conservação da identificação do espaço
+                  cicloviário
+                </li>
+                <li className="mb-1">
+                  E.4. Estado de conservação da sinalização horizontal nas
+                  interseções
+                </li>
+              </ul>
             </div>
+
           </div>
 
           <div className="mt-6 flex justify-end">

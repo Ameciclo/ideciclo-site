@@ -169,25 +169,26 @@ const RefinementSegmentsTable = ({
 
   const handleSelectAll = (checked: boolean) => {
     // Get IDs of all segments on the current page
-    const currentPageIds = segments.map(segment => segment.id);
+    const currentPageIds = segments.map((segment) => segment.id);
     onSelectAllSegments(currentPageIds, checked);
   };
 
   // Check if all segments on the current page are selected
-  const allSegmentsSelected = segments.length > 0 && 
-    segments.every(segment => 
-      selectedSegments.some(selected => selected.id === segment.id)
+  const allSegmentsSelected =
+    segments.length > 0 &&
+    segments.every((segment) =>
+      selectedSegments.some((selected) => selected.id === segment.id)
     );
-  
+
   // Check if some segments on the current page are selected
-  const someSegmentsSelected = segments.some(segment => 
-    selectedSegments.some(selected => selected.id === segment.id)
+  const someSegmentsSelected = segments.some((segment) =>
+    selectedSegments.some((selected) => selected.id === segment.id)
   );
 
   return (
     <div className="rounded-md border">
       <Table>
-        <TableCaption>Lista de segmentos cicloviários</TableCaption>
+        <TableCaption>Lista de trechos cicloviários</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-12">
@@ -239,7 +240,9 @@ const RefinementSegmentsTable = ({
               >
                 <TableCell>
                   <Checkbox
-                    checked={selectedSegments.some(selected => selected.id === segment.id)}
+                    checked={selectedSegments.some(
+                      (selected) => selected.id === segment.id
+                    )}
                     onCheckedChange={(checked) =>
                       onSelectSegment(segment.id, checked as boolean)
                     }
@@ -323,7 +326,9 @@ const RefinementSegmentsTable = ({
                           {Object.values(SegmentType).map((type) => (
                             <DropdownMenuItem
                               key={type}
-                              onClick={() => handleUpdateSegmentType(segment.id, type)}
+                              onClick={() =>
+                                handleUpdateSegmentType(segment.id, type)
+                              }
                             >
                               {type}
                             </DropdownMenuItem>
