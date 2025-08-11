@@ -27,7 +27,7 @@ const App = () => (
       <BrowserRouter>
         <div className="min-h-screen flex flex-col">
           <Navbar />
-          <div className="flex-grow">
+          <div className="flex-grow pt-20">
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/avaliar" element={<Refine />} />
