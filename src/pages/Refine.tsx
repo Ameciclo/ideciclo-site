@@ -690,7 +690,7 @@ const Refine = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Cidades em Aprimoramento</CardTitle>
               <CardDescription>
@@ -700,7 +700,7 @@ const Refine = () => {
             <CardContent>
               <StoredCitiesSelection onCitySelected={handleCitySelected} />
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       )}
 
