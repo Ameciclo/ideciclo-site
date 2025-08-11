@@ -120,7 +120,7 @@ const Ranking = () => {
 
   // Obter estados únicos
   const uniqueStates = [...new Set(cities.map(c => c.city.state))].sort();
-  const uniqueClassifications = [...new Set(cities.map(c => c.classification))].sort();
+  const allClassifications = ['A', 'B', 'C', 'D'];
 
   return (
     <div className="container py-8">
@@ -159,7 +159,7 @@ const Ranking = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todas as classificações</option>
-            {uniqueClassifications.map(classification => (
+            {allClassifications.map(classification => (
               <option key={classification} value={classification}>{classification}</option>
             ))}
           </select>
