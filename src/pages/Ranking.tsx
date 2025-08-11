@@ -175,11 +175,11 @@ const Ranking = () => {
           <table className="min-w-full bg-white border border-gray-200">
             <thead>
               <tr>
-                <th className="px-4 py-2 border-b">Posição</th>
-                <th className="px-4 py-2 border-b">Cidade</th>
-                <th className="px-4 py-2 border-b">Estado</th>
-                <th className="px-4 py-2 border-b">Classificação</th>
-                <th className="px-4 py-2 border-b">Ver detalhes</th>
+                <th className="px-4 py-2 border-b text-left">Posição</th>
+                <th className="px-4 py-2 border-b text-left">Cidade</th>
+                <th className="px-4 py-2 border-b text-left">Estado</th>
+                <th className="px-4 py-2 border-b text-left">Classificação</th>
+                <th className="px-4 py-2 border-b text-left">Ver detalhes</th>
               </tr>
             </thead>
             <tbody>
@@ -188,7 +188,7 @@ const Ranking = () => {
                   key={cityRanking.city.id}
                   className={index % 2 === 0 ? "bg-gray-50" : ""}
                 >
-                  <td className="px-4 py-2 border-b text-center">
+                  <td className="px-4 py-2 border-b">
                     {index + 1}
                   </td>
                   <td className="px-4 py-2 border-b">
@@ -197,7 +197,7 @@ const Ranking = () => {
                   <td className="px-4 py-2 border-b">
                     {cityRanking.city.state}
                   </td>
-                  <td className="px-4 py-2 border-b text-center">
+                  <td className="px-4 py-2 border-b">
                     <span
                       className={`inline-block w-8 h-8 rounded-full text-white font-bold flex items-center justify-center
                       ${
@@ -213,7 +213,7 @@ const Ranking = () => {
                       {cityRanking.classification}
                     </span>
                   </td>
-                  <td className="px-4 py-2 border-b text-center">
+                  <td className="px-4 py-2 border-b">
                     <Link to={`/city-details/${cityRanking.city.id}`}>
                       <Button size="sm" variant="outline">
                         Ver detalhes
