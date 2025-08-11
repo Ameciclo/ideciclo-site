@@ -93,9 +93,8 @@ export const fetchCities = async (stateId: string): Promise<IBGECity[]> => {
   try {
     // Special case for Distrito Federal (DF) - stateId 53
     if (stateId === '53') {
-      // Manually return Brasília and other Regiões Administrativas of DF
+      // Manually return Regiões Administrativas of DF (excluding main Brasília)
       return [
-        { id: 5300108, nome: "Brasília" },
         { id: 53001080506, nome: "Plano Piloto" },
         { id: 53001080507, nome: "Gama" },
         { id: 53001080508, nome: "Taguatinga" },
