@@ -93,31 +93,21 @@ const CityDetails = () => {
             <table className="min-w-full border border-gray-200">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-2 border-b text-left">Nome do Segmento</th>
-                  <th className="px-4 py-2 border-b text-left">Tipo de Via</th>
-                  <th className="px-4 py-2 border-b text-center">Extensão (km)</th>
-                  <th className="px-4 py-2 border-b text-center">Avaliado</th>
-                  <th className="px-4 py-2 border-b text-center">Nota</th>
+                  <th className="px-4 py-2 border-b text-left">Nome</th>
+                  <th className="px-4 py-2 border-b text-left">Tipologia</th>
+                  <th className="px-4 py-2 border-b text-left">Hierarquia</th>
+                  <th className="px-4 py-2 border-b text-left">Extensão (km)</th>
+                  <th className="px-4 py-2 border-b text-left">Nota</th>
                 </tr>
               </thead>
               <tbody>
                 {segments.map((segment) => (
                   <tr key={segment.id} className="hover:bg-gray-50">
                     <td className="px-4 py-2 border-b">{segment.name}</td>
-                    <td className="px-4 py-2 border-b">{segment.road_type}</td>
-                    <td className="px-4 py-2 border-b text-center">{segment.extension}</td>
-                    <td className="px-4 py-2 border-b text-center">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          segment.evaluated
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {segment.evaluated ? "Sim" : "Não"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 border-b text-center">
+                    <td className="px-4 py-2 border-b">{segment.type || "-"}</td>
+                    <td className="px-4 py-2 border-b">{segment.classification || "-"}</td>
+                    <td className="px-4 py-2 border-b">{segment.length}</td>
+                    <td className="px-4 py-2 border-b">
                       {segment.evaluated && segment.rating !== undefined
                         ? segment.rating.toFixed(2)
                         : "-"}
