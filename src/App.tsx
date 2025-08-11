@@ -11,6 +11,7 @@ import ViewEvaluation from "./pages/ViewEvaluation";
 import About from "./pages/About";
 import Ranking from "./pages/Ranking";
 import CityDetails from "./pages/CityDetails";
+import Apoiadores from "./pages/Apoiadores";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
               <Route path="/sobre" element={<About />} />
+              <Route path="/apoiadores" element={<Apoiadores />} />
               <Route
                 path="/avaliar/formulario/:segmentId"
                 element={<SegmentForm />}

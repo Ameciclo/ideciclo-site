@@ -17,6 +17,7 @@ const Navbar = () => {
     { path: "/avaliacao", label: "Avaliação" },
     { path: "/ranking", label: "Ranking" },
     { path: "/sobre", label: "Sobre" },
+    { path: "/apoiadores", label: "Apoiadores" },
   ];
 
   const renderNavLinks = (mobile = false) => {
