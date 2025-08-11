@@ -14,6 +14,7 @@ import CityDetails from "./pages/CityDetails";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
             </Routes>
           </div>
           <Footer />
+          <ScrollToTop />
         </div>
       </BrowserRouter>
     </TooltipProvider>
