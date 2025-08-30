@@ -1,73 +1,203 @@
-# Welcome to your Lovable project
+# IDECICLO - Plataforma Digital
 
-## Project info
+> Plataforma digital para avaliação da qualidade da infraestrutura cicloviária urbana
 
-**URL**: https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c
+## 📋 Sobre o Projeto
 
-## How can I edit this code?
+O **IDECICLO** (Índice de Desenvolvimento Cicloviário) é uma metodologia de avaliação qualitativa da infraestrutura cicloviária que considera não apenas a extensão das ciclovias e ciclofaixas, mas também a segurança, qualidade e o contexto viário em que estão inseridas.
 
-There are several ways of editing your application.
+Esta plataforma digital foi desenvolvida para facilitar o processo de coleta, análise e visualização dos dados do IDECICLO, permitindo que pesquisadores registrem avaliações de campo, gestores acessem relatórios e cidadãos consultem informações sobre a qualidade da infraestrutura cicloviária em suas cidades.
 
-**Use Lovable**
+### 🎯 Funcionalidades Principais
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c) and start prompting.
+- **Avaliação de Campo**: Formulário digital para coleta de dados in loco
+- **Mapeamento Interativo**: Visualização geográfica dos segmentos avaliados
+- **Cálculo Automático**: Processamento das notas baseado na metodologia IDECICLO
+- **Ranking Nacional**: Comparação entre cidades avaliadas
+- **Relatórios**: Geração de documentos e análises detalhadas
+- **Gestão de Dados**: Sistema completo para armazenamento e consulta
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🏛️ Desenvolvido por
 
-**Use your preferred IDE**
+**Ameciclo** - Associação Metropolitana de Ciclistas do Recife
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Criado inicialmente em 2016 e atualizado em 2024 com colaboração de especialistas e organizações não governamentais.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🚀 Começando
 
-Follow these steps:
+### Pré-requisitos
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- Node.js (versão 18 ou superior)
+- npm ou yarn
+- Git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Instalação
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+# Clone o repositório
+git clone <URL_DO_REPOSITORIO>
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Navegue até o diretório
+cd ideciclo-site
+
+# Instale as dependências
+npm install
+
+# Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Scripts Disponíveis
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Desenvolvimento
+npm run dev
 
-**Use GitHub Codespaces**
+# Build para produção
+npm run build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Build para desenvolvimento
+npm run build:dev
 
-## What technologies are used for this project?
+# Linting
+npm run lint
 
-This project is built with:
+# Preview da build
+npm run preview
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🛠️ Tecnologias Utilizadas
 
-## How can I deploy this project?
+### Frontend
+- **React 19** - Biblioteca para interfaces de usuário
+- **TypeScript** - Superset tipado do JavaScript
+- **Vite** - Build tool e dev server
+- **React Router** - Roteamento
 
-Simply open [Lovable](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c) and click on Share -> Publish.
+### UI/UX
+- **Tailwind CSS** - Framework CSS utilitário
+- **shadcn/ui** - Componentes de interface
+- **Radix UI** - Primitivos de componentes acessíveis
+- **Lucide React** - Ícones
 
-## Can I connect a custom domain to my Lovable project?
+### Mapas e Geolocalização
+- **Leaflet** - Biblioteca de mapas interativos
+- **React Leaflet** - Componentes React para Leaflet
+- **Turf.js** - Análise geoespacial
 
-Yes, you can!
+### Dados e Estado
+- **Supabase** - Backend como serviço
+- **TanStack Query** - Gerenciamento de estado do servidor
+- **React Hook Form** - Gerenciamento de formulários
+- **Zod** - Validação de esquemas
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Utilitários
+- **date-fns** - Manipulação de datas
+- **html2pdf.js** - Geração de PDFs
+- **Recharts** - Gráficos e visualizações
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 📁 Estrutura do Projeto
+
+```
+src/
+├── components/          # Componentes reutilizáveis
+│   ├── ui/             # Componentes de interface base
+│   ├── CityMap.tsx     # Mapa interativo das cidades
+│   ├── Navbar.tsx      # Barra de navegação
+│   └── ...
+├── pages/              # Páginas da aplicação
+│   ├── Index.tsx       # Página inicial
+│   ├── About.tsx       # Sobre o IDECICLO
+│   ├── Avaliacao.tsx   # Formulário de avaliação
+│   ├── Ranking.tsx     # Ranking das cidades
+│   └── ...
+├── services/           # Serviços e APIs
+│   ├── api.ts          # Configuração da API
+│   └── database.ts     # Operações do banco
+├── types/              # Definições de tipos TypeScript
+├── utils/              # Funções utilitárias
+│   └── idecicloCalculator.ts  # Cálculos do IDECICLO
+└── hooks/              # Hooks customizados
+```
+
+## 🗺️ Metodologia IDECICLO
+
+### Parâmetros de Avaliação
+
+A metodologia avalia **23 parâmetros** organizados em **5 eixos**:
+
+1. **Planejamento Cicloviário** (2 parâmetros)
+2. **Projeto Cicloviário ao Longo da Quadra** (11 parâmetros)
+3. **Projeto Cicloviário nas Interseções** (3 parâmetros)
+4. **Urbanidade** (3 parâmetros)
+5. **Manutenção da Infraestrutura** (4 parâmetros)
+
+### Diferencial
+
+O IDECICLO pondera a avaliação de acordo com a **velocidade máxima permitida** nas vias, dando maior peso às estruturas em vias de alta velocidade, onde a proteção ao ciclista é mais crítica.
+
+## 🎯 Público-Alvo
+
+- **Gestores Públicos**: Planejamento e justificativa de melhorias
+- **Técnicos e Planejadores**: Incorporação de indicadores em projetos
+- **Organizações Cicloativistas**: Incidência e reivindicações baseadas em dados
+- **Pesquisadores**: Estudos sobre mobilidade urbana e segurança viária
+- **Ciclistas e Conselhos**: Diálogo qualificado com o poder público
+
+## 📊 Como Usar a Plataforma
+
+1. **Preparação**: Leia o manual e organize a equipe
+2. **Mapeamento**: Identifique os segmentos a serem avaliados
+3. **Avaliação**: Colete dados em campo usando o formulário digital
+4. **Análise**: Visualize resultados e relatórios gerados
+5. **Ação**: Use os dados para advocacy e melhorias
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Para contribuir:
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto é uma ferramenta aberta e replicável, desenvolvida para fortalecer o planejamento participativo e promover cidades mais seguras para ciclistas.
+
+## 📞 Contato
+
+**Ameciclo** - Associação Metropolitana de Ciclistas do Recife
+
+---
+
+## 🔧 Desenvolvimento
+
+### Configuração do Ambiente
+
+O projeto utiliza Supabase como backend. Configure as variáveis de ambiente necessárias:
+
+```bash
+# .env.local
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### Deploy
+
+O projeto pode ser deployado em qualquer plataforma que suporte aplicações React/Vite:
+
+- **Vercel**: Deploy automático via Git
+- **Netlify**: Build e deploy contínuo
+- **AWS S3 + CloudFront**: Hospedagem estática
+- **Lovable**: [Deploy direto pela plataforma](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c)
+
+### Lovable Integration
+
+Este projeto foi desenvolvido com [Lovable](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c) e suporta:
+
+- Deploy automático via Lovable
+- Sincronização bidirecional com o repositório
+- Edição visual de componentes
+- Configuração de domínio customizado
