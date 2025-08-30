@@ -124,8 +124,7 @@ const Apoiadores = () => {
                    className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
                               h-full p-6 justify-center align-center bg-white text-text-grey 
                               hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
-                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
-                                flex items-center justify-center overflow-hidden">
+                <div className="mx-auto mb-6 w-32 h-32 flex items-center justify-center">
                   <img src={sponsor.logo} alt={sponsor.name} className="w-24 h-24 object-contain" />
                 </div>
                 <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{sponsor.name}</h3>
@@ -144,8 +143,7 @@ const Apoiadores = () => {
                    className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
                               h-full p-6 justify-center align-center bg-white text-text-grey 
                               hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
-                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
-                                flex items-center justify-center overflow-hidden">
+                <div className="mx-auto mb-6 w-32 h-32 flex items-center justify-center">
                   <img src={consultant.logo} alt={consultant.name} className="w-24 h-24 object-contain" />
                 </div>
                 <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{consultant.name}</h3>
@@ -164,8 +162,7 @@ const Apoiadores = () => {
                    className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
                               h-full p-6 justify-center align-center bg-white text-text-grey 
                               hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
-                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
-                                flex items-center justify-center overflow-hidden">
+                <div className="mx-auto mb-6 w-32 h-32 flex items-center justify-center">
                   <img src={partner.logo} alt={partner.name} className="w-24 h-24 object-contain" />
                 </div>
                 <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{partner.name}</h3>
