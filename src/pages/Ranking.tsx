@@ -131,7 +131,7 @@ const Ranking = () => {
       
       {/* Breadcrumb */}
       <nav className="bg-gray-400 text-white px-4 py-2">
-        <a href="/" className="hover:underline">Home</a> > <span>Ranking</span>
+        <a href="/" className="hover:underline">Home</a> &gt; <span>Ranking</span>
       </nav>
 
       {/* Título e Filtros com Design Customizado */}
@@ -250,9 +250,7 @@ const Ranking = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-ideciclo-blue"></div>
           </div>
         ) : filteredCities.length > 0 ? (
-          {/* Grid de cidades com estilo subpágina */}
-          <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 
-                              xl:grid-cols-4 auto-rows-auto gap-10 my-10">
+          <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-10 my-10">
             {filteredCities.map((cityRanking, index) => (
               <div key={cityRanking.city.id} className="rounded bg-white shadow-2xl ideciclo-card-hover">
                 <Link to={`/city-details/${cityRanking.city.id}`}>
