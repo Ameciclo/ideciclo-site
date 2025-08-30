@@ -18,12 +18,31 @@ export default {
 			}
 		},
 		extend: {
+			height: {
+				cover: "52vh",
+				"no-cover": "25vh",
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
+				customGrey: "#F1F1F1",
+				ameciclo: "#008080",
+				ideciclo: "#5050aa",
+				'ideciclo-red': '#CE4831',
+				'ideciclo-teal': '#6DBFAC',
+				'ideciclo-blue': '#5AC2E1',
+				'ideciclo-yellow': '#EFC345',
+				'ideciclo-pink': '#F5BDBF',
+				'ideciclo-green': '#69BFAF',
+				'background-grey': '#E5E8E9',
+				'text-grey': '#334454',
+				'projeto-color': '#5AC2E1',
+				'seguranca-color': '#EFC345',
+				'manutencao-color': '#F5BDBF',
+				'urbanidade-color': '#69BFAF',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
@@ -89,6 +108,10 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
+			},
+			fontFamily: {
+				custom: ["Open Sans"],
+				lato: ["Lato", "sans-serif"],
 			}
 		}
 	},

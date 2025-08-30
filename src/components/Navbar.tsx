@@ -29,13 +29,13 @@ const Navbar = () => {
           mobile
             ? `block py-2 px-4 text-base ${
                 isActive(link.path)
-                  ? "bg-blue-50 text-blue-600 font-medium"
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-ideciclo-yellow bg-opacity-20 text-ideciclo-red font-medium rounded-lg"
+                  : "text-text-grey hover:bg-ideciclo-teal hover:bg-opacity-10 rounded-lg"
               }`
-            : `inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+            : `inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-colors ${
                 isActive(link.path)
-                  ? "border-blue-500 text-gray-900"
-                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  ? "bg-ideciclo-red text-white shadow-md"
+                  : "text-text-grey hover:bg-ideciclo-yellow hover:text-text-grey"
               }`
         }
       >
@@ -45,13 +45,13 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-sm fixed top-0 left-0 right-0 z-50">
+    <nav className="bg-white shadow-lg fixed top-0 left-0 right-0 z-50 border-b-2 border-ideciclo-teal">
       <div className="container mx-auto px-4">
         <div className="flex justify-between h-20">
           <div className="flex flex-1 items-center justify-between">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="font-bold text-xl text-blue-600">
-                <img src="/ideciclo_logo.png" alt="IDECICLO" className="h-16" />
+              <Link to="/" className="font-bold text-xl">
+                <img src="/ideciclo/ideciclo-logo.png" alt="IDECICLO" className="h-16 drop-shadow-sm" />
               </Link>
             </div>
 
@@ -66,7 +66,7 @@ const Navbar = () => {
                 <SheetTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                    className="inline-flex items-center justify-center p-2 rounded-md text-text-grey hover:text-ideciclo-red hover:bg-ideciclo-yellow hover:bg-opacity-20 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ideciclo-teal"
                     aria-expanded="false"
                   >
                     <span className="sr-only">Abrir menu</span>
