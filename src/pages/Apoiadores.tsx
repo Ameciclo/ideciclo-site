@@ -1,16 +1,82 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Apoiadores = () => {
-  const supporters = [
+  const sponsors = [
+    {
+      name: "Itaú Unibanco",
+      description: "Patrocinador oficial do IDECICLO",
+      logo: "/logos/sponsors/itau unibanco.png"
+    },
+    {
+      name: "Tembici",
+      description: "Patrocinador oficial do IDECICLO",
+      logo: "/logos/sponsors/tembici.png"
+    },
+  ];
+
+  const partners = [
     {
       name: "AMECICLO",
       description: "Associação Metropolitana de Ciclistas do Recife",
-      logo: "/ideciclo/ideciclo-logo.png"
+      logo: "/logos/partners/ameciclo.png"
+    },
+    {
+      name: "BH em Ciclo",
+      description: "Organização cicloativista de Belo Horizonte",
+      logo: "/logos/partners/BH em Ciclo.png"
+    },
+    {
+      name: "Bici Nos Planos MS",
+      description: "Coletivo de mobilidade urbana do Mato Grosso do Sul",
+      logo: "/logos/partners/Bici Nos Planos MS.png"
+    },
+    {
+      name: "Ciclobservatório IFC",
+      description: "Observatório da mobilidade por bicicleta",
+      logo: "/logos/partners/Ciclobservatório IFC.png"
+    },
+    {
+      name: "Ciclocidade",
+      description: "Associação dos Ciclistas Urbanos de São Paulo",
+      logo: "/logos/partners/Ciclocidade.png"
+    },
+    {
+      name: "Cicloiguaçu",
+      description: "Coletivo de ciclistas de Foz do Iguaçu",
+      logo: "/logos/partners/Cicloiguaçu.png"
+    },
+    {
+      name: "Ciclomobi",
+      description: "Organização pela mobilidade urbana sustentável",
+      logo: "/logos/partners/Ciclomobi.png"
+    },
+    {
+      name: "ObMob Salvador",
+      description: "Observatório da Mobilidade de Salvador",
+      logo: "/logos/partners/ObMob Salvador.png"
+    },
+    {
+      name: "Pedaleco",
+      description: "Coletivo de ciclistas urbanos",
+      logo: "/logos/partners/Pedaleco.png"
     },
     {
       name: "Rodas da Paz",
       description: "Organização pela mobilidade urbana sustentável",
-      logo: null
+      logo: "/logos/partners/Rodas da Paz.png"
+    },
+  ];
+
+  const consultants = [
+    {
+      name: "ITDP Brasil",
+      description: "Instituto de Políticas de Transporte e Desenvolvimento",
+      logo: "/logos/consultants/itdp brasil.png"
+    },
+    {
+      name: "WRI Brasil",
+      description: "World Resources Institute Brasil",
+      logo: "/logos/consultants/wri brasil.png"
     },
   ];
 
@@ -49,28 +115,64 @@ const Apoiadores = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {supporters.map((supporter) => (
-            <div key={supporter.name} 
-                 className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
-                            h-full p-6 justify-center align-center bg-white text-text-grey 
-                            hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
-              <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
-                              flex items-center justify-center overflow-hidden">
-                {supporter.logo ? (
-                  <img src={supporter.logo} alt={supporter.name} className="w-24 h-24 object-contain" />
-                ) : (
-                  <div className="w-20 h-20 bg-ideciclo-teal rounded-full flex items-center justify-center">
-                    <span className="text-white text-2xl font-bold">
-                      {supporter.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
+        {/* Patrocinadores */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">Patrocinadores</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {sponsors.map((sponsor) => (
+              <div key={sponsor.name} 
+                   className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
+                              h-full p-6 justify-center align-center bg-white text-text-grey 
+                              hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
+                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
+                                flex items-center justify-center overflow-hidden">
+                  <img src={sponsor.logo} alt={sponsor.name} className="w-24 h-24 object-contain" />
+                </div>
+                <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{sponsor.name}</h3>
+                <p className="text-text-grey">{sponsor.description}</p>
               </div>
-              <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{supporter.name}</h3>
-              <p className="text-text-grey">{supporter.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        {/* Consultores */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">Consultores</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {consultants.map((consultant) => (
+              <div key={consultant.name} 
+                   className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
+                              h-full p-6 justify-center align-center bg-white text-text-grey 
+                              hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
+                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
+                                flex items-center justify-center overflow-hidden">
+                  <img src={consultant.logo} alt={consultant.name} className="w-24 h-24 object-contain" />
+                </div>
+                <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{consultant.name}</h3>
+                <p className="text-text-grey">{consultant.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Parceiros */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">Parceiros</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {partners.map((partner) => (
+              <div key={partner.name} 
+                   className="flex flex-col rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] 
+                              h-full p-6 justify-center align-center bg-white text-text-grey 
+                              hover:bg-ideciclo-yellow hover:text-text-grey transition-colors text-center">
+                <div className="mx-auto mb-6 w-32 h-32 rounded-full bg-background-grey 
+                                flex items-center justify-center overflow-hidden">
+                  <img src={partner.logo} alt={partner.name} className="w-24 h-24 object-contain" />
+                </div>
+                <h3 className="text-2xl font-bold text-ideciclo-red mb-3">{partner.name}</h3>
+                <p className="text-text-grey">{partner.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>
