@@ -17,6 +17,9 @@ const Index = () => {
       <ExplanationSection sections={sectionsData} />
       <InfoCardsSection cards={cardsData} />
       <AccordionSection accordion={accordionData} />
+      <div className="mx-auto relative z-0">
+        <img className="min-h-[100px]" src="/ideciclo-ciclovia.png" alt="" />
+      </div>{" "}
       <SupportersSection
         partners={partnersData}
         consultants={consultantsData}

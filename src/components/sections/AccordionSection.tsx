@@ -42,7 +42,7 @@ export const AccordionSection = ({ accordion }) => {
                     {item.content.map((paragraph, index) => (
                       <p
                         key={index}
-                        className="mb-4 text-justify text-text-grey"
+                        className="mb-4 text-justify text-text-grey text-lg"
                       >
                         {paragraph}
                       </p>
@@ -60,7 +60,7 @@ export const AccordionSection = ({ accordion }) => {
                     )}
 
                     {item.list && (
-                      <ul className="list-disc pl-6 mb-4">
+                      <ul className="list-disc pl-6 mb-4 text-lg text-text-grey">
                         {item.list.map((listItem, index) => (
                           <li key={index} className="mb-2">
                             {listItem}
@@ -78,7 +78,7 @@ export const AccordionSection = ({ accordion }) => {
                     )}
 
                     {item.detailedList && (
-                      <ul className="list-disc pl-6 mb-4">
+                      <ul className="list-disc pl-6 mb-4 text-lg">
                         {item.detailedList.map((detailItem, index) => (
                           <li key={index} className="mb-3">
                             <span className="font-medium">
