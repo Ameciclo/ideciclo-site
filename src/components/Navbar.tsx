@@ -13,11 +13,11 @@ const Navbar = () => {
 
   const navLinks = [
     { path: "/", label: "Início" },
-    { path: "/avaliar", label: "Aprimoramento" },
+    //{ path: "/avaliar", label: "Aprimoramento" },
     { path: "/avaliacao", label: "Avaliação" },
     { path: "/ranking", label: "Ranking" },
-    { path: "/sobre", label: "Sobre" },
-    { path: "/apoiadores", label: "Apoiadores" },
+    // { path: "/sobre", label: "Sobre" },
+    //{ path: "/apoiadores", label: "Apoiadores" },
   ];
 
   const renderNavLinks = (mobile = false) => {
@@ -27,12 +27,12 @@ const Navbar = () => {
         to={link.path}
         className={
           mobile
-            ? `block py-2 px-4 text-base ${
+            ? `block py-2 px-4 text-xl ${
                 isActive(link.path)
                   ? "bg-ideciclo-yellow bg-opacity-20 text-ideciclo-red font-medium rounded-lg"
                   : "text-text-grey hover:bg-ideciclo-teal hover:bg-opacity-10 rounded-lg"
               }`
-            : `inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+            : `inline-flex items-center px-3 py-2 rounded-full text-base font-medium transition-colors ${
                 isActive(link.path)
                   ? "bg-ideciclo-red text-white shadow-md"
                   : "text-text-grey hover:bg-ideciclo-yellow hover:text-text-grey"
@@ -51,7 +51,11 @@ const Navbar = () => {
           <div className="flex flex-1 items-center justify-between">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="font-bold text-xl">
-                <img src="/ideciclo/ideciclo-logo.png" alt="IDECICLO" className="h-16 drop-shadow-sm" />
+                <img
+                  src="/ideciclo-logo.png"
+                  alt="IDECICLO"
+                  className="h-16 drop-shadow-sm"
+                />
               </Link>
             </div>
 
