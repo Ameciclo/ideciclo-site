@@ -33,6 +33,7 @@ export const RefinementTableSortableWrapper = ({
   onUpdateSegmentClassification,
   onUpdateSegmentType,
 }: RefinementTableSortableWrapperProps) => {
+  // Debug removed
   // Filter and sort state
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedType, setSelectedType] = useState<string>("all");
@@ -64,12 +65,17 @@ export const RefinementTableSortableWrapper = ({
 
   // Filter and sort segments - show all segments that are not children of merged segments
   const filteredAndSortedSegments = () => {
+    if (!initialSegments || !Array.isArray(initialSegments)) {
+      // No segments or invalid segments
+      return [];
+    }
+    
     // First, deduplicate segments by ID
     const uniqueSegments = Array.from(
       new Map(initialSegments.map(segment => [segment.id, segment])).values()
     );
     
-    console.log(`Filtered ${initialSegments.length - uniqueSegments.length} duplicate segments`);
+    // Filtered duplicate segments
     
     return uniqueSegments
       .filter((segment) => {
@@ -185,6 +191,12 @@ export const RefinementTableSortableWrapper = ({
     }
   }, [isDragging]);
 
+  // Safety check
+  if (!initialSegments) {
+    // No segments provided
+    return <div>Carregando segmentos...</div>;
+  }
+
   return (
     <div>
       <SegmentsFilters
@@ -204,34 +216,8 @@ export const RefinementTableSortableWrapper = ({
         showRatingFilter={false}
         showClassificationFilter={true}
       />
-      {/* Desktop layout with splitter */}
-      <div id="splitter-container" className="hidden lg:flex">
-        <div style={{ width: `${leftWidth}%` }} className="pr-2">
-          <RefinementSegmentsTable
-            segments={currentItems}
-            sortDirection={sortDirection}
-            onToggleSortDirection={toggleSortDirection}
-            onSelectSegment={onSelectSegment}
-            onSelectAllSegments={onSelectAllSegments}
-            selectedSegments={selectedSegments}
-            onUpdateSegmentName={onUpdateSegmentName}
-            onDeleteSegment={onDeleteSegment}
-            onUnmergeSegments={onUnmergeSegments}
-            onUpdateSegmentClassification={onUpdateSegmentClassification}
-            onUpdateSegmentType={onUpdateSegmentType}
-          />
-        </div>
-        <div 
-          className="w-1 bg-gray-300 hover:bg-gray-400 cursor-col-resize flex-shrink-0"
-          onMouseDown={handleMouseDown}
-        />
-        <div style={{ width: `${100 - leftWidth}%` }} className="pl-2">
-          <CityMap segments={selectedSegments} className="w-full h-[500px]" containerWidth={100 - leftWidth} />
-        </div>
-      </div>
-
-      {/* Mobile/tablet layout - stacked vertically */}
-      <div className="lg:hidden space-y-4">
+      {/* Table layout without map (temporary fix) */}
+      <div className="space-y-4">
         <RefinementSegmentsTable
           segments={currentItems}
           sortDirection={sortDirection}
@@ -245,7 +231,13 @@ export const RefinementTableSortableWrapper = ({
           onUpdateSegmentClassification={onUpdateSegmentClassification}
           onUpdateSegmentType={onUpdateSegmentType}
         />
-        <CityMap segments={selectedSegments} className="w-full h-[400px]" />
+        {/* Map temporarily disabled due to React Leaflet compatibility issues */}
+        <div className="w-full h-[400px] bg-gray-100 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <p className="text-lg font-medium">Mapa temporariamente indisponível</p>
+            <p className="text-sm">Resolvendo problemas de compatibilidade</p>
+          </div>
+        </div>
       </div>
 
       <SegmentsPagination

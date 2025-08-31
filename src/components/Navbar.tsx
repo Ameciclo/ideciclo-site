@@ -13,7 +13,7 @@ const Navbar = () => {
 
   const navLinks = [
     { path: "/", label: "Início" },
-    //{ path: "/avaliar", label: "Aprimoramento" },
+    //{ path: "/refinar", label: "Aprimoramento" },
     { path: "/avaliacao", label: "Avaliação" },
     { path: "/ranking", label: "Ranking" },
     // { path: "/sobre", label: "Sobre" },

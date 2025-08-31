@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -28,16 +29,17 @@ const App = () => (
         <div className="min-h-screen flex flex-col">
           <Navbar />
           <div className="flex-grow pt-20">
-            <Routes>
+            <ErrorBoundary>
+              <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/avaliar" element={<Refine />} />
+              <Route path="/refinar" element={<Refine />} />
               <Route path="/avaliacao" element={<Avaliacao />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
               <Route path="/sobre" element={<About />} />
               <Route path="/apoiadores" element={<Apoiadores />} />
               <Route
-                path="/avaliar/formulario/:segmentId"
+                path="/refinar/formulario/:segmentId"
                 element={<SegmentForm />}
               />
               <Route
@@ -50,6 +52,7 @@ const App = () => (
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </div>
           <Footer />
           <ScrollToTop />

@@ -26,43 +26,50 @@ const FitBounds = ({ segments, containerWidth }: FitBoundsProps) => {
   const map = useMap();
 
   useEffect(() => {
+    if (!segments || segments.length === 0) {
+      return;
+    }
+
     const timer = setTimeout(() => {
-      map.invalidateSize(); // Force map to recalculate its size
-      
-      const allCoords: LatLngExpression[] = [];
+      try {
+        map.invalidateSize();
+        
+        const allCoords: LatLngExpression[] = [];
+        const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
 
-      // Filter out child segments for map display - only show parent merged segments or non-merged segments
-      const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+        visibleSegments.forEach((segment) => {
+          const geom = segment.geometry;
+          if (!geom || !geom.coordinates) return;
 
-      visibleSegments.forEach((segment) => {
-        const geom = segment.geometry;
-
-        if (geom.type === "LineString") {
-          allCoords.push(
-            ...geom.coordinates.map(
-              (coord) => [coord[1], coord[0]] as LatLngExpression
-            )
-          );
-        } else if (geom.type === "MultiLineString") {
-          geom.coordinates.forEach((line) => {
+          if (geom.type === "LineString") {
             allCoords.push(
-              ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+              ...geom.coordinates.map(
+                (coord) => [coord[1], coord[0]] as LatLngExpression
+              )
             );
-          });
-        } else if (geom.type === "Polygon") {
-          geom.coordinates.forEach((ring) => {
-            allCoords.push(
-              ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
-            );
-          });
+          } else if (geom.type === "MultiLineString") {
+            geom.coordinates.forEach((line) => {
+              allCoords.push(
+                ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+              );
+            });
+          } else if (geom.type === "Polygon") {
+            geom.coordinates.forEach((ring) => {
+              allCoords.push(
+                ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
+              );
+            });
+          }
+        });
+
+        if (allCoords.length > 0) {
+          const bounds = new LatLngBounds(allCoords);
+          map.fitBounds(bounds, { padding: [20, 20] });
         }
-      });
-
-      if (allCoords.length > 0) {
-        const bounds = new LatLngBounds(allCoords);
-        map.fitBounds(bounds, { padding: [20, 20] });
+      } catch (error) {
+        console.error("Error in FitBounds:", error);
       }
-    }, 100); // Small delay to ensure DOM has updated
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [segments, containerWidth, map]);
@@ -72,6 +79,20 @@ const FitBounds = ({ segments, containerWidth }: FitBoundsProps) => {
 
 const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
   const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
+
+  // Debug removed
+
+  // Safety check
+  if (!segments || !Array.isArray(segments)) {
+    // No segments or invalid segments
+    return (
+      <div className={className}>
+        <div className="w-full h-96 rounded shadow bg-gray-100 flex items-center justify-center">
+          <p>Carregando mapa...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Filter out child segments for map display - only show parent merged segments or non-merged segments
   const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
@@ -87,10 +108,14 @@ const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
           attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
         {visibleSegments.map((segment) => {
           try {
             const geom = segment.geometry;
+            if (!geom || !geom.type || !geom.coordinates) {
+              console.warn("Invalid geometry for segment", segment.id);
+              return null;
+            }
+
             const colorMap = {
               Ciclovia: "blue",
               Ciclofaixa: "purple",
@@ -140,15 +165,13 @@ const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
                   pathOptions={{ color: "green" }}
                 />
               );
-            } else {
-              return null;
             }
+            return null;
           } catch (error) {
             console.error("Invalid geometry for segment", segment.id, error);
             return null;
           }
         })}
-
         <FitBounds segments={segments} containerWidth={containerWidth} />
       </MapContainer>
     </div>
