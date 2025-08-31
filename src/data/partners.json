@@ -1,0 +1,52 @@
+[
+  {
+    "name": "AMECICLO",
+    "description": "Associação Metropolitana de Ciclistas do Recife",
+    "logo": "/logos/partners/ameciclo.png"
+  },
+  {
+    "name": "BH em Ciclo",
+    "description": "Organização cicloativista de Belo Horizonte",
+    "logo": "/logos/partners/BH em Ciclo.png"
+  },
+  {
+    "name": "Bici Nos Planos MS",
+    "description": "Coletivo de mobilidade urbana do Mato Grosso do Sul",
+    "logo": "/logos/partners/Bici Nos Planos MS.png"
+  },
+  {
+    "name": "Ciclobservatório IFC",
+    "description": "Observatório da mobilidade por bicicleta",
+    "logo": "/logos/partners/Ciclobservatório IFC.png"
+  },
+  {
+    "name": "Ciclocidade",
+    "description": "Associação dos Ciclistas Urbanos de São Paulo",
+    "logo": "/logos/partners/Ciclocidade.png"
+  },
+  {
+    "name": "Cicloiguaçu",
+    "description": "Coletivo de ciclistas de Foz do Iguaçu",
+    "logo": "/logos/partners/Cicloiguaçu.png"
+  },
+  {
+    "name": "Ciclomobi",
+    "description": "Organização pela mobilidade urbana sustentável",
+    "logo": "/logos/partners/Ciclomobi.png"
+  },
+  {
+    "name": "ObMob Salvador",
+    "description": "Observatório da Mobilidade de Salvador",
+    "logo": "/logos/partners/ObMob Salvador.png"
+  },
+  {
+    "name": "Pedaleco",
+    "description": "Coletivo de ciclistas urbanos",
+    "logo": "/logos/partners/Pedaleco.png"
+  },
+  {
+    "name": "Rodas da Paz",
+    "description": "Organização pela mobilidade urbana sustentável",
+    "logo": "/logos/partners/Rodas da Paz.png"
+  }
+]

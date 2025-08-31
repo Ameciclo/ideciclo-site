@@ -1,0 +1,26 @@
+[
+  {
+    "title": "MANUAL",
+    "subtitle": "DOCUMENTAÇÃO completa da metodologia IDECICLO",
+    "metric": "VERSÃO",
+    "value": "2024",
+    "buttonText": "Baixar Manual",
+    "downloadUrl": "/manual_ideciclo.pdf"
+  },
+  {
+    "title": "FORMULÁRIO",
+    "subtitle": "AVALIAÇÃO de vias cicláveis em campo",
+    "metric": "PARÂMETROS",
+    "value": "23",
+    "buttonText": "Baixar Formulário",
+    "downloadUrl": "/manual_ideciclo.pdf"
+  },
+  {
+    "title": "CÁLCULO",
+    "subtitle": "METODOLOGIA de cálculo do índice",
+    "metric": "EIXOS",
+    "value": "5",
+    "buttonText": "Baixar Cálculo",
+    "downloadUrl": "/manual_ideciclo.pdf"
+  }
+]
