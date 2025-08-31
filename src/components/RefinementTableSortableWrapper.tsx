@@ -3,7 +3,7 @@ import { Segment } from "@/types";
 import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
-import CityMap from "./CityMap";
+import MapboxMap from "./MapboxMap";
 
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
@@ -231,13 +231,7 @@ export const RefinementTableSortableWrapper = ({
           onUpdateSegmentClassification={onUpdateSegmentClassification}
           onUpdateSegmentType={onUpdateSegmentType}
         />
-        {/* Map temporarily disabled due to React Leaflet compatibility issues */}
-        <div className="w-full h-[400px] bg-gray-100 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
-          <div className="text-center text-gray-500">
-            <p className="text-lg font-medium">Mapa temporariamente indisponível</p>
-            <p className="text-sm">Resolvendo problemas de compatibilidade</p>
-          </div>
-        </div>
+        <MapboxMap segments={selectedSegments.length > 0 ? selectedSegments : processedSegments.slice(0, 10)} className="w-full h-[400px]" />
       </div>
 
       <SegmentsPagination
