@@ -21,7 +21,7 @@ export const ExplanationSection = ({ sections }) => {
             <h1 className="relative inline-flex items-center justify-center px-4 md:px-8 py-2 md:py-4 gap-4 rounded-full bg-ideciclo-blue shadow-lg text-text-grey text-center font-lato text-xl md:text-3xl font-black leading-normal z-[0]">
               {sections[currentSection].title}
             </h1>
-{/* SVG Background */}
+           {/* SVG Background */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 341 80"
@@ -53,7 +53,7 @@ export const ExplanationSection = ({ sections }) => {
             </button>
           </div>
         </div>
-        <div className="relative z-[-2] top-[-50px] text-gray-800 p-12 py-24 mx-auto bg-background-grey shadow-2xl rounded-lg">
+        <div className="relative z-[-2] top-[-50px] text-gray-800 p-12 py-24 mx-auto bg-background-grey shadow-2xl rounded-lg text-lg">
           {renderSectionContent(sections[currentSection].content)}
         </div>
       </section>
