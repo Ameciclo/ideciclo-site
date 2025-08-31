@@ -52,7 +52,7 @@ const Navbar = () => {
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="font-bold text-xl">
                 <img
-                  src="/ideciclo-logo.png"
+                  src="/ideciclo_logo.png"
                   alt="IDECICLO"
                   className="h-16 drop-shadow-sm"
                 />
