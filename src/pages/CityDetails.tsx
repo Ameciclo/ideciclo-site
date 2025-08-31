@@ -4,6 +4,7 @@ import { fetchCityFromDB, fetchSegmentsFromDB } from "@/services/database";
 import { City, Segment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import CityMap from "@/components/CityMap";
 
 const CityDetails = () => {
   const { cityId } = useParams<{ cityId: string }>();
@@ -158,10 +159,10 @@ const CityDetails = () => {
         </div>
       </section>
 
-      {/* Grid de Conteúdo Principal (3 colunas) - Estilo Subpágina */}
+      {/* Grid de Conteúdo Principal (2 colunas) - Estilo Subpágina */}
       <div className="w-full relative z-[-1] translate-y-[-100px] md:translate-y-[-80px] bg-ideciclo-yellow">
-        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 
-                            auto-rows-auto gap-10 mt-[150px] md:mt-[100px] mb-[100px]">
+        <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 
+                            auto-rows-auto gap-10 mt-[200px] md:mt-[150px] mb-[50px]">
           
           {/* Card 1: Informações da Cidade */}
           <div className="rounded bg-white shadow-2xl">
@@ -193,18 +194,7 @@ const CityDetails = () => {
             </div>
           </div>
           
-          {/* Card 2: Mapa Placeholder */}
-          <div className="bg-ideciclo-green bg-opacity-20 rounded shadow-2xl flex items-center justify-center">
-            <div className="p-6 text-center" style={{height: '400px'}}>
-              <h3 className="text-2xl font-bold text-ideciclo-red mb-4">MAPA DA CIDADE</h3>
-              <p className="text-text-grey">Visualização geográfica dos segmentos avaliados</p>
-              <div className="mt-8 bg-white bg-opacity-50 rounded-lg p-8">
-                <p className="text-gray-500">Mapa interativo será implementado aqui</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Card 3: Estatísticas Adicionais */}
+          {/* Card 2: Estatísticas Adicionais */}
           <div className="rounded bg-white shadow-2xl">
             <div className="p-6">
               <h3 className="text-center font-bold text-xl mb-4 text-ideciclo-red">ESTATÍSTICAS DETALHADAS</h3>
@@ -233,8 +223,25 @@ const CityDetails = () => {
         </section>
       </div>
 
+      {/* Seção do Mapa */}
+      <div className="container mx-auto mt-[-50px] mb-12">
+        <div className="mx-auto text-center my-12">
+          <h3 className="text-4xl font-bold p-6 my-8 mb-[50px] rounded-[40px] 
+                         bg-ideciclo-red mx-auto text-white shadow-[0px_6px_8px_rgba(0,0,0,0.25)]">
+            Mapa da Cidade
+          </h3>
+        </div>
+        
+        <div className="bg-white rounded-[20px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] p-6 mb-8">
+          <p className="text-text-grey text-center mb-6">Visualização geográfica dos segmentos avaliados</p>
+          <div className="h-96">
+            <CityMap segments={segments} className="w-full h-full rounded-lg overflow-hidden" />
+          </div>
+        </div>
+      </div>
+
       {/* Seção de Segmentos */}
-      <div className="container mx-auto mt-[-50px]">
+      <div className="container mx-auto mt-[50px]">
         <div className="mx-auto text-center my-12 md:my-6">
           <h3 className="text-4xl font-bold p-6 my-8 mb-[50px] rounded-[40px] 
                          bg-ideciclo-teal mx-auto text-white shadow-[0px_6px_8px_rgba(0,0,0,0.25)]">
