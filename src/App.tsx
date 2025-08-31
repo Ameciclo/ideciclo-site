@@ -13,6 +13,7 @@ import Ranking from "./pages/Ranking";
 import CityDetails from "./pages/CityDetails";
 import Apoiadores from "./pages/Apoiadores";
 import NotFound from "./pages/NotFound";
+import ProcessoAvaliacao from "./pages/ProcessoAvaliacao";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -32,6 +33,7 @@ const App = () => (
             <ErrorBoundary>
               <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/processo-avaliacao" element={<ProcessoAvaliacao />} />
               <Route path="/refinar" element={<Refine />} />
               <Route path="/avaliacao" element={<Avaliacao />} />
               <Route path="/ranking" element={<Ranking />} />
