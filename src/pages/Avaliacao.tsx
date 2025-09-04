@@ -1,278 +1,112 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { City, Segment } from "@/types";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
-import EvaluationTableSortableWrapper from "@/components/EvaluationTableSortableWrapper";
-import {
-  fetchUniqueStatesFromDB,
-  fetchCitiesByState,
-  fetchSegmentsByCity,
-} from "@/services/database";
+import { Download, Edit, MapPin, FileText, TrendingUp } from "lucide-react";
 
 const Avaliacao = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [cities, setCities] = useState<City[]>([]);
-  const [selectedCityId, setSelectedCityId] = useState<string>("");
-  const [selectedCity, setSelectedCity] = useState<City | null>(null);
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
-  const [selectedState, setSelectedState] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [isCityCardVisible, setIsCityCardVisible] = useState<boolean>(true);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
 
-  // Load saved state and city on initial render
-  useEffect(() => {
-    const savedState = sessionStorage.getItem("selectedState");
-    const savedCityId = sessionStorage.getItem("selectedCityId");
-
-    if (savedState) {
-      setSelectedState(savedState);
+  const etapas = [
+    {
+      id: 1,
+      title: "Baixar Dados",
+      subtitle: "Selecione uma cidade",
+      description: "Escolha a cidade e baixe os dados da infraestrutura cicloviária",
+      icon: Download,
+      color: "#EFC345",
+      route: "/avaliacao/baixar-dados"
+    },
+    {
+      id: 2,
+      title: "Refinar Dados",
+      subtitle: "Ajuste os dados",
+      description: "Melhore e organize os dados baixados da cidade",
+      icon: Edit,
+      color: "#5AC2E1",
+      route: "/avaliacao/refinar-dados"
+    },
+    {
+      id: 3,
+      title: "Escolher Estrutura",
+      subtitle: "Selecione um trecho",
+      description: "Escolha uma estrutura específica para avaliar",
+      icon: MapPin,
+      color: "#8B5CF6",
+      route: "/avaliacao/escolher-estrutura"
+    },
+    {
+      id: 4,
+      title: "Avaliar Estrutura",
+      subtitle: "Preencha o formulário",
+      description: "Realize a avaliação detalhada da estrutura",
+      icon: FileText,
+      color: "#10B981",
+      route: "/avaliacao/avaliar-estrutura"
+    },
+    {
+      id: 5,
+      title: "Ver Resultados",
+      subtitle: "Confira o índice",
+      description: "Visualize a nota calculada e o índice IDECICLO",
+      icon: TrendingUp,
+      color: "#F59E0B",
+      route: "/avaliacao/resultados"
     }
-
-    if (savedCityId) {
-      setSelectedCityId(savedCityId);
-    }
-  }, []);
-
-  // Fetch states from DB
-  useEffect(() => {
-    const fetchStates = async () => {
-      const uniqueStates = await fetchUniqueStatesFromDB();
-      setStates(uniqueStates);
-    };
-
-    fetchStates();
-  }, []);
-
-  // Fetch cities when state is selected
-  useEffect(() => {
-    if (selectedState) {
-      const fetchCities = async () => {
-        setIsLoading(true);
-        try {
-          const data = await fetchCitiesByState(selectedState);
-
-          if (data.length === 0) {
-            setError("Nenhuma cidade encontrada para este estado");
-            return;
-          }
-
-          setCities(data);
-
-          // If we have a saved city ID, load its segments after cities are loaded
-          const savedCityId = sessionStorage.getItem("selectedCityId");
-          if (savedCityId) {
-            const city = data.find((c) => c.id === savedCityId);
-            if (city) {
-              setSelectedCity(city);
-              fetchSegmentsForCity(savedCityId);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching cities:", error);
-          setError("Erro ao carregar cidades");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      fetchCities();
-    }
-  }, [selectedState]);
-
-  const handleStateChange = (value: string) => {
-    setSelectedState(value);
-    setSelectedCityId("");
-    setSelectedCity(null);
-    setSegments([]);
-
-    // Save to sessionStorage
-    sessionStorage.setItem("selectedState", value);
-    sessionStorage.removeItem("selectedCityId");
-  };
-
-  const handleCityChange = (value: string) => {
-    setSelectedCityId(value);
-    const city = cities.find((c) => c.id === value) || null;
-    setSelectedCity(city);
-
-    // Save to sessionStorage
-    sessionStorage.setItem("selectedCityId", value);
-
-    if (value) {
-      fetchSegmentsForCity(value);
-    } else {
-      setSegments([]);
-    }
-  };
-
-  const fetchSegmentsForCity = async (cityId: string) => {
-    setIsLoading(true);
-    try {
-      const data = await fetchSegmentsByCity(cityId);
-      setSegments(data);
-    } catch (error) {
-      console.error("Error fetching segments:", error);
-      setError("Erro ao carregar segmentos");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBackToStart = () => {
-    navigate("/");
-  };
+  ];
 
   return (
     <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">
-          Avaliação de Infraestrutura Cicloviária
-        </h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleBackToStart}>
-            Voltar ao Início
-          </Button>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">
+            Processo de Avaliação IDECICLO
+          </h1>
+          <p className="text-gray-600">
+            Siga as etapas para avaliar a infraestrutura cicloviária de uma cidade
+          </p>
         </div>
+        <Button variant="outline" onClick={() => navigate("/")}>
+          Voltar ao Início
+        </Button>
       </div>
 
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erro</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Selecionar cidade</CardTitle>
-              <CardDescription>
-                Selecione uma cidade e avalie os trechos cicloviários
-              </CardDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCityCardVisible(!isCityCardVisible)}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {etapas.map((etapa) => {
+          const IconComponent = etapa.icon;
+          return (
+            <a
+              key={etapa.id}
+              href={etapa.route}
+              role="button"
+              aria-label={`Ir para ${etapa.title}`}
+              className="relative flex flex-col justify-center rounded-[40px] font-semibold text-xl w-full p-6 text-center tracking-wide shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-[1px] min-h-[200px]"
+              style={{
+                background: etapa.color,
+                boxShadow: "0px 6px 8px 0px rgba(0, 0, 0, 0.25)",
+              }}
             >
-              {isCityCardVisible ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        {isCityCardVisible && (
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="state">Estado</Label>
-                <Select value={selectedState} onValueChange={handleStateChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map((state) => (
-                      <SelectItem key={state.id} value={state.id}>
-                        {state.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white rounded-full p-4 shadow-lg">
+                <IconComponent className="h-12 w-12" style={{ color: etapa.color }} />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Select
-                  value={selectedCityId}
-                  onValueChange={handleCityChange}
-                  disabled={!selectedState || cities.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma cidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((city) => (
-                      <SelectItem key={city.id} value={city.id}>
-                        {city.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-1">{etapa.title}</h3>
+                <h4 className="text-xl font-bold mb-2">{etapa.subtitle}</h4>
+                <p className="text-sm opacity-90 leading-tight">{etapa.description}</p>
               </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+            </a>
+          );
+        })}
+      </div>
 
-      {isLoading && (
-        <div className="flex justify-center items-center py-20">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>Carregando dados... Por favor aguarde.</p>
-          </div>
+      <div className="mt-12 text-center">
+        <div className="bg-gray-50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-2">Como funciona?</h3>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            O processo de avaliação IDECICLO é dividido em 5 etapas sequenciais. 
+            Cada etapa pode ser acessada individualmente, permitindo que você trabalhe 
+            no seu próprio ritmo e retome o processo quando necessário.
+          </p>
         </div>
-      )}
-
-      {!isLoading && selectedCity && segments.length > 0 && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>
-                    {selectedCity.name}, {selectedCity.state}
-                  </CardTitle>
-                  <CardDescription>
-                    Trechos disponíveis para avaliação
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <EvaluationTableSortableWrapper
-                segments={segments}
-                showSortOptions={true}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {!isLoading && selectedCity && segments.length === 0 && (
-        <Alert>
-          <AlertTitle>Nenhum segmento encontrado</AlertTitle>
-          <AlertDescription>
-            Não foram encontrados segmentos para esta cidade.
-          </AlertDescription>
-        </Alert>
-      )}
+      </div>
     </div>
   );
 };

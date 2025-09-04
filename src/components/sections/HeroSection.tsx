@@ -21,7 +21,7 @@ export const HeroSection = ({ coverUrl }) => (
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-ideciclo-blue hover:bg-ideciclo-blue/90 text-white">
-              <Link to="/processo-avaliacao">
+              <Link to="/avaliacao">
                 <MapPin className="mr-2 h-5 w-5" />
                 Iniciar Processo Guiado
               </Link>

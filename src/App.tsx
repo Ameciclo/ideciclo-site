@@ -14,6 +14,11 @@ import CityDetails from "./pages/CityDetails";
 import Apoiadores from "./pages/Apoiadores";
 import NotFound from "./pages/NotFound";
 import ProcessoAvaliacao from "./pages/ProcessoAvaliacao";
+import BaixarDados from "./pages/avaliacao/BaixarDados";
+import RefinarDados from "./pages/avaliacao/RefinarDados";
+import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
+import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
+import Resultados from "./pages/avaliacao/Resultados";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -36,6 +41,11 @@ const App = () => (
               <Route path="/processo-avaliacao" element={<ProcessoAvaliacao />} />
               <Route path="/refinar" element={<Refine />} />
               <Route path="/avaliacao" element={<Avaliacao />} />
+              <Route path="/avaliacao/baixar-dados" element={<BaixarDados />} />
+              <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
+              <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
+              <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
+              <Route path="/avaliacao/resultados" element={<Resultados />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
               <Route path="/sobre" element={<About />} />

@@ -4,12 +4,12 @@ const Apoiadores = () => {
   const sponsors = [
     {
       name: "Itaú Unibanco",
-      description: "Patrocinador oficial do IDECICLO",
+      description: "Patrocinador do IDECICLO",
       logo: "/logos/sponsors/itau unibanco.png"
     },
     {
       name: "Tembici",
-      description: "Patrocinador oficial do IDECICLO",
+      description: "Patrocinador do IDECICLO",
       logo: "/logos/sponsors/tembici.png"
     },
   ];
@@ -22,7 +22,7 @@ const Apoiadores = () => {
     },
     {
       name: "BH em Ciclo",
-      description: "Organização cicloativista de Belo Horizonte",
+      description: "Associação dos e das Ciclistas Urbanas de Belo Horizonte",
       logo: "/logos/partners/BH em Ciclo.png"
     },
     {
@@ -32,7 +32,7 @@ const Apoiadores = () => {
     },
     {
       name: "Ciclobservatório IFC",
-      description: "Observatório da mobilidade por bicicleta",
+      description: "Projeto do campus Camboriú do IFC para formação em Ciclomobilidade",
       logo: "/logos/partners/Ciclobservatório IFC.png"
     },
     {
@@ -42,12 +42,12 @@ const Apoiadores = () => {
     },
     {
       name: "Cicloiguaçu",
-      description: "Coletivo de ciclistas de Foz do Iguaçu",
+      description: "Associação de Ciclistas do Alto Iguaçu",
       logo: "/logos/partners/Cicloiguaçu.png"
     },
     {
       name: "Ciclomobi",
-      description: "Organização pela mobilidade urbana sustentável",
+      description: "Coletivo de Ciclistas Urbanos de Maceió",
       logo: "/logos/partners/Ciclomobi.png"
     },
     {
@@ -57,12 +57,12 @@ const Apoiadores = () => {
     },
     {
       name: "Pedaleco",
-      description: "Coletivo de ciclistas urbanos",
+      description: "Coletivo de ciclistas do Maranhão",
       logo: "/logos/partners/Pedaleco.png"
     },
     {
       name: "Rodas da Paz",
-      description: "Organização pela mobilidade urbana sustentável",
+      description: "Associação Civil Rodas da Paz",
       logo: "/logos/partners/Rodas da Paz.png"
     },
   ];

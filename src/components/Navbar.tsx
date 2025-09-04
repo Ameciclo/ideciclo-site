@@ -13,8 +13,8 @@ const Navbar = () => {
 
   const navLinks = [
     { path: "/", label: "Início" },
-    { path: "/processo-avaliacao", label: "Avalição" },
-    //{ path: "/avaliacao", label: "Avaliação" },
+    //{ path: "/processo-avaliacao", label: "Avalição" },
+    { path: "/avaliacao", label: "Avaliação" },
     { path: "/ranking", label: "Ranking" },
     // { path: "/sobre", label: "Sobre" },
     //{ path: "/apoiadores", label: "Apoiadores" },
