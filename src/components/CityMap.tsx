@@ -1,156 +1,113 @@
-
-import {
-  MapContainer,
-  TileLayer,
-  Polyline,
-  Polygon,
-  useMap,
-} from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import { LatLngExpression, LatLngBounds } from "leaflet";
+import { useEffect, useRef, useMemo } from "react";
+import Map, { Source, Layer } from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { Segment } from "@/types";
-import { useEffect } from "react";
+import type { MapRef } from "react-map-gl";
 
 interface CityMapProps {
   segments: Segment[];
   className?: string;
-  containerWidth?: number; // Add this to trigger re-render when splitter changes
-}
-
-interface FitBoundsProps {
-  segments: Segment[];
   containerWidth?: number;
 }
 
-const FitBounds = ({ segments, containerWidth }: FitBoundsProps) => {
-  const map = useMap();
+const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
+  const mapRef = useRef<MapRef>(null);
+  const defaultCenter = { longitude: -34.8556378, latitude: -7.9845551 };
 
+  // Filter out child segments for map display
+  const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+
+  // Create GeoJSON data for segments
+  const geojsonData = useMemo(() => {
+    const features = visibleSegments.map((segment) => {
+      const colorMap = {
+        Ciclovia: "#0000ff",
+        Ciclofaixa: "#800080", 
+        Ciclorrota: "#008000",
+        Compartilhada: "#ff0000",
+      };
+
+      return {
+        type: "Feature" as const,
+        properties: {
+          id: segment.id,
+          type: segment.type,
+          color: colorMap[segment.type] || "#808080"
+        },
+        geometry: segment.geometry
+      };
+    });
+
+    return {
+      type: "FeatureCollection" as const,
+      features
+    };
+  }, [visibleSegments]);
+
+  // Fit bounds when segments change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize(); // Force map to recalculate its size
-      
-      const allCoords: LatLngExpression[] = [];
+    if (!mapRef.current || visibleSegments.length === 0) return;
 
-      // Filter out child segments for map display - only show parent merged segments or non-merged segments
-      const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+    const timer = setTimeout(() => {
+      const allCoords: [number, number][] = [];
 
       visibleSegments.forEach((segment) => {
         const geom = segment.geometry;
 
         if (geom.type === "LineString") {
-          allCoords.push(
-            ...geom.coordinates.map(
-              (coord) => [coord[1], coord[0]] as LatLngExpression
-            )
-          );
+          allCoords.push(...geom.coordinates as [number, number][]);
         } else if (geom.type === "MultiLineString") {
           geom.coordinates.forEach((line) => {
-            allCoords.push(
-              ...line.map((coord) => [coord[1], coord[0]] as LatLngExpression)
-            );
+            allCoords.push(...line as [number, number][]);
           });
         } else if (geom.type === "Polygon") {
           geom.coordinates.forEach((ring) => {
-            allCoords.push(
-              ...ring.map((coord) => [coord[1], coord[0]] as LatLngExpression)
-            );
+            allCoords.push(...ring as [number, number][]);
           });
         }
       });
 
       if (allCoords.length > 0) {
-        const bounds = new LatLngBounds(allCoords);
-        map.fitBounds(bounds, { padding: [20, 20] });
+        const lngs = allCoords.map(coord => coord[0]);
+        const lats = allCoords.map(coord => coord[1]);
+        
+        const bounds = [
+          [Math.min(...lngs), Math.min(...lats)],
+          [Math.max(...lngs), Math.max(...lats)]
+        ] as [[number, number], [number, number]];
+
+        mapRef.current?.fitBounds(bounds, { padding: 20 });
       }
-    }, 100); // Small delay to ensure DOM has updated
+    }, 100);
 
     return () => clearTimeout(timer);
-  }, [segments, containerWidth, map]);
-
-  return null;
-};
-
-const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
-  const defaultCenter: LatLngExpression = [-7.9845551, -34.8556378];
-
-  // Filter out child segments for map display - only show parent merged segments or non-merged segments
-  const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+  }, [visibleSegments, containerWidth]);
 
   return (
     <div className={className}>
-      <MapContainer
+      <Map
+        ref={mapRef}
+        initialViewState={{
+          ...defaultCenter,
+          zoom: 13
+        }}
+        style={{ width: "100%", height: "384px" }}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw"}
         className="w-full h-96 rounded shadow"
-        center={defaultCenter}
-        zoom={13}
       >
-        <TileLayer
-          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {visibleSegments.map((segment) => {
-          try {
-            const geom = segment.geometry;
-            const colorMap = {
-              Ciclovia: "blue",
-              Ciclofaixa: "purple",
-              Ciclorrota: "green",
-              Compartilhada: "red",
-            };
-
-            const color = colorMap[segment.type] || "gray";
-
-            if (geom.type === "LineString") {
-              const coordinates = geom.coordinates.map(
-                (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
-              );
-
-              return (
-                <Polyline
-                  key={segment.id}
-                  positions={coordinates}
-                  pathOptions={{ color }}
-                />
-              );
-            } else if (geom.type === "MultiLineString") {
-              return geom.coordinates.map((line: number[][], idx: number) => {
-                const coordinates = line.map(
-                  (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
-                );
-
-                return (
-                  <Polyline
-                    key={`${segment.id}-${idx}`}
-                    positions={coordinates}
-                    pathOptions={{ color }}
-                  />
-                );
-              });
-            } else if (geom.type === "Polygon") {
-              const coordinates = geom.coordinates.map((ring: number[][]) =>
-                ring.map(
-                  (coord: number[]) => [coord[1], coord[0]] as LatLngExpression
-                )
-              );
-
-              return (
-                <Polygon
-                  key={segment.id}
-                  positions={coordinates}
-                  pathOptions={{ color: "green" }}
-                />
-              );
-            } else {
-              return null;
-            }
-          } catch (error) {
-            console.error("Invalid geometry for segment", segment.id, error);
-            return null;
-          }
-        })}
-
-        <FitBounds segments={segments} containerWidth={containerWidth} />
-      </MapContainer>
+        <Source id="segments" type="geojson" data={geojsonData}>
+          <Layer
+            id="segments-line"
+            type="line"
+            paint={{
+              "line-color": ["get", "color"],
+              "line-width": 3,
+              "line-opacity": 0.8
+            }}
+          />
+        </Source>
+      </Map>
     </div>
   );
 };

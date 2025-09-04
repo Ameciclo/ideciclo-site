@@ -2,7 +2,7 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
-@import 'leaflet/dist/leaflet.css';
+@import 'mapbox-gl/dist/mapbox-gl.css';
 
 :root {
   --background: 0 0% 100%;
@@ -73,10 +73,9 @@
 } */
  
 
-.leaflet-container {
+.mapboxgl-map {
   height: 100%;
   width: 100%;
-  z-index: 0 !important;
 }
 
 @layer base {
