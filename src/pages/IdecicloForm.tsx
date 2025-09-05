@@ -43,6 +43,18 @@ const IdecicloForm = () => {
   });
   
   const [isLoading, setIsLoading] = useState(false);
+  const [previewScore, setPreviewScore] = useState(0);
+
+  // Atualizar prévia da pontuação quando formData mudar
+  useEffect(() => {
+    try {
+      const score = calculateScore();
+      setPreviewScore(score.total);
+    } catch (error) {
+      console.error('Erro no cálculo da prévia:', error);
+      setPreviewScore(0);
+    }
+  }, [formData, formData.tipologia]);
 
   // Buscar dados do segmento
   useEffect(() => {
@@ -214,23 +226,114 @@ const IdecicloForm = () => {
     }
   };
 
-  const renderRatingSelect = (paramName: string, label: string, description?: string) => (
-    <div className="space-y-2">
-      <Label htmlFor={paramName}>{label}</Label>
-      {description && <p className="text-sm text-gray-600">{description}</p>}
-      <Select value={formData[paramName]} onValueChange={(value) => handleChange(paramName, value)}>
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="A">A - Melhor</SelectItem>
-          <SelectItem value="B">B - Razoável</SelectItem>
-          <SelectItem value="C">C - Regular</SelectItem>
-          <SelectItem value="D">D - Inadequado</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  const renderRatingSelect = (paramName: string, label: string, description?: string) => {
+    // Buscar configuração do item no form.json
+    const config = formConfig.tipos?.[formData.tipologia];
+    let itemConfig = null;
+    
+    if (config) {
+      Object.values(config.secoes || {}).forEach((secao: any) => {
+        const item = secao.itens?.find((i: any) => i.codigo === paramName);
+        if (item) itemConfig = item;
+      });
+    }
+    
+    // Se não encontrou o item, mostrar todas as opções
+    if (!itemConfig) {
+      return (
+        <div className="space-y-2">
+          <Label>{label}</Label>
+          {description && <p className="text-sm text-gray-600">{description}</p>}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={formData[paramName] === "A" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "A")}
+              className="flex-1"
+            >
+              A - Melhor
+            </Button>
+            <Button
+              type="button"
+              variant={formData[paramName] === "B" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "B")}
+              className="flex-1"
+            >
+              B - Razoável
+            </Button>
+            <Button
+              type="button"
+              variant={formData[paramName] === "C" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "C")}
+              className="flex-1"
+            >
+              C - Regular
+            </Button>
+            <Button
+              type="button"
+              variant={formData[paramName] === "D" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "D")}
+              className="flex-1"
+            >
+              D - Inadequado
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    const hasValidRating = Object.values(itemConfig.avaliacao || {}).some((val: any) => val !== null);
+    if (!hasValidRating) return null;
+    
+    return (
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        {description && <p className="text-sm text-gray-600">{description}</p>}
+        <div className="flex gap-2">
+          {(itemConfig.avaliacao.A !== null && itemConfig.avaliacao.A !== undefined) && (
+            <Button
+              type="button"
+              variant={formData[paramName] === "A" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "A")}
+              className="flex-1"
+            >
+              A - Melhor
+            </Button>
+          )}
+          {(itemConfig.avaliacao.B !== null && itemConfig.avaliacao.B !== undefined) && (
+            <Button
+              type="button"
+              variant={formData[paramName] === "B" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "B")}
+              className="flex-1"
+            >
+              B - Razoável
+            </Button>
+          )}
+          {(itemConfig.avaliacao.C !== null && itemConfig.avaliacao.C !== undefined) && (
+            <Button
+              type="button"
+              variant={formData[paramName] === "C" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "C")}
+              className="flex-1"
+            >
+              C - Regular
+            </Button>
+          )}
+          {(itemConfig.avaliacao.D !== null && itemConfig.avaliacao.D !== undefined) && (
+            <Button
+              type="button"
+              variant={formData[paramName] === "D" ? "default" : "outline"}
+              onClick={() => handleChange(paramName, "D")}
+              className="flex-1"
+            >
+              D - Inadequado
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -468,14 +571,7 @@ const IdecicloForm = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-center">
-                Nota: {(() => {
-                  try {
-                    return calculateScore().total.toFixed(1);
-                  } catch (error) {
-                    console.error('Erro no cálculo:', error);
-                    return '0.0';
-                  }
-                })()}/100
+                Nota: {previewScore.toFixed(1)}/100
               </div>
             </CardContent>
           </Card>
