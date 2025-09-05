@@ -164,14 +164,17 @@ const IdecicloForm = () => {
     try {
       const { total, detalhes } = calculateScore();
       
-      // Salvar formulário
+      // Salvar formulário na tabela forms (temporário)
       const currentSegmentId = segmentId || sessionStorage.getItem("selectedSegmentId");
       const { data: formResult, error: formError } = await supabase
-        .from('avaliacoes_ideciclo')
+        .from('forms')
         .insert([{
-          ...formData,
-          created_at: new Date().toISOString(),
-          segment_id: currentSegmentId
+          id: `ideciclo-${currentSegmentId}-${Date.now()}`,
+          segment_id: currentSegmentId,
+          city_id: sessionStorage.getItem("selectedCityId") || 'unknown',
+          researcher: formData.pesquisador,
+          responses: formData,
+          created_at: new Date().toISOString()
         }])
         .select()
         .single();
@@ -181,45 +184,33 @@ const IdecicloForm = () => {
         throw formError;
       }
 
-      // Salvar pontuações detalhadas
-      const pontuacoes = [];
-      Object.entries(detalhes).forEach(([secao, dados]) => {
-        if (dados.itens) {
-          Object.entries(dados.itens).forEach(([codigo, item]) => {
-            pontuacoes.push({
-              avaliacao_id: formResult.id,
-              parametro: codigo,
-              resposta: item.resposta,
-              pontos: item.pontos,
-              nome_parametro: item.nome
+      // Salvar resultado no campo responses da tabela forms
+      const resultadoCompleto = {
+        ...formData,
+        nota_total: total,
+        detalhes_calculo: detalhes,
+        pontuacoes: Object.entries(detalhes).reduce((acc, [secao, dados]) => {
+          if (dados.itens) {
+            Object.entries(dados.itens).forEach(([codigo, item]) => {
+              acc[codigo] = {
+                resposta: item.resposta,
+                pontos: item.pontos,
+                nome: item.nome
+              };
             });
-          });
-        }
-      });
+          }
+          return acc;
+        }, {})
+      };
 
-      if (pontuacoes.length > 0) {
-        const { error: scoreError } = await supabase
-          .from('pontuacoes_ideciclo')
-          .insert(pontuacoes);
-        
-        if (scoreError) {
-          console.error('Erro detalhado ao salvar pontuações:', scoreError);
-        }
-      }
+      // Atualizar o registro com os resultados completos
+      const { error: updateError } = await supabase
+        .from('forms')
+        .update({ responses: resultadoCompleto })
+        .eq('id', formResult.id);
 
-      // Salvar nota total
-      const { error: totalError } = await supabase
-        .from('resultados_ideciclo')
-        .insert([{
-          avaliacao_id: formResult.id,
-          segment_id: currentSegmentId,
-          nota_total: total,
-          tipologia: formData.tipologia,
-          detalhes_calculo: detalhes
-        }]);
-
-      if (totalError) {
-        console.error('Erro detalhado ao salvar resultado:', totalError);
+      if (updateError) {
+        console.error('Erro ao atualizar resultado:', updateError);
       }
 
       toast({
