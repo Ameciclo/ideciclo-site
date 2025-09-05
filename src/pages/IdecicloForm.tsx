@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/services/database";
 
 const IdecicloForm = () => {
   const { toast } = useToast();
@@ -71,13 +72,25 @@ const IdecicloForm = () => {
 
   const handleSubmit = async () => {
     try {
-      // Aqui você salvaria os dados no banco
+      const { data, error } = await supabase
+        .from('avaliacoes_ideciclo')
+        .insert([
+          {
+            ...formData,
+            created_at: new Date().toISOString(),
+            segment_id: segmentId
+          }
+        ]);
+
+      if (error) throw error;
+
       toast({
         title: "Avaliação salva",
         description: "A avaliação IDECICLO foi salva com sucesso.",
       });
       navigate("/avaliacao/resultados");
     } catch (error) {
+      console.error('Erro ao salvar avaliação:', error);
       toast({
         title: "Erro",
         description: "Erro ao salvar a avaliação.",
@@ -95,10 +108,10 @@ const IdecicloForm = () => {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="A">A - Excelente</SelectItem>
-          <SelectItem value="B">B - Bom</SelectItem>
+          <SelectItem value="A">A - Melhor</SelectItem>
+          <SelectItem value="B">B - Razoável</SelectItem>
           <SelectItem value="C">C - Regular</SelectItem>
-          <SelectItem value="D">D - Ruim</SelectItem>
+          <SelectItem value="D">D - Inadequado</SelectItem>
         </SelectContent>
       </Select>
     </div>
