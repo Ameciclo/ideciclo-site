@@ -19,7 +19,7 @@ const Index = () => {
       <div className="container mt-36">
         <div className="flex flex-col md:flex-row items-stretch justify-center gap-8">
           <a
-            href="/ideciclo/manual" // <-- ajuste o destino
+            href="https://drive.google.com/uc?export=download&id=1KVAB51S_LXVTLHKge2CIy-AukT8VTepp" // <-- ajuste o destino
             role="button"
             aria-label="Abrir Manual do Ideciclo"
             className="relative flex flex-col justify-center rounded-[40px] font-semibold text-xl mx-auto w-full md:w-[468px] p-6 text-center tracking-wide shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-[1px] md:min-h-[150px]"
@@ -39,7 +39,7 @@ const Index = () => {
           </a>
 
           <a
-            href="/ideciclo/formulario.pdf" // <-- ajuste o destino
+            href="https://drive.google.com/uc?export=download&id=1UuNs1iKAknE5jiK4a0ePIZvffkxt-IWa" // <-- ajuste o destino
             role="button"
             aria-label="Baixar formulário de avaliação"
             className="relative flex flex-col justify-center rounded-[40px] font-semibold text-xl mx-auto w-full md:w-[468px] p-6 text-center tracking-wide shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-[1px] md:min-h-[150px]"
