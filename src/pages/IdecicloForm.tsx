@@ -47,14 +47,18 @@ const IdecicloForm = () => {
 
   // Atualizar prévia da pontuação quando formData mudar
   useEffect(() => {
-    try {
-      const score = calculateScore();
-      setPreviewScore(score.total);
-    } catch (error) {
-      console.error('Erro no cálculo da prévia:', error);
-      setPreviewScore(0);
-    }
-  }, [formData, formData.tipologia]);
+    const timer = setTimeout(() => {
+      try {
+        const score = calculateScore();
+        setPreviewScore(score.total);
+      } catch (error) {
+        console.error('Erro no cálculo da prévia:', error);
+        setPreviewScore(0);
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [formData]);
 
   // Buscar dados do segmento
   useEffect(() => {
@@ -109,7 +113,7 @@ const IdecicloForm = () => {
   // Função para calcular pontuação
   const calculateScore = () => {
     try {
-      const tipo = formData.tipologia;
+      const tipo = formData.tipologia?.toLowerCase();
       const config = formConfig.tipos?.[tipo];
       if (!config) return { total: 0, detalhes: {} };
 
@@ -227,59 +231,23 @@ const IdecicloForm = () => {
   };
 
   const renderRatingSelect = (paramName: string, label: string, description?: string) => {
-    // Buscar configuração do item no form.json
-    const config = formConfig.tipos?.[formData.tipologia];
+    // Buscar configuração do item no form.json (normalizar para minúsculo)
+    const tipologia = formData.tipologia?.toLowerCase();
+    const config = formConfig.tipos?.[tipologia];
     let itemConfig = null;
     
     if (config) {
       Object.values(config.secoes || {}).forEach((secao: any) => {
         const item = secao.itens?.find((i: any) => i.codigo === paramName);
-        if (item) itemConfig = item;
+        if (item) {
+          itemConfig = item;
+        }
       });
     }
     
-    // Se não encontrou o item, mostrar todas as opções
+    // Se não encontrou o item, não renderizar
     if (!itemConfig) {
-      return (
-        <div className="space-y-2">
-          <Label>{label}</Label>
-          {description && <p className="text-sm text-gray-600">{description}</p>}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={formData[paramName] === "A" ? "default" : "outline"}
-              onClick={() => handleChange(paramName, "A")}
-              className="flex-1"
-            >
-              A - Melhor
-            </Button>
-            <Button
-              type="button"
-              variant={formData[paramName] === "B" ? "default" : "outline"}
-              onClick={() => handleChange(paramName, "B")}
-              className="flex-1"
-            >
-              B - Razoável
-            </Button>
-            <Button
-              type="button"
-              variant={formData[paramName] === "C" ? "default" : "outline"}
-              onClick={() => handleChange(paramName, "C")}
-              className="flex-1"
-            >
-              C - Regular
-            </Button>
-            <Button
-              type="button"
-              variant={formData[paramName] === "D" ? "default" : "outline"}
-              onClick={() => handleChange(paramName, "D")}
-              className="flex-1"
-            >
-              D - Inadequado
-            </Button>
-          </div>
-        </div>
-      );
+      return null;
     }
     
     const hasValidRating = Object.values(itemConfig.avaliacao || {}).some((val: any) => val !== null);
@@ -406,14 +374,6 @@ const IdecicloForm = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="bairro">Bairro</Label>
-                  <Input
-                    id="bairro"
-                    value={formData.bairro}
-                    onChange={(e) => handleChange("bairro", e.target.value)}
-                  />
-                </div>
-                <div>
                   <Label htmlFor="nome_trecho">Nome do Trecho</Label>
                   <Input
                     id="nome_trecho"
@@ -457,24 +417,6 @@ const IdecicloForm = () => {
                     value={formData.tipologia}
                     disabled
                     className="bg-gray-50"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="inicio_trecho">Início do Trecho</Label>
-                  <Input
-                    id="inicio_trecho"
-                    value={formData.inicio_trecho}
-                    onChange={(e) => handleChange("inicio_trecho", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="fim_trecho">Fim do Trecho</Label>
-                  <Input
-                    id="fim_trecho"
-                    value={formData.fim_trecho}
-                    onChange={(e) => handleChange("fim_trecho", e.target.value)}
                   />
                 </div>
               </div>
