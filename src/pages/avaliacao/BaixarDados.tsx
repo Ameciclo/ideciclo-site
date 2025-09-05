@@ -1,9 +1,24 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, ArrowRight, Loader2, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  ArrowRight,
+  Loader2,
+  CheckCircle,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { fetchAllStoredCities } from "@/services/database";
-import { fetchStates, fetchCities, fetchCityHighwayStats, fetchCityWays, calculateCityStats, convertToSegments, getStoredCityData, storeCityData } from "@/services/api";
+import {
+  fetchStates,
+  fetchCities,
+  fetchCityHighwayStats,
+  fetchCityWays,
+  calculateCityStats,
+  convertToSegments,
+  getStoredCityData,
+  storeCityData,
+} from "@/services/api";
 import { City, IBGEState, IBGECity } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,7 +39,7 @@ const BaixarDados = () => {
       try {
         const [citiesData, statesData] = await Promise.all([
           fetchAllStoredCities(),
-          fetchStates()
+          fetchStates(),
         ]);
         setStoredCities(citiesData);
         setStates(statesData);
@@ -42,7 +57,7 @@ const BaixarDados = () => {
     setSelectedState(stateId);
     setSelectedCity("");
     setCities([]);
-    
+
     if (!stateId) return;
 
     try {
@@ -59,10 +74,10 @@ const BaixarDados = () => {
 
   const handleSubmit = async () => {
     if (!selectedState || !selectedCity) return;
-    
-    const state = states.find(s => s.id.toString() === selectedState);
-    const city = cities.find(c => c.id.toString() === selectedCity);
-    
+
+    const state = states.find((s) => s.id.toString() === selectedState);
+    const city = cities.find((c) => c.id.toString() === selectedCity);
+
     if (!state || !city) return;
 
     try {
@@ -113,12 +128,11 @@ const BaixarDados = () => {
 
       setCityData(data);
       handleComplete(data);
-      
+
       toast({
         title: "Dados baixados",
         description: `Dados de ${city.nome}/${state.sigla} baixados com sucesso!`,
       });
-
     } catch (error) {
       console.error("Erro ao baixar dados:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -142,7 +156,7 @@ const BaixarDados = () => {
       cityId: city.id,
       cityName: city.name,
       stateName: city.state,
-      city: city
+      city: city,
     };
     sessionStorage.setItem("cityData", JSON.stringify(cityData));
     navigate("/avaliacao/refinar-dados");
@@ -278,6 +292,10 @@ const BaixarDados = () => {
           <p className="text-gray-600 text-lg">
             Selecione uma cidade e baixe os dados da infraestrutura cicloviária
           </p>
+          <Button variant="outline" onClick={() => navigate("/avaliacao")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar às Etapas
+          </Button>
         </div>
 
         {storedCities.length > 0 && (
@@ -292,7 +310,7 @@ const BaixarDados = () => {
                 </h2>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {storedCities.map((city) => (
                 <div
@@ -306,7 +324,14 @@ const BaixarDados = () => {
                         EXTENSÃO
                       </h3>
                       <h3 className="text-3xl mt-1 font-bold text-ideciclo-blue">
-                        {(city.extensao_total || city.vias_estruturais_km + city.vias_alimentadoras_km + city.vias_locais_km || 0).toFixed(1)} km
+                        {(
+                          city.extensao_total ||
+                          city.vias_estruturais_km +
+                            city.vias_alimentadoras_km +
+                            city.vias_locais_km ||
+                          0
+                        ).toFixed(1)}{" "}
+                        km
                       </h3>
                     </div>
 
@@ -338,14 +363,16 @@ const BaixarDados = () => {
               </h2>
             </div>
           </div>
-          
+
           <div className="max-w-4xl mx-auto">
             <div className="rounded bg-white shadow-2xl p-8">
               <div className="flex items-center gap-3 mb-6">
                 <Download className="h-6 w-6 text-ideciclo-blue" />
-                <h3 className="text-xl font-semibold">Selecionar Estado e Cidade</h3>
+                <h3 className="text-xl font-semibold">
+                  Selecionar Estado e Cidade
+                </h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Seleção de Estado com estilo customizado */}
                 <div className="relative">
@@ -366,7 +393,9 @@ const BaixarDados = () => {
                     </svg>
                   </div>
                   <div className="relative z-10 text-white font-bold rounded px-6 pb-8 pt-4">
-                    <label className="block text-sm mb-3 uppercase tracking-wide">Estado:</label>
+                    <label className="block text-sm mb-3 uppercase tracking-wide">
+                      Estado:
+                    </label>
                     <select
                       className="block appearance-none text-black font-bold w-full bg-white 
                                border border-gray-400 hover:border-gray-500 px-4 py-3 pr-8 
@@ -403,7 +432,9 @@ const BaixarDados = () => {
                     </svg>
                   </div>
                   <div className="relative z-10 text-white font-bold rounded px-6 pb-8 pt-4">
-                    <label className="block text-sm mb-3 uppercase tracking-wide">Cidade:</label>
+                    <label className="block text-sm mb-3 uppercase tracking-wide">
+                      Cidade:
+                    </label>
                     <select
                       className="block appearance-none text-black font-bold w-full bg-white 
                                border border-gray-400 hover:border-gray-500 px-4 py-3 pr-8 
@@ -425,7 +456,7 @@ const BaixarDados = () => {
 
               {/* Botão de ação */}
               <div className="mt-8 text-center">
-                <Button 
+                <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !selectedState || !selectedCity}
                   className="bg-ideciclo-blue hover:bg-blue-600 text-white px-8 py-3 text-lg font-semibold rounded-[20px] shadow-lg"
@@ -449,12 +480,23 @@ const BaixarDados = () => {
                 <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-4">
                     <CheckCircle className="h-6 w-6 text-green-600" />
-                    <h4 className="text-lg font-semibold text-green-700">Dados Baixados com Sucesso!</h4>
+                    <h4 className="text-lg font-semibold text-green-700">
+                      Dados Baixados com Sucesso!
+                    </h4>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Cidade:</strong> {cityData.cityName}, {cityData.stateName}</p>
-                    <p><strong>Segmentos encontrados:</strong> {cityData.segments?.length || 0}</p>
-                    <p><strong>Extensão total:</strong> {cityData.city?.extensao_total?.toFixed(2) || 0} km</p>
+                    <p>
+                      <strong>Cidade:</strong> {cityData.cityName},{" "}
+                      {cityData.stateName}
+                    </p>
+                    <p>
+                      <strong>Segmentos encontrados:</strong>{" "}
+                      {cityData.segments?.length || 0}
+                    </p>
+                    <p>
+                      <strong>Extensão total:</strong>{" "}
+                      {cityData.city?.extensao_total?.toFixed(2) || 0} km
+                    </p>
                   </div>
                 </div>
               )}
