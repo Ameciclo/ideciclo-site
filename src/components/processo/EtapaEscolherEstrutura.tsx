@@ -8,7 +8,7 @@ import { fetchSegmentsByCity } from "@/services/database";
 
 interface EtapaEscolherEstruturaProps {
   cityData: any;
-  onComplete: () => void;
+  onComplete: (segmentId?: string) => void;
 }
 
 const EtapaEscolherEstrutura = ({ cityData, onComplete }: EtapaEscolherEstruturaProps) => {
@@ -43,12 +43,17 @@ const EtapaEscolherEstrutura = ({ cityData, onComplete }: EtapaEscolherEstrutura
 
   const handleGoToEvaluation = () => {
     if (selectedSegment) {
-      navigate(`/refinar/formulario/${selectedSegment.id}`);
+      // Store segment ID for the evaluation form
+      sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
+      navigate("/avaliacao/avaliar-estrutura");
     }
   };
 
   const handleContinue = () => {
-    onComplete();
+    if (selectedSegment) {
+      sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
+      onComplete(selectedSegment.id);
+    }
   };
 
   if (!cityData) {
@@ -129,10 +134,7 @@ const EtapaEscolherEstrutura = ({ cityData, onComplete }: EtapaEscolherEstrutura
               <div className="flex gap-3 mt-4">
                 <Button onClick={handleGoToEvaluation} className="flex-1">
                   <MapPin className="h-4 w-4 mr-2" />
-                  Ir para Avaliação
-                </Button>
-                <Button variant="outline" onClick={handleContinue}>
-                  Continuar sem Avaliar
+                  Avaliar com IDECICLO
                 </Button>
               </div>
             </div>

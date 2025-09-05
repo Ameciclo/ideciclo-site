@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/services/database";
+import { supabase } from "@/integrations/supabase/client";
+import formConfig from "../../form.json";
 
 const IdecicloForm = () => {
   const { toast } = useToast();
@@ -28,43 +29,116 @@ const IdecicloForm = () => {
     inicio_trecho: "",
     fim_trecho: "",
     hierarquia_viaria: "",
+    tipologia: "ciclovia", // Tipo de infraestrutura
     
-    // 1. PLANEJAMENTO CICLOVIÁRIO (2 parâmetros)
-    p1_integracao_rede: "A", // A-D
-    p2_continuidade_fisica: "A", // A-D
-    
-    // 2. PROJETO CICLOVIÁRIO AO LONGO DA QUADRA (11 parâmetros)
-    p3_tipologia_infraestrutura: "A", // A-D
-    p4_largura_util: "A", // A-D
-    p5_declividade: "A", // A-D
-    p6_qualidade_pavimento: "A", // A-D
-    p7_conservacao_pavimento: "A", // A-D
-    p8_protecao_trafego: "A", // A-D
-    p9_protecao_estacionamento: "A", // A-D
-    p10_sinalizacao_horizontal: "A", // A-D
-    p11_sinalizacao_vertical: "A", // A-D
-    p12_drenagem: "A", // A-D
-    p13_obstaculos: "A", // A-D
-    
-    // 3. PROJETO CICLOVIÁRIO NAS INTERSEÇÕES (3 parâmetros)
-    p14_continuidade_intersecoes: "A", // A-D
-    p15_sinalizacao_intersecoes: "A", // A-D
-    p16_conflitos_conversoes: "A", // A-D
-    
-    // 4. URBANIDADE (3 parâmetros)
-    p17_atratividade_uso_solo: "A", // A-D
-    p18_seguranca_publica: "A", // A-D
-    p19_conforto_ambiental: "A", // A-D
-    
-    // 5. MANUTENÇÃO DA INFRAESTRUTURA (4 parâmetros)
-    p20_limpeza: "A", // A-D
-    p21_conservacao_sinalizacao: "A", // A-D
-    p22_conservacao_pavimento_manutencao: "A", // A-D
-    p23_poda_vegetacao: "A", // A-D
+    // Respostas dos parâmetros (A1-E4)
+    A1: "A", A2: "A",
+    B1: "A", B2: "A", B3: "A", B4: "A", B5: "A", B6: "A", B7: "A",
+    C1: "A", C2: "A", C3: "A",
+    D1: "A", D2: "A", D3: "A",
+    E1: "A", E2: "A", E3: "A", E4: "A",
     
     // Observações
     observacoes: ""
   });
+  
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Buscar dados do segmento
+  useEffect(() => {
+    const fetchSegmentData = async () => {
+      // Pegar segmentId da URL ou do sessionStorage
+      const currentSegmentId = segmentId || sessionStorage.getItem("selectedSegmentId");
+      if (!currentSegmentId) return;
+      
+      setIsLoading(true);
+      try {
+        const { data: segmentData, error } = await supabase
+          .from('segments')
+          .select('*')
+          .eq('id', currentSegmentId)
+          .single();
+
+        if (error) throw error;
+
+        if (segmentData) {
+          // Buscar dados da cidade
+          const { data: cityData } = await supabase
+            .from('cities')
+            .select('*')
+            .eq('id', segmentData.id_cidade)
+            .single();
+
+          setFormData(prev => ({
+            ...prev,
+            nome_trecho: segmentData.name || "",
+            extensao: segmentData.length || 0,
+            cidade: cityData?.name || "",
+            bairro: segmentData.neighborhood || "",
+            hierarquia_viaria: segmentData.classification || "",
+            tipologia: segmentData.type || "ciclovia"
+          }));
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados do segmento:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados do segmento.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSegmentData();
+  }, [segmentId, toast]);
+
+  // Função para calcular pontuação
+  const calculateScore = () => {
+    try {
+      const tipo = formData.tipologia;
+      const config = formConfig.tipos?.[tipo];
+      if (!config) return { total: 0, detalhes: {} };
+
+      let pontuacaoTotal = 0;
+      const detalhes = {};
+
+      // Verificar regra de eliminação A1
+      if (formData.A1 === "D") {
+        return { total: 0, detalhes: { eliminado: true, motivo: "A1 = D" } };
+      }
+
+      // Calcular pontuação por seção
+      Object.entries(config.secoes || {}).forEach(([secaoKey, secao]) => {
+        let pontuacaoSecao = 0;
+        const detalhesSecao = {};
+
+        (secao.itens || []).forEach(item => {
+          const resposta = formData[item.codigo];
+          const pontos = item.avaliacao?.[resposta];
+          
+          if (pontos !== null && pontos !== undefined) {
+            pontuacaoSecao += pontos;
+            detalhesSecao[item.codigo] = { resposta, pontos, nome: item.nome };
+          }
+        });
+
+        // Aplicar limite mínimo para seção B
+        if (secaoKey === "B" && pontuacaoSecao < 0) {
+          pontuacaoSecao = 0;
+        }
+
+        pontuacaoTotal += Math.min(pontuacaoSecao, secao.max || 0);
+        detalhes[secaoKey] = { pontuacao: pontuacaoSecao, max: secao.max || 0, itens: detalhesSecao };
+      });
+
+      return { total: Math.max(0, pontuacaoTotal), detalhes };
+    } catch (error) {
+      console.error('Erro no cálculo da pontuação:', error);
+      return { total: 0, detalhes: {} };
+    }
+  };
 
   const handleChange = (name: string, value: any) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -72,21 +146,62 @@ const IdecicloForm = () => {
 
   const handleSubmit = async () => {
     try {
-      const { data, error } = await supabase
+      const { total, detalhes } = calculateScore();
+      
+      // Salvar formulário
+      const currentSegmentId = segmentId || sessionStorage.getItem("selectedSegmentId");
+      const { data: formResult, error: formError } = await supabase
         .from('avaliacoes_ideciclo')
-        .insert([
-          {
-            ...formData,
-            created_at: new Date().toISOString(),
-            segment_id: segmentId
-          }
-        ]);
+        .insert([{
+          ...formData,
+          created_at: new Date().toISOString(),
+          segment_id: currentSegmentId
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (formError) throw formError;
+
+      // Salvar pontuações detalhadas
+      const pontuacoes = [];
+      Object.entries(detalhes).forEach(([secao, dados]) => {
+        if (dados.itens) {
+          Object.entries(dados.itens).forEach(([codigo, item]) => {
+            pontuacoes.push({
+              avaliacao_id: formResult.id,
+              parametro: codigo,
+              resposta: item.resposta,
+              pontos: item.pontos,
+              nome_parametro: item.nome
+            });
+          });
+        }
+      });
+
+      if (pontuacoes.length > 0) {
+        const { error: scoreError } = await supabase
+          .from('pontuacoes_ideciclo')
+          .insert(pontuacoes);
+        
+        if (scoreError) console.error('Erro ao salvar pontuações:', scoreError);
+      }
+
+      // Salvar nota total
+      const { error: totalError } = await supabase
+        .from('resultados_ideciclo')
+        .insert([{
+          avaliacao_id: formResult.id,
+          segment_id: currentSegmentId,
+          nota_total: total,
+          tipologia: formData.tipologia,
+          detalhes_calculo: detalhes
+        }]);
+
+      if (totalError) console.error('Erro ao salvar resultado:', totalError);
 
       toast({
         title: "Avaliação salva",
-        description: "A avaliação IDECICLO foi salva com sucesso.",
+        description: `Avaliação IDECICLO salva com nota ${total.toFixed(1)}.`,
       });
       navigate("/avaliacao/resultados");
     } catch (error) {
@@ -147,6 +262,12 @@ const IdecicloForm = () => {
           </Button>
         </div>
 
+        {isLoading && (
+          <Card className="mb-6 p-6 flex justify-center items-center">
+            <p>Carregando dados do segmento...</p>
+          </Card>
+        )}
+
         <div className="space-y-8">
           {/* Dados Gerais */}
           <Card>
@@ -177,7 +298,8 @@ const IdecicloForm = () => {
                   <Input
                     id="cidade"
                     value={formData.cidade}
-                    onChange={(e) => handleChange("cidade", e.target.value)}
+                    disabled
+                    className="bg-gray-50"
                   />
                 </div>
                 <div>
@@ -193,7 +315,8 @@ const IdecicloForm = () => {
                   <Input
                     id="nome_trecho"
                     value={formData.nome_trecho}
-                    onChange={(e) => handleChange("nome_trecho", e.target.value)}
+                    disabled
+                    className="bg-gray-50"
                   />
                 </div>
                 <div>
@@ -202,7 +325,8 @@ const IdecicloForm = () => {
                     id="extensao"
                     type="number"
                     value={formData.extensao}
-                    onChange={(e) => handleChange("extensao", parseFloat(e.target.value) || 0)}
+                    disabled
+                    className="bg-gray-50"
                   />
                 </div>
                 <div>
@@ -216,17 +340,21 @@ const IdecicloForm = () => {
                 </div>
                 <div>
                   <Label htmlFor="hierarquia_viaria">Hierarquia Viária</Label>
-                  <Select value={formData.hierarquia_viaria} onValueChange={(value) => handleChange("hierarquia_viaria", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="local">Local</SelectItem>
-                      <SelectItem value="coletora">Coletora</SelectItem>
-                      <SelectItem value="arterial">Arterial</SelectItem>
-                      <SelectItem value="expressa">Expressa</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="hierarquia_viaria"
+                    value={formData.hierarquia_viaria}
+                    disabled
+                    className="bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tipologia">Tipologia da Infraestrutura</Label>
+                  <Input
+                    id="tipologia"
+                    value={formData.tipologia}
+                    disabled
+                    className="bg-gray-50"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -256,36 +384,36 @@ const IdecicloForm = () => {
               <CardTitle>A. PLANEJAMENTO CICLOVIÁRIO</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderRatingSelect("p1_integracao_rede", "A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia")}
-              {renderRatingSelect("p2_continuidade_fisica", "A.2. Conectividade da Rede Cicloviária")}
+              {renderRatingSelect("A1", "A1. Adequação da tipologia à velocidade/hierarquia")}
+              {renderRatingSelect("A2", "A2. Conectividade da Rede Cicloviária")}
             </CardContent>
           </Card>
 
-          {/* B. PROJETO CICLOVIÁRIO AO LONGO DA QUADRA */}
+          {/* B. PROJETO AO LONGO DA ESTRUTURA */}
           <Card>
             <CardHeader>
-              <CardTitle>B. PROJETO CICLOVIÁRIO AO LONGO DA QUADRA</CardTitle>
+              <CardTitle>B. PROJETO AO LONGO DA ESTRUTURA</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderRatingSelect("p3_tipologia_infraestrutura", "B.1. Espaço útil da Infraestrutura Cicloviária")}
-              {renderRatingSelect("p4_largura_util", "B.2. Tipo de Pavimento")}
-              {renderRatingSelect("p5_declividade", "B.3. Delimitação da Infraestrutura Cicloviária")}
-              {renderRatingSelect("p6_qualidade_pavimento", "B.4. Identificação do espaço cicloviário")}
-              {renderRatingSelect("p7_conservacao_pavimento", "B.5. Acessibilidade relativa ao uso do solo lindeiro")}
-              {renderRatingSelect("p8_protecao_trafego", "B.6. Medidas de moderação de velocidade no compartilhamento viário")}
-              {renderRatingSelect("p9_protecao_estacionamento", "B.7. Existência de situações de risco ao longo da infraestrutura")}
+              {renderRatingSelect("B1", "B1. Espaço útil da Infraestrutura Cicloviária")}
+              {renderRatingSelect("B2", "B2. Tipo de pavimento")}
+              {renderRatingSelect("B3", "B3. Delimitação da Infraestrutura")}
+              {renderRatingSelect("B4", "B4. Identificação do espaço cicloviário")}
+              {renderRatingSelect("B5", "B5. Acessibilidade relativa ao uso do solo lindeiro")}
+              {renderRatingSelect("B6", "B6. Moderação de velocidade no compartilhamento viário")}
+              {renderRatingSelect("B7", "B7. Situações de risco ao longo da infraestrutura")}
             </CardContent>
           </Card>
 
-          {/* C. PROJETO CICLOVIÁRIO NAS INTERSEÇÕES */}
+          {/* C. PROJETO NAS INTERSEÇÕES */}
           <Card>
             <CardHeader>
-              <CardTitle>C. PROJETO CICLOVIÁRIO NAS INTERSEÇÕES</CardTitle>
+              <CardTitle>C. PROJETO NAS INTERSEÇÕES</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderRatingSelect("p14_continuidade_intersecoes", "C.1. Sinalização horizontal cicloviária nas interseções")}
-              {renderRatingSelect("p15_sinalizacao_intersecoes", "C.2. Acessibilidade entre conexões cicloviárias")}
-              {renderRatingSelect("p16_conflitos_conversoes", "C.3. Tratamento dos conflitos com a circulação de modos motorizados")}
+              {renderRatingSelect("C1", "C1. Sinalização horizontal cicloviária nas interseções")}
+              {renderRatingSelect("C2", "C2. Acessibilidade entre conexões cicloviárias")}
+              {renderRatingSelect("C3", "C3. Tratamento dos conflitos com modos motorizados")}
             </CardContent>
           </Card>
 
@@ -295,22 +423,22 @@ const IdecicloForm = () => {
               <CardTitle>D. URBANIDADE</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderRatingSelect("p17_atratividade_uso_solo", "D.1. Iluminação da infraestrutura cicloviária")}
-              {renderRatingSelect("p18_seguranca_publica", "D.2. Conforto térmico")}
-              {renderRatingSelect("p19_conforto_ambiental", "D.3. Existência de mobiliário cicloviário")}
+              {renderRatingSelect("D1", "D1. Iluminação")}
+              {renderRatingSelect("D2", "D2. Conforto térmico")}
+              {renderRatingSelect("D3", "D3. Mobiliário cicloviário")}
             </CardContent>
           </Card>
 
-          {/* E. MANUTENÇÃO DA INFRAESTRUTURA CICLOVIÁRIA */}
+          {/* E. MANUTENÇÃO DA INFRAESTRUTURA */}
           <Card>
             <CardHeader>
               <CardTitle>E. MANUTENÇÃO DA INFRAESTRUTURA CICLOVIÁRIA</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {renderRatingSelect("p20_limpeza", "E.1. Estado de conservação da sinalização horizontal nas interseções")}
-              {renderRatingSelect("p21_conservacao_sinalizacao", "E.2. Estado de conservação do pavimento")}
-              {renderRatingSelect("p22_conservacao_pavimento_manutencao", "E.3. Estado de conservação dos elementos de delimitação da infraestrutura")}
-              {renderRatingSelect("p23_poda_vegetacao", "E.4. Estado de conservação da identificação do espaço cicloviária")}
+              {renderRatingSelect("E1", "E1. Conservação da sinalização horizontal na interseção")}
+              {renderRatingSelect("E2", "E2. Conservação do pavimento")}
+              {renderRatingSelect("E3", "E3. Conservação dos elementos de delimitação")}
+              {renderRatingSelect("E4", "E4. Conservação da identificação do espaço")}
             </CardContent>
           </Card>
 
@@ -329,6 +457,25 @@ const IdecicloForm = () => {
                   onChange={(e) => handleChange("observacoes", e.target.value)}
                   rows={4}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Prévia da Pontuação */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Prévia da Pontuação</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-center">
+                Nota: {(() => {
+                  try {
+                    return calculateScore().total.toFixed(1);
+                  } catch (error) {
+                    console.error('Erro no cálculo:', error);
+                    return '0.0';
+                  }
+                })()}/100
               </div>
             </CardContent>
           </Card>

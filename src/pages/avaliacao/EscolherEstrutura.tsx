@@ -15,8 +15,13 @@ const EscolherEstrutura = () => {
     }
   }, []);
 
-  const handleComplete = () => {
-    navigate("/avaliacao/avaliar-estrutura");
+  const handleComplete = (segmentId?: string) => {
+    if (segmentId) {
+      navigate(`/avaliacao/formulario-ideciclo/${segmentId}`);
+    } else {
+      // Se nenhuma estrutura foi selecionada, não permite continuar
+      return;
+    }
   };
 
   return (

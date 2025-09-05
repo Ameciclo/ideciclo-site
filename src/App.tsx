@@ -19,6 +19,7 @@ import RefinarDados from "./pages/avaliacao/RefinarDados";
 import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
 import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
 import Resultados from "./pages/avaliacao/Resultados";
+import IdecicloForm from "./pages/IdecicloForm";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
               <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
               <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
+              <Route path="/avaliacao/formulario-ideciclo/:segmentId" element={<IdecicloForm />} />
               <Route path="/avaliacao/resultados" element={<Resultados />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
