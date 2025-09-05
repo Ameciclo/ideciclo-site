@@ -62,7 +62,6 @@ const Refine = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  // Check if we're returning from form with preserved data
   useEffect(() => {
     const state = location.state as
       | {
@@ -77,12 +76,9 @@ const Refine = () => {
       setCityId(state.cityId);
       setCityName(state.cityName || "");
       setStateName(state.stateName || "");
-
-      if (step === "selection") {
-        loadStoredCityData(state.cityId);
-      }
+      loadStoredCityData(state.cityId);
     }
-  }, [location, step]);
+  }, [location]);
 
   // These functions are no longer needed as we're using database exclusively
   const loadLocalSegments = (cityId: string): Segment[] | null => {
@@ -690,21 +686,9 @@ const Refine = () => {
         </div>
       )}
 
-      {!isLoading && !error && step === "selection" && (
+      {!isLoading && !error && !cityName && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Selecionar Cidade</CardTitle>
-              <CardDescription>
-                Escolha o estado e a cidade para aprimorar os dados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CitySelection onCitySelected={handleCitySelected} />
-            </CardContent>
-          </Card>
-
-          {/* <Card>
             <CardHeader>
               <CardTitle>Cidades em Aprimoramento</CardTitle>
               <CardDescription>
@@ -714,11 +698,23 @@ const Refine = () => {
             <CardContent>
               <StoredCitiesSelection onCitySelected={handleCitySelected} />
             </CardContent>
-          </Card> */}
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Selecionar Nova Cidade</CardTitle>
+              <CardDescription>
+                Escolha o estado e a cidade para baixar e aprimorar os dados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CitySelection onCitySelected={handleCitySelected} />
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {!isLoading && !error && step === "refinement" && cityName && (
+      {!isLoading && !error && cityName && (
         <div className="space-y-8">
 
           <CityInfrastructureCard
@@ -790,14 +786,7 @@ const Refine = () => {
         </div>
       )}
       
-      {!isLoading && !error && step === "refinement" && !cityName && (
-        <div className="text-center py-8">
-          <p>Erro: Dados da cidade não foram carregados corretamente.</p>
-          <Button onClick={() => setStep("selection")} className="mt-4">
-            Voltar à seleção
-          </Button>
-        </div>
-      )}
+
     </div>
   );
 };
