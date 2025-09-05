@@ -13,9 +13,17 @@ import Ranking from "./pages/Ranking";
 import CityDetails from "./pages/CityDetails";
 import Apoiadores from "./pages/Apoiadores";
 import NotFound from "./pages/NotFound";
+import ProcessoAvaliacao from "./pages/ProcessoAvaliacao";
+import BaixarDados from "./pages/avaliacao/BaixarDados";
+import RefinarDados from "./pages/avaliacao/RefinarDados";
+import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
+import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
+import Resultados from "./pages/avaliacao/Resultados";
+import IdecicloForm from "./pages/IdecicloForm";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -28,16 +36,24 @@ const App = () => (
         <div className="min-h-screen flex flex-col">
           <Navbar />
           <div className="flex-grow pt-20">
-            <Routes>
+            <ErrorBoundary>
+              <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/avaliar" element={<Refine />} />
+              <Route path="/processo-avaliacao" element={<ProcessoAvaliacao />} />
+              <Route path="/refinar" element={<Refine />} />
               <Route path="/avaliacao" element={<Avaliacao />} />
+              <Route path="/avaliacao/baixar-dados" element={<BaixarDados />} />
+              <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
+              <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
+              <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
+              <Route path="/avaliacao/formulario-ideciclo/:segmentId" element={<IdecicloForm />} />
+              <Route path="/avaliacao/resultados" element={<Resultados />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
               <Route path="/sobre" element={<About />} />
               <Route path="/apoiadores" element={<Apoiadores />} />
               <Route
-                path="/avaliar/formulario/:segmentId"
+                path="/refinar/formulario/:segmentId"
                 element={<SegmentForm />}
               />
               <Route
@@ -50,6 +66,7 @@ const App = () => (
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </div>
           <Footer />
           <ScrollToTop />

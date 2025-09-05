@@ -16,7 +16,7 @@ interface CityInfrastructureCardProps {
     vias_estruturais_km?: number;
     vias_alimentadoras_km?: number;
     vias_locais_km?: number;
-  };
+  } | null;
 }
 
 export const CityInfrastructureCard = ({
@@ -26,9 +26,24 @@ export const CityInfrastructureCard = ({
 }: CityInfrastructureCardProps) => {
   const [isVisible, setIsVisible] = useState(true);
 
+  // Debug removed
+
   const toggleVisibility = () => {
     setIsVisible(!isVisible);
   };
+
+  // Safety check
+  if (!city) {
+    // No city data provided
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{cityName}, {stateName}</CardTitle>
+          <CardDescription>Carregando dados da infraestrutura viária...</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>

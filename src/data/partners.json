@@ -1,0 +1,52 @@
+[
+  {
+    "name": "AMECICLO",
+    "description": "Associação Metropolitana de Ciclistas do Recife",
+    "logo": "/logos/partners/ameciclo.png"
+  },
+  {
+    "name": "BH em Ciclo",
+    "description": "Associação dos e das Ciclistas Urbanas de Belo Horizonte",
+    "logo": "/logos/partners/BH em Ciclo.png"
+  },
+  {
+    "name": "Bici Nos Planos MS",
+    "description": "Coletivo de mobilidade urbana do Mato Grosso do Sul",
+    "logo": "/logos/partners/Bici Nos Planos MS.png"
+  },
+  {
+    "name": "Ciclobservatório IFC",
+    "description": "Projeto do campus Camboriú do IFC para formação em Ciclomobilidade",
+    "logo": "/logos/partners/Ciclobservatório IFC.png"
+  },
+  {
+    "name": "Ciclocidade",
+    "description": "Associação dos Ciclistas Urbanos de São Paulo",
+    "logo": "/logos/partners/Ciclocidade.png"
+  },
+  {
+    "name": "Cicloiguaçu",
+    "description": "Associação de Ciclistas do Alto Iguaçu",
+    "logo": "/logos/partners/Cicloiguaçu.png"
+  },
+  {
+    "name": "Ciclomobi",
+    "description": "Coletivo de Ciclistas Urbanos de Maceió",
+    "logo": "/logos/partners/Ciclomobi.png"
+  },
+  {
+    "name": "ObMob Salvador",
+    "description": "Observatório da Mobilidade de Salvador",
+    "logo": "/logos/partners/ObMob Salvador.png"
+  },
+  {
+    "name": "Pedaleco",
+    "description": "Coletivo de ciclistas do Maranhão",
+    "logo": "/logos/partners/Pedaleco.png"
+  },
+  {
+    "name": "Rodas da Paz",
+    "description": "Associação Civil Rodas da Paz",
+    "logo": "/logos/partners/Rodas da Paz.png"
+  }
+]

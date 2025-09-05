@@ -1,107 +1,77 @@
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { HeroSection } from "@/components/sections/HeroSection";
+import { ExplanationSection } from "@/components/sections/ExplanationSection";
+import { InfoCardsSection } from "@/components/sections/InfoCardsSection";
+import { AccordionSection } from "@/components/sections/AccordionSection";
+import { SupportersSection } from "@/components/sections/SupportersSection";
+import sectionsData from "@/data/sections.json";
+import cardsData from "@/data/cards.json";
+import accordionData from "@/data/accordion.json";
+import partnersData from "@/data/partners.json";
+import consultantsData from "@/data/consultants.json";
+import sponsorsData from "@/data/sponsors.json";
 
 const Index = () => {
   return (
     <>
-      <div className="w-full mb-8 flex justify-center bg-[#5050AA80]">
-        <a href="/manual_ideciclo.pdf" download className="w-full">
-          <img
-            src="/ideciclo_logo.png"
-            alt="IDECICLO Banner"
-            className="w-full max-h-72 object-contain cursor-pointer"
-          />
-        </a>
-      </div>
-      <div className="container py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
-          <div className="text-gray-700">
-            <div className="mb-6 flex justify-center">
-              <img
-                src="/foto_ideciclo.png"
-                alt="IDECICLO"
-                className="max-w-full h-auto rounded-lg"
-              />
-            </div>
-            <p className="mb-4">
-              Esta plataforma digital foi desenvolvida para facilitar o processo
-              de coleta, análise e visualização dos dados do IDECICLO. Através
-              dela, pesquisadores podem registrar avaliações de campo, gestores
-              podem acessar relatórios e cidadãos podem consultar informações
-              sobre a qualidade da infraestrutura cicloviária em suas cidades.
-            </p>
-            <p>
-              O sistema permite o gerenciamento completo do ciclo de avaliação,
-              desde o mapeamento inicial dos segmentos até a geração de
-              relatórios finais, contribuindo para a transparência e eficiência
-              do processo de avaliação.
-            </p>
-          </div>
+      <HeroSection coverUrl={"/pages_covers/ideciclo-navcover.png"} />
+      <ExplanationSection sections={sectionsData} />
 
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Manual</CardTitle>
-                <CardDescription>Documentação do IDECICLO</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  O manual, lançado em agosto de 2025, está disponível para
-                  download gratuito.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <a href="/manual_ideciclo.pdf" download className="w-full">
-                  <Button className="w-full">Baixar Manual</Button>
-                </a>
-              </CardFooter>
-            </Card>
+      <div className="container mt-36">
+        <div className="flex flex-col md:flex-row items-stretch justify-center gap-8">
+          <a
+            href="https://drive.google.com/uc?export=download&id=1fmf9-e1kMFoUasa88FGLx69zY_VA5srK" // <-- ajuste o destino
+            role="button"
+            aria-label="Abrir Manual do Ideciclo"
+            className="relative flex flex-col justify-center rounded-[40px] font-semibold text-xl mx-auto w-full md:w-[468px] p-6 text-center tracking-wide shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-[1px] md:min-h-[150px]"
+            style={{
+              background: "#EFC345",
+              boxShadow: "0px 6px 8px 0px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <img
+              src={"public/icones/qualidade-do-projeto.svg"}
+              className="absolute -top-20 left-1/2 -translate-x-1/2"
+              style={{ height: "108px", width: "104px" }}
+              alt=""
+            />
+            <h3 className="text-xl font-semibold">Manual do Ideciclo</h3>
+            <h3 className="text-2xl font-bold mt-1">E confira como funciona</h3>
+          </a>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Formulário</CardTitle>
-                <CardDescription>Avaliação de vias cicláveis</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  O formulário para avaliar as vias está disponível para
-                  download.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <a href="/manual_ideciclo.pdf" download className="w-full">
-                  <Button className="w-full">Baixar Formulário</Button>
-                </a>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Cálculo IDECICLO</CardTitle>
-                <CardDescription>Cálculo do IDECICLO</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  O método de cálculo IDECICLO está disponível para download.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <a href="/manual_ideciclo.pdf" download className="w-full">
-                  <Button className="w-full">Baixar cálculo</Button>
-                </a>
-              </CardFooter>
-            </Card>
-          </div>
+          <a
+            href="https://drive.google.com/uc?export=download&id=1UuNs1iKAknE5jiK4a0ePIZvffkxt-IWa" // <-- ajuste o destino
+            role="button"
+            aria-label="Baixar formulário de avaliação"
+            className="relative flex flex-col justify-center rounded-[40px] font-semibold text-xl mx-auto w-full md:w-[468px] p-6 text-center tracking-wide shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-[1px] md:min-h-[150px]"
+            style={{
+              background: "#5AC2E1",
+              boxShadow: "0px 6px 8px 0px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <img
+              src={"public/icones/conflitos-ao-longo.svg"}
+              className="absolute -top-20 left-1/2 -translate-x-1/2"
+              style={{ height: "108px", width: "104px" }}
+              alt=""
+            />
+            <h3 className="text-xl font-semibold">Formulário de avaliação</h3>
+            <h3 className="text-2xl font-bold mt-1">
+              Baixe aqui e avalie sua cidade
+            </h3>
+          </a>
         </div>
       </div>
+
+      {/* <InfoCardsSection cards={cardsData} /> */}
+      <AccordionSection accordion={accordionData} />
+      <div className="mx-auto relative z-0">
+        <img className="min-h-[100px]" src="/ideciclo-ciclovia.png" alt="" />
+      </div>
+      <SupportersSection
+        partners={partnersData}
+        consultants={consultantsData}
+        sponsors={sponsorsData}
+      />
     </>
   );
 };

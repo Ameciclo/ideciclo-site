@@ -104,7 +104,7 @@ const OriginalSegmentsTable = ({
                         href={
                           segment.evaluated && segment.id_form
                             ? `/view-evaluation/${segment.id_form}`
-                            : `/avaliar/formulario/${segment.id}`
+                            : `/refinar/formulario/${segment.id}`
                         }
                       >
                         {segment.evaluated && segment.id_form

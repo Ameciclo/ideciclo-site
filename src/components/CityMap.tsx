@@ -1,8 +1,7 @@
-import { useEffect, useRef, useMemo } from "react";
-import Map, { Source, Layer } from "react-map-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-import { Segment } from "@/types";
-import type { MapRef } from "react-map-gl";
+import Map, { Source, Layer } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { Segment } from '@/types';
+import { useMemo } from 'react';
 
 interface CityMapProps {
   segments: Segment[];
@@ -10,103 +9,86 @@ interface CityMapProps {
   containerWidth?: number;
 }
 
-const CityMap = ({ segments, className, containerWidth }: CityMapProps) => {
-  const mapRef = useRef<MapRef>(null);
+const CityMap = ({ segments, className }: CityMapProps) => {
   const defaultCenter = { longitude: -34.8556378, latitude: -7.9845551 };
+  const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
-  // Filter out child segments for map display
-  const visibleSegments = segments.filter(segment => !segment.parent_segment_id);
+  // Filter visible segments
+  const visibleSegments = useMemo(() => 
+    segments?.filter(segment => !segment.parent_segment_id) || [], 
+    [segments]
+  );
 
-  // Create GeoJSON data for segments
-  const geojsonData = useMemo(() => {
-    const features = visibleSegments.map((segment) => {
-      const colorMap = {
-        Ciclovia: "#0000ff",
-        Ciclofaixa: "#800080", 
-        Ciclorrota: "#008000",
-        Compartilhada: "#ff0000",
-      };
+  // Convert segments to GeoJSON
+  const geojsonData = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: visibleSegments.map(segment => ({
+      type: 'Feature',
+      properties: {
+        id: segment.id,
+        name: segment.name,
+        type: segment.type
+      },
+      geometry: segment.geometry
+    }))
+  }), [visibleSegments]);
 
-      return {
-        type: "Feature" as const,
-        properties: {
-          id: segment.id,
-          type: segment.type,
-          color: colorMap[segment.type] || "#808080"
-        },
-        geometry: segment.geometry
-      };
-    });
+  const layerStyle = {
+    id: 'segments',
+    type: 'line',
+    paint: {
+      'line-color': [
+        'match',
+        ['get', 'type'],
+        'Ciclovia', '#3b82f6',
+        'Ciclofaixa', '#8b5cf6', 
+        'Ciclorrota', '#10b981',
+        'Compartilhada', '#ef4444',
+        '#6b7280'
+      ],
+      'line-width': 3
+    }
+  };
 
-    return {
-      type: "FeatureCollection" as const,
-      features
-    };
-  }, [visibleSegments]);
+  if (!segments || !Array.isArray(segments)) {
+    return (
+      <div className={className}>
+        <div className="w-full h-96 rounded shadow bg-gray-100 flex items-center justify-center">
+          <p>Carregando mapa...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Fit bounds when segments change
-  useEffect(() => {
-    if (!mapRef.current || visibleSegments.length === 0) return;
-
-    const timer = setTimeout(() => {
-      const allCoords: [number, number][] = [];
-
-      visibleSegments.forEach((segment) => {
-        const geom = segment.geometry;
-
-        if (geom.type === "LineString") {
-          allCoords.push(...geom.coordinates as [number, number][]);
-        } else if (geom.type === "MultiLineString") {
-          geom.coordinates.forEach((line) => {
-            allCoords.push(...line as [number, number][]);
-          });
-        } else if (geom.type === "Polygon") {
-          geom.coordinates.forEach((ring) => {
-            allCoords.push(...ring as [number, number][]);
-          });
-        }
-      });
-
-      if (allCoords.length > 0) {
-        const lngs = allCoords.map(coord => coord[0]);
-        const lats = allCoords.map(coord => coord[1]);
-        
-        const bounds = [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)]
-        ] as [[number, number], [number, number]];
-
-        mapRef.current?.fitBounds(bounds, { padding: 20 });
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [visibleSegments, containerWidth]);
+  if (!token) {
+    return (
+      <div className={className}>
+        <div className="w-full h-96 bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center rounded">
+          <div className="text-center text-gray-500">
+            <p className="text-lg font-medium">Token do Mapbox não configurado</p>
+            <p className="text-sm">Adicione VITE_MAPBOX_ACCESS_TOKEN no arquivo .env</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
       <Map
-        ref={mapRef}
+        mapboxAccessToken={token}
         initialViewState={{
           ...defaultCenter,
           zoom: 13
         }}
-        style={{ width: "100%", height: "384px" }}
+        style={{ width: '100%', height: '384px' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
-        mapboxAccessToken={import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || "pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw"}
-        className="w-full h-96 rounded shadow"
       >
-        <Source id="segments" type="geojson" data={geojsonData}>
-          <Layer
-            id="segments-line"
-            type="line"
-            paint={{
-              "line-color": ["get", "color"],
-              "line-width": 3,
-              "line-opacity": 0.8
-            }}
-          />
-        </Source>
+        {visibleSegments.length > 0 && (
+          <Source id="segments-source" type="geojson" data={geojsonData}>
+            <Layer {...layerStyle} />
+          </Source>
+        )}
       </Map>
     </div>
   );

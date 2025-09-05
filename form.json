@@ -1,0 +1,313 @@
+{
+  "versao": "1.0",
+  "escala": ["A", "B", "C", "D"],
+  "regrasGerais": {
+    "eliminacaoPorPlanejamento": {
+      "criterio": "A1",
+      "quando": "D",
+      "efeito": "notaGeralZero"
+    },
+    "clampPontuacaoSecao": {
+      "B": { "min": 0 }
+    },
+    "observacoes": [
+      "Valores nulos (null) significam 'não aplicável (N/A)'.",
+      "Some cada seção e respeite os limites máximos; quando houver valores negativos em B7, a soma da Seção B não pode ficar abaixo de 0."
+    ]
+  },
+  "tipos": {
+    "ciclovia": {
+      "pontuacaoMaxima": 100,
+      "secoes": {
+        "A": {
+          "nome": "Planejamento Cicloviário",
+          "max": 10,
+          "itens": [
+            {
+              "codigo": "A1",
+              "nome": "Adequação da tipologia à velocidade/hierarquia",
+              "avaliacao": { "A": 0, "B": null, "C": null, "D": -100 },
+              "regraEliminacaoSeD": true
+            },
+            {
+              "codigo": "A2",
+              "nome": "Conectividade da Rede Cicloviária",
+              "avaliacao": { "A": 10, "B": 7, "C": 4, "D": 0 }
+            }
+          ]
+        },
+        "B": {
+          "nome": "Projeto ao longo da estrutura",
+          "max": 35,
+          "itens": [
+            {
+              "codigo": "B1",
+              "nome": "Espaço útil da Infraestrutura Cicloviária",
+              "avaliacao": { "A": 10, "B": 8, "C": 4, "D": 0 }
+            },
+            {
+              "codigo": "B2",
+              "nome": "Tipo de pavimento",
+              "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 }
+            },
+            {
+              "codigo": "B3",
+              "nome": "Delimitação da Infraestrutura",
+              "avaliacao": { "A": 10, "B": 6, "C": 3, "D": 0 }
+            },
+            {
+              "codigo": "B4",
+              "nome": "Identificação do espaço cicloviário",
+              "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 }
+            },
+            {
+              "codigo": "B5",
+              "nome": "Acessibilidade relativa ao uso do solo lindeiro",
+              "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 }
+            },
+            {
+              "codigo": "B6",
+              "nome": "Moderação de velocidade no compartilhamento viário",
+              "avaliacao": { "A": null, "B": null, "C": null, "D": null }
+            },
+            {
+              "codigo": "B7",
+              "nome": "Situações de risco ao longo da infraestrutura",
+              "avaliacao": { "A": 0, "B": -12, "C": -24, "D": -36 },
+              "apenasAfetaSecao": "B"
+            }
+          ]
+        },
+        "C": {
+          "nome": "Projeto nas interseções",
+          "max": 21,
+          "itens": [
+            {
+              "codigo": "C1",
+              "nome": "Sinalização horizontal cicloviária nas interseções",
+              "avaliacao": { "A": 7, "B": 5, "C": 3, "D": 0 }
+            },
+            {
+              "codigo": "C2",
+              "nome": "Acessibilidade entre conexões cicloviárias",
+              "avaliacao": { "A": 4, "B": null, "C": null, "D": 0 }
+            },
+            {
+              "codigo": "C3",
+              "nome": "Tratamento dos conflitos com modos motorizados",
+              "avaliacao": { "A": 10, "B": 6, "C": 3, "D": 0 }
+            }
+          ]
+        },
+        "D": {
+          "nome": "Urbanidade",
+          "max": 9,
+          "itens": [
+            { "codigo": "D1", "nome": "Iluminação", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D2", "nome": "Conforto térmico", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D3", "nome": "Mobiliário cicloviário", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } }
+          ]
+        },
+        "E": {
+          "nome": "Manutenção da infraestrutura cicloviária",
+          "max": 25,
+          "itens": [
+            { "codigo": "E1", "nome": "Conservação da sinalização horizontal na interseção", "avaliacao": { "A": 7, "B": 5, "C": 3, "D": 0 } },
+            { "codigo": "E2", "nome": "Conservação do pavimento", "avaliacao": { "A": 7, "B": 5, "C": 1, "D": 0 } },
+            { "codigo": "E3", "nome": "Conservação dos elementos de delimitação", "avaliacao": { "A": 6, "B": 4, "C": 2, "D": 0 } },
+            { "codigo": "E4", "nome": "Conservação da identificação do espaço", "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 } }
+          ]
+        }
+      }
+    },
+    "ciclofaixa": {
+      "pontuacaoMaxima": 100,
+      "secoes": {
+        "A": {
+          "nome": "Planejamento Cicloviário",
+          "max": 10,
+          "itens": [
+            {
+              "codigo": "A1",
+              "nome": "Adequação da tipologia à velocidade/hierarquia",
+              "avaliacao": { "A": 0, "B": null, "C": null, "D": -100 },
+              "regraEliminacaoSeD": true
+            },
+            {
+              "codigo": "A2",
+              "nome": "Conectividade da Rede Cicloviária",
+              "avaliacao": { "A": 10, "B": 7, "C": 4, "D": 0 }
+            }
+          ]
+        },
+        "B": {
+          "nome": "Projeto ao longo da estrutura",
+          "max": 33,
+          "itens": [
+            { "codigo": "B1", "nome": "Espaço útil da Infraestrutura Cicloviária", "avaliacao": { "A": 10, "B": 8, "C": 4, "D": 0 } },
+            { "codigo": "B2", "nome": "Tipo de pavimento", "avaliacao": { "A": 4, "B": 3, "C": 1, "D": 0 } },
+            { "codigo": "B3", "nome": "Delimitação da Infraestrutura", "avaliacao": { "A": 10, "B": 8, "C": 4, "D": 0 } },
+            { "codigo": "B4", "nome": "Identificação do espaço cicloviário", "avaliacao": { "A": 6, "B": 4, "C": 2, "D": 0 } },
+            { "codigo": "B5", "nome": "Acessibilidade relativa ao uso do solo lindeiro", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "B6", "nome": "Moderação de velocidade no compartilhamento viário", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "B7", "nome": "Situações de risco ao longo da infraestrutura", "avaliacao": { "A": 0, "B": -11, "C": -22, "D": -33 }, "apenasAfetaSecao": "B" }
+          ]
+        },
+        "C": {
+          "nome": "Projeto nas interseções",
+          "max": 21,
+          "itens": [
+            { "codigo": "C1", "nome": "Sinalização horizontal cicloviária nas interseções", "avaliacao": { "A": 7, "B": 5, "C": 3, "D": 0 } },
+            { "codigo": "C2", "nome": "Acessibilidade entre conexões cicloviárias", "avaliacao": { "A": 4, "B": null, "C": null, "D": 0 } },
+            { "codigo": "C3", "nome": "Tratamento dos conflitos com modos motorizados", "avaliacao": { "A": 10, "B": 6, "C": 3, "D": 0 } }
+          ]
+        },
+        "D": {
+          "nome": "Urbanidade",
+          "max": 9,
+          "itens": [
+            { "codigo": "D1", "nome": "Iluminação", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D2", "nome": "Sombreamento na infraestrutura cicloviária", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D3", "nome": "Mobiliário cicloviário", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } }
+          ]
+        },
+        "E": {
+          "nome": "Manutenção da infraestrutura cicloviária",
+          "max": 27,
+          "itens": [
+            { "codigo": "E1", "nome": "Conservação da sinalização horizontal na interseção", "avaliacao": { "A": 7, "B": 3, "C": 1, "D": 0 } },
+            { "codigo": "E2", "nome": "Conservação do pavimento", "avaliacao": { "A": 6, "B": 4, "C": 1, "D": 0 } },
+            { "codigo": "E3", "nome": "Conservação dos elementos de delimitação", "avaliacao": { "A": 8, "B": 4, "C": 2, "D": 0 } },
+            { "codigo": "E4", "nome": "Conservação da identificação do espaço", "avaliacao": { "A": 6, "B": 3, "C": 1, "D": 0 } }
+          ]
+        }
+      }
+    },
+    "calcada_partilhada": {
+      "pontuacaoMaxima": 100,
+      "secoes": {
+        "A": {
+          "nome": "Planejamento Cicloviário",
+          "max": 10,
+          "itens": [
+            {
+              "codigo": "A1",
+              "nome": "Adequação da tipologia à velocidade/hierarquia",
+              "avaliacao": { "A": 0, "B": null, "C": null, "D": -100 },
+              "regraEliminacaoSeD": true
+            },
+            {
+              "codigo": "A2",
+              "nome": "Conectividade da Rede Cicloviária",
+              "avaliacao": { "A": 10, "B": 7, "C": 4, "D": 0 }
+            }
+          ]
+        },
+        "B": {
+          "nome": "Projeto ao longo da estrutura",
+          "max": 40,
+          "itens": [
+            { "codigo": "B1", "nome": "Espaço útil da Infraestrutura Cicloviária", "avaliacao": { "A": 10, "B": 8, "C": 4, "D": 0 } },
+            { "codigo": "B2", "nome": "Tipo de pavimento", "avaliacao": { "A": 8, "B": 6, "C": 3, "D": 0 } },
+            { "codigo": "B3", "nome": "Delimitação da Infraestrutura", "avaliacao": { "A": 9, "B": 6, "C": 3, "D": 0 } },
+            { "codigo": "B4", "nome": "Identificação do espaço cicloviário", "avaliacao": { "A": 8, "B": 6, "C": 3, "D": 0 } },
+            { "codigo": "B5", "nome": "Acessibilidade relativa ao uso do solo lindeiro", "avaliacao": { "A": 6, "B": 4, "C": 2, "D": 0 } },
+            { "codigo": "B6", "nome": "Moderação de velocidade no compartilhamento viário", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "B7", "nome": "Situações de risco ao longo da infraestrutura", "avaliacao": { "A": 0, "B": -14, "C": -28, "D": -42 }, "apenasAfetaSecao": "B" }
+          ]
+        },
+        "C": {
+          "nome": "Projeto nas interseções",
+          "max": 21,
+          "itens": [
+            { "codigo": "C1", "nome": "Sinalização horizontal cicloviária nas interseções", "avaliacao": { "A": 7, "B": 5, "C": 3, "D": 0 } },
+            { "codigo": "C2", "nome": "Acessibilidade entre conexões cicloviárias", "avaliacao": { "A": 4, "B": null, "C": null, "D": 0 } },
+            { "codigo": "C3", "nome": "Tratamento dos conflitos com modos motorizados", "avaliacao": { "A": 10, "B": 6, "C": 3, "D": 0 } }
+          ]
+        },
+        "D": {
+          "nome": "Urbanidade",
+          "max": 9,
+          "itens": [
+            { "codigo": "D1", "nome": "Iluminação", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D2", "nome": "Sombreamento na infraestrutura cicloviária", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } },
+            { "codigo": "D3", "nome": "Mobiliário cicloviário", "avaliacao": { "A": 3, "B": 2, "C": 1, "D": 0 } }
+          ]
+        },
+        "E": {
+          "nome": "Manutenção da infraestrutura cicloviária",
+          "max": 20,
+          "itens": [
+            { "codigo": "E1", "nome": "Conservação da sinalização horizontal na interseção", "avaliacao": { "A": 7, "B": 5, "C": 3, "D": 0 } },
+            { "codigo": "E2", "nome": "Conservação do pavimento", "avaliacao": { "A": 7, "B": 5, "C": 2, "D": 0 } },
+            { "codigo": "E3", "nome": "Conservação dos elementos de delimitação", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "E4", "nome": "Conservação da identificação do espaço", "avaliacao": { "A": 6, "B": 4, "C": 2, "D": 0 } }
+          ]
+        }
+      }
+    },
+    "ciclorrota": {
+      "pontuacaoMaxima": 100,
+      "secoes": {
+        "A": {
+          "nome": "Planejamento Cicloviário",
+          "max": 13,
+          "itens": [
+            {
+              "codigo": "A1",
+              "nome": "Adequação da tipologia à velocidade/hierarquia",
+              "avaliacao": { "A": 0, "B": null, "C": null, "D": -100 },
+              "regraEliminacaoSeD": true
+            },
+            {
+              "codigo": "A2",
+              "nome": "Conectividade da Rede Cicloviária",
+              "avaliacao": { "A": 13, "B": 9, "C": 4, "D": 0 }
+            }
+          ]
+        },
+        "B": {
+          "nome": "Projeto ao longo da estrutura",
+          "max": 34,
+          "itens": [
+            { "codigo": "B1", "nome": "Espaço útil da Infraestrutura Cicloviária", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "B2", "nome": "Tipo de pavimento", "avaliacao": { "A": 8, "B": 6, "C": 3, "D": 0 } },
+            { "codigo": "B3", "nome": "Delimitação da Infraestrutura", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "B4", "nome": "Identificação do espaço cicloviário", "avaliacao": { "A": 8, "B": 6, "C": 3, "D": 0 } },
+            { "codigo": "B5", "nome": "Acessibilidade relativa ao uso do solo lindeiro", "avaliacao": { "A": 6, "B": 4, "C": 2, "D": 0 } },
+            { "codigo": "B6", "nome": "Moderação de velocidade no compartilhamento viário", "avaliacao": { "A": 13, "B": 7, "C": null, "D": 0 } },
+            { "codigo": "B7", "nome": "Situações de risco ao longo da infraestrutura", "avaliacao": { "A": 0, "B": -12, "C": -24, "D": -36 }, "apenasAfetaSecao": "B" }
+          ]
+        },
+        "C": {
+          "nome": "Projeto nas interseções",
+          "max": 18,
+          "itens": [
+            { "codigo": "C1", "nome": "Sinalização horizontal cicloviária nas interseções", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "C2", "nome": "Acessibilidade entre conexões cicloviárias", "avaliacao": { "A": 5, "B": null, "C": null, "D": 0 } },
+            { "codigo": "C3", "nome": "Tratamento dos conflitos com modos motorizados", "avaliacao": { "A": 13, "B": 8, "C": 4, "D": 0 } }
+          ]
+        },
+        "D": {
+          "nome": "Urbanidade",
+          "max": 15,
+          "itens": [
+            { "codigo": "D1", "nome": "Iluminação", "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 } },
+            { "codigo": "D2", "nome": "Sombreamento na infraestrutura cicloviária", "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 } },
+            { "codigo": "D3", "nome": "Mobiliário cicloviário", "avaliacao": { "A": 5, "B": 3, "C": 1, "D": 0 } }
+          ]
+        },
+        "E": {
+          "nome": "Manutenção da infraestrutura cicloviária",
+          "max": 20,
+          "itens": [
+            { "codigo": "E1", "nome": "Conservação da sinalização horizontal na interseção", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "E2", "nome": "Conservação do pavimento", "avaliacao": { "A": 10, "B": 7, "C": 2, "D": 0 } },
+            { "codigo": "E3", "nome": "Conservação dos elementos de delimitação", "avaliacao": { "A": null, "B": null, "C": null, "D": null } },
+            { "codigo": "E4", "nome": "Conservação da identificação do espaço", "avaliacao": { "A": 10, "B": null, "C": 3, "D": 0 } }
+          ]
+        }
+      }
+    }
+  }
+}

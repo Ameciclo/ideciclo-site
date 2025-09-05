@@ -62,7 +62,6 @@ const Refine = () => {
   const location = useLocation();
   const { toast } = useToast();
 
-  // Check if we're returning from form with preserved data
   useEffect(() => {
     const state = location.state as
       | {
@@ -77,12 +76,9 @@ const Refine = () => {
       setCityId(state.cityId);
       setCityName(state.cityName || "");
       setStateName(state.stateName || "");
-
-      if (step === "selection") {
-        loadStoredCityData(state.cityId);
-      }
+      loadStoredCityData(state.cityId);
     }
-  }, [location, step]);
+  }, [location]);
 
   // These functions are no longer needed as we're using database exclusively
   const loadLocalSegments = (cityId: string): Segment[] | null => {
@@ -95,23 +91,30 @@ const Refine = () => {
 
   const loadStoredCityData = async (selectedCityId: string) => {
     try {
+      console.log("[DEBUG] loadStoredCityData - Starting for cityId:", selectedCityId);
       setIsLoading(true);
       setError(null);
 
       // Load data only from database
+      console.log("[DEBUG] loadStoredCityData - Calling getStoredCityData");
       const storedData = await getStoredCityData(selectedCityId);
+      console.log("[DEBUG] loadStoredCityData - Received data:", storedData);
 
       if (storedData) {
+        console.log("[DEBUG] loadStoredCityData - Setting city and segments");
         setCity(storedData.city);
         setSegments([...storedData.segments]);
+        console.log("[DEBUG] loadStoredCityData - Moving to refinement step");
         setStep("refinement");
       } else {
+        console.log("[DEBUG] loadStoredCityData - No data found");
         setError("Nenhum dado encontrado para esta cidade");
       }
     } catch (error) {
-      console.error("Erro ao carregar dados armazenados:", error);
+      console.error("[DEBUG] loadStoredCityData - Error:", error);
       setError("Falha ao carregar dados armazenados");
     } finally {
+      console.log("[DEBUG] loadStoredCityData - Finished");
       setIsLoading(false);
     }
   };
@@ -207,11 +210,14 @@ const Refine = () => {
       const storedData = await getStoredCityData(selectedCityId);
       if (storedData) {
         console.log(
-          `Found city data in database with ${storedData.segments.length} segments`
+          `[DEBUG] handleCitySelected - Found city data in database with ${storedData.segments.length} segments`
         );
+        console.log("[DEBUG] handleCitySelected - City data:", storedData.city);
+        console.log("[DEBUG] handleCitySelected - Segments sample:", storedData.segments.slice(0, 3));
         setCity(storedData.city);
         const enhancedSegments = [...storedData.segments];
         setSegments(enhancedSegments);
+        console.log("[DEBUG] handleCitySelected - State updated, moving to refinement");
 
         // No need to update localStorage anymore
 
@@ -333,7 +339,9 @@ const Refine = () => {
       }
 
       // Move to refinement step
+      console.log("[DEBUG] handleCitySelected - Setting step to refinement");
       setStep("refinement");
+      console.log("[DEBUG] handleCitySelected - Step set to refinement");
     } catch (error) {
       console.error("Erro ao processar cidade:", error);
       const errorMessage =
@@ -632,6 +640,8 @@ const Refine = () => {
   const selectedSegmentsCount = segments.filter((s) => s.selected).length;
   const selectedSegments = segments.filter((s) => s.selected);
 
+  // Debug removed
+
   return (
     <div className="container py-8">
       <div className="flex justify-between items-center mb-4">
@@ -676,21 +686,9 @@ const Refine = () => {
         </div>
       )}
 
-      {!isLoading && !error && step === "selection" && (
+      {!isLoading && !error && !cityName && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Selecionar Cidade</CardTitle>
-              <CardDescription>
-                Escolha o estado e a cidade para aprimorar os dados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CitySelection onCitySelected={handleCitySelected} />
-            </CardContent>
-          </Card>
-
-          {/* <Card>
             <CardHeader>
               <CardTitle>Cidades em Aprimoramento</CardTitle>
               <CardDescription>
@@ -700,12 +698,25 @@ const Refine = () => {
             <CardContent>
               <StoredCitiesSelection onCitySelected={handleCitySelected} />
             </CardContent>
-          </Card> */}
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Selecionar Nova Cidade</CardTitle>
+              <CardDescription>
+                Escolha o estado e a cidade para baixar e aprimorar os dados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CitySelection onCitySelected={handleCitySelected} />
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {!isLoading && !error && step === "refinement" && (
+      {!isLoading && !error && cityName && (
         <div className="space-y-8">
+
           <CityInfrastructureCard
             cityName={cityName}
             stateName={stateName}
@@ -739,20 +750,26 @@ const Refine = () => {
                 selectedSegments={selectedSegments}
                 onConfirm={handleMergeSegments}
               />
-              <RefinementTableSortableWrapper
-                segments={segments}
-                onSelectSegment={handleSelectSegment}
-                onSelectAllSegments={handleSelectAllSegments}
-                selectedSegments={selectedSegments}
-                onMergeSelected={handleMergeButtonClick}
-                onUpdateSegmentName={handleUpdateSegmentName}
-                onDeleteSegment={handleDeleteSegment}
-                onUnmergeSegments={handleUnmergeSegments}
-                onUpdateSegmentClassification={
-                  handleUpdateSegmentClassification
-                }
-                onUpdateSegmentType={handleUpdateSegmentType}
-              />
+              {segments && segments.length > 0 ? (
+                <RefinementTableSortableWrapper
+                  segments={segments}
+                  onSelectSegment={handleSelectSegment}
+                  onSelectAllSegments={handleSelectAllSegments}
+                  selectedSegments={selectedSegments}
+                  onMergeSelected={handleMergeButtonClick}
+                  onUpdateSegmentName={handleUpdateSegmentName}
+                  onDeleteSegment={handleDeleteSegment}
+                  onUnmergeSegments={handleUnmergeSegments}
+                  onUpdateSegmentClassification={
+                    handleUpdateSegmentClassification
+                  }
+                  onUpdateSegmentType={handleUpdateSegmentType}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <p>Nenhum segmento encontrado para esta cidade.</p>
+                </div>
+              )}
 
               <div className="mt-8 flex justify-end">
                 <Button
@@ -768,6 +785,8 @@ const Refine = () => {
           </div>
         </div>
       )}
+      
+
     </div>
   );
 };
