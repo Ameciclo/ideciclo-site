@@ -176,7 +176,10 @@ const IdecicloForm = () => {
         .select()
         .single();
 
-      if (formError) throw formError;
+      if (formError) {
+        console.error('Erro detalhado ao salvar formulário:', formError);
+        throw formError;
+      }
 
       // Salvar pontuações detalhadas
       const pontuacoes = [];
@@ -199,7 +202,9 @@ const IdecicloForm = () => {
           .from('pontuacoes_ideciclo')
           .insert(pontuacoes);
         
-        if (scoreError) console.error('Erro ao salvar pontuações:', scoreError);
+        if (scoreError) {
+          console.error('Erro detalhado ao salvar pontuações:', scoreError);
+        }
       }
 
       // Salvar nota total
@@ -213,7 +218,9 @@ const IdecicloForm = () => {
           detalhes_calculo: detalhes
         }]);
 
-      if (totalError) console.error('Erro ao salvar resultado:', totalError);
+      if (totalError) {
+        console.error('Erro detalhado ao salvar resultado:', totalError);
+      }
 
       toast({
         title: "Avaliação salva",
@@ -222,9 +229,10 @@ const IdecicloForm = () => {
       navigate("/avaliacao/resultados");
     } catch (error) {
       console.error('Erro ao salvar avaliação:', error);
+      console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
       toast({
         title: "Erro",
-        description: "Erro ao salvar a avaliação.",
+        description: `Erro ao salvar a avaliação: ${error?.message || 'Erro desconhecido'}`,
         variant: "destructive",
       });
     }
