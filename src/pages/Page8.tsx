@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page8Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
 }
 
 const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
@@ -42,6 +43,24 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
         <div>
           <h3 className="text-lg font-medium mb-2">D.1. Iluminação Pública</h3>
           <div className="space-y-4">
+            <div>
+              <Label className="block mb-2">Existem postes ao longo do trecho?</Label>
+              <RadioGroup
+                value={data.has_lighting_posts === false ? "false" : "true"}
+                onValueChange={(value) => handleRadioChange("has_lighting_posts", value === "true")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id="posts_yes" />
+                  <Label htmlFor="posts_yes">Sim</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="posts_no" />
+                  <Label htmlFor="posts_no">Não</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div>
               <Label className="block mb-2">Tipo de poste:</Label>
               <RadioGroup
@@ -182,6 +201,18 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
 
         <div>
           <h3 className="text-lg font-medium mb-2">D.3. Mobiliário Cicloviário</h3>
+          <div className="mb-4">
+            <Label htmlFor="blocks_with_cycling_furniture">
+              Quantas quadras do trecho têm ao menos um mobiliário cicloviário?
+            </Label>
+            <Input
+              id="blocks_with_cycling_furniture"
+              name="blocks_with_cycling_furniture"
+              type="number"
+              value={data.blocks_with_cycling_furniture || ""}
+              onChange={handleChange}
+            />
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex items-center space-x-2">
               <Checkbox

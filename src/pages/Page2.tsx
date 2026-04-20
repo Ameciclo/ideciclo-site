@@ -3,10 +3,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page2Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
   segmentType: string;
 }
 
@@ -86,6 +87,26 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
             </div>
           </RadioGroup>
         </div>
+
+        {String(data.infra_typology || segmentType || "")
+          .toLowerCase()
+          .includes("partilh") && (
+          <div>
+            <Label htmlFor="pedestrian_flow_per_hour_per_meter">
+              Fluxo de pedestres por hora por metro:
+            </Label>
+            <Input
+              id="pedestrian_flow_per_hour_per_meter"
+              name="pedestrian_flow_per_hour_per_meter"
+              type="number"
+              value={data.pedestrian_flow_per_hour_per_meter || ""}
+              onChange={handleChange}
+            />
+            <p className="mt-2 text-sm text-muted-foreground">
+              Se passar de 200 pedestres/hora/metro, a calçada partilhada fica inadequada pelo manual.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

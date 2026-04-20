@@ -3,10 +3,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page5Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
 }
 
 const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
@@ -35,7 +36,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
     <Card>
       <CardContent className="pt-6 space-y-6">
         <div>
-          <h3 className="text-lg font-medium mb-2">B.3/E.2. Delimitação da Infraestrutura Cicloviária</h3>
+          <h3 className="text-lg font-medium mb-2">B.3/E.3. Delimitação da Infraestrutura Cicloviária</h3>
           
           {infraType === "ciclofaixa" && (
             <div>
@@ -157,7 +158,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                 <RadioGroup
                   value={data.lateral_spacing_type || "linha"}
                   onValueChange={(value) => handleRadioChange("lateral_spacing_type", value)}
-                  className="flex gap-4"
+                  className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="linha" id="spacing_linha" />
@@ -166,6 +167,10 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="dispositivos" id="spacing_dispositivos" />
                     <Label htmlFor="spacing_dispositivos">Existência de dispositivos de separação ou segregação</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="apagada" id="spacing_apagada" />
+                    <Label htmlFor="spacing_apagada">Pintura apagada ou impossível avaliar</Label>
                   </div>
                 </RadioGroup>
               </div>

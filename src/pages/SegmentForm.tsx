@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -18,172 +18,258 @@ import Page5 from "./Page5";
 import Page6 from "./Page6";
 import Page7 from "./Page7";
 import Page8 from "./Page8";
+import Page9 from "./Page9";
 import { useToast } from "@/hooks/use-toast";
 import {
-  fetchFormById,
-  getFormBySegmentId,
-  fetchSegmentById,
-  updateFormInDB,
   createFormInDB,
-  updateSegmentEvaluationStatus,
   fetchCityFromDB,
+  fetchFormById,
+  fetchSegmentById,
+  getFormBySegmentId,
+  updateFormInDB,
+  updateSegmentEvaluationStatus,
 } from "@/services/database";
+import { getInitialRatingModes, getScoreBreakdown } from "@/utils/idecicloAssessment";
+import { IdecicloFormData } from "@/types/idecicloForm";
+
+const DRAFT_PREFIX = "ideciclo-draft";
+const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
+
+const buildDraftKey = (segmentId?: string | null) =>
+  segmentId ? `${DRAFT_PREFIX}:${segmentId}` : DRAFT_PREFIX;
+
+const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
+  researcher: "",
+  date: new Date().toISOString().split("T")[0],
+  city: "",
+  city_id: "",
+  neighborhood: "",
+  id: segmentId || "",
+  segment_id: segmentId || "",
+  segment_name: "",
+  extension_m: 0,
+  velocity_kmh: 0,
+  start_point: "",
+  end_point: "",
+  road_hierarchy: "",
+  blocks_count: 0,
+  intersections_count: 0,
+  relevant_intersections_count: 0,
+  connected_intersections_count: 0,
+  pedestrian_flow_per_hour_per_meter: 0,
+  infra_typology: "",
+  infra_flow: "unidirectional",
+  position_on_road: "pista_calcada",
+  width_meters: 0,
+  includes_gutter: false,
+  speed_measures: [],
+  avg_distance_measures_m: 0,
+  pavement_type: "A",
+  conservation_state: "A",
+  separation_devices_ciclofaixa: "D",
+  separation_devices_ciclovia: "A",
+  separation_devices_calcada: "D",
+  devices_conservation: "A",
+  lateral_spacing_type: "linha",
+  lateral_spacing_width_m: 0,
+  spacing_conservation: "A",
+  space_identification: "A",
+  identification_conservation: "A",
+  pictograms_per_block: 0,
+  pictograms_cover_all_blocks: false,
+  pictograms_conservation: "A",
+  regulation_signs_per_block: 0,
+  signs_both_directions: false,
+  vertical_signs_conservation: "A",
+  traffic_lanes_count: 2,
+  signalized_crossings_per_block: 0,
+  bus_school_conflict: false,
+  horizontal_obstacles: false,
+  vertical_obstacles: false,
+  side_change_mid_block: false,
+  opposite_flow_direction: false,
+  intersection_signaling: "A",
+  intersection_conservation: "A",
+  connection_accessibility: "A",
+  traffic_lanes_per_direction: 1,
+  mixed_lane_width_m: 2.7,
+  has_intersection_traffic_calming: false,
+  motorized_conflicts: [],
+  has_lighting_posts: true,
+  lighting_post_type: "A",
+  lighting_distance_m: 0,
+  lighting_directed: false,
+  lighting_barriers: false,
+  lighting_distance_to_infra: "A",
+  shading_coverage: "A",
+  vegetation_size: "A",
+  blocks_with_cycling_furniture: 0,
+  cycling_furniture: [],
+  observations: "",
+  rating_modes: getInitialRatingModes(),
+  manual_ratings: {},
+});
+
+const mergeWithDefaults = (
+  segmentId: string | null | undefined,
+  incoming: Partial<IdecicloFormData> | null | undefined
+): IdecicloFormData => {
+  const defaults = createEmptyFormData(segmentId);
+  const data = incoming ?? {};
+
+  return {
+    ...defaults,
+    ...data,
+    id: data.id || defaults.id,
+    segment_id: data.segment_id || defaults.segment_id,
+    city_id: data.city_id || defaults.city_id,
+    rating_modes: {
+      ...defaults.rating_modes,
+      ...(data.rating_modes || {}),
+    },
+    manual_ratings: {
+      ...(data.manual_ratings || {}),
+    },
+  };
+};
+
+interface PendingSubmission {
+  segment_id: string;
+  saved_at: string;
+  payload: Record<string, unknown>;
+}
+
+const getPendingSubmissions = (): PendingSubmission[] => {
+  try {
+    const raw = localStorage.getItem(PENDING_SUBMISSIONS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.error("Erro ao ler fila local:", error);
+    return [];
+  }
+};
+
+const savePendingSubmission = (segmentId: string, payload: Record<string, unknown>) => {
+  const pending = getPendingSubmissions().filter(
+    (item) => item.segment_id !== segmentId
+  );
+
+  pending.push({
+    segment_id: segmentId,
+    saved_at: new Date().toISOString(),
+    payload,
+  });
+
+  localStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(pending));
+};
+
+const removePendingSubmission = (segmentId: string) => {
+  const pending = getPendingSubmissions().filter(
+    (item) => item.segment_id !== segmentId
+  );
+  localStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(pending));
+};
 
 const SegmentForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const { segmentId, formId } = useParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [existingFormId, setExistingFormId] = useState<string | null>(
-    formId || null
+  const [existingFormId, setExistingFormId] = useState<string | null>(formId || null);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
   );
-  const [formData, setFormData] = useState({
-    researcher: "",
-    date: new Date().toISOString().split("T")[0],
-    city: "",
-    neighborhood: "",
-    id: segmentId || "",
-    segment_name: "",
-    extension_m: 0,
-    velocity_kmh: 0,
-    start_point: "",
-    end_point: "",
-    road_hierarchy: "",
-    blocks_count: 0,
-    intersections_count: 0,
-    infra_typology: "",
-    infra_flow: "unidirectional",
-    position_on_road: "pista_calcada",
-    width_meters: 0,
-    includes_gutter: false,
-    speed_measures: [],
-    avg_distance_measures_m: 0,
-    pavement_type: "A", // Changed from "betuminoso_cimenticio"
-    conservation_state: "A", // Changed from "nivelado"
-    separation_devices_ciclofaixa: "D", // Changed from "nao_ha"
-    separation_devices_ciclovia: "A", // Changed from "total"
-    separation_devices_calcada: "D", // Changed from "nao_ha"
-    devices_conservation: "A", // Changed from "todo_trecho"
-    lateral_spacing_type: "linha",
-    lateral_spacing_width_m: 0,
-    spacing_conservation: "A", // Changed from "otimo"
-    space_identification: "A", // Changed from "pavimento_vermelho"
-    identification_conservation: "A", // Changed from "total_vermelho"
-    pictograms_per_block: 0,
-    pictograms_conservation: "A", // Changed from "visiveis"
-    regulation_signs_per_block: 0,
-    signs_both_directions: false,
-    vertical_signs_conservation: "A", // Changed from "bom_estado"
-    traffic_lanes_count: 2,
-    signalized_crossings_per_block: 0,
-    bus_school_conflict: false,
-    horizontal_obstacles: false,
-    vertical_obstacles: false,
-    side_change_mid_block: false,
-    opposite_flow_direction: false,
-    intersection_signaling: "A", // Changed from "vermelho_tracejadas"
-    intersection_conservation: "A", // Changed from "bom_estado"
-    connection_accessibility: "A", // Changed from "universal_visivel"
-    motorized_conflicts: [],
-    lighting_post_type: "A", // Changed from "convencionais"
-    lighting_distance_m: 0,
-    lighting_directed: false,
-    lighting_barriers: false,
-    lighting_distance_to_infra: "A", // Changed from "junto"
-    shading_coverage: "A", // Changed from "nao_ha"
-    vegetation_size: "A", // Changed from "baixo"
-    cycling_furniture: [],
-  });
+  const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
+  const [formData, setFormData] = useState<IdecicloFormData>(() => createEmptyFormData(segmentId));
 
-  const totalPages = 8;
+  const totalPages = 9;
+  const draftKey = buildDraftKey(segmentId || formData.segment_id || formData.id);
+  const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
 
-  // Fetch segment and form data
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+
       try {
-        // If formId is provided directly, fetch the form first
+        let nextFormData = createEmptyFormData(segmentId);
+
         if (formId) {
-          const formData = await fetchFormById(formId);
+          const dbForm = await fetchFormById(formId);
+          if (!dbForm) throw new Error("Formulário não encontrado");
 
-          if (!formData) throw new Error("Form not found");
+          setExistingFormId(formId);
+          nextFormData = mergeWithDefaults(dbForm.segment_id || segmentId, {
+            ...dbForm.responses,
+            id: dbForm.segment_id || segmentId,
+            segment_id: dbForm.segment_id || segmentId,
+            city_id: dbForm.city_id || "",
+          });
+        } else if (segmentId) {
+          const existingForm = await getFormBySegmentId(segmentId);
 
-          if (formData) {
-            // Set the segment ID from the form data
-            const segmentIdFromForm = formData.segment_id;
-
-            setExistingFormId(formId);
-            setFormData({
-              ...formData.responses,
-              id: segmentIdFromForm,
-            });
-          }
-        }
-        // If only segmentId is provided
-        else if (segmentId) {
-          // First check if this segmentId is actually a form ID
-          const formBySegmentId = await getFormBySegmentId(segmentId);
-
-          if (formBySegmentId) {
-            // We found a form with this segment ID
-            setExistingFormId(formBySegmentId.id);
-            setFormData({
-              ...formBySegmentId.responses,
+          if (existingForm) {
+            setExistingFormId(existingForm.id);
+            nextFormData = mergeWithDefaults(segmentId, {
+              ...existingForm.responses,
               id: segmentId,
+              segment_id: segmentId,
+              city_id: existingForm.city_id || "",
             });
           } else {
-            // Get the segment details
             const segmentData = await fetchSegmentById(segmentId);
+            if (!segmentData) throw new Error("Trecho não encontrado");
 
-            if (!segmentData) throw new Error("Segment not found");
-
-            // Get city name from city ID
             let cityName = "";
             if (segmentData.id_cidade) {
               const cityData = await fetchCityFromDB(segmentData.id_cidade);
-              if (cityData) {
-                cityName = cityData.name;
-              }
+              cityName = cityData?.name || "";
             }
 
-            // Check if this segment has an associated form
-            if (segmentData.id_form) {
-              const formData = await fetchFormById(segmentData.id_form);
-
-              if (!formData) throw new Error("Form not found");
-
-              // If we have form data, populate the form with it
-              if (formData) {
-                setExistingFormId(formData.id);
-                setFormData({
-                  ...formData.responses,
-                  id: segmentId,
-                });
-              }
-            } else {
-              // If no form exists yet, populate basic segment info and auto-fill fields
-              setFormData((prevData) => ({
-                ...prevData,
-                id: segmentId,
-                segment_name: segmentData.name || "",
-                infra_typology: segmentData.type || "",
-                // Auto-fill city, extension, and road hierarchy
-                city: cityName,
-                extension_m: segmentData.length || 0,
-                road_hierarchy: segmentData.classification || "",
-                // Safely handle the new classification field
-                classification: segmentData.classification || undefined,
-              }));
-            }
+            nextFormData = mergeWithDefaults(segmentId, {
+              id: segmentId,
+              segment_id: segmentId,
+              segment_name: segmentData.name || "",
+              infra_typology: segmentData.type || "",
+              city: cityName,
+              city_id: segmentData.id_cidade || "",
+              extension_m: segmentData.length || 0,
+              road_hierarchy: segmentData.classification || "",
+              classification: segmentData.classification || undefined,
+            });
           }
         }
+
+        try {
+          const rawDraft = localStorage.getItem(draftKey);
+          if (rawDraft) {
+            const draft = JSON.parse(rawDraft);
+            nextFormData = mergeWithDefaults(segmentId, draft.data);
+            setLastLocalSaveAt(draft.savedAt || null);
+          }
+        } catch (draftError) {
+          console.error("Erro ao recuperar rascunho local:", draftError);
+        }
+
+        setFormData(nextFormData);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os dados.",
+          description: "Não foi possível carregar os dados do formulário.",
           variant: "destructive",
         });
       } finally {
@@ -192,88 +278,145 @@ const SegmentForm = () => {
     };
 
     fetchData();
-  }, [segmentId, formId, toast]);
+  }, [draftKey, formId, segmentId, toast]);
 
-  const handleDataChange = (newData: any) => {
-    setFormData({ ...formData, ...newData });
+  useEffect(() => {
+    if (isLoading) return;
+
+    const timer = window.setTimeout(() => {
+      try {
+        const payload = {
+          savedAt: new Date().toISOString(),
+          data: formData,
+        };
+
+        localStorage.setItem(draftKey, JSON.stringify(payload));
+        setLastLocalSaveAt(payload.savedAt);
+      } catch (error) {
+        console.error("Erro ao salvar rascunho local:", error);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [draftKey, formData, isLoading]);
+
+  const handleDataChange = (newData: Partial<IdecicloFormData>) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      ...newData,
+    }));
   };
 
   const nextPage = () => {
     if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage((page) => page + 1);
     }
   };
 
   const prevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage((page) => page - 1);
     }
   };
 
   const handleSubmit = async () => {
+    const currentSegmentId = segmentId || formData.segment_id || formData.id;
+    const cityId = formData.city_id || sessionStorage.getItem("selectedCityId");
+
+    if (!cityId) {
+      toast({
+        title: "Cidade ausente",
+        description: "Não foi possível identificar a cidade deste trecho.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!currentSegmentId) {
+      toast({
+        title: "Trecho ausente",
+        description: "Não foi possível identificar o trecho avaliado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const enrichedResponses = {
+      ...formData,
+      city_id: cityId,
+      segment_id: currentSegmentId,
+      score_breakdown: liveSummary,
+      criterion_ratings: liveSummary.resolvedRatings,
+      auto_ratings: liveSummary.autoRatings,
+      total_score: liveSummary.total,
+      saved_offline: !isOnline,
+      last_local_save_at: lastLocalSaveAt,
+    };
+
+    const formToSave = {
+      segment_id: currentSegmentId,
+      city_id: cityId,
+      researcher: formData.researcher || "",
+      date: formData.date || null,
+      street_name: formData.segment_name || null,
+      neighborhood: formData.neighborhood || null,
+      extension: formData.extension_m || null,
+      start_point: formData.start_point || null,
+      end_point: formData.end_point || null,
+      hierarchy: formData.road_hierarchy || null,
+      velocity: formData.velocity_kmh || null,
+      blocks_count: formData.blocks_count || null,
+      intersections_count: formData.intersections_count || null,
+      observations: formData.observations || null,
+      responses: enrichedResponses,
+    };
+
+    if (!isOnline) {
+      savePendingSubmission(currentSegmentId, formToSave);
+      toast({
+        title: "Rascunho salvo offline",
+        description:
+          "Você está sem conexão. O formulário ficou guardado no aparelho para envio posterior.",
+      });
+      return;
+    }
+
     try {
-      // Get city ID from sessionStorage
-      const cityId = sessionStorage.getItem("selectedCityId");
-
-      if (!cityId) {
-        throw new Error("Cidade não selecionada");
-      }
-
-      if (!segmentId) {
-        throw new Error("ID do segmento não encontrado");
-      }
-
-      // Determine if we're updating or creating
-      const isUpdating = !!existingFormId;
-
-      // Prepare form data for database
-      const formToSave = {
-        segment_id: segmentId,
-        city_id: cityId,
-        researcher: formData.researcher || "",
-        responses: formData, // Store all form data in the responses JSONB field
-      };
-
       let result;
+      const isUpdating = Boolean(existingFormId);
 
       if (isUpdating && existingFormId) {
-        // Update existing form
-        console.log("Updating existing form:", existingFormId);
         result = await updateFormInDB(existingFormId, formToSave);
       } else {
-        // Create new form with unique ID
-        const formId = `form-${segmentId}-${Date.now()}`;
-        console.log("Creating new form:", formId);
-        result = await createFormInDB({ ...formToSave, id: formId });
+        const generatedFormId = `form-${currentSegmentId}-${Date.now()}`;
+        result = await createFormInDB({ ...formToSave, id: generatedFormId });
 
-        if (result && !result.error) {
-          // Update the segment to mark it as evaluated
-          await updateSegmentEvaluationStatus(segmentId, formId);
+        if (result) {
+          await updateSegmentEvaluationStatus(currentSegmentId, generatedFormId);
+          setExistingFormId(generatedFormId);
         }
       }
 
-      if (result && result.error) {
-        console.error("Error saving form:", result.error);
-        throw new Error(
-          "Falha ao salvar o formulário: " + result.error.message
-        );
+      if (!result) {
+        throw new Error("Não foi possível persistir os dados no banco.");
       }
 
+      localStorage.removeItem(draftKey);
+      removePendingSubmission(currentSegmentId);
+
       toast({
-        title: isUpdating ? "Avaliação atualizada" : "Avaliação salva",
-        description: "Os dados foram salvos com sucesso no banco de dados.",
+        title: existingFormId ? "Avaliação atualizada" : "Avaliação salva",
+        description: `Nota calculada: ${liveSummary.total.toFixed(1)}/100.`,
       });
 
-      // Navigate to the evaluation page
       navigate("/avaliacao");
     } catch (error) {
       console.error("Error saving form:", error);
+      savePendingSubmission(currentSegmentId, formToSave);
       toast({
-        title: "Erro",
+        title: "Falha no envio online",
         description:
-          error instanceof Error
-            ? error.message
-            : "Ocorreu um erro ao salvar os dados.",
+          "Guardei o conteúdo como rascunho local para você tentar de novo quando a conexão estabilizar.",
         variant: "destructive",
       });
     }
@@ -282,39 +425,102 @@ const SegmentForm = () => {
   const getPageTitle = () => {
     switch (currentPage) {
       case 1:
-        return "Dados Gerais";
+        return "Dados Gerais e Conectividade";
       case 2:
         return "Caracterização da Infraestrutura";
       case 3:
-        return "Espaço Útil de Circulação";
+        return "Espaço Útil e Moderação";
       case 4:
-        return "Pavimento e Estado de Conservação";
+        return "Pavimento e Conservação";
       case 5:
         return "Delimitação da Infraestrutura";
       case 6:
-        return "Sinalização Horizontal e Vertical";
+        return "Identificação e Sinalização";
       case 7:
-        return "Acessibilidade e Interseções";
+        return "Risco e Interseções";
       case 8:
-        return "Iluminação e Conforto";
+        return "Urbanidade";
+      case 9:
+        return "Revisão dos Conceitos";
       default:
-        return "Avaliação de Segmento";
+        return "Avaliação de Estrutura";
     }
   };
 
   return (
     <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">
-          {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Segmento
-        </h2>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">
+            {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Estrutura
+          </h2>
+          <p className="text-muted-foreground">
+            Formulário híbrido do IDECICLO com cálculo por parâmetro, override manual e rascunho offline.
+          </p>
+        </div>
         <Button variant="outline" onClick={() => navigate("/avaliacao")}>
           Voltar
         </Button>
       </div>
 
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Estado</CardTitle>
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <div className="flex items-center gap-2 font-medium">
+              {isOnline ? (
+                <>
+                  <Wifi className="h-4 w-4 text-emerald-600" />
+                  <span>Online</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-4 w-4 text-amber-600" />
+                  <span>Offline</span>
+                </>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              O preenchimento segue funcionando e fica salvo localmente.
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Pontuação Atual</CardTitle>
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <div className="text-3xl font-bold">{liveSummary.total.toFixed(1)}/100</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {liveSummary.eliminated
+                ? "Estrutura eliminada pela regra A1."
+                : "Atualizada conforme os parâmetros e overrides manuais."}
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Rascunho Local</CardTitle>
+          </CardHeader>
+          <div className="px-6 pb-6">
+            <Badge variant="outline">
+              {lastLocalSaveAt
+                ? `Último autosave: ${new Date(lastLocalSaveAt).toLocaleString("pt-BR")}`
+                : "Ainda sem autosave"}
+            </Badge>
+            <p className="mt-2 text-sm text-muted-foreground">
+              O rascunho fica preso a este trecho e a este aparelho.
+            </p>
+          </div>
+        </Card>
+      </div>
+
       {isLoading ? (
-        <Card className="mb-6 p-6 flex justify-center items-center">
+        <Card className="mb-6 p-6 text-center">
           <p>Carregando dados do segmento...</p>
         </Card>
       ) : (
@@ -343,36 +549,20 @@ const SegmentForm = () => {
             />
           )}
 
-          {currentPage === 3 && (
-            <Page3 data={formData} onDataChange={handleDataChange} />
-          )}
-
-          {currentPage === 4 && (
-            <Page4 data={formData} onDataChange={handleDataChange} />
-          )}
-
-          {currentPage === 5 && (
-            <Page5 data={formData} onDataChange={handleDataChange} />
-          )}
-
-          {currentPage === 6 && (
-            <Page6 data={formData} onDataChange={handleDataChange} />
-          )}
-
-          {currentPage === 7 && (
-            <Page7 data={formData} onDataChange={handleDataChange} />
-          )}
-
-          {currentPage === 8 && (
-            <Page8 data={formData} onDataChange={handleDataChange} />
+          {currentPage === 3 && <Page3 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 4 && <Page4 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 5 && <Page5 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 6 && <Page6 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 7 && <Page7 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 8 && <Page8 data={formData} onDataChange={handleDataChange} />}
+          {currentPage === 9 && (
+            <div className="px-6 pb-6">
+              <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
+            </div>
           )}
 
           <CardFooter className="flex justify-between pt-6">
-            <Button
-              variant="outline"
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
+            <Button variant="outline" onClick={prevPage} disabled={currentPage === 1}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
 
@@ -382,14 +572,14 @@ const SegmentForm = () => {
               </Button>
             ) : (
               <Button onClick={handleSubmit}>
-                <Save className="mr-2 h-4 w-4" /> Salvar Avaliação
+                <Save className="mr-2 h-4 w-4" />
+                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
               </Button>
             )}
           </CardFooter>
         </Card>
       )}
 
-      {/* Navigation indicator */}
       <div className="flex justify-center items-center gap-1 pt-2">
         {Array.from({ length: totalPages }).map((_, index) => (
           <div

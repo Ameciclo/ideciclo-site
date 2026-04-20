@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page7Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
 }
 
 const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
@@ -105,7 +106,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-2">B.6. Situações de Risco ao longo da Infraestrutura</h3>
+          <h3 className="text-lg font-medium mb-2">B.7. Situações de Risco ao longo da Infraestrutura</h3>
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -151,7 +152,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-2">C.1/E.4. Sinalização Horizontal Cicloviária nas Interseções</h3>
+          <h3 className="text-lg font-medium mb-2">C.1/E.1. Sinalização Horizontal Cicloviária nas Interseções</h3>
           <div className="space-y-4">
             <div>
               <Label className="block mb-2">Sinalização:</Label>
@@ -184,19 +185,29 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
               <RadioGroup
                 value={data.intersection_conservation || "A"}
                 onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
-                className="flex gap-4"
+                className="grid grid-cols-1 gap-2"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="A" id="int_cons_A" />
-                  <Label htmlFor="int_cons_A">Sinalização em bom estado</Label>
+                  <Label htmlFor="int_cons_A">
+                    Há sinalização em todas as interseções do trecho, visível em toda a extensão
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="B" id="int_cons_B" />
-                  <Label htmlFor="int_cons_B">Sinalização danificada</Label>
+                  <Label htmlFor="int_cons_B">
+                    Há sinalização em mais da metade das interseções e em bom estado
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="C" id="int_cons_C" />
-                  <Label htmlFor="int_cons_C">Não há sinalização</Label>
+                  <Label htmlFor="int_cons_C">
+                    Há sinalização em menos da metade das interseções ou ela está muito danificada
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="D" id="int_cons_D" />
+                  <Label htmlFor="int_cons_D">Praticamente apagada</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -212,15 +223,19 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="A" id="conn_A" />
-              <Label htmlFor="conn_A">A conexão entre infraestruturas possui acessbilidade universal, e é bem visível.</Label>
+              <Label htmlFor="conn_A">
+                A conexão é visível e tem acessibilidade física, com rampa pedalável quando há desnível
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="B" id="conn_B" />
-              <Label htmlFor="conn_B">A conexão possui degraus (com ou sem canaletas).</Label>
+              <RadioGroupItem value="D" id="conn_D" />
+              <Label htmlFor="conn_D">
+                A conexão não é visível, não existe ou depende apenas de escadas/transposição ruim
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="C" id="conn_C" />
-              <Label htmlFor="conn_C">Não é possível ver a conexão.</Label>
+              <RadioGroupItem value="NA" id="conn_NA" />
+              <Label htmlFor="conn_NA">Não se aplica, porque o trecho não possui conexão</Label>
             </div>
           </RadioGroup>
         </div>
@@ -278,6 +293,55 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             </div>
           </div>
         </div>
+
+        {String(data.infra_typology || "")
+          .toLowerCase()
+          .includes("ciclorrota") && (
+          <div>
+            <h3 className="text-lg font-medium mb-2">Complemento para ciclorrotas em C.3</h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label htmlFor="traffic_lanes_per_direction">
+                  Faixas mistas por sentido:
+                </Label>
+                <Input
+                  id="traffic_lanes_per_direction"
+                  name="traffic_lanes_per_direction"
+                  type="number"
+                  value={data.traffic_lanes_per_direction || ""}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="mixed_lane_width_m">
+                  Largura da faixa mista (m):
+                </Label>
+                <Input
+                  id="mixed_lane_width_m"
+                  name="mixed_lane_width_m"
+                  type="number"
+                  step="0.1"
+                  value={data.mixed_lane_width_m || ""}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="has_intersection_traffic_calming"
+                    checked={data.has_intersection_traffic_calming || false}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange("has_intersection_traffic_calming", !!checked)
+                    }
+                  />
+                  <Label htmlFor="has_intersection_traffic_calming">
+                    Há moderação no cruzamento
+                  </Label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

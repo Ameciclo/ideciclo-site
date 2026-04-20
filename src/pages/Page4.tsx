@@ -2,10 +2,11 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page4Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
 }
 
 const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
@@ -43,7 +44,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
         </div>
 
         <div>
-          <h3 className="text-lg font-medium mb-2">E.1. Estado de Conservação do pavimento da infraestrutura</h3>
+          <h3 className="text-lg font-medium mb-2">E.2. Estado de Conservação do pavimento da infraestrutura</h3>
           <RadioGroup
             value={data.conservation_state || "A"}
             onValueChange={(value) => handleRadioChange("conservation_state", value)}

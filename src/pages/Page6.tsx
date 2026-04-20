@@ -1,12 +1,13 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page6Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
 }
 
 const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
@@ -39,7 +40,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
     <Card>
       <CardContent className="pt-6 space-y-6">
         <div>
-          <h3 className="text-lg font-medium mb-2">B.4/E.3. Sinalização Horizontal e Vertical</h3>
+          <h3 className="text-lg font-medium mb-2">B.4/E.4. Sinalização Horizontal e Vertical</h3>
           
           <div className="space-y-4">
             <div>
@@ -100,10 +101,10 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
           <div>
             <h3 className="text-lg font-medium mb-2">B.4.2. Inscrições no pavimento - pictogramas (para ciclorrotas)</h3>
             <div className="space-y-4">
-              <div>
-                <Label className="block mb-2">N° de pictogramas por quadra:</Label>
-                <RadioGroup
-                  value={data.pictograms_per_block?.toString() || "0"}
+            <div>
+              <Label className="block mb-2">N° de pictogramas por quadra:</Label>
+              <RadioGroup
+                value={data.pictograms_per_block?.toString() || "0"}
                   onValueChange={(value) => handleRadioChange("pictograms_per_block", parseInt(value))}
                   className="flex gap-4"
                 >
@@ -120,6 +121,19 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                     <Label htmlFor="picto_2">2</Label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="pictograms_cover_all_blocks"
+                  checked={data.pictograms_cover_all_blocks || false}
+                  onCheckedChange={(checked) =>
+                    handleRadioChange("pictograms_cover_all_blocks", !!checked)
+                  }
+                />
+                <Label htmlFor="pictograms_cover_all_blocks">
+                  Os pictogramas aparecem em todas as quadras do trecho
+                </Label>
               </div>
 
               <div>
@@ -164,7 +178,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               <RadioGroup
                 value={data.regulation_signs_per_block?.toString() || "0"}
                 onValueChange={(value) => handleRadioChange("regulation_signs_per_block", parseInt(value))}
-                className="flex gap-4"
+                className="flex flex-wrap gap-4"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="0" id="signs_0" />
@@ -172,7 +186,11 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="1" id="signs_1" />
-                  <Label htmlFor="signs_1">1 ou mais</Label>
+                  <Label htmlFor="signs_1">1</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="2" id="signs_2" />
+                  <Label htmlFor="signs_2">2 ou mais</Label>
                 </div>
               </RadioGroup>
             </div>

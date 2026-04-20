@@ -2,10 +2,11 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page1Props {
-  data: any;
-  onDataChange: (data: any) => void;
+  data: IdecicloFormData;
+  onDataChange: (data: Partial<IdecicloFormData>) => void;
   segmentName: string;
   segmentType: string;
 }
@@ -150,6 +151,30 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, segmentName }) => {
               name="intersections_count"
               type="number"
               value={data.intersections_count || ""}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <Label htmlFor="relevant_intersections_count">
+              Interseções com arteriais/coletoras:
+            </Label>
+            <Input
+              id="relevant_intersections_count"
+              name="relevant_intersections_count"
+              type="number"
+              value={data.relevant_intersections_count || ""}
+              onChange={handleChange}
+            />
+          </div>
+          <div>
+            <Label htmlFor="connected_intersections_count">
+              Dessas, quantas conectam com outra infra:
+            </Label>
+            <Input
+              id="connected_intersections_count"
+              name="connected_intersections_count"
+              type="number"
+              value={data.connected_intersections_count || ""}
               onChange={handleChange}
             />
           </div>

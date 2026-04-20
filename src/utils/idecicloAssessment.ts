@@ -1,0 +1,815 @@
+import formConfig from "../../form.json";
+import { IdecicloFormData } from "@/types/idecicloForm";
+
+export type IdecicloRating = "A" | "B" | "C" | "D";
+export type RatingMode = "auto" | "manual";
+
+export const CRITERION_CODES = [
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "B3",
+  "B4",
+  "B5",
+  "B6",
+  "B7",
+  "C1",
+  "C2",
+  "C3",
+  "D1",
+  "D2",
+  "D3",
+  "E1",
+  "E2",
+  "E3",
+  "E4",
+] as const;
+
+export type CriterionCode = (typeof CRITERION_CODES)[number];
+
+type TypologyKey =
+  | "ciclovia"
+  | "ciclofaixa"
+  | "calcada_partilhada"
+  | "ciclorrota";
+
+type SectionKey = "A" | "B" | "C" | "D" | "E";
+
+type RatingMap = Partial<Record<CriterionCode, IdecicloRating | null>>;
+
+interface ConfigItem {
+  codigo: CriterionCode;
+  nome: string;
+  avaliacao: Partial<Record<IdecicloRating, number | null>>;
+}
+
+interface ConfigSection {
+  nome: string;
+  max: number;
+  itens: ConfigItem[];
+}
+
+interface ScoreItem {
+  label: string;
+  rating: IdecicloRating | null | undefined;
+  points: number | null;
+}
+
+interface ScoreSection {
+  label: string;
+  score: number;
+  rawScore: number;
+  max: number;
+  items: Record<string, ScoreItem>;
+}
+
+type ScoreSections = Record<string, ScoreSection>;
+
+const RATING_ORDER: IdecicloRating[] = ["A", "B", "C", "D"];
+
+const B3_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
+  A: { A: "A", B: "B", C: "C", D: "D" },
+  B: { A: "A", B: "B", C: "C", D: "D" },
+  C: { A: "B", B: "C", C: "C", D: "D" },
+  D: { A: "D", B: "D", C: "D", D: "D" },
+};
+
+const B4_CICLOVIA_SHARED_MATRIX: Record<
+  IdecicloRating,
+  Record<IdecicloRating, IdecicloRating>
+> = {
+  A: { A: "A", B: "A", C: "B", D: "C" },
+  B: { A: "A", B: "B", C: "B", D: "C" },
+  C: { A: "B", B: "B", C: "C", D: "D" },
+  D: { A: "C", B: "C", C: "D", D: "D" },
+};
+
+const B4_CICLOFAIXA_MATRIX: Record<
+  IdecicloRating,
+  Record<IdecicloRating, IdecicloRating>
+> = {
+  A: { A: "A", B: "A", C: "B", D: "D" },
+  B: { A: "A", B: "B", C: "B", D: "D" },
+  C: { A: "B", B: "B", C: "C", D: "D" },
+  D: { A: "C", B: "C", C: "D", D: "D" },
+};
+
+const B4_CICLORROTA_MATRIX: Record<
+  IdecicloRating,
+  Record<IdecicloRating, IdecicloRating>
+> = {
+  A: { A: "A", B: "A", C: "B", D: "B" },
+  B: { A: "A", B: "B", C: "B", D: "C" },
+  C: { A: "B", B: "B", C: "C", D: "D" },
+  D: { A: "C", B: "C", C: "D", D: "D" },
+};
+
+const E3_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
+  A: { A: "A", B: "B", C: "C", D: "D" },
+  B: { A: "B", B: "B", C: "C", D: "D" },
+  C: { A: "C", B: "C", C: "C", D: "D" },
+  D: { A: "D", B: "D", C: "D", D: "D" },
+};
+
+// Assumption documented in the plan: the E4 matrix is applied between
+// space-identification conservation and vertical-sign conservation.
+const E4_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
+  A: { A: "A", B: "B", C: "C", D: "D" },
+  B: { A: "A", B: "B", C: "C", D: "D" },
+  C: { A: "B", B: "C", C: "C", D: "D" },
+  D: { A: "B", B: "C", C: "D", D: "D" },
+};
+
+const CRITERION_LABELS: Record<CriterionCode, string> = {
+  A1: "Adequação da tipologia à velocidade e hierarquia",
+  A2: "Conectividade da rede cicloviária",
+  B1: "Espaço útil da infraestrutura cicloviária",
+  B2: "Tipo de pavimento",
+  B3: "Delimitação da infraestrutura cicloviária",
+  B4: "Identificação do espaço cicloviário",
+  B5: "Acessibilidade relativa ao uso do solo lindeiro",
+  B6: "Medidas de moderação de velocidade",
+  B7: "Situações de risco ao longo da infraestrutura",
+  C1: "Sinalização horizontal cicloviária nas interseções",
+  C2: "Acessibilidade entre conexões cicloviárias",
+  C3: "Tratamento dos conflitos com modos motorizados",
+  D1: "Iluminação",
+  D2: "Conforto térmico",
+  D3: "Mobiliário cicloviário",
+  E1: "Conservação da sinalização horizontal nas interseções",
+  E2: "Conservação do pavimento",
+  E3: "Conservação dos elementos de delimitação",
+  E4: "Conservação da identificação do espaço cicloviário",
+};
+
+const isRating = (value: unknown): value is IdecicloRating =>
+  typeof value === "string" && RATING_ORDER.includes(value as IdecicloRating);
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
+const ratingIndex = (rating: IdecicloRating) => RATING_ORDER.indexOf(rating);
+
+const worseOf = (
+  first: IdecicloRating | null | undefined,
+  second: IdecicloRating | null | undefined
+): IdecicloRating | null => {
+  if (!first) return second ?? null;
+  if (!second) return first;
+  return ratingIndex(first) >= ratingIndex(second) ? first : second;
+};
+
+const normalizeTypology = (value: unknown): TypologyKey | null => {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes("ciclovia")) return "ciclovia";
+  if (normalized.includes("ciclofaixa")) return "ciclofaixa";
+  if (normalized.includes("ciclorrota")) return "ciclorrota";
+  if (normalized.includes("partilhada") || normalized.includes("compartilhada")) {
+    return "calcada_partilhada";
+  }
+
+  return null;
+};
+
+const normalizeHierarchy = (value: unknown): "estrutural" | "alimentadora" | "local" | null => {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes("estrut")) return "estrutural";
+  if (normalized.includes("alimenta")) return "alimentadora";
+  if (normalized.includes("local")) return "local";
+
+  return null;
+};
+
+const getFlowType = (value: unknown): "unidirectional" | "bidirectional" => {
+  const normalized = String(value ?? "").toLowerCase();
+  return normalized.includes("bi") ? "bidirectional" : "unidirectional";
+};
+
+const getTypologyConfig = (typology: TypologyKey | null) =>
+  typology ? formConfig.tipos?.[typology] : null;
+
+const getCriterionDefinition = (typology: TypologyKey | null, code: CriterionCode) => {
+  const config = getTypologyConfig(typology);
+  if (!config) return null;
+
+  const section = code[0] as SectionKey;
+  const sectionConfig = config.secoes?.[section] as ConfigSection | undefined;
+  return sectionConfig?.itens?.find((item) => item.codigo === code) ?? null;
+};
+
+export const isCriterionApplicable = (
+  formData: Partial<IdecicloFormData>,
+  code: CriterionCode
+) => {
+  const definition = getCriterionDefinition(normalizeTypology(formData.infra_typology), code);
+
+  if (!definition?.avaliacao) return false;
+
+  return Object.values(definition.avaliacao).some((value) => value !== null);
+};
+
+const calculateA1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  const hierarchy = normalizeHierarchy(formData.road_hierarchy || formData.classification);
+  const velocity = toNumber(formData.velocity_kmh);
+
+  if (!typology || !hierarchy || velocity <= 0) return null;
+
+  if (
+    typology === "calcada_partilhada" &&
+    toNumber(formData.pedestrian_flow_per_hour_per_meter) > 200
+  ) {
+    return "D";
+  }
+
+  if (hierarchy === "estrutural") {
+    if (velocity >= 70) {
+      if (typology === "calcada_partilhada") return "A";
+
+      const bufferedCiclovia =
+        typology === "ciclovia" &&
+        (toNumber(formData.lateral_spacing_width_m) > 0.8 ||
+          ["canteiro", "isolada"].includes(String(formData.position_on_road ?? "")));
+
+      return bufferedCiclovia ? "A" : "D";
+    }
+
+    if (velocity >= 50) {
+      return ["ciclovia", "calcada_partilhada"].includes(typology) ? "A" : "D";
+    }
+
+    return ["ciclovia", "ciclofaixa", "calcada_partilhada"].includes(typology)
+      ? "A"
+      : "D";
+  }
+
+  if (hierarchy === "alimentadora") {
+    if (velocity >= 50) {
+      return ["ciclovia", "calcada_partilhada"].includes(typology) ? "A" : "D";
+    }
+
+    return ["ciclovia", "ciclofaixa", "calcada_partilhada"].includes(typology)
+      ? "A"
+      : "D";
+  }
+
+  if (hierarchy === "local") {
+    if (velocity <= 30) {
+      return ["ciclovia", "ciclofaixa", "ciclorrota"].includes(typology) ? "A" : "D";
+    }
+
+    return ["ciclovia", "ciclofaixa"].includes(typology) ? "A" : "D";
+  }
+
+  return null;
+};
+
+const calculateA2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const total = toNumber(formData.relevant_intersections_count);
+  const connected = toNumber(formData.connected_intersections_count);
+
+  if (total <= 0) return null;
+
+  const percentage = (connected / total) * 100;
+
+  if (connected >= total) return "A";
+  if (percentage >= 65) return "B";
+  if (percentage >= 30) return "C";
+  return "D";
+};
+
+const calculateB1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology || typology === "ciclorrota") return null;
+
+  const width = toNumber(formData.width_meters);
+  if (width <= 0) return null;
+
+  const flow = getFlowType(formData.infra_flow);
+
+  if (flow === "bidirectional") {
+    if (width >= 3) return "A";
+    if (width >= 2.5) return "B";
+    if (width >= 2) return "C";
+    return "D";
+  }
+
+  if (width >= 2) return "A";
+  if (width >= 1.5) return "B";
+  if (width >= 1) return "C";
+  return "D";
+};
+
+const calculateB2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null =>
+  isRating(formData.pavement_type) ? formData.pavement_type : null;
+
+const calculateB3Protection = (
+  formData: Partial<IdecicloFormData>
+): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+
+  if (typology === "ciclovia" && isRating(formData.separation_devices_ciclovia)) {
+    return formData.separation_devices_ciclovia;
+  }
+
+  if (typology === "ciclofaixa" && isRating(formData.separation_devices_ciclofaixa)) {
+    return formData.separation_devices_ciclofaixa;
+  }
+
+  if (
+    typology === "calcada_partilhada" &&
+    isRating(formData.separation_devices_calcada)
+  ) {
+    return formData.separation_devices_calcada;
+  }
+
+  return null;
+};
+
+const calculateB3LateralSpacing = (
+  formData: Partial<IdecicloFormData>
+): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology || !["ciclovia", "ciclofaixa"].includes(typology)) return null;
+
+  const velocity = toNumber(formData.velocity_kmh);
+  const width = toNumber(formData.lateral_spacing_width_m);
+  const spacingType = String(formData.lateral_spacing_type ?? "linha");
+
+  if (velocity >= 50) {
+    if (spacingType === "linha" || spacingType === "apagada") return "D";
+    if (width > 1) return "A";
+    if (width >= 0.4) return "B";
+    if (width >= 0.2) return "C";
+    return "D";
+  }
+
+  if (spacingType === "apagada") return "D";
+  if (width > 0.7) return "A";
+  if (spacingType === "dispositivos" && width > 0.4 && width <= 0.7) return "B";
+  if (spacingType === "linha") return "C";
+  return "D";
+};
+
+const calculateB3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  const protection = calculateB3Protection(formData);
+
+  if (typology === "calcada_partilhada") return protection;
+
+  const lateralSpacing = calculateB3LateralSpacing(formData);
+  if (!protection || !lateralSpacing) return null;
+
+  return B3_MATRIX[lateralSpacing][protection];
+};
+
+const calculateB4VerticalSigns = (
+  formData: Partial<IdecicloFormData>
+): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology) return null;
+
+  const signsPerBlock = toNumber(formData.regulation_signs_per_block);
+  const bothDirections = Boolean(formData.signs_both_directions);
+
+  if (["ciclovia", "ciclofaixa"].includes(typology)) {
+    const requiredPerBlock = getFlowType(formData.infra_flow) === "bidirectional" ? 2 : 1;
+
+    if (signsPerBlock === 0) return "D";
+    if (signsPerBlock >= requiredPerBlock && bothDirections) return "A";
+    return "C";
+  }
+
+  if (signsPerBlock === 0) return "D";
+  if (signsPerBlock >= 2 && bothDirections) return "A";
+  if (signsPerBlock >= 1 && bothDirections) return "B";
+  return "C";
+};
+
+const calculateB4SpaceIdentification = (
+  formData: Partial<IdecicloFormData>
+): IdecicloRating | null =>
+  isRating(formData.space_identification) ? formData.space_identification : null;
+
+const calculateB4Pictograms = (
+  formData: Partial<IdecicloFormData>
+): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (typology !== "ciclorrota") return null;
+
+  const pictogramsPerBlock = toNumber(formData.pictograms_per_block);
+  const allBlocks = Boolean(formData.pictograms_cover_all_blocks);
+
+  if (pictogramsPerBlock >= 2 && allBlocks) return "A";
+  if (pictogramsPerBlock >= 1 && allBlocks) return "B";
+  if (pictogramsPerBlock >= 1) return "C";
+  return "D";
+};
+
+const calculateB4 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology) return null;
+
+  const verticalSigns = calculateB4VerticalSigns(formData);
+  if (!verticalSigns) return null;
+
+  if (typology === "ciclorrota") {
+    const pictograms = calculateB4Pictograms(formData);
+    if (!pictograms) return null;
+    return B4_CICLORROTA_MATRIX[verticalSigns][pictograms];
+  }
+
+  const spaceIdentification = calculateB4SpaceIdentification(formData);
+  if (!spaceIdentification) return null;
+
+  if (typology === "ciclofaixa") {
+    return B4_CICLOFAIXA_MATRIX[verticalSigns][spaceIdentification];
+  }
+
+  return B4_CICLOVIA_SHARED_MATRIX[verticalSigns][spaceIdentification];
+};
+
+const calculateB5 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology) return null;
+
+  const lanes = toNumber(formData.traffic_lanes_count);
+  const crossings = toNumber(formData.signalized_crossings_per_block);
+
+  if (lanes <= 0) return null;
+
+  if (typology === "ciclorrota") {
+    if (crossings >= 2) {
+      if (lanes <= 2) return "A";
+      if (lanes === 3) return "B";
+      return "C";
+    }
+
+    if (crossings === 1) {
+      if (lanes <= 2) return "B";
+      if (lanes === 3) return "C";
+      return "D";
+    }
+
+    if (lanes <= 2) return "C";
+    return "D";
+  }
+
+  if (crossings >= 2) {
+    if (lanes <= 4) return "A";
+    return "B";
+  }
+
+  if (crossings === 1) {
+    if (lanes <= 4) return "B";
+    return "C";
+  }
+
+  if (lanes <= 2) return "C";
+  return "D";
+};
+
+const calculateB6 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  if (normalizeTypology(formData.infra_typology) !== "ciclorrota") return null;
+
+  const measures = Array.isArray(formData.speed_measures) ? formData.speed_measures : [];
+  const averageDistance = toNumber(formData.avg_distance_measures_m);
+  const velocity = toNumber(formData.velocity_kmh);
+
+  if (measures.length === 0) return "D";
+
+  const recommended = velocity <= 20 ? 20 : 50;
+  const maximum = velocity <= 20 ? 50 : 75;
+
+  if (averageDistance <= recommended) return "A";
+  if (averageDistance <= maximum) return "B";
+  if (averageDistance > maximum) return "C";
+  return null;
+};
+
+const calculateB7 = (formData: Partial<IdecicloFormData>): IdecicloRating => {
+  const riskCount = [
+    formData.bus_school_conflict,
+    formData.horizontal_obstacles,
+    formData.vertical_obstacles,
+    formData.side_change_mid_block,
+    formData.opposite_flow_direction,
+  ].filter(Boolean).length;
+
+  if (riskCount === 0) return "A";
+  if (riskCount === 1) return "B";
+  if (riskCount === 2) return "C";
+  return "D";
+};
+
+const calculateC1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  if (normalizeTypology(formData.infra_typology) === "ciclorrota") return null;
+  return isRating(formData.intersection_signaling) ? formData.intersection_signaling : null;
+};
+
+const calculateC2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const rawValue = String(formData.connection_accessibility ?? "");
+
+  if (rawValue === "NA") return null;
+  if (rawValue === "A") return "A";
+  if (rawValue === "D") return "D";
+
+  // Backward compatibility with previous options.
+  if (rawValue === "B" || rawValue === "C") return "D";
+
+  return null;
+};
+
+const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology) return null;
+
+  if (typology === "ciclorrota") {
+    const lanesPerDirection = toNumber(formData.traffic_lanes_per_direction);
+    const laneWidth = toNumber(formData.mixed_lane_width_m);
+    const hasModeration = Boolean(formData.has_intersection_traffic_calming);
+
+    if (lanesPerDirection <= 1 && laneWidth > 0 && laneWidth <= 2.7) return "A";
+    if (lanesPerDirection <= 1 && laneWidth > 2.7) return "B";
+    if (lanesPerDirection > 1 && hasModeration) return "C";
+    return "D";
+  }
+
+  const conflicts = new Set(Array.isArray(formData.motorized_conflicts) ? formData.motorized_conflicts : []);
+  const flow = getFlowType(formData.infra_flow);
+
+  if (conflicts.has("no_conversion") || conflicts.has("exclusive_signal")) return "A";
+  if (flow === "unidirectional" && conflicts.has("conversion") && conflicts.has("protection")) {
+    return "B";
+  }
+  if (conflicts.has("pedestrian_signal") || conflicts.has("traffic_calming")) return "C";
+  return "D";
+};
+
+const calculateD1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  if (!formData.has_lighting_posts) return "D";
+
+  const distanceBetweenPosts = toNumber(formData.lighting_distance_m);
+  const directed = Boolean(formData.lighting_directed);
+  const hasBarriers = Boolean(formData.lighting_barriers);
+  const closeToInfrastructure = String(formData.lighting_distance_to_infra ?? "B") === "A";
+  const pedestrianPost = String(formData.lighting_post_type ?? "B") === "A";
+
+  if (
+    pedestrianPost &&
+    directed &&
+    closeToInfrastructure &&
+    !hasBarriers &&
+    distanceBetweenPosts > 0 &&
+    distanceBetweenPosts <= 30
+  ) {
+    return "A";
+  }
+
+  if (
+    directed &&
+    closeToInfrastructure &&
+    !hasBarriers &&
+    distanceBetweenPosts > 30 &&
+    distanceBetweenPosts <= 50
+  ) {
+    return "B";
+  }
+
+  return "C";
+};
+
+const calculateD2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null =>
+  isRating(formData.shading_coverage) ? formData.shading_coverage : null;
+
+const calculateD3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const totalBlocks = toNumber(formData.blocks_count);
+  const blocksWithFurniture = toNumber(formData.blocks_with_cycling_furniture);
+
+  if (totalBlocks <= 0) return null;
+
+  const coverage = (blocksWithFurniture / totalBlocks) * 100;
+
+  if (coverage > 40) return "A";
+  if (coverage >= 25) return "B";
+  if (coverage >= 10) return "C";
+  return "D";
+};
+
+const calculateE1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  if (normalizeTypology(formData.infra_typology) === "ciclorrota") return null;
+  return isRating(formData.intersection_conservation)
+    ? formData.intersection_conservation
+    : null;
+};
+
+const calculateE2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null =>
+  isRating(formData.conservation_state) ? formData.conservation_state : null;
+
+const calculateE3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology || !["ciclovia", "ciclofaixa"].includes(typology)) return null;
+
+  const deviceConservation = isRating(formData.devices_conservation)
+    ? formData.devices_conservation
+    : null;
+  const spacingConservation = isRating(formData.spacing_conservation)
+    ? formData.spacing_conservation
+    : null;
+
+  if (!deviceConservation || !spacingConservation) return null;
+
+  return E3_MATRIX[spacingConservation][deviceConservation];
+};
+
+const calculateE4 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const typology = normalizeTypology(formData.infra_typology);
+  if (!typology) return null;
+
+  if (typology === "ciclorrota") {
+    const pictogramsConservation = isRating(formData.pictograms_conservation)
+      ? formData.pictograms_conservation
+      : null;
+    const verticalSignsConservation = isRating(formData.vertical_signs_conservation)
+      ? formData.vertical_signs_conservation
+      : null;
+
+    return worseOf(pictogramsConservation, verticalSignsConservation);
+  }
+
+  const identificationConservation = isRating(formData.identification_conservation)
+    ? formData.identification_conservation
+    : null;
+  const verticalSignsConservation = isRating(formData.vertical_signs_conservation)
+    ? formData.vertical_signs_conservation
+    : null;
+
+  if (!identificationConservation || !verticalSignsConservation) return null;
+
+  return E4_MATRIX[verticalSignsConservation][identificationConservation];
+};
+
+export const getAutoRatings = (formData: Partial<IdecicloFormData>): RatingMap => ({
+  A1: calculateA1(formData),
+  A2: calculateA2(formData),
+  B1: calculateB1(formData),
+  B2: calculateB2(formData),
+  B3: calculateB3(formData),
+  B4: calculateB4(formData),
+  B5: calculateB5(formData),
+  B6: calculateB6(formData),
+  B7: calculateB7(formData),
+  C1: calculateC1(formData),
+  C2: calculateC2(formData),
+  C3: calculateC3(formData),
+  D1: calculateD1(formData),
+  D2: calculateD2(formData),
+  D3: calculateD3(formData),
+  E1: calculateE1(formData),
+  E2: calculateE2(formData),
+  E3: calculateE3(formData),
+  E4: calculateE4(formData),
+});
+
+export const getResolvedRatings = (formData: Partial<IdecicloFormData>) => {
+  const autoRatings = getAutoRatings(formData);
+  const ratingModes = formData.rating_modes ?? {};
+  const manualRatings = formData.manual_ratings ?? {};
+  const resolvedRatings: RatingMap = {};
+
+  CRITERION_CODES.forEach((code) => {
+    const mode = ratingModes[code] === "manual" ? "manual" : "auto";
+    const manualRating = manualRatings[code];
+
+    resolvedRatings[code] =
+      mode === "manual" && isRating(manualRating) ? manualRating : autoRatings[code] ?? null;
+  });
+
+  return { autoRatings, resolvedRatings };
+};
+
+const buildScoreDetails = (
+  typology: TypologyKey,
+  resolvedRatings: RatingMap
+) => {
+  const config = getTypologyConfig(typology);
+  if (!config) {
+    return { total: 0, eliminated: false, sections: {} as ScoreSections };
+  }
+
+  if (resolvedRatings.A1 === "D") {
+    return {
+      total: 0,
+      eliminated: true,
+      sections: {
+        A: {
+          score: 0,
+          max: config.secoes?.A?.max ?? 0,
+        },
+      },
+    };
+  }
+
+  let total = 0;
+  const sections: ScoreSections = {};
+
+  Object.entries(config.secoes ?? {}).forEach(([sectionKey, rawSectionConfig]) => {
+    const sectionConfig = rawSectionConfig as ConfigSection;
+    let sectionScore = 0;
+    const items: Record<string, ScoreItem> = {};
+
+    (sectionConfig.itens ?? []).forEach((item) => {
+      const rating = resolvedRatings[item.codigo as CriterionCode];
+      const points = rating ? item.avaliacao?.[rating] : null;
+
+      items[item.codigo] = {
+        label: item.nome,
+        rating,
+        points,
+      };
+
+      if (typeof points === "number") {
+        sectionScore += points;
+      }
+    });
+
+    if (sectionKey === "B" && sectionScore < 0) {
+      sectionScore = 0;
+    }
+
+    const cappedScore = Math.min(sectionScore, sectionConfig.max ?? sectionScore);
+
+    sections[sectionKey] = {
+      label: sectionConfig.nome,
+      score: cappedScore,
+      rawScore: sectionScore,
+      max: sectionConfig.max ?? 0,
+      items,
+    };
+
+    total += cappedScore;
+  });
+
+  return {
+    total: Math.max(0, total),
+    eliminated: false,
+    sections,
+  };
+};
+
+export const getScoreBreakdown = (formData: Partial<IdecicloFormData>) => {
+  const typology = normalizeTypology(formData.infra_typology);
+  const { autoRatings, resolvedRatings } = getResolvedRatings(formData);
+
+  if (!typology) {
+    return {
+      typology: null,
+      autoRatings,
+      resolvedRatings,
+      total: 0,
+      eliminated: false,
+      sections: {},
+    };
+  }
+
+  const details = buildScoreDetails(typology, resolvedRatings);
+
+  return {
+    typology,
+    autoRatings,
+    resolvedRatings,
+    total: details.total,
+    eliminated: details.eliminated,
+    sections: details.sections,
+  };
+};
+
+export const getCriterionLabel = (code: CriterionCode) => CRITERION_LABELS[code];
+
+export const getInitialRatingModes = (): Partial<Record<CriterionCode, RatingMode>> =>
+  CRITERION_CODES.reduce((acc, code) => {
+    acc[code] = "auto";
+    return acc;
+  }, {} as Partial<Record<CriterionCode, RatingMode>>);
