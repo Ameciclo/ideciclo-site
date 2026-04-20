@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Save, Wifi, WifiOff } from "lucide-react";
+import { Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -174,7 +173,6 @@ const SegmentForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { segmentId, formId } = useParams();
-  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [existingFormId, setExistingFormId] = useState<string | null>(formId || null);
   const [isOnline, setIsOnline] = useState(
@@ -182,8 +180,6 @@ const SegmentForm = () => {
   );
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
   const [formData, setFormData] = useState<IdecicloFormData>(() => createEmptyFormData(segmentId));
-
-  const totalPages = 9;
   const draftKey = buildDraftKey(segmentId || formData.segment_id || formData.id);
   const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
 
@@ -307,18 +303,6 @@ const SegmentForm = () => {
     }));
   };
 
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage((page) => page + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((page) => page - 1);
-    }
-  };
-
   const handleSubmit = async () => {
     const currentSegmentId = segmentId || formData.segment_id || formData.id;
     const cityId = formData.city_id || sessionStorage.getItem("selectedCityId");
@@ -422,31 +406,6 @@ const SegmentForm = () => {
     }
   };
 
-  const getPageTitle = () => {
-    switch (currentPage) {
-      case 1:
-        return "Dados Gerais e Conectividade";
-      case 2:
-        return "Caracterização da Infraestrutura";
-      case 3:
-        return "Espaço Útil e Moderação";
-      case 4:
-        return "Pavimento e Conservação";
-      case 5:
-        return "Delimitação da Infraestrutura";
-      case 6:
-        return "Identificação e Sinalização";
-      case 7:
-        return "Risco e Interseções";
-      case 8:
-        return "Urbanidade";
-      case 9:
-        return "Revisão dos Conceitos";
-      default:
-        return "Avaliação de Estrutura";
-    }
-  };
-
   return (
     <div className="container py-8">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -455,7 +414,7 @@ const SegmentForm = () => {
             {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Estrutura
           </h2>
           <p className="text-muted-foreground">
-            Formulário híbrido do IDECICLO com cálculo por parâmetro, override manual e rascunho offline.
+            Formulário híbrido do IDECICLO em página única, com cálculo por parâmetro, override manual e rascunho offline.
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate("/avaliacao")}>
@@ -526,72 +485,97 @@ const SegmentForm = () => {
       ) : (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>{getPageTitle()}</CardTitle>
+            <CardTitle>Formulário de Avaliação</CardTitle>
             <CardDescription>
-              Página {currentPage} de {totalPages}
+              Os critérios do manual podem ser expandidos individualmente e a revisão final fica no fim da página.
             </CardDescription>
           </CardHeader>
+          <div className="space-y-8 px-6 pb-2">
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg font-semibold">Dados Gerais e Planejamento</h3>
+                <Badge variant="outline">
+                  A: {liveSummary.sections?.A?.score?.toFixed?.(1) ?? "0.0"}/
+                  {liveSummary.sections?.A?.max ?? 0}
+                </Badge>
+              </div>
+              <Page1
+                data={formData}
+                onDataChange={handleDataChange}
+                segmentName={formData.segment_name}
+                segmentType={formData.infra_typology}
+              />
+              <Page2
+                data={formData}
+                onDataChange={handleDataChange}
+                segmentType={formData.infra_typology}
+              />
+            </section>
 
-          {currentPage === 1 && (
-            <Page1
-              data={formData}
-              onDataChange={handleDataChange}
-              segmentName={formData.segment_name}
-              segmentType={formData.infra_typology}
-            />
-          )}
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg font-semibold">Projeto ao Longo da Estrutura</h3>
+                <Badge variant="outline">
+                  B: {liveSummary.sections?.B?.score?.toFixed?.(1) ?? "0.0"}/
+                  {liveSummary.sections?.B?.max ?? 0}
+                </Badge>
+                <Badge variant="outline">
+                  E parcial:{" "}
+                  {(
+                    ((liveSummary.sections?.E?.items?.E2?.points as number | null) ?? 0) +
+                    ((liveSummary.sections?.E?.items?.E3?.points as number | null) ?? 0) +
+                    ((liveSummary.sections?.E?.items?.E4?.points as number | null) ?? 0)
+                  ).toFixed(1)}
+                </Badge>
+              </div>
+              <Page3 data={formData} onDataChange={handleDataChange} />
+              <Page4 data={formData} onDataChange={handleDataChange} />
+              <Page5 data={formData} onDataChange={handleDataChange} />
+              <Page6 data={formData} onDataChange={handleDataChange} />
+            </section>
 
-          {currentPage === 2 && (
-            <Page2
-              data={formData}
-              onDataChange={handleDataChange}
-              segmentType={formData.infra_typology}
-            />
-          )}
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg font-semibold">Interseções, Conflitos e Riscos</h3>
+                <Badge variant="outline">
+                  C: {liveSummary.sections?.C?.score?.toFixed?.(1) ?? "0.0"}/
+                  {liveSummary.sections?.C?.max ?? 0}
+                </Badge>
+                <Badge variant="outline">
+                  E1: {liveSummary.sections?.E?.items?.E1?.points ?? 0}
+                </Badge>
+              </div>
+              <Page7 data={formData} onDataChange={handleDataChange} />
+            </section>
 
-          {currentPage === 3 && <Page3 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 4 && <Page4 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 5 && <Page5 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 6 && <Page6 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 7 && <Page7 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 8 && <Page8 data={formData} onDataChange={handleDataChange} />}
-          {currentPage === 9 && (
-            <div className="px-6 pb-6">
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg font-semibold">Urbanidade</h3>
+                <Badge variant="outline">
+                  D: {liveSummary.sections?.D?.score?.toFixed?.(1) ?? "0.0"}/
+                  {liveSummary.sections?.D?.max ?? 0}
+                </Badge>
+              </div>
+              <Page8 data={formData} onDataChange={handleDataChange} />
+            </section>
+
+            <section className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-lg font-semibold">Revisão Final e Pontuação</h3>
+                <Badge>{liveSummary.total.toFixed(1)}/100</Badge>
+              </div>
               <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
-            </div>
-          )}
+            </section>
+          </div>
 
-          <CardFooter className="flex justify-between pt-6">
-            <Button variant="outline" onClick={prevPage} disabled={currentPage === 1}>
-              <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
+          <div className="flex justify-end px-6 py-6">
+            <Button onClick={handleSubmit} size="lg">
+              <Save className="mr-2 h-4 w-4" />
+              {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
             </Button>
-
-            {currentPage < totalPages ? (
-              <Button onClick={nextPage}>
-                Próximo <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit}>
-                <Save className="mr-2 h-4 w-4" />
-                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
-              </Button>
-            )}
-          </CardFooter>
+          </div>
         </Card>
       )}
-
-      <div className="flex justify-center items-center gap-1 pt-2">
-        {Array.from({ length: totalPages }).map((_, index) => (
-          <div
-            key={index}
-            className={`h-2 w-2 rounded-full ${
-              currentPage === index + 1 ? "bg-primary" : "bg-gray-300"
-            }`}
-            onClick={() => setCurrentPage(index + 1)}
-            style={{ cursor: "pointer" }}
-          />
-        ))}
-      </div>
     </div>
   );
 };
