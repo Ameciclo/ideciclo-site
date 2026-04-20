@@ -153,6 +153,37 @@ const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title, badges }) => (
   </div>
 );
 
+const HeaderField = ({
+  label,
+  value,
+  readOnly = false,
+  type = "text",
+  name,
+  onChange,
+}: {
+  label: string;
+  value: string | number;
+  readOnly?: boolean;
+  type?: string;
+  name: keyof IdecicloFormData;
+  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}) => (
+  <div>
+    <label className="mb-1 block text-sm font-medium text-foreground">{label}</label>
+    <input
+      className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ${
+        readOnly ? "bg-gray-100 text-muted-foreground" : "bg-background"
+      }`}
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      readOnly={readOnly}
+      disabled={readOnly}
+    />
+  </div>
+);
+
 const getPendingSubmissions = (): PendingSubmission[] => {
   try {
     const raw = localStorage.getItem(PENDING_SUBMISSIONS_KEY);
@@ -316,6 +347,12 @@ const SegmentForm = () => {
       ...prevData,
       ...newData,
     }));
+  };
+
+  const handleHeaderInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = event.target;
+    const processedValue = type === "number" ? parseFloat(value) || 0 : value;
+    handleDataChange({ [name]: processedValue } as Partial<IdecicloFormData>);
   };
 
   const handleSubmit = async () => {
@@ -498,6 +535,80 @@ const SegmentForm = () => {
           <p>Carregando dados do segmento...</p>
         </Card>
       ) : (
+        <>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Cabeçalho da Avaliação</CardTitle>
+            <CardDescription>
+              Identificação do trecho e dados gerais do formulário antes dos eixos de avaliação.
+            </CardDescription>
+          </CardHeader>
+          <div className="grid grid-cols-1 gap-4 px-6 pb-6 md:grid-cols-2 lg:grid-cols-3">
+            <HeaderField
+              label="Pesquisador(a):"
+              name="researcher"
+              value={formData.researcher || ""}
+              onChange={handleHeaderInputChange}
+            />
+            <HeaderField
+              label="Data:"
+              name="date"
+              type="date"
+              value={formData.date || ""}
+              onChange={handleHeaderInputChange}
+            />
+            <HeaderField
+              label="Cidade:"
+              name="city"
+              value={formData.city || ""}
+              readOnly
+            />
+            <HeaderField
+              label="Bairro:"
+              name="neighborhood"
+              value={formData.neighborhood || ""}
+              onChange={handleHeaderInputChange}
+            />
+            <HeaderField
+              label="ID:"
+              name="id"
+              value={formData.id || ""}
+              readOnly
+            />
+            <HeaderField
+              label="Nome Trecho:"
+              name="segment_name"
+              value={formData.segment_name || ""}
+              readOnly
+            />
+            <HeaderField
+              label="Extensão (m):"
+              name="extension_m"
+              type="number"
+              value={formData.extension_m || ""}
+              readOnly
+            />
+            <HeaderField
+              label="Início do trecho:"
+              name="start_point"
+              value={formData.start_point || ""}
+              onChange={handleHeaderInputChange}
+            />
+            <HeaderField
+              label="Fim do trecho:"
+              name="end_point"
+              value={formData.end_point || ""}
+              onChange={handleHeaderInputChange}
+            />
+            <HeaderField
+              label="Hierarquia viária:"
+              name="road_hierarchy"
+              value={formData.road_hierarchy || ""}
+              readOnly
+            />
+          </div>
+        </Card>
+
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Formulário de Avaliação</CardTitle>
@@ -517,12 +628,7 @@ const SegmentForm = () => {
                   </Badge>
                 }
               />
-              <Page1
-                data={formData}
-                onDataChange={handleDataChange}
-                segmentName={formData.segment_name}
-                segmentType={formData.infra_typology}
-              />
+              <Page1 data={formData} onDataChange={handleDataChange} />
               <Page2
                 data={formData}
                 onDataChange={handleDataChange}
@@ -607,6 +713,7 @@ const SegmentForm = () => {
             </Button>
           </div>
         </Card>
+        </>
       )}
     </div>
   );
