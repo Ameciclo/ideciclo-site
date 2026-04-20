@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +41,19 @@ const TYPOLOGY_OPTIONS = [
     value: "Ciclorrota",
     label: "Ciclorrota",
     className: "ideciclo-typology-chip ideciclo-typology-chip-ciclorrota",
+  },
+] as const;
+
+const FLOW_OPTIONS = [
+  {
+    value: "unidirectional",
+    label: "Unidirecional",
+    icon: "/icones/one-way-cycle.svg",
+  },
+  {
+    value: "bidirectional",
+    label: "Bidirecional",
+    icon: "/icones/two-way-cycle.svg",
   },
 ] as const;
 
@@ -175,21 +189,37 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
         </div>
 
         <div>
-          <Label>Fluxo da infra:</Label>
-          <RadioGroup
-            value={data.infra_flow || "unidirectional"}
-            onValueChange={(value) => handleRadioChange("infra_flow", value)}
-            className="flex gap-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="unidirectional" id="unidirectional" />
-              <Label htmlFor="unidirectional">Unidirecional</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="bidirectional" id="bidirectional" />
-              <Label htmlFor="bidirectional">Bidirecional</Label>
-            </div>
-          </RadioGroup>
+          <Label className="mb-3 block">Fluxo da infra:</Label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {FLOW_OPTIONS.map((option) => {
+              const isSelected = (data.infra_flow || "unidirectional") === option.value;
+
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant="ghost"
+                  className={`h-auto justify-start rounded-2xl border px-4 py-4 transition-all ${
+                    isSelected
+                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
+                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
+                  }`}
+                  onClick={() => handleRadioChange("infra_flow", option.value)}
+                >
+                  <div className="flex w-full items-center gap-4">
+                    <img
+                      src={option.icon}
+                      alt={option.label}
+                      className="h-16 w-16 shrink-0 object-contain"
+                    />
+                    <span className="text-left text-base font-semibold text-slate-700">
+                      {option.label}
+                    </span>
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
         <div>
