@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page8Props {
   data: IdecicloFormData;
@@ -55,6 +56,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             value="d1"
             title="D.1. Iluminação pública"
             description="Condições de iluminação ao longo do trecho cicloviário."
+            scorePreview={buildCriterionScorePreview(data, ["D1"])}
             answered={isTouched([
               "has_lighting_posts",
               "lighting_post_type",
@@ -213,6 +215,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             value="d2"
             title="D.2. Conforto térmico (sombreamento)"
             description="Cobertura de sombra e porte da arborização do trecho."
+            scorePreview={buildCriterionScorePreview(data, ["D2"])}
             answered={isTouched(["shading_coverage", "vegetation_size"])}
             inAnalysis={data.criterion_workflow_state?.d2 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d2", value ? "analysis" : "default")}
@@ -280,6 +283,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             value="d3"
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
+            scorePreview={buildCriterionScorePreview(data, ["D3"])}
             answered={isTouched(["blocks_with_cycling_furniture", "cycling_furniture"])}
             inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}

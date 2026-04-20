@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import ManualHelpDialog from "@/components/ManualHelpDialog";
 import { useCriteriaAccordionFilter } from "@/components/criteriaAccordionContext";
+import { CriterionScorePreviewItem } from "@/utils/criterionScorePreview";
 
 interface AssessmentCriterionAccordionProps {
   value: string;
   title: string;
   description?: string;
+  scorePreview?: CriterionScorePreviewItem[];
   answered?: boolean;
   inAnalysis?: boolean;
   onAnalysisChange?: (value: boolean) => void;
@@ -26,6 +28,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   value,
   title,
   description,
+  scorePreview,
   answered = false,
   inAnalysis = false,
   onAnalysisChange,
@@ -42,13 +45,40 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
 
   if (hidden) return null;
 
+  const scorePreviewClassName = (rating: string | null) => {
+    if (rating === "A") return "border-[#b8e5db] bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-[#9fd3cb] bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-[#8fafad] bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-[#748987] bg-[#748987] text-white";
+    return "border-slate-200 bg-slate-100 text-slate-700";
+  };
+
   return (
     <AccordionItem value={value} className="rounded-xl border bg-background px-4">
       <div className="flex items-start gap-2">
         <AccordionTrigger className="flex-1 hover:no-underline">
           <div className="flex w-full flex-col gap-3 text-left md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="text-sm font-semibold text-foreground">{title}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-sm font-semibold text-foreground">{title}</div>
+                {scorePreview?.length ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {scorePreview.map((item) => (
+                      <Badge
+                        key={item.code}
+                        variant="outline"
+                        className={scorePreviewClassName(item.rating)}
+                      >
+                        {item.code}
+                        {item.rating ? ` · ${item.rating}` : ""}
+                        {typeof item.points === "number"
+                          ? ` · ${item.points > 0 ? `+${item.points}` : item.points} pts`
+                          : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               {description ? (
                 <p className="mt-1 text-xs font-normal text-muted-foreground">{description}</p>
               ) : null}

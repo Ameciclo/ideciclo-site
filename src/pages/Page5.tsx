@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page5Props {
   data: IdecicloFormData;
@@ -49,6 +50,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             value="b31"
             title="B.3.1. Delimitação e separação da infraestrutura"
             description="O conteúdo muda conforme a tipologia da estrutura escolhida."
+            scorePreview={buildCriterionScorePreview(data, ["B3"])}
             answered={isTouched([
               "separation_devices_ciclofaixa",
               "separation_devices_ciclovia",
@@ -196,6 +198,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             value="e3"
             title="E.3. Estado de conservação dos dispositivos de separação"
             description="Avalia permanência e estado dos elementos de segregação ou separação."
+            scorePreview={buildCriterionScorePreview(data, ["E3"])}
             answered={isTouched(["devices_conservation"])}
             inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
@@ -246,6 +249,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               value="b32"
               title="B.3.2. Afastamento lateral do fluxo veicular"
               description="Usado para estruturas segregadas ou separadas em relação ao tráfego motorizado."
+              scorePreview={buildCriterionScorePreview(data, ["B3"])}
               answered={isTouched([
                 "lateral_spacing_type",
                 "lateral_spacing_width_m",

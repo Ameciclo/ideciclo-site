@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page3Props {
   data: IdecicloFormData;
@@ -56,6 +57,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
             value="b11"
             title="B.1.1. Largura da infraestrutura cicloviária"
             description="Permite informar a largura medida para cálculo automático do conceito."
+            scorePreview={buildCriterionScorePreview(data, ["B1"])}
             answered={isTouched(["width_meters", "includes_gutter"])}
             inAnalysis={data.criterion_workflow_state?.b11 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b11", value ? "analysis" : "default")}
@@ -105,6 +107,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
             value="b12"
             title="B.1.2. Medidas de moderação de velocidade"
             description="Aplicável especialmente a ciclorrotas, com seleção de medidas e distância média entre elas."
+            scorePreview={buildCriterionScorePreview(data, ["B6"])}
             answered={isTouched(["speed_measures", "avg_distance_measures_m"])}
             inAnalysis={data.criterion_workflow_state?.b12 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b12", value ? "analysis" : "default")}

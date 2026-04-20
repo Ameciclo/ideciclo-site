@@ -5,6 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page4Props {
   data: IdecicloFormData;
@@ -33,6 +34,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             value="b2"
             title="B.2. Tipo de pavimento da infraestrutura cicloviária"
             description="Classificação do material predominante do pavimento."
+            scorePreview={buildCriterionScorePreview(data, ["B2"])}
             answered={isTouched(["pavement_type"])}
             inAnalysis={data.criterion_workflow_state?.b2 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b2", value ? "analysis" : "default")}
@@ -79,6 +81,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             value="e2"
             title="E.2. Estado de conservação do pavimento"
             description="Avalia a integridade da superfície e a qualidade de rodagem."
+            scorePreview={buildCriterionScorePreview(data, ["E2"])}
             answered={isTouched(["conservation_state"])}
             inAnalysis={data.criterion_workflow_state?.e2 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("e2", value ? "analysis" : "default")}

@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page7Props {
   data: IdecicloFormData;
@@ -62,6 +63,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="b7"
             title="B.7. Situações de risco ao longo da infraestrutura"
             description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
+            scorePreview={buildCriterionScorePreview(data, ["B7"])}
             answered={isTouched([
               "bus_school_conflict",
               "horizontal_obstacles",
@@ -145,6 +147,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="b5"
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
             description="Considera travessias e permeabilidade do trecho frente aos usos do entorno."
+            scorePreview={buildCriterionScorePreview(data, ["B5"])}
             answered={isTouched(["traffic_lanes_count", "signalized_crossings_per_block"])}
             inAnalysis={data.criterion_workflow_state?.b5 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b5", value ? "analysis" : "default")}
@@ -227,6 +230,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c1e1"
             title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
             description="Combina presença da sinalização nas interseções e seu estado de conservação."
+            scorePreview={buildCriterionScorePreview(data, ["C1", "E1"])}
             answered={isTouched(["intersection_signaling", "intersection_conservation"])}
             inAnalysis={data.criterion_workflow_state?.c1e1 === "analysis"}
             onAnalysisChange={(value) =>
@@ -314,6 +318,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c2"
             title="C.2. Acessibilidade entre conexões cicloviárias"
             description="Indica se a ligação com outras estruturas é visível e pedalável."
+            scorePreview={buildCriterionScorePreview(data, ["C2"])}
             answered={isTouched(["connection_accessibility"])}
             inAnalysis={data.criterion_workflow_state?.c2 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("c2", value ? "analysis" : "default")}
@@ -354,6 +359,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c3"
             title="C.3. Conflitos com circulação de modos motorizados"
             description="Marque os elementos presentes para caracterizar o tratamento do conflito."
+            scorePreview={buildCriterionScorePreview(data, ["C3"])}
             answered={isTouched([
               "motorized_conflicts",
               "traffic_lanes_per_direction",

@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page6Props {
   data: IdecicloFormData;
@@ -49,6 +50,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             value="b41"
             title="B.4.2. Identificação do espaço de circulação de bicicletas"
             description="Pintura, contraste e reconhecimento visual do espaço cicloviário."
+            scorePreview={buildCriterionScorePreview(data, ["B4"])}
             answered={isTouched(["space_identification"])}
             inAnalysis={data.criterion_workflow_state?.b41 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b41", value ? "analysis" : "default")}
@@ -93,6 +95,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             value="e41"
             title="E.4.1. Estado de conservação da identificação do espaço cicloviário"
             description="Avalia desgaste e permanência da sinalização horizontal principal."
+            scorePreview={buildCriterionScorePreview(data, ["E4"])}
             answered={isTouched(["identification_conservation"])}
             inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
@@ -142,6 +145,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               value="b42"
               title="B.4.3. Inscrições no pavimento - pictogramas"
               description="Critério específico para ciclorrotas."
+              scorePreview={buildCriterionScorePreview(data, ["B4"])}
               answered={isTouched([
                 "pictograms_per_block",
                 "pictograms_cover_all_blocks",
@@ -243,6 +247,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                 ? "Aplicado a ciclovias e ciclofaixas."
                 : "Aplicado a ciclorrotas e calçadas partilhadas."
             }
+            scorePreview={buildCriterionScorePreview(data, ["B4"])}
             answered={isTouched([
               "regulation_signs_per_block",
               "signs_both_directions",
