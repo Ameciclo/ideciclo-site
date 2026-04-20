@@ -207,11 +207,62 @@
   box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.25);
 }
 
+.ideciclo-axis-ribbon {
+  position: relative;
+  width: calc(100% + 12px);
+  margin-left: -6px;
+  padding: 0.9rem 1.4rem;
+  border-radius: 14px;
+  transform: rotate(0.2deg);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.ideciclo-axis-ribbon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  clip-path: polygon(1% 0%, 100% 6%, 100% 100%, 2% 88%, 0% 18%);
+  background: inherit;
+  z-index: 0;
+}
+
+.ideciclo-axis-ribbon > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ideciclo-axis-ribbon-a {
+  background: #f6d36e;
+}
+
+.ideciclo-axis-ribbon-b {
+  background: #db6d57;
+}
+
+.ideciclo-axis-ribbon-c {
+  background: #74c3df;
+}
+
+.ideciclo-axis-ribbon-d {
+  background: #71af79;
+}
+
+.ideciclo-axis-ribbon-e {
+  background: #f2c4cb;
+}
+
 /* Responsividade para SVGs */
 @media (max-width: 768px) {
   .ideciclo-svg-responsive {
     width: 100% !important;
     height: auto !important;
+  }
+
+  .ideciclo-axis-ribbon {
+    width: 100%;
+    margin-left: 0;
+    padding: 0.8rem 1rem;
   }
 }
 

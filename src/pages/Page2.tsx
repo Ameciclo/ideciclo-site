@@ -1,8 +1,17 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page2Props {
@@ -12,6 +21,14 @@ interface Page2Props {
 }
 
 const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
+  const [allowTypologyEdit, setAllowTypologyEdit] = useState(false);
+
+  useEffect(() => {
+    if (!segmentType) {
+      setAllowTypologyEdit(true);
+    }
+  }, [segmentType]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     onDataChange({ [name]: value });
@@ -21,19 +38,84 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
     onDataChange({ [name]: value });
   };
 
+  const resolvedTypology = data.infra_typology || segmentType || "";
+  const isTypologyEdited =
+    Boolean(segmentType) &&
+    Boolean(data.infra_typology) &&
+    data.infra_typology.toLowerCase() !== segmentType.toLowerCase();
+
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
         <div>
-          <Label htmlFor="infra_typology">Tipologia da infra:</Label>
-          <Input
-            id="infra_typology"
-            name="infra_typology"
-            value={data.infra_typology || segmentType || ""}
-            readOnly
-            disabled
-            className="bg-gray-100"
-          />
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <Label htmlFor="infra_typology">Tipologia da infra:</Label>
+                <p className="text-sm text-muted-foreground">
+                  A tipologia vem da etapa anterior, mas pode ser corrigida em campo se houver erro.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="allow_typology_edit" className="text-sm">
+                  Corrigir tipologia em campo
+                </Label>
+                <Switch
+                  id="allow_typology_edit"
+                  checked={allowTypologyEdit}
+                  onCheckedChange={setAllowTypologyEdit}
+                />
+              </div>
+            </div>
+
+            {!allowTypologyEdit ? (
+              <Input
+                id="infra_typology"
+                name="infra_typology"
+                value={resolvedTypology}
+                readOnly
+                disabled
+                className="bg-gray-100"
+              />
+            ) : (
+              <div className="space-y-3">
+                <Alert>
+                  <AlertTitle>Atenção ao alterar a tipologia</AlertTitle>
+                  <AlertDescription>
+                    Essa mudança afeta os critérios exibidos e o cálculo da avaliação. Use apenas
+                    quando a classificação prévia do trecho estiver incorreta.
+                  </AlertDescription>
+                </Alert>
+
+                {segmentType ? (
+                  <p className="text-sm text-muted-foreground">
+                    Tipologia original do trecho: <strong>{segmentType}</strong>
+                  </p>
+                ) : null}
+
+                <Select
+                  value={resolvedTypology}
+                  onValueChange={(value) => handleRadioChange("infra_typology", value)}
+                >
+                  <SelectTrigger id="infra_typology">
+                    <SelectValue placeholder="Selecione a tipologia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ciclovia">Ciclovia</SelectItem>
+                    <SelectItem value="Ciclofaixa">Ciclofaixa</SelectItem>
+                    <SelectItem value="Ciclorrota">Ciclorrota</SelectItem>
+                    <SelectItem value="Compartilhada">Compartilhada</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {isTypologyEdited ? (
+                  <p className="text-sm font-medium text-amber-700">
+                    A tipologia foi corrigida em campo e está diferente da classificação original.
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
 
         <div>
@@ -88,7 +170,7 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
           </RadioGroup>
         </div>
 
-        {String(data.infra_typology || segmentType || "")
+        {String(resolvedTypology || "")
           .toLowerCase()
           .includes("partilh") && (
           <div>

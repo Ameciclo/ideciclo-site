@@ -138,6 +138,21 @@ interface PendingSubmission {
   payload: Record<string, unknown>;
 }
 
+interface AxisRibbonProps {
+  tone: "a" | "b" | "c" | "d" | "e";
+  title: string;
+  badges?: React.ReactNode;
+}
+
+const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title, badges }) => (
+  <div className="space-y-3">
+    <div className={`ideciclo-axis-ribbon ideciclo-axis-ribbon-${tone}`}>
+      <h3 className="text-xl font-bold tracking-tight text-black md:text-2xl">{title}</h3>
+    </div>
+    {badges ? <div className="flex flex-wrap items-center gap-3">{badges}</div> : null}
+  </div>
+);
+
 const getPendingSubmissions = (): PendingSubmission[] => {
   try {
     const raw = localStorage.getItem(PENDING_SUBMISSIONS_KEY);
@@ -492,13 +507,16 @@ const SegmentForm = () => {
           </CardHeader>
           <div className="space-y-8 px-6 pb-2">
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold">Dados Gerais e Planejamento</h3>
-                <Badge variant="outline">
-                  A: {liveSummary.sections?.A?.score?.toFixed?.(1) ?? "0.0"}/
-                  {liveSummary.sections?.A?.max ?? 0}
-                </Badge>
-              </div>
+              <AxisRibbon
+                tone="a"
+                title="A. Planejamento Cicloviário"
+                badges={
+                  <Badge variant="outline">
+                    A: {liveSummary.sections?.A?.score?.toFixed?.(1) ?? "0.0"}/
+                    {liveSummary.sections?.A?.max ?? 0}
+                  </Badge>
+                }
+              />
               <Page1
                 data={formData}
                 onDataChange={handleDataChange}
@@ -513,21 +531,26 @@ const SegmentForm = () => {
             </section>
 
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold">Projeto ao Longo da Estrutura</h3>
-                <Badge variant="outline">
-                  B: {liveSummary.sections?.B?.score?.toFixed?.(1) ?? "0.0"}/
-                  {liveSummary.sections?.B?.max ?? 0}
-                </Badge>
-                <Badge variant="outline">
-                  E parcial:{" "}
-                  {(
-                    ((liveSummary.sections?.E?.items?.E2?.points as number | null) ?? 0) +
-                    ((liveSummary.sections?.E?.items?.E3?.points as number | null) ?? 0) +
-                    ((liveSummary.sections?.E?.items?.E4?.points as number | null) ?? 0)
-                  ).toFixed(1)}
-                </Badge>
-              </div>
+              <AxisRibbon
+                tone="b"
+                title="B. Projeto Cicloviário ao Longo da Quadra"
+                badges={
+                  <>
+                    <Badge variant="outline">
+                      B: {liveSummary.sections?.B?.score?.toFixed?.(1) ?? "0.0"}/
+                      {liveSummary.sections?.B?.max ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-800">
+                      E parcial:{" "}
+                      {(
+                        ((liveSummary.sections?.E?.items?.E2?.points as number | null) ?? 0) +
+                        ((liveSummary.sections?.E?.items?.E3?.points as number | null) ?? 0) +
+                        ((liveSummary.sections?.E?.items?.E4?.points as number | null) ?? 0)
+                      ).toFixed(1)}
+                    </Badge>
+                  </>
+                }
+              />
               <Page3 data={formData} onDataChange={handleDataChange} />
               <Page4 data={formData} onDataChange={handleDataChange} />
               <Page5 data={formData} onDataChange={handleDataChange} />
@@ -535,35 +558,44 @@ const SegmentForm = () => {
             </section>
 
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold">Interseções, Conflitos e Riscos</h3>
-                <Badge variant="outline">
-                  C: {liveSummary.sections?.C?.score?.toFixed?.(1) ?? "0.0"}/
-                  {liveSummary.sections?.C?.max ?? 0}
-                </Badge>
-                <Badge variant="outline">
-                  E1: {liveSummary.sections?.E?.items?.E1?.points ?? 0}
-                </Badge>
-              </div>
+              <AxisRibbon
+                tone="c"
+                title="C. Projeto Cicloviário nas Interseções"
+                badges={
+                  <>
+                    <Badge variant="outline">
+                      C: {liveSummary.sections?.C?.score?.toFixed?.(1) ?? "0.0"}/
+                      {liveSummary.sections?.C?.max ?? 0}
+                    </Badge>
+                    <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-800">
+                      E1: {liveSummary.sections?.E?.items?.E1?.points ?? 0}
+                    </Badge>
+                  </>
+                }
+              />
               <Page7 data={formData} onDataChange={handleDataChange} />
             </section>
 
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold">Urbanidade</h3>
-                <Badge variant="outline">
-                  D: {liveSummary.sections?.D?.score?.toFixed?.(1) ?? "0.0"}/
-                  {liveSummary.sections?.D?.max ?? 0}
-                </Badge>
-              </div>
+              <AxisRibbon
+                tone="d"
+                title="D. Urbanidade"
+                badges={
+                  <Badge variant="outline">
+                    D: {liveSummary.sections?.D?.score?.toFixed?.(1) ?? "0.0"}/
+                    {liveSummary.sections?.D?.max ?? 0}
+                  </Badge>
+                }
+              />
               <Page8 data={formData} onDataChange={handleDataChange} />
             </section>
 
             <section className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold">Revisão Final e Pontuação</h3>
-                <Badge>{liveSummary.total.toFixed(1)}/100</Badge>
-              </div>
+              <AxisRibbon
+                tone="e"
+                title="E. Manutenção e Revisão Final"
+                badges={<Badge>{liveSummary.total.toFixed(1)}/100</Badge>}
+              />
               <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
             </section>
           </div>
