@@ -63,23 +63,23 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   includes_gutter: false,
   speed_measures: [],
   avg_distance_measures_m: 0,
-  pavement_type: "A",
-  conservation_state: "A",
-  separation_devices_ciclofaixa: "D",
-  separation_devices_ciclovia: "A",
-  separation_devices_calcada: "D",
-  devices_conservation: "A",
+  pavement_type: "",
+  conservation_state: "",
+  separation_devices_ciclofaixa: "",
+  separation_devices_ciclovia: "",
+  separation_devices_calcada: "",
+  devices_conservation: "",
   lateral_spacing_type: "linha",
   lateral_spacing_width_m: 0,
-  spacing_conservation: "A",
-  space_identification: "A",
-  identification_conservation: "A",
+  spacing_conservation: "",
+  space_identification: "",
+  identification_conservation: "",
   pictograms_per_block: 0,
   pictograms_cover_all_blocks: false,
-  pictograms_conservation: "A",
+  pictograms_conservation: "",
   regulation_signs_per_block: 0,
-  signs_both_directions: false,
-  vertical_signs_conservation: "A",
+  signs_both_directions: null,
+  vertical_signs_conservation: "",
   traffic_lanes_count: 2,
   signalized_crossings_per_block: 0,
   bus_school_conflict: false,
@@ -87,26 +87,28 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   vertical_obstacles: false,
   side_change_mid_block: false,
   opposite_flow_direction: false,
-  intersection_signaling: "A",
-  intersection_conservation: "A",
-  connection_accessibility: "A",
+  intersection_signaling: "",
+  intersection_conservation: "",
+  connection_accessibility: "",
   traffic_lanes_per_direction: 1,
   mixed_lane_width_m: 2.7,
   has_intersection_traffic_calming: false,
   motorized_conflicts: [],
-  has_lighting_posts: true,
-  lighting_post_type: "A",
+  has_lighting_posts: null,
+  lighting_post_type: "",
   lighting_distance_m: 0,
-  lighting_directed: false,
-  lighting_barriers: false,
-  lighting_distance_to_infra: "A",
-  shading_coverage: "A",
-  vegetation_size: "A",
+  lighting_directed: null,
+  lighting_barriers: null,
+  lighting_distance_to_infra: "",
+  shading_coverage: "",
+  vegetation_size: "",
   blocks_with_cycling_furniture: 0,
   cycling_furniture: [],
   observations: "",
   rating_modes: getInitialRatingModes(),
   manual_ratings: {},
+  touched_fields: {},
+  criterion_workflow_state: {},
 });
 
 const mergeWithDefaults = (
@@ -343,10 +345,24 @@ const SegmentForm = () => {
   }, [draftKey, formData, isLoading]);
 
   const handleDataChange = (newData: Partial<IdecicloFormData>) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      ...newData,
-    }));
+    setFormData((prevData) => {
+      const incomingTouched = newData.touched_fields || {};
+      const { touched_fields, ...rest } = newData;
+      const autoTouched = Object.keys(rest).reduce<Record<string, boolean>>((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {});
+
+      return {
+        ...prevData,
+        ...rest,
+        touched_fields: {
+          ...(prevData.touched_fields || {}),
+          ...autoTouched,
+          ...incomingTouched,
+        },
+      };
+    });
   };
 
   const handleHeaderInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {

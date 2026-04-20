@@ -3,8 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page6Props {
@@ -29,18 +29,33 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
   const infraType = getInfraType();
   const isCiclorrota = infraType === "ciclorrota";
   const isCicloviaOrCiclofaixa = infraType === "ciclovia" || infraType === "ciclofaixa";
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["b41"]} className="space-y-4">
+        <CriteriaAccordionGroup
+          allValues={["b41", "e41", "b42", "b43"]}
+          defaultOpenValues={["b41"]}
+        >
           <AssessmentCriterionAccordion
             value="b41"
             title="B.4.1. Identificação do espaço de circulação de bicicletas"
             description="Pintura, contraste e reconhecimento visual do espaço cicloviário."
+            answered={isTouched(["space_identification"])}
+            workflowState={data.criterion_workflow_state?.b41}
+            onWorkflowStateChange={(value) => updateWorkflow("b41", value)}
+            onClear={() => onDataChange({ space_identification: "", touched_fields: { space_identification: false } })}
           >
             <RadioGroup
-              value={data.space_identification || "A"}
+              value={data.space_identification || ""}
               onValueChange={(value) => handleRadioChange("space_identification", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -77,9 +92,18 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             value="e41"
             title="E.4.1. Estado de conservação da identificação do espaço cicloviário"
             description="Avalia desgaste e permanência da sinalização horizontal principal."
+            answered={isTouched(["identification_conservation"])}
+            workflowState={data.criterion_workflow_state?.e41}
+            onWorkflowStateChange={(value) => updateWorkflow("e41", value)}
+            onClear={() =>
+              onDataChange({
+                identification_conservation: "",
+                touched_fields: { identification_conservation: false },
+              })
+            }
           >
             <RadioGroup
-              value={data.identification_conservation || "A"}
+              value={data.identification_conservation || ""}
               onValueChange={(value) => handleRadioChange("identification_conservation", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -116,6 +140,25 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               value="b42"
               title="B.4.2. Inscrições no pavimento - pictogramas"
               description="Critério específico para ciclorrotas."
+              answered={isTouched([
+                "pictograms_per_block",
+                "pictograms_cover_all_blocks",
+                "pictograms_conservation",
+              ])}
+              workflowState={data.criterion_workflow_state?.b42}
+              onWorkflowStateChange={(value) => updateWorkflow("b42", value)}
+              onClear={() =>
+                onDataChange({
+                  pictograms_per_block: 0,
+                  pictograms_cover_all_blocks: false,
+                  pictograms_conservation: "",
+                  touched_fields: {
+                    pictograms_per_block: false,
+                    pictograms_cover_all_blocks: false,
+                    pictograms_conservation: false,
+                  },
+                })
+              }
             >
               <div className="space-y-4">
                 <div>
@@ -158,7 +201,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                 <div>
                   <Label className="mb-2 block">Estado de conservação dos pictogramas:</Label>
                   <RadioGroup
-                    value={data.pictograms_conservation || "A"}
+                    value={data.pictograms_conservation || ""}
                     onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
                     className="grid grid-cols-1 gap-2"
                   >
@@ -195,6 +238,25 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                 ? "Aplicado a ciclovias e ciclofaixas."
                 : "Aplicado a ciclorrotas e calçadas partilhadas."
             }
+            answered={isTouched([
+              "regulation_signs_per_block",
+              "signs_both_directions",
+              "vertical_signs_conservation",
+            ])}
+            workflowState={data.criterion_workflow_state?.b43}
+            onWorkflowStateChange={(value) => updateWorkflow("b43", value)}
+            onClear={() =>
+              onDataChange({
+                regulation_signs_per_block: 0,
+                signs_both_directions: null,
+                vertical_signs_conservation: "",
+                touched_fields: {
+                  regulation_signs_per_block: false,
+                  signs_both_directions: false,
+                  vertical_signs_conservation: false,
+                },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
@@ -224,7 +286,13 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Placas nos dois sentidos:</Label>
                 <RadioGroup
-                  value={data.signs_both_directions ? "true" : "false"}
+                  value={
+                    data.signs_both_directions === null
+                      ? ""
+                      : data.signs_both_directions
+                        ? "true"
+                        : "false"
+                  }
                   onValueChange={(value) =>
                     handleRadioChange("signs_both_directions", value === "true")
                   }
@@ -244,7 +312,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Estado de conservação da sinalização vertical:</Label>
                 <RadioGroup
-                  value={data.vertical_signs_conservation || "A"}
+                  value={data.vertical_signs_conservation || ""}
                   onValueChange={(value) => handleRadioChange("vertical_signs_conservation", value)}
                   className="grid grid-cols-1 gap-2"
                 >
@@ -270,7 +338,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               </div>
             </div>
           </AssessmentCriterionAccordion>
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );

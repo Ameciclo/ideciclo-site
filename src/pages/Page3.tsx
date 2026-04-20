@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page3Props {
@@ -39,14 +39,33 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
     onDataChange({ speed_measures: currentMeasures });
   };
 
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
+
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["b11"]} className="space-y-4">
+        <CriteriaAccordionGroup allValues={["b11", "b12"]} defaultOpenValues={["b11"]}>
           <AssessmentCriterionAccordion
             value="b11"
             title="B.1.1. Largura da infraestrutura cicloviária"
             description="Permite informar a largura medida para cálculo automático do conceito."
+            answered={isTouched(["width_meters", "includes_gutter"])}
+            workflowState={data.criterion_workflow_state?.b11}
+            onWorkflowStateChange={(value) => updateWorkflow("b11", value)}
+            onClear={() =>
+              onDataChange({
+                width_meters: 0,
+                includes_gutter: false,
+                touched_fields: { width_meters: false, includes_gutter: false },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
@@ -85,6 +104,16 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
             value="b12"
             title="B.1.2. Medidas de moderação de velocidade"
             description="Aplicável especialmente a ciclorrotas, com seleção de medidas e distância média entre elas."
+            answered={isTouched(["speed_measures", "avg_distance_measures_m"])}
+            workflowState={data.criterion_workflow_state?.b12}
+            onWorkflowStateChange={(value) => updateWorkflow("b12", value)}
+            onClear={() =>
+              onDataChange({
+                speed_measures: [],
+                avg_distance_measures_m: 0,
+                touched_fields: { speed_measures: false, avg_distance_measures_m: false },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
@@ -149,7 +178,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
               </div>
             </div>
           </AssessmentCriterionAccordion>
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );

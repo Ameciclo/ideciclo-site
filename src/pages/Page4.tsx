@@ -2,8 +2,8 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page4Props {
@@ -16,17 +16,35 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
     onDataChange({ [name]: value });
   };
 
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
+
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["b2"]} className="space-y-4">
+        <CriteriaAccordionGroup allValues={["b2", "e2"]} defaultOpenValues={["b2"]}>
           <AssessmentCriterionAccordion
             value="b2"
             title="B.2. Tipo de pavimento da infraestrutura cicloviária"
             description="Classificação do material predominante do pavimento."
+            answered={isTouched(["pavement_type"])}
+            workflowState={data.criterion_workflow_state?.b2}
+            onWorkflowStateChange={(value) => updateWorkflow("b2", value)}
+            onClear={() =>
+              onDataChange({
+                pavement_type: "",
+                touched_fields: { pavement_type: false },
+              })
+            }
           >
             <RadioGroup
-              value={data.pavement_type || "A"}
+              value={data.pavement_type || ""}
               onValueChange={(value) => handleRadioChange("pavement_type", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -60,9 +78,18 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             value="e2"
             title="E.2. Estado de conservação do pavimento"
             description="Avalia a integridade da superfície e a qualidade de rodagem."
+            answered={isTouched(["conservation_state"])}
+            workflowState={data.criterion_workflow_state?.e2}
+            onWorkflowStateChange={(value) => updateWorkflow("e2", value)}
+            onClear={() =>
+              onDataChange({
+                conservation_state: "",
+                touched_fields: { conservation_state: false },
+              })
+            }
           >
             <RadioGroup
-              value={data.conservation_state || "A"}
+              value={data.conservation_state || ""}
               onValueChange={(value) => handleRadioChange("conservation_state", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -92,7 +119,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
               </div>
             </RadioGroup>
           </AssessmentCriterionAccordion>
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );

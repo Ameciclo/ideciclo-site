@@ -3,8 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page5Props {
@@ -32,21 +32,48 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
   };
 
   const infraType = getInfraType();
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["b31"]} className="space-y-4">
+        <CriteriaAccordionGroup allValues={["b31", "e3", "b32"]} defaultOpenValues={["b31"]}>
           <AssessmentCriterionAccordion
             value="b31"
             title="B.3.1. Delimitação e separação da infraestrutura"
             description="O conteúdo muda conforme a tipologia da estrutura escolhida."
+            answered={isTouched([
+              "separation_devices_ciclofaixa",
+              "separation_devices_ciclovia",
+              "separation_devices_calcada",
+            ])}
+            workflowState={data.criterion_workflow_state?.b31}
+            onWorkflowStateChange={(value) => updateWorkflow("b31", value)}
+            onClear={() =>
+              onDataChange({
+                separation_devices_ciclofaixa: "",
+                separation_devices_ciclovia: "",
+                separation_devices_calcada: "",
+                touched_fields: {
+                  separation_devices_ciclofaixa: false,
+                  separation_devices_ciclovia: false,
+                  separation_devices_calcada: false,
+                },
+              })
+            }
           >
             {infraType === "ciclofaixa" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclofaixa):</Label>
                 <RadioGroup
-                  value={data.separation_devices_ciclofaixa || "D"}
+                  value={data.separation_devices_ciclofaixa || ""}
                   onValueChange={(value) =>
                     handleRadioChange("separation_devices_ciclofaixa", value)
                   }
@@ -86,7 +113,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclovia):</Label>
                 <RadioGroup
-                  value={data.separation_devices_ciclovia || "A"}
+                  value={data.separation_devices_ciclovia || ""}
                   onValueChange={(value) => handleRadioChange("separation_devices_ciclovia", value)}
                   className="grid grid-cols-1 gap-2"
                 >
@@ -127,7 +154,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (calçada compartilhada):</Label>
                 <RadioGroup
-                  value={data.separation_devices_calcada || "D"}
+                  value={data.separation_devices_calcada || ""}
                   onValueChange={(value) => handleRadioChange("separation_devices_calcada", value)}
                   className="grid grid-cols-1 gap-2"
                 >
@@ -168,12 +195,21 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             value="e3"
             title="E.3. Estado de conservação dos dispositivos de separação"
             description="Avalia permanência e estado dos elementos de segregação ou separação."
+            answered={isTouched(["devices_conservation"])}
+            workflowState={data.criterion_workflow_state?.e3}
+            onWorkflowStateChange={(value) => updateWorkflow("e3", value)}
+            onClear={() =>
+              onDataChange({
+                devices_conservation: "",
+                touched_fields: { devices_conservation: false },
+              })
+            }
           >
             <Label className="mb-2 block">
               Estado de conservação dos dispositivos de segregação ou separação:
             </Label>
             <RadioGroup
-              value={data.devices_conservation || "A"}
+              value={data.devices_conservation || ""}
               onValueChange={(value) => handleRadioChange("devices_conservation", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -208,12 +244,31 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               value="b32"
               title="B.3.2. Afastamento lateral do fluxo veicular"
               description="Usado para estruturas segregadas ou separadas em relação ao tráfego motorizado."
+              answered={isTouched([
+                "lateral_spacing_type",
+                "lateral_spacing_width_m",
+                "spacing_conservation",
+              ])}
+              workflowState={data.criterion_workflow_state?.b32}
+              onWorkflowStateChange={(value) => updateWorkflow("b32", value)}
+              onClear={() =>
+                onDataChange({
+                  lateral_spacing_type: "",
+                  lateral_spacing_width_m: 0,
+                  spacing_conservation: "",
+                  touched_fields: {
+                    lateral_spacing_type: false,
+                    lateral_spacing_width_m: false,
+                    spacing_conservation: false,
+                  },
+                })
+              }
             >
               <div className="space-y-4">
                 <div>
                   <Label>Afastamento:</Label>
                   <RadioGroup
-                    value={data.lateral_spacing_type || "linha"}
+                    value={data.lateral_spacing_type || ""}
                     onValueChange={(value) => handleRadioChange("lateral_spacing_type", value)}
                     className="flex flex-wrap gap-4"
                   >
@@ -249,7 +304,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                 <div>
                   <Label>Estado de conservação do afastamento lateral:</Label>
                   <RadioGroup
-                    value={data.spacing_conservation || "A"}
+                    value={data.spacing_conservation || ""}
                     onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
                     className="grid grid-cols-1 gap-2"
                   >
@@ -280,7 +335,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               </div>
             </AssessmentCriterionAccordion>
           )}
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );

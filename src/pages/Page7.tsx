@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page7Props {
@@ -42,15 +42,39 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
     }
     onDataChange({ motorized_conflicts: currentConflicts });
   };
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["b5"]} className="space-y-4">
+        <CriteriaAccordionGroup
+          allValues={["b5", "b7", "c1e1", "c2", "c3"]}
+          defaultOpenValues={["b5"]}
+        >
           <AssessmentCriterionAccordion
             value="b5"
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
             description="Considera travessias e permeabilidade do trecho frente aos usos do entorno."
+            answered={isTouched(["traffic_lanes_count", "signalized_crossings_per_block"])}
+            workflowState={data.criterion_workflow_state?.b5}
+            onWorkflowStateChange={(value) => updateWorkflow("b5", value)}
+            onClear={() =>
+              onDataChange({
+                traffic_lanes_count: 0,
+                signalized_crossings_per_block: 0,
+                touched_fields: {
+                  traffic_lanes_count: false,
+                  signalized_crossings_per_block: false,
+                },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
@@ -119,6 +143,31 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="b7"
             title="B.7. Situações de risco ao longo da infraestrutura"
             description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
+            answered={isTouched([
+              "bus_school_conflict",
+              "horizontal_obstacles",
+              "vertical_obstacles",
+              "side_change_mid_block",
+              "opposite_flow_direction",
+            ])}
+            workflowState={data.criterion_workflow_state?.b7}
+            onWorkflowStateChange={(value) => updateWorkflow("b7", value)}
+            onClear={() =>
+              onDataChange({
+                bus_school_conflict: false,
+                horizontal_obstacles: false,
+                vertical_obstacles: false,
+                side_change_mid_block: false,
+                opposite_flow_direction: false,
+                touched_fields: {
+                  bus_school_conflict: false,
+                  horizontal_obstacles: false,
+                  vertical_obstacles: false,
+                  side_change_mid_block: false,
+                  opposite_flow_direction: false,
+                },
+              })
+            }
           >
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -174,12 +223,25 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c1e1"
             title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
             description="Combina presença da sinalização nas interseções e seu estado de conservação."
+            answered={isTouched(["intersection_signaling", "intersection_conservation"])}
+            workflowState={data.criterion_workflow_state?.c1e1}
+            onWorkflowStateChange={(value) => updateWorkflow("c1e1", value)}
+            onClear={() =>
+              onDataChange({
+                intersection_signaling: "",
+                intersection_conservation: "",
+                touched_fields: {
+                  intersection_signaling: false,
+                  intersection_conservation: false,
+                },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
                 <Label className="mb-2 block">Sinalização:</Label>
                 <RadioGroup
-                  value={data.intersection_signaling || "A"}
+                  value={data.intersection_signaling || ""}
                   onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
                   className="grid grid-cols-1 gap-2"
                 >
@@ -210,7 +272,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Estado de conservação da sinalização horizontal:</Label>
                 <RadioGroup
-                  value={data.intersection_conservation || "A"}
+                  value={data.intersection_conservation || ""}
                   onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
                   className="grid grid-cols-1 gap-2"
                 >
@@ -245,9 +307,18 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c2"
             title="C.2. Acessibilidade entre conexões cicloviárias"
             description="Indica se a ligação com outras estruturas é visível e pedalável."
+            answered={isTouched(["connection_accessibility"])}
+            workflowState={data.criterion_workflow_state?.c2}
+            onWorkflowStateChange={(value) => updateWorkflow("c2", value)}
+            onClear={() =>
+              onDataChange({
+                connection_accessibility: "",
+                touched_fields: { connection_accessibility: false },
+              })
+            }
           >
             <RadioGroup
-              value={data.connection_accessibility || "A"}
+              value={data.connection_accessibility || ""}
               onValueChange={(value) => handleRadioChange("connection_accessibility", value)}
               className="grid grid-cols-1 gap-2"
             >
@@ -275,6 +346,28 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             value="c3"
             title="C.3. Conflitos com circulação de modos motorizados"
             description="Marque os elementos presentes para caracterizar o tratamento do conflito."
+            answered={isTouched([
+              "motorized_conflicts",
+              "traffic_lanes_per_direction",
+              "mixed_lane_width_m",
+              "has_intersection_traffic_calming",
+            ])}
+            workflowState={data.criterion_workflow_state?.c3}
+            onWorkflowStateChange={(value) => updateWorkflow("c3", value)}
+            onClear={() =>
+              onDataChange({
+                motorized_conflicts: [],
+                traffic_lanes_per_direction: 1,
+                mixed_lane_width_m: 2.7,
+                has_intersection_traffic_calming: false,
+                touched_fields: {
+                  motorized_conflicts: false,
+                  traffic_lanes_per_direction: false,
+                  mixed_lane_width_m: false,
+                  has_intersection_traffic_calming: false,
+                },
+              })
+            }
           >
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex items-center space-x-2">
@@ -394,7 +487,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
               </div>
             )}
           </AssessmentCriterionAccordion>
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );

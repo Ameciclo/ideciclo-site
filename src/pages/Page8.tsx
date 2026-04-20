@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Accordion } from "@/components/ui/accordion";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page8Props {
@@ -38,21 +38,63 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
     }
     onDataChange({ cycling_furniture: currentItems });
   };
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        [criterion]: value,
+      },
+    });
 
   return (
     <Card>
       <CardContent className="pt-6">
-        <Accordion type="multiple" defaultValue={["d1"]} className="space-y-4">
+        <CriteriaAccordionGroup allValues={["d1", "d2", "d3"]} defaultOpenValues={["d1"]}>
           <AssessmentCriterionAccordion
             value="d1"
             title="D.1. Iluminação pública"
             description="Condições de iluminação ao longo do trecho cicloviário."
+            answered={isTouched([
+              "has_lighting_posts",
+              "lighting_post_type",
+              "lighting_distance_m",
+              "lighting_directed",
+              "lighting_barriers",
+              "lighting_distance_to_infra",
+            ])}
+            workflowState={data.criterion_workflow_state?.d1}
+            onWorkflowStateChange={(value) => updateWorkflow("d1", value)}
+            onClear={() =>
+              onDataChange({
+                has_lighting_posts: null,
+                lighting_post_type: "",
+                lighting_distance_m: 0,
+                lighting_directed: null,
+                lighting_barriers: null,
+                lighting_distance_to_infra: "",
+                touched_fields: {
+                  has_lighting_posts: false,
+                  lighting_post_type: false,
+                  lighting_distance_m: false,
+                  lighting_directed: false,
+                  lighting_barriers: false,
+                  lighting_distance_to_infra: false,
+                },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
                 <Label className="mb-2 block">Existem postes ao longo do trecho?</Label>
                 <RadioGroup
-                  value={data.has_lighting_posts === false ? "false" : "true"}
+                  value={
+                    data.has_lighting_posts === null
+                      ? ""
+                      : data.has_lighting_posts === false
+                        ? "false"
+                        : "true"
+                  }
                   onValueChange={(value) => handleRadioChange("has_lighting_posts", value === "true")}
                   className="flex gap-4"
                 >
@@ -70,7 +112,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Tipo de poste:</Label>
                 <RadioGroup
-                  value={data.lighting_post_type || "B"}
+                  value={data.lighting_post_type || ""}
                   onValueChange={(value) => handleRadioChange("lighting_post_type", value)}
                   className="flex gap-4"
                 >
@@ -99,7 +141,13 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Direcionados à infraestrutura cicloviária:</Label>
                 <RadioGroup
-                  value={data.lighting_directed ? "true" : "false"}
+                  value={
+                    data.lighting_directed === null
+                      ? ""
+                      : data.lighting_directed
+                        ? "true"
+                        : "false"
+                  }
                   onValueChange={(value) => handleRadioChange("lighting_directed", value === "true")}
                   className="flex gap-4"
                 >
@@ -119,7 +167,13 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
                   Barreiras abaixo do poste que limitam a iluminação:
                 </Label>
                 <RadioGroup
-                  value={data.lighting_barriers ? "true" : "false"}
+                  value={
+                    data.lighting_barriers === null
+                      ? ""
+                      : data.lighting_barriers
+                        ? "true"
+                        : "false"
+                  }
                   onValueChange={(value) => handleRadioChange("lighting_barriers", value === "true")}
                   className="flex gap-4"
                 >
@@ -137,7 +191,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Distância dos postes à infraestrutura:</Label>
                 <RadioGroup
-                  value={data.lighting_distance_to_infra || "A"}
+                  value={data.lighting_distance_to_infra || ""}
                   onValueChange={(value) => handleRadioChange("lighting_distance_to_infra", value)}
                   className="flex gap-4"
                 >
@@ -158,12 +212,22 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             value="d2"
             title="D.2. Conforto térmico (sombreamento)"
             description="Cobertura de sombra e porte da arborização do trecho."
+            answered={isTouched(["shading_coverage", "vegetation_size"])}
+            workflowState={data.criterion_workflow_state?.d2}
+            onWorkflowStateChange={(value) => updateWorkflow("d2", value)}
+            onClear={() =>
+              onDataChange({
+                shading_coverage: "",
+                vegetation_size: "",
+                touched_fields: { shading_coverage: false, vegetation_size: false },
+              })
+            }
           >
             <div className="space-y-4">
               <div>
                 <Label className="mb-2 block">Há sombreamento:</Label>
                 <RadioGroup
-                  value={data.shading_coverage || "D"}
+                  value={data.shading_coverage || ""}
                   onValueChange={(value) => handleRadioChange("shading_coverage", value)}
                   className="flex gap-4"
                 >
@@ -189,7 +253,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               <div>
                 <Label className="mb-2 block">Arborização:</Label>
                 <RadioGroup
-                  value={data.vegetation_size || "C"}
+                  value={data.vegetation_size || ""}
                   onValueChange={(value) => handleRadioChange("vegetation_size", value)}
                   className="flex gap-4"
                 >
@@ -214,6 +278,19 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             value="d3"
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
+            answered={isTouched(["blocks_with_cycling_furniture", "cycling_furniture"])}
+            workflowState={data.criterion_workflow_state?.d3}
+            onWorkflowStateChange={(value) => updateWorkflow("d3", value)}
+            onClear={() =>
+              onDataChange({
+                blocks_with_cycling_furniture: 0,
+                cycling_furniture: [],
+                touched_fields: {
+                  blocks_with_cycling_furniture: false,
+                  cycling_furniture: false,
+                },
+              })
+            }
           >
             <div className="mb-4">
               <Label htmlFor="blocks_with_cycling_furniture">
@@ -280,7 +357,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               </div>
             </div>
           </AssessmentCriterionAccordion>
-        </Accordion>
+        </CriteriaAccordionGroup>
       </CardContent>
     </Card>
   );
