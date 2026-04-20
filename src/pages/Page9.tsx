@@ -40,25 +40,25 @@ const SECTIONS: Array<{
 const RATINGS: IdecicloRating[] = ["A", "B", "C", "D"];
 
 const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
-  if (rating === "A") return "bg-emerald-100 text-emerald-800";
-  if (rating === "B") return "bg-lime-100 text-lime-800";
-  if (rating === "C") return "bg-amber-100 text-amber-900";
-  if (rating === "D") return "bg-rose-100 text-rose-900";
+  if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+  if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+  if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+  if (rating === "D") return "border-transparent bg-[#748987] text-white";
   return "bg-slate-100 text-slate-700";
 };
 
 const ratingChipClassName = (rating: IdecicloRating, selected: boolean) => {
   const selectedClass =
     rating === "A"
-      ? "bg-emerald-500 text-white"
+      ? "border-[#b8e5db] bg-[#b8e5db] text-[#163b38]"
       : rating === "B"
-        ? "bg-lime-500 text-slate-950"
+        ? "border-[#9fd3cb] bg-[#9fd3cb] text-[#163b38]"
         : rating === "C"
-          ? "bg-amber-400 text-slate-950"
-          : "bg-rose-500 text-white";
+          ? "border-[#8fafad] bg-[#8fafad] text-[#163b38]"
+          : "border-[#748987] bg-[#748987] text-white";
 
-  return `inline-flex min-w-[42px] items-center justify-center rounded-full px-3 py-1 text-sm font-bold transition-all ${
-    selected ? selectedClass : "bg-slate-100 text-slate-400 opacity-50"
+  return `inline-flex min-w-[54px] items-center justify-center rounded-md border px-3 py-2 text-sm font-bold transition-all ${
+    selected ? selectedClass : "border-slate-200 bg-slate-100 text-slate-400 opacity-55"
   }`;
 };
 
@@ -234,7 +234,11 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                           <Button
                             key={rating}
                             type="button"
-                            variant={data.manual_ratings?.[criterion] === rating ? "default" : "outline"}
+                            variant="outline"
+                            className={ratingChipClassName(
+                              rating,
+                              data.manual_ratings?.[criterion] === rating
+                            )}
                             onClick={() => handleManualRatingChange(criterion, rating)}
                           >
                             {rating}
