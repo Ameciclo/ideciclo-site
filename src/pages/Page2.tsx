@@ -20,6 +20,29 @@ interface Page2Props {
   segmentType: string;
 }
 
+const TYPOLOGY_OPTIONS = [
+  {
+    value: "Ciclovia",
+    label: "Ciclovia",
+    className: "ideciclo-typology-chip ideciclo-typology-chip-ciclovia",
+  },
+  {
+    value: "Ciclofaixa",
+    label: "Ciclofaixa",
+    className: "ideciclo-typology-chip ideciclo-typology-chip-ciclofaixa",
+  },
+  {
+    value: "Compartilhada",
+    label: "Calçada Partilhada",
+    className: "ideciclo-typology-chip ideciclo-typology-chip-calcada",
+  },
+  {
+    value: "Ciclorrota",
+    label: "Ciclorrota",
+    className: "ideciclo-typology-chip ideciclo-typology-chip-ciclorrota",
+  },
+] as const;
+
 const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
   const [allowTypologyEdit, setAllowTypologyEdit] = useState(false);
 
@@ -43,6 +66,17 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
     Boolean(segmentType) &&
     Boolean(data.infra_typology) &&
     data.infra_typology.toLowerCase() !== segmentType.toLowerCase();
+  const normalizedTypology = resolvedTypology.trim().toLowerCase();
+
+  const isTypologySelected = (value: string) => {
+    const normalizedValue = value.toLowerCase();
+
+    if (normalizedValue === "compartilhada") {
+      return normalizedTypology.includes("compart");
+    }
+
+    return normalizedTypology.includes(normalizedValue);
+  };
 
   return (
     <Card>
@@ -65,6 +99,28 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
                   checked={allowTypologyEdit}
                   onCheckedChange={setAllowTypologyEdit}
                 />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+              <span className="ideciclo-typology-label">Tipologia</span>
+              <div className="flex flex-wrap gap-2">
+                {TYPOLOGY_OPTIONS.map((option) => {
+                  const selected = isTypologySelected(option.value);
+
+                  return (
+                    <span
+                      key={option.value}
+                      className={`${option.className} ${
+                        selected
+                          ? "ring-2 ring-black/15 opacity-100 saturate-100"
+                          : "opacity-40 saturate-50"
+                      }`}
+                    >
+                      {option.label}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 

@@ -252,6 +252,53 @@
   background: #f2c4cb;
 }
 
+.ideciclo-typology-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 44px;
+  padding: 0.55rem 1.25rem;
+  border-radius: 16px;
+  background: #447a71;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.ideciclo-typology-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 16px;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.ideciclo-typology-chip-ciclovia {
+  background: #ea5b82;
+}
+
+.ideciclo-typology-chip-ciclofaixa {
+  background: #8ea3de;
+}
+
+.ideciclo-typology-chip-calcada {
+  background: #71e391;
+}
+
+.ideciclo-typology-chip-ciclorrota {
+  background: #e9cd67;
+}
+
 /* Responsividade para SVGs */
 @media (max-width: 768px) {
   .ideciclo-svg-responsive {
@@ -263,6 +310,13 @@
     width: 100%;
     margin-left: 0;
     padding: 0.8rem 1rem;
+  }
+
+  .ideciclo-typology-label,
+  .ideciclo-typology-chip {
+    min-height: 40px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.88rem;
   }
 }
 
