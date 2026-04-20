@@ -4,15 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
 interface Page2Props {
@@ -54,6 +46,39 @@ const FLOW_OPTIONS = [
     value: "bidirectional",
     label: "Bidirecional",
     icon: "/icones/two-way-cycle.svg",
+  },
+] as const;
+
+const POSITION_OPTIONS = [
+  {
+    value: "canteiro",
+    label: "Sobre o canteiro",
+    icon: "/icones/sobre-canteiro.svg",
+  },
+  {
+    value: "pista_canteiro",
+    label: "Pista, junto ao canteiro",
+    icon: "/icones/proximo-canteiro.svg",
+  },
+  {
+    value: "pista_calcada",
+    label: "Pista, junto à calçada",
+    icon: "/icones/pista-junto-calcada.svg",
+  },
+  {
+    value: "calcada",
+    label: "Sobre a calçada",
+    icon: "/icones/na-calcada.svg",
+  },
+  {
+    value: "centro_pista",
+    label: "Centro da pista",
+    icon: "/icones/centro-pista.svg",
+  },
+  {
+    value: "isolada",
+    label: "Isolada",
+    icon: "/icones/isolada.svg",
   },
 ] as const;
 
@@ -224,37 +249,37 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
         </div>
 
         <div>
-          <Label>Posição na via:</Label>
-          <RadioGroup
-            value={data.position_on_road || "pista_calcada"}
-            onValueChange={(value) => handleRadioChange("position_on_road", value)}
-            className="grid grid-cols-2 gap-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="canteiro" id="canteiro" />
-              <Label htmlFor="canteiro">Sobre o canteiro</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pista_canteiro" id="pista_canteiro" />
-              <Label htmlFor="pista_canteiro">Pista, junto ao canteiro</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pista_calcada" id="pista_calcada" />
-              <Label htmlFor="pista_calcada">Pista, junto à calçada</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="calcada" id="calcada" />
-              <Label htmlFor="calcada">Sobre a calçada</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="centro_pista" id="centro_pista" />
-              <Label htmlFor="centro_pista">Centro da pista</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="isolada" id="isolada" />
-              <Label htmlFor="isolada">Isolada</Label>
-            </div>
-          </RadioGroup>
+          <Label className="mb-3 block">Posição na via:</Label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {POSITION_OPTIONS.map((option) => {
+              const isSelected = (data.position_on_road || "pista_calcada") === option.value;
+
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant="ghost"
+                  className={`h-auto justify-start rounded-2xl border px-4 py-4 transition-all ${
+                    isSelected
+                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
+                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
+                  }`}
+                  onClick={() => handleRadioChange("position_on_road", option.value)}
+                >
+                  <div className="flex w-full items-center gap-4">
+                    <img
+                      src={option.icon}
+                      alt={option.label}
+                      className="h-16 w-16 shrink-0 object-contain"
+                    />
+                    <span className="text-left text-base font-semibold text-slate-700">
+                      {option.label}
+                    </span>
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
         {String(resolvedTypology || "")
