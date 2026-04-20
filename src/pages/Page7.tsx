@@ -43,7 +43,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
     onDataChange({ motorized_conflicts: currentConflicts });
   };
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -55,16 +55,99 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
     <Card>
       <CardContent className="pt-6">
         <CriteriaAccordionGroup
-          allValues={["b5", "b7", "c1e1", "c2", "c3"]}
-          defaultOpenValues={["b5"]}
+          allValues={["b7", "b5", "c1e1", "c2", "c3"]}
+          defaultOpenValues={["b7"]}
         >
+          <AssessmentCriterionAccordion
+            value="b7"
+            title="B.7. Situações de risco ao longo da infraestrutura"
+            description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
+            answered={isTouched([
+              "bus_school_conflict",
+              "horizontal_obstacles",
+              "vertical_obstacles",
+              "side_change_mid_block",
+              "opposite_flow_direction",
+            ])}
+            inAnalysis={data.criterion_workflow_state?.b7 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b7", value ? "analysis" : "default")}
+            onClear={() =>
+              onDataChange({
+                bus_school_conflict: false,
+                horizontal_obstacles: false,
+                vertical_obstacles: false,
+                side_change_mid_block: false,
+                opposite_flow_direction: false,
+                touched_fields: {
+                  bus_school_conflict: false,
+                  horizontal_obstacles: false,
+                  vertical_obstacles: false,
+                  side_change_mid_block: false,
+                  opposite_flow_direction: false,
+                },
+              })
+            }
+            helpKey="B7"
+          >
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="bus_school_conflict"
+                  checked={data.bus_school_conflict || false}
+                  onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
+                />
+                <Label htmlFor="bus_school_conflict">
+                  Conflito com ponto de onibus ou escola
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="horizontal_obstacles"
+                  checked={data.horizontal_obstacles || false}
+                  onCheckedChange={(checked) => handleCheckboxChange("horizontal_obstacles", !!checked)}
+                />
+                <Label htmlFor="horizontal_obstacles">Obstáculos horizontais no trecho</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="vertical_obstacles"
+                  checked={data.vertical_obstacles || false}
+                  onCheckedChange={(checked) => handleCheckboxChange("vertical_obstacles", !!checked)}
+                />
+                <Label htmlFor="vertical_obstacles">Obstáculos verticais no trecho</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="side_change_mid_block"
+                  checked={data.side_change_mid_block || false}
+                  onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
+                />
+                <Label htmlFor="side_change_mid_block">
+                  Mudança de lado da infraestrutura no meio da quadra
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="opposite_flow_direction"
+                  checked={data.opposite_flow_direction || false}
+                  onCheckedChange={(checked) =>
+                    handleCheckboxChange("opposite_flow_direction", !!checked)
+                  }
+                />
+                <Label htmlFor="opposite_flow_direction">
+                  Sentido de circulação da infraestrutura contrário ao fluxo veicular
+                </Label>
+              </div>
+            </div>
+          </AssessmentCriterionAccordion>
+
           <AssessmentCriterionAccordion
             value="b5"
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
             description="Considera travessias e permeabilidade do trecho frente aos usos do entorno."
             answered={isTouched(["traffic_lanes_count", "signalized_crossings_per_block"])}
-            workflowState={data.criterion_workflow_state?.b5}
-            onWorkflowStateChange={(value) => updateWorkflow("b5", value)}
+            inAnalysis={data.criterion_workflow_state?.b5 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b5", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 traffic_lanes_count: 0,
@@ -75,6 +158,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                 },
               })
             }
+            helpKey="B5"
           >
             <div className="space-y-4">
               <div>
@@ -124,7 +208,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="0" id="crossings_0" />
-                    <Label htmlFor="crossings_0">Não há</Label>
+                    <Label htmlFor="crossings_0">Nao ha</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="1" id="crossings_1" />
@@ -140,92 +224,14 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion
-            value="b7"
-            title="B.7. Situações de risco ao longo da infraestrutura"
-            description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
-            answered={isTouched([
-              "bus_school_conflict",
-              "horizontal_obstacles",
-              "vertical_obstacles",
-              "side_change_mid_block",
-              "opposite_flow_direction",
-            ])}
-            workflowState={data.criterion_workflow_state?.b7}
-            onWorkflowStateChange={(value) => updateWorkflow("b7", value)}
-            onClear={() =>
-              onDataChange({
-                bus_school_conflict: false,
-                horizontal_obstacles: false,
-                vertical_obstacles: false,
-                side_change_mid_block: false,
-                opposite_flow_direction: false,
-                touched_fields: {
-                  bus_school_conflict: false,
-                  horizontal_obstacles: false,
-                  vertical_obstacles: false,
-                  side_change_mid_block: false,
-                  opposite_flow_direction: false,
-                },
-              })
-            }
-          >
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="bus_school_conflict"
-                  checked={data.bus_school_conflict || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
-                />
-                <Label htmlFor="bus_school_conflict">Conflito com paire ônibus ou paire escola</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="horizontal_obstacles"
-                  checked={data.horizontal_obstacles || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("horizontal_obstacles", !!checked)}
-                />
-                <Label htmlFor="horizontal_obstacles">Obstáculos horizontais no trecho</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="vertical_obstacles"
-                  checked={data.vertical_obstacles || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("vertical_obstacles", !!checked)}
-                />
-                <Label htmlFor="vertical_obstacles">Obstáculos verticais no trecho</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="side_change_mid_block"
-                  checked={data.side_change_mid_block || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
-                />
-                <Label htmlFor="side_change_mid_block">
-                  Mudança de lado da infraestrutura no meio da quadra
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="opposite_flow_direction"
-                  checked={data.opposite_flow_direction || false}
-                  onCheckedChange={(checked) =>
-                    handleCheckboxChange("opposite_flow_direction", !!checked)
-                  }
-                />
-                <Label htmlFor="opposite_flow_direction">
-                  Sentido de circulação da infraestrutura contrário ao fluxo veicular
-                </Label>
-              </div>
-            </div>
-          </AssessmentCriterionAccordion>
-
-          <AssessmentCriterionAccordion
             value="c1e1"
             title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
             description="Combina presença da sinalização nas interseções e seu estado de conservação."
             answered={isTouched(["intersection_signaling", "intersection_conservation"])}
-            workflowState={data.criterion_workflow_state?.c1e1}
-            onWorkflowStateChange={(value) => updateWorkflow("c1e1", value)}
+            inAnalysis={data.criterion_workflow_state?.c1e1 === "analysis"}
+            onAnalysisChange={(value) =>
+              updateWorkflow("c1e1", value ? "analysis" : "default")
+            }
             onClear={() =>
               onDataChange({
                 intersection_signaling: "",
@@ -236,6 +242,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                 },
               })
             }
+            helpKey="c1e1"
           >
             <div className="space-y-4">
               <div>
@@ -308,14 +315,15 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             title="C.2. Acessibilidade entre conexões cicloviárias"
             description="Indica se a ligação com outras estruturas é visível e pedalável."
             answered={isTouched(["connection_accessibility"])}
-            workflowState={data.criterion_workflow_state?.c2}
-            onWorkflowStateChange={(value) => updateWorkflow("c2", value)}
+            inAnalysis={data.criterion_workflow_state?.c2 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("c2", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 connection_accessibility: "",
                 touched_fields: { connection_accessibility: false },
               })
             }
+            helpKey="C2"
           >
             <RadioGroup
               value={data.connection_accessibility || ""}
@@ -352,8 +360,8 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
               "mixed_lane_width_m",
               "has_intersection_traffic_calming",
             ])}
-            workflowState={data.criterion_workflow_state?.c3}
-            onWorkflowStateChange={(value) => updateWorkflow("c3", value)}
+            inAnalysis={data.criterion_workflow_state?.c3 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("c3", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 motorized_conflicts: [],
@@ -368,6 +376,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                 },
               })
             }
+            helpKey="C3"
           >
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex items-center space-x-2">

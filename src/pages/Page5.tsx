@@ -33,7 +33,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
 
   const infraType = getInfraType();
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -54,8 +54,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               "separation_devices_ciclovia",
               "separation_devices_calcada",
             ])}
-            workflowState={data.criterion_workflow_state?.b31}
-            onWorkflowStateChange={(value) => updateWorkflow("b31", value)}
+            inAnalysis={data.criterion_workflow_state?.b31 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b31", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 separation_devices_ciclofaixa: "",
@@ -68,6 +68,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                 },
               })
             }
+            helpKey="b31"
           >
             {infraType === "ciclofaixa" && (
               <div>
@@ -196,14 +197,15 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             title="E.3. Estado de conservação dos dispositivos de separação"
             description="Avalia permanência e estado dos elementos de segregação ou separação."
             answered={isTouched(["devices_conservation"])}
-            workflowState={data.criterion_workflow_state?.e3}
-            onWorkflowStateChange={(value) => updateWorkflow("e3", value)}
+            inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 devices_conservation: "",
                 touched_fields: { devices_conservation: false },
               })
             }
+            helpKey="E3"
           >
             <Label className="mb-2 block">
               Estado de conservação dos dispositivos de segregação ou separação:
@@ -249,8 +251,10 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                 "lateral_spacing_width_m",
                 "spacing_conservation",
               ])}
-              workflowState={data.criterion_workflow_state?.b32}
-              onWorkflowStateChange={(value) => updateWorkflow("b32", value)}
+              inAnalysis={data.criterion_workflow_state?.b32 === "analysis"}
+              onAnalysisChange={(value) =>
+                updateWorkflow("b32", value ? "analysis" : "default")
+              }
               onClear={() =>
                 onDataChange({
                   lateral_spacing_type: "",
@@ -263,6 +267,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                   },
                 })
               }
+              helpKey="b32"
             >
               <div className="space-y-4">
                 <div>

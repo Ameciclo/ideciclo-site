@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  fetchCityFromDB,
   fetchFormsByCityId,
   fetchSegmentsFromDB,
 } from "@/services/database";
@@ -8,12 +7,12 @@ import {
   calculateIdeciclo,
   getIdecicloClassification,
   getIdecicloDescription,
-  debugFormRating,
 } from "@/utils/idecicloCalculator";
-import { City, Form, Segment } from "@/types";
+import { City, Segment } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { downloadCsvFile, downloadElementAsPdf } from "@/utils/reportDownloads";
 
 interface CityRanking {
   city: City;
@@ -26,10 +25,37 @@ interface CityRanking {
 const Ranking = () => {
   const [cities, setCities] = useState<CityRanking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [debugResult, setDebugResult] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
   const [stateFilter, setStateFilter] = useState<string>("");
   const [classificationFilter, setClassificationFilter] = useState<string>("");
+  const rankingReportRef = useRef<HTMLDivElement>(null);
+
+  const classificationLegend = [
+    {
+      label: "A",
+      title: "Excelente",
+      description: "Infraestrutura de alta qualidade",
+      badgeClassName: "bg-green-500",
+    },
+    {
+      label: "B",
+      title: "Bom",
+      description: "Infraestrutura de boa qualidade",
+      badgeClassName: "bg-ideciclo-blue",
+    },
+    {
+      label: "C",
+      title: "Regular",
+      description: "Infraestrutura de qualidade média",
+      badgeClassName: "bg-ideciclo-yellow text-text-grey",
+    },
+    {
+      label: "D",
+      title: "Ruim",
+      description: "Infraestrutura inadequada ou inexistente",
+      badgeClassName: "bg-ideciclo-red",
+    },
+  ];
 
   useEffect(() => {
     const loadCitiesData = async () => {
@@ -126,6 +152,39 @@ const Ranking = () => {
   const uniqueStates = [...new Set(cities.map((c) => c.city.state))].sort();
   const allClassifications = ["A", "B", "C", "D"];
 
+  const handleDownloadRankingCsv = () => {
+    downloadCsvFile(
+      "ranking-ideciclo.csv",
+      [
+        "Posição",
+        "Cidade",
+        "UF",
+        "IDECICLO",
+        "Classificação",
+        "Descrição",
+        "Segmentos",
+      ],
+      filteredCities.map((cityRanking, index) => [
+        index + 1,
+        cityRanking.city.name,
+        cityRanking.city.state,
+        cityRanking.ideciclo.toFixed(3),
+        cityRanking.classification,
+        cityRanking.description,
+        cityRanking.segments.length,
+      ])
+    );
+  };
+
+  const handleDownloadRankingPdf = async () => {
+    if (!rankingReportRef.current) return;
+
+    await downloadElementAsPdf(
+      rankingReportRef.current,
+      "ranking-ideciclo.pdf"
+    );
+  };
+
   return (
     <>
       {/* Header com Imagem de Capa */}
@@ -144,9 +203,10 @@ const Ranking = () => {
         &gt; <span>Ranking</span>
       </nav>
 
-      {/* Título e Filtros com Design Customizado */}
-      <section className="mx-auto container">
-        <div className="mx-auto text-center my-10 md:my-22 md:mb-6">
+      <div ref={rankingReportRef}>
+        {/* Título e Filtros com Design Customizado */}
+        <section className="mx-auto container">
+          <div className="mx-auto text-center my-10 md:my-22 md:mb-6">
           <div className="flex gap-2 relative justify-center mb-10 mx-auto w-full 2xl:w-3/4 py-12">
             {/* SVG esquerdo */}
             <svg
@@ -169,7 +229,7 @@ const Ranking = () => {
                 className="text-4xl md:text-5xl font-bold text-text-grey pb-8 bg-ideciclo-pink 
                          mx-auto px-7 py-6 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)]"
               >
-                Ranking das Cidades
+                Ranking Nacional
               </h1>
             </div>
 
@@ -244,9 +304,27 @@ const Ranking = () => {
               </svg>
             </div>
           </div>
-        </div>
-      </section>
-      <section>
+          </div>
+        </section>
+        <section className="container mx-auto px-4">
+          <div className="rounded-[28px] bg-background-grey p-6 shadow-md md:p-8">
+            <p className="text-base leading-7 text-text-grey md:text-lg">
+              A posição de uma cidade no ranking nacional do IDECICLO é classificada entre:
+            </p>
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {classificationLegend.map((item) => (
+                <div key={item.label} className="rounded-[20px] bg-white p-5 shadow-sm">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white ${item.badgeClassName}`}>
+                    {item.label}
+                  </div>
+                  <p className="mt-4 text-lg font-bold text-text-grey">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-text-grey">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section>
         {/* Filtros com Design Customizado */}
         <div className="flex flex-row justify-center items-end gap-2 md:gap-5 lg:gap-10 flex-grow">
           {/* Filtro por cidade */}
@@ -355,83 +433,92 @@ const Ranking = () => {
             </div>
           </div>
         </div>
-      </section>
-      <div className="container py-8">
-        {loading ? (
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-ideciclo-blue"></div>
-          </div>
-        ) : filteredCities.length > 0 ? (
-          <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-10 my-10">
-            {filteredCities.map((cityRanking, index) => (
-              <div
-                key={cityRanking.city.id}
-                className="rounded bg-white shadow-2xl ideciclo-card-hover"
-              >
-                <Link to={`/city-details/${cityRanking.city.id}`}>
-                  <div className="flex flex-col bg-white divide-y divide-gray-100">
-                    {/* Seção Posição */}
-                    <div className="flex flex-col justify-center w-full p-4 text-center tracking-widest">
-                      <h3 className="text-ideciclo-red font-bold text-sm">
-                        POSIÇÃO
-                      </h3>
-                      <h3 className="text-3xl mt-1 font-bold text-ideciclo-blue">
-                        #{index + 1}
-                      </h3>
-                    </div>
+        </section>
+        <div className="container py-8">
+          {loading ? (
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-ideciclo-blue"></div>
+            </div>
+          ) : filteredCities.length > 0 ? (
+            <section className="container mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-auto gap-10 my-10">
+              {filteredCities.map((cityRanking, index) => (
+                <div
+                  key={cityRanking.city.id}
+                  className="rounded bg-white shadow-2xl ideciclo-card-hover"
+                >
+                  <Link to={`/city-details/${cityRanking.city.id}`}>
+                    <div className="flex flex-col bg-white divide-y divide-gray-100">
+                      <div className="flex flex-col justify-center w-full p-4 text-center tracking-widest">
+                        <h3 className="text-ideciclo-red font-bold text-sm">
+                          POSIÇÃO
+                        </h3>
+                        <h3 className="text-3xl mt-1 font-bold text-ideciclo-blue">
+                          #{index + 1}
+                        </h3>
+                      </div>
 
-                    {/* Seção Nota */}
-                    <div className="flex flex-col justify-center w-full p-6 text-center tracking-widest">
-                      <h3 className="text-ideciclo-red font-bold">IDECICLO</h3>
-                      <h3 className="text-4xl mt-2 font-bold">
-                        {cityRanking.ideciclo.toFixed(1)}
-                      </h3>
-                    </div>
+                      <div className="flex flex-col justify-center w-full p-6 text-center tracking-widest">
+                        <h3 className="text-ideciclo-red font-bold">IDECICLO</h3>
+                        <h3 className="text-4xl mt-2 font-bold">
+                          {cityRanking.ideciclo.toFixed(1)}
+                        </h3>
+                      </div>
 
-                    {/* Seção Cidade */}
-                    <div
-                      className="flex flex-col justify-center w-full p-4 text-center 
-                                    uppercase tracking-widest"
-                    >
-                      <h3 className="font-bold text-lg">
-                        {cityRanking.city.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {cityRanking.city.state}
-                      </p>
-                      <div className="flex justify-center mt-3">
-                        <span
-                          className={`inline-block w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-lg
-                          ${
-                            cityRanking.classification === "A"
-                              ? "bg-green-500"
-                              : cityRanking.classification === "B"
-                              ? "bg-ideciclo-blue"
-                              : cityRanking.classification === "C"
-                              ? "bg-ideciclo-yellow text-text-grey"
-                              : "bg-ideciclo-red"
-                          }`}
-                        >
-                          {cityRanking.classification}
-                        </span>
+                      <div
+                        className="flex flex-col justify-center w-full p-4 text-center 
+                                      uppercase tracking-widest"
+                      >
+                        <h3 className="font-bold text-lg">
+                          {cityRanking.city.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {cityRanking.city.state}
+                        </p>
+                        <div className="flex justify-center mt-3">
+                          <span
+                            className={`inline-block w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-lg
+                            ${
+                              cityRanking.classification === "A"
+                                ? "bg-green-500"
+                                : cityRanking.classification === "B"
+                                ? "bg-ideciclo-blue"
+                                : cityRanking.classification === "C"
+                                ? "bg-ideciclo-yellow text-text-grey"
+                                : "bg-ideciclo-red"
+                            }`}
+                          >
+                            {cityRanking.classification}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              </div>
-            ))}
-          </section>
-        ) : cities.length > 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              Nenhuma cidade encontrada com os filtros aplicados.
-            </p>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Nenhuma cidade avaliada ainda.</p>
-          </div>
-        )}
+                  </Link>
+                </div>
+              ))}
+            </section>
+          ) : cities.length > 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">
+                Nenhuma cidade encontrada com os filtros aplicados.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Nenhuma cidade avaliada ainda.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="container pb-12">
+        <div className="flex flex-col justify-center gap-3 md:flex-row">
+          <Button onClick={handleDownloadRankingCsv} className="bg-ideciclo-red hover:bg-ideciclo-red/90 text-white">
+            Baixar ranking em CSV
+          </Button>
+          <Button onClick={handleDownloadRankingPdf} variant="outline">
+            Baixar ranking em PDF
+          </Button>
+        </div>
       </div>
     </>
   );

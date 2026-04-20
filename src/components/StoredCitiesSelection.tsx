@@ -30,7 +30,9 @@ const StoredCitiesSelection = ({ onCitySelected }: StoredCitiesSelectionProps) =
       setCities(storedCities);
       
       // Extract unique states from cities
-      const uniqueStates = Array.from(new Set(storedCities.map(city => city.state)));
+      const uniqueStates = Array.from(new Set(storedCities.map(city => city.state))).sort((a, b) =>
+        a.localeCompare(b)
+      );
       setStates(uniqueStates);
     } catch (error) {
       toast({

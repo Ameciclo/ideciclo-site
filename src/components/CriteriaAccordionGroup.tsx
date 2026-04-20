@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,18 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-export type CriterionFilter = "all" | "answered" | "unanswered" | "analysis" | "review";
-
-interface CriteriaAccordionContextValue {
-  filter: CriterionFilter;
-}
-
-const CriteriaAccordionContext = createContext<CriteriaAccordionContextValue>({
-  filter: "all",
-});
-
-export const useCriteriaAccordionFilter = () => useContext(CriteriaAccordionContext);
+import {
+  CriteriaAccordionContext,
+  CriterionFilter,
+} from "@/components/criteriaAccordionContext";
 
 interface CriteriaAccordionGroupProps {
   allValues: string[];
@@ -60,7 +52,6 @@ const CriteriaAccordionGroup: React.FC<CriteriaAccordionGroupProps> = ({
                 <SelectItem value="answered">Respondidos</SelectItem>
                 <SelectItem value="unanswered">Não respondidos</SelectItem>
                 <SelectItem value="analysis">Em análise</SelectItem>
-                <SelectItem value="review">Revisão</SelectItem>
               </SelectContent>
             </Select>
           </div>

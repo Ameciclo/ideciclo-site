@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { calcDownloadUrl, formDownloadUrl, manualDownloadUrl } from "@/constants/siteLinks";
 import { Button } from "@/components/ui/button";
 import { Download, Edit, MapPin, FileText, TrendingUp } from "lucide-react";
 
@@ -17,9 +18,9 @@ const Avaliacao = () => {
     },
     {
       id: 2,
-      title: "Refinar Dados",
+      title: "Aprimorar os Dados",
       subtitle: "Ajuste os dados",
-      description: "Melhore e organize os dados baixados da cidade",
+      description: "Valide, complemente e organize os dados vindos do OpenStreetMap",
       icon: Edit,
       color: "#5AC2E1",
       route: "/avaliacao/refinar-dados"
@@ -58,15 +59,38 @@ const Avaliacao = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">
-            Processo de Avaliação IDECICLO
+            Etapas de Aprimoramento e Avaliação
           </h1>
           <p className="text-gray-600">
-            Siga as etapas para avaliar a infraestrutura cicloviária de uma cidade
+            Selecione uma cidade e avalie os trechos cicloviários com apoio do fluxo completo da plataforma.
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate("/")}>
           Voltar ao Início
         </Button>
+      </div>
+
+      <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
+        <p className="text-gray-700 leading-7">
+          Antes de iniciar a avaliação em campo, é preciso passar pela etapa de aprimoramento. Nela, você verifica e ajusta os dados do trecho e da tipologia importados automaticamente do OpenStreetMap. As duas fases são diferentes, mas dependentes: só depois de concluir o aprimoramento a avaliação pode ser feita de forma correta e precisa.
+        </p>
+        <div className="mt-4 flex flex-col gap-3 md:flex-row">
+          <Button asChild className="w-full bg-ideciclo-red hover:bg-ideciclo-red/90 text-white md:w-auto">
+            <a href={manualDownloadUrl} target="_blank" rel="noreferrer">
+              Baixar manual
+            </a>
+          </Button>
+          <Button asChild variant="outline" className="w-full md:w-auto">
+            <a href={formDownloadUrl} target="_blank" rel="noreferrer">
+              Baixar formulário
+            </a>
+          </Button>
+          <Button asChild variant="outline" className="w-full md:w-auto">
+            <a href={calcDownloadUrl} target="_blank" rel="noreferrer">
+              Ver cálculo do IDECICLO
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -101,9 +125,10 @@ const Avaliacao = () => {
         <div className="bg-gray-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-2">Como funciona?</h3>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            O processo de avaliação IDECICLO é dividido em 5 etapas sequenciais. 
-            Cada etapa pode ser acessada individualmente, permitindo que você trabalhe 
-            no seu próprio ritmo e retome o processo quando necessário.
+            Primeiro, confira se todos os trechos que você pretende avaliar aparecem na etapa de aprimoramento. Lá você pode revisar nome, tipologia e segmentos, inclusive mesclando ou excluindo trechos. Depois disso, siga para a avaliação dos segmentos e para a visualização dos resultados no ranking nacional.
+          </p>
+          <p className="mt-4 text-sm font-medium text-gray-500">
+            Para uma melhor visualização, acesse pelo computador.
           </p>
         </div>
       </div>

@@ -226,6 +226,7 @@ const SegmentForm = () => {
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
   const [formData, setFormData] = useState<IdecicloFormData>(() => createEmptyFormData(segmentId));
   const draftKey = buildDraftKey(segmentId || formData.segment_id || formData.id);
@@ -482,7 +483,8 @@ const SegmentForm = () => {
             {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Estrutura
           </h2>
           <p className="text-muted-foreground">
-            Formulário híbrido do IDECICLO em página única, com cálculo por parâmetro, override manual e rascunho offline.
+            Formulario hibrido do IDECICLO em duas telas: coleta em campo e revisao final com
+            override manual e rascunho offline.
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate("/avaliacao")}>
@@ -546,6 +548,33 @@ const SegmentForm = () => {
         </Card>
       </div>
 
+      <Card className="mb-6">
+        <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="text-sm font-medium text-muted-foreground">Navegação do formulário</div>
+            <div className="mt-1 text-lg font-semibold">
+              {currentStep === 1 ? "Página 1 de 2 · Coleta em Campo" : "Página 2 de 2 · Revisão Final"}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={currentStep === 1 ? "default" : "outline"}
+              onClick={() => setCurrentStep(1)}
+            >
+              Coleta
+            </Button>
+            <Button
+              type="button"
+              variant={currentStep === 2 ? "default" : "outline"}
+              onClick={() => setCurrentStep(2)}
+            >
+              Revisão Final
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       {isLoading ? (
         <Card className="mb-6 p-6 text-center">
           <p>Carregando dados do segmento...</p>
@@ -556,7 +585,7 @@ const SegmentForm = () => {
           <CardHeader>
             <CardTitle>Cabeçalho da Avaliação</CardTitle>
             <CardDescription>
-              Identificação do trecho e dados gerais do formulário antes dos eixos de avaliação.
+              Identificacao do trecho e dados gerais antes dos blocos do formulario em papel.
             </CardDescription>
           </CardHeader>
           <div className="grid grid-cols-1 gap-4 px-6 pb-6 md:grid-cols-2 lg:grid-cols-3">
@@ -625,110 +654,153 @@ const SegmentForm = () => {
           </div>
         </Card>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Formulário de Avaliação</CardTitle>
-            <CardDescription>
-              Os critérios do manual podem ser expandidos individualmente e a revisão final fica no fim da página.
-            </CardDescription>
-          </CardHeader>
-          <div className="space-y-8 px-6 pb-2">
-            <section className="space-y-6">
-              <AxisRibbon
-                tone="a"
-                title="A. Planejamento Cicloviário"
-                badges={
-                  <Badge variant="outline">
-                    A: {liveSummary.sections?.A?.score?.toFixed?.(1) ?? "0.0"}/
-                    {liveSummary.sections?.A?.max ?? 0}
-                  </Badge>
-                }
-              />
-              <Page1 data={formData} onDataChange={handleDataChange} />
-              <Page2
-                data={formData}
-                onDataChange={handleDataChange}
-                segmentType={formData.infra_typology}
-              />
-            </section>
+        {currentStep === 1 ? (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Formulário de Coleta</CardTitle>
+              <CardDescription>
+                A primeira pagina segue a logica de preenchimento do formulario em papel.
+              </CardDescription>
+            </CardHeader>
+            <div className="space-y-8 px-6 pb-2">
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="a"
+                  title="Caracterizacao do Trecho e Enquadramento Inicial"
+                  badges={
+                    <>
+                      <Badge variant="outline">A1</Badge>
+                      <Badge variant="outline">A2</Badge>
+                    </>
+                  }
+                />
+                <Page1 data={formData} onDataChange={handleDataChange} />
+                <Page2
+                  data={formData}
+                  onDataChange={handleDataChange}
+                  segmentType={formData.infra_typology}
+                />
+              </section>
 
-            <section className="space-y-6">
-              <AxisRibbon
-                tone="b"
-                title="B. Projeto Cicloviário ao Longo da Quadra"
-                badges={
-                  <>
-                    <Badge variant="outline">
-                      B: {liveSummary.sections?.B?.score?.toFixed?.(1) ?? "0.0"}/
-                      {liveSummary.sections?.B?.max ?? 0}
-                    </Badge>
-                    <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-800">
-                      E parcial:{" "}
-                      {(
-                        ((liveSummary.sections?.E?.items?.E2?.points as number | null) ?? 0) +
-                        ((liveSummary.sections?.E?.items?.E3?.points as number | null) ?? 0) +
-                        ((liveSummary.sections?.E?.items?.E4?.points as number | null) ?? 0)
-                      ).toFixed(1)}
-                    </Badge>
-                  </>
-                }
-              />
-              <Page3 data={formData} onDataChange={handleDataChange} />
-              <Page4 data={formData} onDataChange={handleDataChange} />
-              <Page5 data={formData} onDataChange={handleDataChange} />
-              <Page6 data={formData} onDataChange={handleDataChange} />
-            </section>
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="b"
+                  title="Espaco Util da Estrutura (B1) e Moderacao de Velocidade (B6)"
+                  badges={
+                    <>
+                      <Badge variant="outline">B1</Badge>
+                      <Badge variant="outline">B6</Badge>
+                    </>
+                  }
+                />
+                <Page3 data={formData} onDataChange={handleDataChange} />
+              </section>
 
-            <section className="space-y-6">
-              <AxisRibbon
-                tone="c"
-                title="C. Projeto Cicloviário nas Interseções"
-                badges={
-                  <>
-                    <Badge variant="outline">
-                      C: {liveSummary.sections?.C?.score?.toFixed?.(1) ?? "0.0"}/
-                      {liveSummary.sections?.C?.max ?? 0}
-                    </Badge>
-                    <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-800">
-                      E1: {liveSummary.sections?.E?.items?.E1?.points ?? 0}
-                    </Badge>
-                  </>
-                }
-              />
-              <Page7 data={formData} onDataChange={handleDataChange} />
-            </section>
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="e"
+                  title="Pavimento e Conservacao do Piso (B2 / E2)"
+                  badges={
+                    <>
+                      <Badge variant="outline">B2</Badge>
+                      <Badge variant="outline">E2</Badge>
+                    </>
+                  }
+                />
+                <Page4 data={formData} onDataChange={handleDataChange} />
+              </section>
 
-            <section className="space-y-6">
-              <AxisRibbon
-                tone="d"
-                title="D. Urbanidade"
-                badges={
-                  <Badge variant="outline">
-                    D: {liveSummary.sections?.D?.score?.toFixed?.(1) ?? "0.0"}/
-                    {liveSummary.sections?.D?.max ?? 0}
-                  </Badge>
-                }
-              />
-              <Page8 data={formData} onDataChange={handleDataChange} />
-            </section>
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="b"
+                  title="Delimitacao da Estrutura e Conservacao da Separacao (B3 / E3)"
+                  badges={
+                    <>
+                      <Badge variant="outline">B3</Badge>
+                      <Badge variant="outline">E3</Badge>
+                    </>
+                  }
+                />
+                <Page5 data={formData} onDataChange={handleDataChange} />
+              </section>
 
-            <section className="space-y-6">
-              <AxisRibbon
-                tone="e"
-                title="E. Manutenção e Revisão Final"
-                badges={<Badge>{liveSummary.total.toFixed(1)}/100</Badge>}
-              />
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="b"
+                  title="Identificacao do Espaco Cicloviario e Sinalizacao (B4 / E4)"
+                  badges={
+                    <>
+                      <Badge variant="outline">B4</Badge>
+                      <Badge variant="outline">E4</Badge>
+                    </>
+                  }
+                />
+                <Page6 data={formData} onDataChange={handleDataChange} />
+              </section>
+
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="c"
+                  title="Acessibilidade aos Lados, Riscos e Avaliacao das Intersecoes"
+                  badges={
+                    <>
+                      <Badge variant="outline">B5</Badge>
+                      <Badge variant="outline">B7</Badge>
+                      <Badge variant="outline">C1</Badge>
+                      <Badge variant="outline">C2</Badge>
+                      <Badge variant="outline">C3</Badge>
+                      <Badge variant="outline">E1</Badge>
+                    </>
+                  }
+                />
+                <Page7 data={formData} onDataChange={handleDataChange} />
+              </section>
+
+              <section className="space-y-6">
+                <AxisRibbon
+                  tone="d"
+                  title="Iluminacao, Sombreamento e Mobiliario no Entorno"
+                  badges={
+                    <>
+                      <Badge variant="outline">D1</Badge>
+                      <Badge variant="outline">D2</Badge>
+                      <Badge variant="outline">D3</Badge>
+                    </>
+                  }
+                />
+                <Page8 data={formData} onDataChange={handleDataChange} />
+              </section>
+            </div>
+
+            <div className="flex justify-end px-6 py-6">
+              <Button type="button" onClick={() => setCurrentStep(2)} size="lg">
+                Ir para a Revisão Final
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Revisão Final</CardTitle>
+              <CardDescription>
+                Revise as notas, veja o que foi considerado em cada criterio e faca overrides
+                manuais quando necessario.
+              </CardDescription>
+            </CardHeader>
+            <div className="px-6 pb-2">
               <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
-            </section>
-          </div>
-
-          <div className="flex justify-end px-6 py-6">
-            <Button onClick={handleSubmit} size="lg">
-              <Save className="mr-2 h-4 w-4" />
-              {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
-            </Button>
-          </div>
-        </Card>
+            </div>
+            <div className="flex flex-col gap-3 px-6 py-6 md:flex-row md:justify-between">
+              <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
+                Voltar para a Coleta
+              </Button>
+              <Button onClick={handleSubmit} size="lg">
+                <Save className="mr-2 h-4 w-4" />
+                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+              </Button>
+            </div>
+          </Card>
+        )}
         </>
       )}
     </div>

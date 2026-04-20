@@ -37,45 +37,47 @@ const About = () => {
             Ciclistas do Recife (Ameciclo), o IDECICLO já foi aplicado em mais
             de 34 cidades e áreas brasileiras.
           </p>
-        </div>
-      )
-    },
-    {
-      title: "Para que serve?",
-      content: (
-        <div className="text-justify text-text-grey">
           <p className="mb-4">
-            A metodologia foi desenvolvida por uma equipe multidisciplinar de
-            urbanistas, ciclistas e cicloativistas, com o objetivo de fornecer
-            indicadores objetivos sobre a qualidade das infraestruturas
-            cicloviárias, permitindo avaliações consistentes, comparáveis e
-            replicáveis em diferentes contextos urbanos, em todo o Brasil.
-          </p>
-          <p className="mb-4">
-            O grande diferencial do IDECICLO é sua capacidade de
-            ponderar a avaliação da infraestrutura cicloviária de
-            acordo com a velocidade máxima permitida nas vias onde
-            elas estão inseridas.
+            Em 2024, a metodologia passou por uma atualização colaborativa com
+            especialistas e representantes de organizações não governamentais,
+            alinhada ao Código de Trânsito Brasileiro e à experiência real de
+            ciclistas em diferentes contextos urbanos do país.
           </p>
         </div>
       )
     },
     {
-      title: "Metodologia",
+      title: "Por que é diferente?",
       content: (
         <div className="text-justify text-text-grey">
           <p className="mb-4">
-            Em 2024, a metodologia passou por uma atualização colaborativa
-            contando com especialistas e representantes de organizações não
-            governamentais. O objetivo foi consolidar indicadores que reflitam a
-            realidade de diferentes cidades, alinhados com o Código de Trânsito
-            Brasileiro (CTB).
+            O grande diferencial do IDECICLO é sua capacidade de ponderar a
+            avaliação da infraestrutura cicloviária de acordo com a velocidade
+            máxima permitida nas vias onde ela está inserida.
           </p>
           <p className="mb-4">
-            São avaliados 23 parâmetros, separados em 5 eixos:
-            planejamento cicloviário, projeto cicloviário ao longo
-            da quadra, projeto cicloviário nas interseções,
-            urbanidade e manutenção da infraestrutura cicloviária.
+            Assim, o IDECICLO não mede apenas quantos quilômetros de ciclovias
+            uma cidade tem, mas também onde essas estruturas estão e o quanto
+            oferecem segurança diante do risco representado pelo tráfego
+            motorizado.
+          </p>
+        </div>
+      )
+    },
+    {
+      title: "Para quem é?",
+      content: (
+        <div className="text-justify text-text-grey">
+          <p className="mb-4">
+            A metodologia do IDECICLO pode ser utilizada por gestores e
+            gestoras públicas, técnicos e planejadores urbanos, organizações
+            cicloativistas, pesquisadores, estudantes, universidades, ciclistas
+            urbanos e conselhos de mobilidade.
+          </p>
+          <p className="mb-4">
+            É uma ferramenta aberta e replicável, pensada para fortalecer o
+            planejamento participativo, promover diagnósticos colaborativos e
+            construir pontes entre sociedade civil e poder público.
           </p>
         </div>
       )

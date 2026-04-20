@@ -30,7 +30,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
   const isCiclorrota = infraType === "ciclorrota";
   const isCicloviaOrCiclofaixa = infraType === "ciclovia" || infraType === "ciclofaixa";
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -47,12 +47,13 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
         >
           <AssessmentCriterionAccordion
             value="b41"
-            title="B.4.1. Identificação do espaço de circulação de bicicletas"
+            title="B.4.2. Identificação do espaço de circulação de bicicletas"
             description="Pintura, contraste e reconhecimento visual do espaço cicloviário."
             answered={isTouched(["space_identification"])}
-            workflowState={data.criterion_workflow_state?.b41}
-            onWorkflowStateChange={(value) => updateWorkflow("b41", value)}
+            inAnalysis={data.criterion_workflow_state?.b41 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b41", value ? "analysis" : "default")}
             onClear={() => onDataChange({ space_identification: "", touched_fields: { space_identification: false } })}
+            helpKey="b41"
           >
             <RadioGroup
               value={data.space_identification || ""}
@@ -93,14 +94,15 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             title="E.4.1. Estado de conservação da identificação do espaço cicloviário"
             description="Avalia desgaste e permanência da sinalização horizontal principal."
             answered={isTouched(["identification_conservation"])}
-            workflowState={data.criterion_workflow_state?.e41}
-            onWorkflowStateChange={(value) => updateWorkflow("e41", value)}
+            inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 identification_conservation: "",
                 touched_fields: { identification_conservation: false },
               })
             }
+            helpKey="e41"
           >
             <RadioGroup
               value={data.identification_conservation || ""}
@@ -138,15 +140,17 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
           {isCiclorrota && (
             <AssessmentCriterionAccordion
               value="b42"
-              title="B.4.2. Inscrições no pavimento - pictogramas"
+              title="B.4.3. Inscrições no pavimento - pictogramas"
               description="Critério específico para ciclorrotas."
               answered={isTouched([
                 "pictograms_per_block",
                 "pictograms_cover_all_blocks",
                 "pictograms_conservation",
               ])}
-              workflowState={data.criterion_workflow_state?.b42}
-              onWorkflowStateChange={(value) => updateWorkflow("b42", value)}
+              inAnalysis={data.criterion_workflow_state?.b42 === "analysis"}
+              onAnalysisChange={(value) =>
+                updateWorkflow("b42", value ? "analysis" : "default")
+              }
               onClear={() =>
                 onDataChange({
                   pictograms_per_block: 0,
@@ -159,6 +163,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                   },
                 })
               }
+              helpKey="b42"
             >
               <div className="space-y-4">
                 <div>
@@ -232,7 +237,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
 
           <AssessmentCriterionAccordion
             value="b43"
-            title="B.4.3. Sinalização vertical de regulamentação"
+            title="B.4.1. Sinalização vertical de regulamentação"
             description={
               isCicloviaOrCiclofaixa
                 ? "Aplicado a ciclovias e ciclofaixas."
@@ -243,8 +248,8 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
               "signs_both_directions",
               "vertical_signs_conservation",
             ])}
-            workflowState={data.criterion_workflow_state?.b43}
-            onWorkflowStateChange={(value) => updateWorkflow("b43", value)}
+            inAnalysis={data.criterion_workflow_state?.b43 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b43", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 regulation_signs_per_block: 0,
@@ -257,6 +262,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
                 },
               })
             }
+            helpKey="b43"
           >
             <div className="space-y-4">
               <div>

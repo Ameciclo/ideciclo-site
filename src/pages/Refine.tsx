@@ -646,7 +646,7 @@ const Refine = () => {
     <div className="container py-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">
-          Aprimorar Dados de Infraestrutura Cicloviária
+          Aprimorar os Dados de Infraestrutura Cicloviária
         </h2>
         <Button variant="outline" onClick={handleBackToStart}>
           Voltar ao Início
@@ -655,10 +655,13 @@ const Refine = () => {
       
       <div className="mb-6 text-gray-700">
         <p className="mb-2">
-          Ajuste e complemente os dados já avaliados de uma cidade.
+          Ajude a manter as informações atualizadas e mais precisas sobre a infraestrutura cicloviária das cidades, a partir dos dados disponibilizados na plataforma OpenStreetMap.
+        </p>
+        <p className="mb-2">
+          Aqui você pode verificar o nome do trecho, a tipologia e a composição dos segmentos antes da avaliação de campo.
         </p>
         <p>
-          Ajude a manter as informações atualizadas e mais precisas sobre a infraestrutura cicloviária das cidades.
+          Atenção: é necessário validar os dados da sua cidade nesta etapa antes de preencher a avaliação do IDECICLO.
         </p>
       </div>
 

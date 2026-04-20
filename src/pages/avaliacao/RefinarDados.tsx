@@ -440,7 +440,7 @@ const RefinarDados = () => {
         <a href="/avaliacao" className="hover:underline">
           Avaliação
         </a>{" "}
-        &gt; <span>Refinar Dados</span>
+        &gt; <span>Aprimorar os Dados</span>
       </nav>
 
       {/* Título com Design Customizado */}
@@ -468,7 +468,7 @@ const RefinarDados = () => {
                 className="text-4xl md:text-5xl font-bold text-text-grey pb-8 bg-ideciclo-pink 
                          mx-auto px-7 py-6 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)]"
               >
-                Refinar Dados
+                Aprimorar os Dados
               </h1>
             </div>
 
@@ -548,9 +548,14 @@ const RefinarDados = () => {
 
       <div className="container py-8">
         <div className="flex justify-between items-center mb-8">
-          <p className="text-gray-600 text-lg">
-            Ajuste e melhore os dados baixados da cidade
-          </p>
+          <div className="max-w-3xl text-gray-600 text-lg space-y-2">
+            <p>
+              Ajude a manter as informações atualizadas e mais precisas sobre a infraestrutura cicloviária das cidades, a partir dos dados disponibilizados na plataforma OpenStreetMap.
+            </p>
+            <p className="text-base">
+              Atenção: é necessário validar os dados da sua cidade nesta etapa antes de preencher a avaliação do IDECICLO.
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
               sessionStorage.removeItem("cityData");
@@ -688,7 +693,7 @@ const RefinarDados = () => {
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-semibold mb-2">Cidades Já Baixadas</h3>
                   <p className="text-gray-600 text-sm">
-                    Selecione uma cidade que já foi baixada para refinar seus dados
+                    Selecione uma cidade que já foi baixada para aprimorar seus dados
                   </p>
                 </div>
                 

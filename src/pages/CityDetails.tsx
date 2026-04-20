@@ -1,16 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchCityFromDB, fetchSegmentsFromDB } from "@/services/database";
 import { City, Segment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import CityMap from "@/components/CityMap";
+import { downloadCsvFile, downloadElementAsPdf } from "@/utils/reportDownloads";
 
 const CityDetails = () => {
   const { cityId } = useParams<{ cityId: string }>();
   const [city, setCity] = useState<City | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const formatHierarchy = (classification?: string) => {
+    if (!classification) return "-";
+
+    return classification.charAt(0).toUpperCase() + classification.slice(1);
+  };
 
   useEffect(() => {
     const loadCityData = async () => {
@@ -32,6 +40,33 @@ const CityDetails = () => {
 
     loadCityData();
   }, [cityId]);
+
+  const handleDownloadCityCsv = () => {
+    if (!city) return;
+
+    downloadCsvFile(
+      `detalhes-${city.name.toLowerCase().replace(/\s+/g, "-")}.csv`,
+      ["Trecho", "Tipologia", "Hierarquia", "Extensão (km)", "Nota"],
+      segments.map((segment) => [
+        segment.name,
+        segment.type || "-",
+        formatHierarchy(segment.classification),
+        segment.length,
+        segment.evaluated && segment.rating !== undefined
+          ? segment.rating.toFixed(2)
+          : "-",
+      ])
+    );
+  };
+
+  const handleDownloadCityPdf = async () => {
+    if (!reportRef.current || !city) return;
+
+    await downloadElementAsPdf(
+      reportRef.current,
+      `detalhes-${city.name.toLowerCase().replace(/\s+/g, "-")}.pdf`
+    );
+  };
 
   if (loading) {
     return (
@@ -93,8 +128,20 @@ const CityDetails = () => {
         <span>{city.name}</span>
       </nav>
 
-      {/* Estatísticas da Cidade Selecionada - Estilo Subpágina */}
-      <section className="relative z-1 mx-auto container bg-transparent">
+      <div className="container pt-8">
+        <div className="flex flex-col justify-end gap-3 md:flex-row">
+          <Button onClick={handleDownloadCityCsv} className="bg-ideciclo-red hover:bg-ideciclo-red/90 text-white">
+            Baixar relatório em CSV
+          </Button>
+          <Button onClick={handleDownloadCityPdf} variant="outline">
+            Baixar relatório em PDF
+          </Button>
+        </div>
+      </div>
+
+      <div ref={reportRef}>
+        {/* Estatísticas da Cidade Selecionada - Estilo Subpágina */}
+        <section className="relative z-1 mx-auto container bg-transparent">
         <div className="mx-auto text-center my-12 md:my-24">
           {/* Título com SVG vermelho diferente */}
           <div className="relative inline-flex items-center justify-center">
@@ -224,7 +271,7 @@ const CityDetails = () => {
       </div>
 
       {/* Seção do Mapa */}
-      <div className="container mx-auto mt-[-50px] mb-12">
+      <div className="container mx-auto mt-[-50px] mb-12" data-html2canvas-ignore="true">
         <div className="mx-auto text-center my-12">
           <h3 className="text-4xl font-bold p-6 my-8 mb-[50px] rounded-[40px] 
                          bg-ideciclo-red mx-auto text-white shadow-[0px_6px_8px_rgba(0,0,0,0.25)]">
@@ -269,7 +316,7 @@ const CityDetails = () => {
                     } hover:bg-ideciclo-yellow hover:bg-opacity-20 transition-colors`}>
                       <td className="px-4 py-3 border-b text-text-grey">{segment.name}</td>
                       <td className="px-4 py-3 border-b text-text-grey">{segment.type || "-"}</td>
-                      <td className="px-4 py-3 border-b text-text-grey">{segment.classification || "-"}</td>
+                      <td className="px-4 py-3 border-b text-text-grey">{formatHierarchy(segment.classification)}</td>
                       <td className="px-4 py-3 border-b text-text-grey">{segment.length}</td>
                       <td className="px-4 py-3 border-b text-text-grey font-bold">
                         {segment.evaluated && segment.rating !== undefined
@@ -285,7 +332,11 @@ const CityDetails = () => {
             <p className="text-gray-500 text-center py-8">Nenhum segmento encontrado para esta cidade.</p>
           )}
         </div>
-        
+      </div>
+
+      </div>
+
+      <div className="container">
         <div className="text-center mt-8">
           <Link to="/ranking">
             <Button className="bg-ideciclo-teal hover:bg-ideciclo-blue text-white rounded-full px-8 py-3">

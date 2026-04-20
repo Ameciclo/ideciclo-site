@@ -40,7 +40,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
   };
 
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -57,8 +57,8 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
             title="B.1.1. Largura da infraestrutura cicloviária"
             description="Permite informar a largura medida para cálculo automático do conceito."
             answered={isTouched(["width_meters", "includes_gutter"])}
-            workflowState={data.criterion_workflow_state?.b11}
-            onWorkflowStateChange={(value) => updateWorkflow("b11", value)}
+            inAnalysis={data.criterion_workflow_state?.b11 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b11", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 width_meters: 0,
@@ -66,6 +66,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
                 touched_fields: { width_meters: false, includes_gutter: false },
               })
             }
+            helpKey="B1"
           >
             <div className="space-y-4">
               <div>
@@ -105,8 +106,8 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
             title="B.1.2. Medidas de moderação de velocidade"
             description="Aplicável especialmente a ciclorrotas, com seleção de medidas e distância média entre elas."
             answered={isTouched(["speed_measures", "avg_distance_measures_m"])}
-            workflowState={data.criterion_workflow_state?.b12}
-            onWorkflowStateChange={(value) => updateWorkflow("b12", value)}
+            inAnalysis={data.criterion_workflow_state?.b12 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b12", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 speed_measures: [],
@@ -114,6 +115,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange }) => {
                 touched_fields: { speed_measures: false, avg_distance_measures_m: false },
               })
             }
+            helpKey="B6"
           >
             <div className="space-y-4">
               <div>

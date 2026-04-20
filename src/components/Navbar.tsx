@@ -1,6 +1,8 @@
+import { manualDownloadUrl } from "@/constants/siteLinks";
 import { Link, useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Download, Menu } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Navbar = () => {
@@ -79,6 +81,21 @@ const Navbar = () => {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-[250px] sm:w-[300px]">
                   <div className="py-4 space-y-1">{renderNavLinks(true)}</div>
+                  <div className="mt-6 rounded-2xl border border-ideciclo-teal/30 bg-ideciclo-yellow/15 p-4">
+                    <h3 className="text-base font-semibold text-text-grey">
+                      Manual do IDECICLO
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-text-grey">
+                      Antes de começar, conheça a metodologia e baixe a versão
+                      mais atual do manual.
+                    </p>
+                    <Button asChild className="mt-4 w-full bg-ideciclo-red hover:bg-ideciclo-red/90 text-white">
+                      <a href={manualDownloadUrl} target="_blank" rel="noreferrer">
+                        <Download className="mr-2 h-4 w-4" />
+                        Baixar manual
+                      </a>
+                    </Button>
+                  </div>
                 </SheetContent>
               </Sheet>
             )}

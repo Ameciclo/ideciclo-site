@@ -17,7 +17,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
   };
 
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -34,14 +34,15 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             title="B.2. Tipo de pavimento da infraestrutura cicloviária"
             description="Classificação do material predominante do pavimento."
             answered={isTouched(["pavement_type"])}
-            workflowState={data.criterion_workflow_state?.b2}
-            onWorkflowStateChange={(value) => updateWorkflow("b2", value)}
+            inAnalysis={data.criterion_workflow_state?.b2 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("b2", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 pavement_type: "",
                 touched_fields: { pavement_type: false },
               })
             }
+            helpKey="b2"
           >
             <RadioGroup
               value={data.pavement_type || ""}
@@ -79,14 +80,15 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             title="E.2. Estado de conservação do pavimento"
             description="Avalia a integridade da superfície e a qualidade de rodagem."
             answered={isTouched(["conservation_state"])}
-            workflowState={data.criterion_workflow_state?.e2}
-            onWorkflowStateChange={(value) => updateWorkflow("e2", value)}
+            inAnalysis={data.criterion_workflow_state?.e2 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("e2", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 conservation_state: "",
                 touched_fields: { conservation_state: false },
               })
             }
+            helpKey="E2"
           >
             <RadioGroup
               value={data.conservation_state || ""}

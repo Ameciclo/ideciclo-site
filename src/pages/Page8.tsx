@@ -39,7 +39,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
     onDataChange({ cycling_furniture: currentItems });
   };
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
-  const updateWorkflow = (criterion: string, value: "default" | "analysis" | "review") =>
+  const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
         ...(data.criterion_workflow_state || {}),
@@ -63,8 +63,9 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
               "lighting_barriers",
               "lighting_distance_to_infra",
             ])}
-            workflowState={data.criterion_workflow_state?.d1}
-            onWorkflowStateChange={(value) => updateWorkflow("d1", value)}
+            inAnalysis={data.criterion_workflow_state?.d1 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("d1", value ? "analysis" : "default")}
+            helpKey="D1"
             onClear={() =>
               onDataChange({
                 has_lighting_posts: null,
@@ -213,8 +214,9 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             title="D.2. Conforto térmico (sombreamento)"
             description="Cobertura de sombra e porte da arborização do trecho."
             answered={isTouched(["shading_coverage", "vegetation_size"])}
-            workflowState={data.criterion_workflow_state?.d2}
-            onWorkflowStateChange={(value) => updateWorkflow("d2", value)}
+            inAnalysis={data.criterion_workflow_state?.d2 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("d2", value ? "analysis" : "default")}
+            helpKey="D2"
             onClear={() =>
               onDataChange({
                 shading_coverage: "",
@@ -279,8 +281,9 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
             answered={isTouched(["blocks_with_cycling_furniture", "cycling_furniture"])}
-            workflowState={data.criterion_workflow_state?.d3}
-            onWorkflowStateChange={(value) => updateWorkflow("d3", value)}
+            inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
+            onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}
+            helpKey="D3"
             onClear={() =>
               onDataChange({
                 blocks_with_cycling_furniture: 0,

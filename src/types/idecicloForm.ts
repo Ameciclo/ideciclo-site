@@ -1,6 +1,6 @@
 export type IdecicloRating = "A" | "B" | "C" | "D";
 export type RatingMode = "auto" | "manual";
-export type CriterionWorkflowState = "default" | "analysis" | "review";
+export type CriterionWorkflowState = "default" | "analysis";
 export type CriterionCode =
   | "A1"
   | "A2"
