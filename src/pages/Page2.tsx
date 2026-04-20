@@ -121,18 +121,30 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
               <div className="flex flex-wrap gap-2">
                 {TYPOLOGY_OPTIONS.map((option) => {
                   const selected = isTypologySelected(option.value);
+                  const clickable = allowTypologyEdit;
 
                   return (
-                    <span
+                    <Button
                       key={option.value}
-                      className={`${option.className} ${
+                      type="button"
+                      variant="ghost"
+                      aria-disabled={!clickable}
+                      onClick={() => {
+                        if (!clickable) return;
+                        handleRadioChange("infra_typology", option.value);
+                      }}
+                      className={`${option.className} h-auto border border-transparent px-4 py-2 ${
                         selected
                           ? "ring-2 ring-black/15 opacity-100 saturate-100"
                           : "opacity-40 saturate-50"
+                      } ${
+                        clickable
+                          ? "cursor-pointer hover:opacity-85"
+                          : "cursor-default"
                       }`}
                     >
                       {option.label}
-                    </span>
+                    </Button>
                   );
                 })}
               </div>
@@ -163,20 +175,9 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
                   </p>
                 ) : null}
 
-                <Select
-                  value={resolvedTypology}
-                  onValueChange={(value) => handleRadioChange("infra_typology", value)}
-                >
-                  <SelectTrigger id="infra_typology">
-                    <SelectValue placeholder="Selecione a tipologia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ciclovia">Ciclovia</SelectItem>
-                    <SelectItem value="Ciclofaixa">Ciclofaixa</SelectItem>
-                    <SelectItem value="Ciclorrota">Ciclorrota</SelectItem>
-                    <SelectItem value="Compartilhada">Compartilhada</SelectItem>
-                  </SelectContent>
-                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Clique na tipologia acima para corrigir a classificação do trecho.
+                </p>
 
                 {isTypologyEdited ? (
                   <p className="text-sm font-medium text-amber-700">
