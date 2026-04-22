@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { calcDownloadUrl, formDownloadUrl, manualDownloadUrl } from "@/constants/siteLinks";
 import { Button } from "@/components/ui/button";
-import { Download, Edit, MapPin, FileText, TrendingUp } from "lucide-react";
+import { Download, MapPin, FileText, TrendingUp } from "lucide-react";
 
 const Avaliacao = () => {
   const navigate = useNavigate();
@@ -9,24 +9,15 @@ const Avaliacao = () => {
   const etapas = [
     {
       id: 1,
-      title: "Baixar Dados",
-      subtitle: "Selecione uma cidade",
-      description: "Escolha a cidade e baixe os dados da infraestrutura cicloviária",
+      title: "Baixar e Aprimorar",
+      subtitle: "Escolha a cidade",
+      description: "Verifique se a cidade já existe, baixe se necessário e revise os dados antes da avaliação",
       icon: Download,
       color: "#EFC345",
-      route: "/avaliacao/baixar-dados"
-    },
-    {
-      id: 2,
-      title: "Aprimorar os Dados",
-      subtitle: "Ajuste os dados",
-      description: "Valide, complemente e organize os dados vindos do OpenStreetMap",
-      icon: Edit,
-      color: "#5AC2E1",
       route: "/avaliacao/refinar-dados"
     },
     {
-      id: 3,
+      id: 2,
       title: "Escolher Estrutura",
       subtitle: "Selecione um trecho",
       description: "Escolha uma estrutura específica para avaliar",
@@ -35,7 +26,7 @@ const Avaliacao = () => {
       route: "/avaliacao/escolher-estrutura"
     },
     {
-      id: 4,
+      id: 3,
       title: "Avaliar Estrutura",
       subtitle: "Preencha o formulário",
       description: "Realize a avaliação detalhada da estrutura",
@@ -44,7 +35,7 @@ const Avaliacao = () => {
       route: "/avaliacao/avaliar-estrutura"
     },
     {
-      id: 5,
+      id: 4,
       title: "Ver Resultados",
       subtitle: "Confira o índice",
       description: "Visualize a nota calculada e o índice IDECICLO",
@@ -72,7 +63,7 @@ const Avaliacao = () => {
 
       <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
         <p className="text-gray-700 leading-7">
-          Antes de iniciar a avaliação em campo, é preciso passar pela etapa de aprimoramento. Nela, você verifica e ajusta os dados do trecho e da tipologia importados automaticamente do OpenStreetMap. As duas fases são diferentes, mas dependentes: só depois de concluir o aprimoramento a avaliação pode ser feita de forma correta e precisa.
+          Antes de iniciar a avaliação em campo, você passa por uma etapa única de download e aprimoramento. Nela, a plataforma verifica se a cidade já existe no banco, mostra a data do último download e permite continuar, atualizar ou baixar os dados do OpenStreetMap antes da revisão dos trechos.
         </p>
         <div className="mt-4 flex flex-col gap-3 md:flex-row">
           <Button asChild className="w-full bg-ideciclo-red hover:bg-ideciclo-red/90 text-white md:w-auto">
@@ -125,7 +116,7 @@ const Avaliacao = () => {
         <div className="bg-gray-50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-2">Como funciona?</h3>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Primeiro, confira se todos os trechos que você pretende avaliar aparecem na etapa de aprimoramento. Lá você pode revisar nome, tipologia e segmentos, inclusive mesclando ou excluindo trechos. Depois disso, siga para a avaliação dos segmentos e para a visualização dos resultados no ranking nacional.
+            Primeiro, escolha a cidade e decida se quer continuar com os dados salvos ou atualizá-los. Em seguida, revise nome, tipologia e segmentos, inclusive mesclando ou excluindo trechos. Depois disso, siga para a avaliação dos segmentos e para a visualização dos resultados no ranking nacional.
           </p>
           <p className="mt-4 text-sm font-medium text-gray-500">
             Para uma melhor visualização, acesse pelo computador.

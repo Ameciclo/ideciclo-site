@@ -91,10 +91,12 @@ const EtapaBaixarDados = ({ onComplete }: EtapaBaixarDadosProps) => {
 
     } catch (error) {
       console.error("Erro ao baixar dados:", error);
-      setError(error instanceof Error ? error.message : "Erro desconhecido");
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      setError(message);
       toast({
         title: "Erro",
-        description: "Falha ao baixar os dados da cidade",
+        description: message,
         variant: "destructive",
       });
     } finally {

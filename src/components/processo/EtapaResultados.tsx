@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Award, FileText, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fetchCityFromDB, fetchSegmentsByCity } from "@/services/database";
+import { clearPersistedCityData } from "@/utils/persistedCityData";
 
 interface EtapaResultadosProps {
   cityData: any;
@@ -45,6 +46,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
 
   const handleStartOver = () => {
     // Clear session storage and restart process
+    clearPersistedCityData();
     sessionStorage.clear();
     navigate("/processo-avaliacao");
   };

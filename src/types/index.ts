@@ -21,6 +21,8 @@ export interface City {
   vias_estruturais_km: number;
   vias_alimentadoras_km: number;
   vias_locais_km: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Segment {

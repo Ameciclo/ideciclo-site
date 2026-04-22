@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import EtapaEscolherEstrutura from "@/components/processo/EtapaEscolherEstrutura";
 import { useState, useEffect } from "react";
+import { getPersistedCityData } from "@/utils/persistedCityData";
 
 const EscolherEstrutura = () => {
   const navigate = useNavigate();
   const [cityData, setCityData] = useState<any>(null);
 
   useEffect(() => {
-    const storedData = sessionStorage.getItem("cityData");
+    const storedData = getPersistedCityData();
     if (storedData) {
       setCityData(JSON.parse(storedData));
     }

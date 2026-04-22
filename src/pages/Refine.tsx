@@ -299,27 +299,20 @@ const Refine = () => {
             `Storing city data in database (${allSegments.length} segments)`
           );
           try {
-            // Store city data first
-            const result = await storeCityData(selectedCityId, {
+            await storeCityData(selectedCityId, {
               city: newCity,
               segments: allSegments,
             });
-
-            if (result) {
-              console.log("Successfully stored city data in database");
-            } else {
-              console.error("Failed to store city data in database");
-              toast({
-                title: "Aviso",
-                description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
-                variant: "warning",
-              });
-            }
+            console.log("Successfully stored city data in database");
           } catch (dbError) {
             console.error("Error storing city data:", dbError);
+            const message =
+              dbError instanceof Error
+                ? dbError.message
+                : "Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.";
             toast({
               title: "Aviso",
-              description: `Os dados foram carregados, mas houve um problema ao salvá-los no banco de dados.`,
+              description: message,
               variant: "warning",
             });
           }

@@ -8,6 +8,121 @@ type SegmentRow = Database['public']['Tables']['segments']['Row'];
 type FormRow = Database['public']['Tables']['forms']['Row'];
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
+const formatDatabaseError = (context: string, error: unknown): string => {
+  if (!error || typeof error !== "object") {
+    return context;
+  }
+
+  const parts = [
+    "message" in error ? error.message : "",
+    "details" in error ? error.details : "",
+    "hint" in error ? error.hint : "",
+    "code" in error ? `(code: ${error.code})` : "",
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `${context}: ${parts.join(" | ")}` : context;
+};
+
+const getMissingColumnName = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+
+  const message = [
+    "message" in error ? error.message : "",
+    "details" in error ? error.details : "",
+    "hint" in error ? error.hint : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const patterns = [
+    /column ["']?([a-zA-Z0-9_]+)["']?/i,
+    /Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+};
+
+const omitColumn = <T extends Record<string, any>>(payload: T, column: string) => {
+  if (!(column in payload)) return payload;
+  const { [column]: _omitted, ...rest } = payload;
+  return rest;
+};
+
+const insertSegmentsWithCompatibility = async (
+  payload: Record<string, any>[]
+): Promise<{ error: any }> => {
+  let currentPayload = payload;
+
+  while (true) {
+    const { error } = await supabase.from("segments").insert(currentPayload);
+
+    if (!error) {
+      return { error: null };
+    }
+
+    const missingColumn = getMissingColumnName(error);
+    if (!missingColumn) {
+      return { error };
+    }
+
+    const nextPayload = currentPayload.map((item) => omitColumn(item, missingColumn));
+    const changed = nextPayload.some((item, index) => item !== currentPayload[index]);
+
+    if (!changed) {
+      return { error };
+    }
+
+    console.warn(
+      `segments.${missingColumn} is missing in the remote database; retrying without it.`,
+      error
+    );
+    currentPayload = nextPayload;
+  }
+};
+
+const updateSegmentWithCompatibility = async (
+  updateId: string,
+  payload: Record<string, any>
+) => {
+  let currentPayload = payload;
+
+  while (true) {
+    const result = await supabase
+      .from("segments")
+      .update(currentPayload)
+      .eq("id", updateId)
+      .select()
+      .single();
+
+    if (!result.error) {
+      return result;
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn) {
+      return result;
+    }
+
+    const nextPayload = omitColumn(currentPayload, missingColumn);
+    if (nextPayload === currentPayload) {
+      return result;
+    }
+
+    console.warn(
+      `segments.${missingColumn} is missing in the remote database; retrying update without it.`,
+      result.error
+    );
+    currentPayload = nextPayload;
+  }
+};
+
 // Conversion helpers
 const convertCityRowToCity = (row: CityRow): City => ({
   id: row.id,
@@ -18,6 +133,8 @@ const convertCityRowToCity = (row: CityRow): City => ({
   vias_estruturais_km: row.vias_estruturais_km || 0,
   vias_alimentadoras_km: row.vias_alimentadoras_km || 0,
   vias_locais_km: row.vias_locais_km || 0,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
 });
 
 const convertFormRowToForm = (row: FormRow): Form => ({
@@ -79,8 +196,7 @@ export const fetchCityFromDB = async (cityId: string): Promise<City | null> => {
 export const saveCityToDB = async (city: Partial<City>): Promise<City | null> => {
   // Ensure required fields are present
   if (!city.id || !city.name || !city.state) {
-    console.error("Required city fields missing");
-    return null;
+    throw new Error("Campos obrigatorios da cidade estao ausentes.");
   }
 
   // Check if city already exists
@@ -124,8 +240,9 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
   const { data, error } = await operation.select().single();
 
   if (error) {
-    console.error("Error saving city:", error);
-    return null;
+    const message = formatDatabaseError("Erro ao salvar a cidade no Supabase", error);
+    console.error(message, error);
+    throw new Error(message);
   }
 
   return convertCityRowToCity(data);
@@ -146,44 +263,29 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
     console.log("Cache API not supported or error clearing segment cache:", cacheError);
   }
   
-  // Now fetch from the database
-  const { data, error } = await supabase
-    .from('segments')
-    .select('*')
-    .eq('id_cidade', cityId)
-    .is('parent_segment_id', null); // Only fetch top-level segments
-
-  if (error) {
-    console.error("Error fetching segments:", error);
-    return [];
-  }
-
-  // Check if we have segments in the database
-  if (data && data.length > 0) {
-    console.log(`Found ${data.length} segments in database for city ${cityId}, using database data`);
-    
-    // Create a Set to track unique IDs
+  const normalizeSegments = (rows: SegmentRow[]) => {
     const uniqueIds = new Set<string>();
-    
-    // Convert the data and restore original segment IDs (remove city prefix if needed)
-    const segments = data
-      .map(row => {
+
+    return rows
+      .map((row) => {
         const segment = convertSegmentRowToSegment(row);
-        
-        // If the ID has the city prefix, remove it for consistency with the rest of the app
+
         if (segment.id.startsWith(`${cityId}_`)) {
           segment.id = segment.id.substring(cityId.length + 1);
         }
-        
-        // Also fix parent_segment_id if it exists
-        if (segment.parent_segment_id && segment.parent_segment_id.startsWith(`${cityId}_`)) {
-          segment.parent_segment_id = segment.parent_segment_id.substring(cityId.length + 1);
+
+        if (
+          segment.parent_segment_id &&
+          segment.parent_segment_id.startsWith(`${cityId}_`)
+        ) {
+          segment.parent_segment_id = segment.parent_segment_id.substring(
+            cityId.length + 1
+          );
         }
-        
+
         return segment;
       })
-      // Filter out duplicates
-      .filter(segment => {
+      .filter((segment) => {
         if (uniqueIds.has(segment.id)) {
           console.warn(`Duplicate segment ID found: ${segment.id}`);
           return false;
@@ -191,13 +293,44 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
         uniqueIds.add(segment.id);
         return true;
       });
-    
-    console.log(`Fetched ${segments.length} unique segments for city ${cityId} from database`);
-    return segments;
-  } else {
-    console.log(`No segments found in database for city ${cityId}, will need to fetch from OSM`);
+  };
+
+  // Prefer top-level segments, but fall back to all segments if the stored data
+  // predates the merge fields or was persisted in an inconsistent state.
+  let { data, error } = await supabase
+    .from('segments')
+    .select('*')
+    .eq('id_cidade', cityId)
+    .is('parent_segment_id', null);
+
+  if (error) {
+    console.warn("Error fetching top-level segments, falling back to all city segments:", error);
+  }
+
+  if (!data || data.length === 0) {
+    const fallbackResult = await supabase
+      .from('segments')
+      .select('*')
+      .eq('id_cidade', cityId);
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
+  if (error) {
+    console.error("Error fetching segments:", error);
     return [];
   }
+
+  if (data && data.length > 0) {
+    console.log(`Found ${data.length} segments in database for city ${cityId}, using database data`);
+    const segments = normalizeSegments(data);
+    console.log(`Fetched ${segments.length} unique segments for city ${cityId} from database`);
+    return segments;
+  }
+
+  console.log(`No segments found in database for city ${cityId}, will need to fetch from OSM`);
+  return [];
 };
 
 export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
@@ -210,24 +343,24 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
       (segment.parent_segment_id.includes('_') ? segment.parent_segment_id : `${segment.id_cidade}_${segment.parent_segment_id}`) : 
       null;
     
-    const { error } = await supabase
-      .from('segments')
-      .insert({
-        id: segmentId,
-        id_cidade: segment.id_cidade,
-        id_form: segment.id_form,
-        name: segment.name,
-        type: segment.type,
-        length: segment.length,
-        neighborhood: segment.neighborhood,
-        geometry: segment.geometry,
-        selected: segment.selected,
-        evaluated: segment.evaluated,
-        is_merged: segment.is_merged || false,
-        parent_segment_id: parentSegmentId,
-        merged_segments: segment.merged_segments || [],
-        classification: segment.classification
-      });
+    const segmentPayload = {
+      id: segmentId,
+      id_cidade: segment.id_cidade,
+      id_form: segment.id_form,
+      name: segment.name,
+      type: segment.type,
+      length: segment.length,
+      neighborhood: segment.neighborhood,
+      geometry: segment.geometry,
+      selected: segment.selected,
+      evaluated: segment.evaluated,
+      is_merged: segment.is_merged || false,
+      parent_segment_id: parentSegmentId,
+      merged_segments: segment.merged_segments || [],
+      classification: segment.classification
+    };
+
+    const { error } = await insertSegmentsWithCompatibility([segmentPayload]);
 
     if (error) {
       console.error("Error inserting segment:", error);
@@ -391,8 +524,12 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
       .eq('id_cidade', cityId);
 
     if (deleteError) {
-      console.error("Error deleting existing segments:", deleteError);
-      return false;
+      const message = formatDatabaseError(
+        `Erro ao limpar os segmentos antigos da cidade ${cityId}`,
+        deleteError
+      );
+      console.error(message, deleteError);
+      throw new Error(message);
     }
     
     // Map segments to the format expected by the database
@@ -419,6 +556,7 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     console.log(`Inserting ${segmentsToInsert.length} segments in batches of ${BATCH_SIZE}`);
     
     let allBatchesSuccessful = true;
+    let lastInsertError: unknown = null;
     
     for (let i = 0; i < segmentsToInsert.length; i += BATCH_SIZE) {
       const batch = segmentsToInsert.slice(i, i + BATCH_SIZE);
@@ -429,19 +567,21 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
       
       for (let attempt = 1; attempt <= 3 && !batchSuccess; attempt++) {
         try {
-          const { error: insertError } = await supabase
-            .from('segments')
-            .insert(batch);
+          const { error: insertError } = await insertSegmentsWithCompatibility(batch);
 
           if (!insertError) {
             batchSuccess = true;
+            lastInsertError = null;
           } else if (attempt < 3) {
+            lastInsertError = insertError;
             console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed (attempt ${attempt}), retrying...`);
             await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
           } else {
+            lastInsertError = insertError;
             console.error(`Error inserting batch ${Math.floor(i/BATCH_SIZE) + 1} after ${attempt} attempts:`, insertError);
           }
         } catch (err) {
+          lastInsertError = err;
           if (attempt < 3) {
             console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed with exception (attempt ${attempt}), retrying...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -461,12 +601,20 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
       console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
       return true;
     } else {
-      console.error(`Failed to insert all segments for city ${cityId}`);
-      return false;
+      const message = formatDatabaseError(
+        `Erro ao inserir segmentos da cidade ${cityId}`,
+        lastInsertError
+      );
+      console.error(message, lastInsertError);
+      throw new Error(message);
     }
   } catch (error) {
-    console.error("Unexpected error in saveSegmentsToDB:", error);
-    return false;
+    if (error instanceof Error) {
+      throw error;
+    }
+    const message = formatDatabaseError("Erro inesperado ao salvar segmentos", error);
+    console.error(message, error);
+    throw new Error(message);
   }
 };
 
@@ -505,25 +653,22 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     parentSegmentId = `${cityId}_${parentSegmentId}`;
   }
   
-  const { data, error } = await supabase
-    .from('segments')
-    .update({
-      name: segment.name,
-      type: segment.type,
-      length: segment.length,
-      neighborhood: segment.neighborhood,
-      geometry: segment.geometry,
-      selected: segment.selected,
-      evaluated: segment.evaluated,
-      id_form: segment.id_form,
-      is_merged: segment.is_merged,
-      parent_segment_id: parentSegmentId,
-      merged_segments: segment.merged_segments,
-      classification: segment.classification
-    })
-    .eq('id', updateId)
-    .select()
-    .single();
+  const updatePayload = {
+    name: segment.name,
+    type: segment.type,
+    length: segment.length,
+    neighborhood: segment.neighborhood,
+    geometry: segment.geometry,
+    selected: segment.selected,
+    evaluated: segment.evaluated,
+    id_form: segment.id_form,
+    is_merged: segment.is_merged,
+    parent_segment_id: parentSegmentId,
+    merged_segments: segment.merged_segments,
+    classification: segment.classification
+  };
+
+  let { data, error } = await updateSegmentWithCompatibility(updateId, updatePayload);
 
   if (error) {
     console.error("Error updating segment:", error);

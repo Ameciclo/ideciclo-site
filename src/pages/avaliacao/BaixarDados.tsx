@@ -6,6 +6,8 @@ import {
   ArrowRight,
   Loader2,
   CheckCircle,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { fetchAllStoredCities } from "@/services/database";
@@ -21,6 +23,9 @@ import {
 } from "@/services/api";
 import { City, IBGEState, IBGECity } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { setPersistedCityData } from "@/utils/persistedCityData";
+
+type SaveStatus = "idle" | "saved" | "not_saved";
 
 const BaixarDados = () => {
   const navigate = useNavigate();
@@ -32,6 +37,8 @@ const BaixarDados = () => {
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [cityData, setCityData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [dataOrigin, setDataOrigin] = useState<"database" | "api" | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -72,17 +79,69 @@ const BaixarDados = () => {
     setSelectedCity(cityId);
   };
 
+  const getTotalLength = (data: any) => {
+    if (!data?.segments?.length) return 0;
+
+    return data.segments.reduce(
+      (total: number, segment: any) => total + (segment.length || 0),
+      0
+    );
+  };
+
+  const handleContinue = () => {
+    if (!cityData || saveStatus !== "saved") return;
+
+    setPersistedCityData(JSON.stringify(cityData));
+    navigate("/avaliacao/refinar-dados");
+  };
+
+  const handleRetrySave = async () => {
+    if (!cityData) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      await storeCityData(cityData.cityId, {
+        city: cityData.city,
+        segments: cityData.segments,
+      });
+
+      setSaveStatus("saved");
+      toast({
+        title: "Dados salvos",
+        description: `Dados de ${cityData.cityName}/${cityData.stateName} salvos com sucesso!`,
+      });
+    } catch (error) {
+      console.error("Erro ao salvar novamente os dados:", error);
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      setError(message);
+      setSaveStatus("not_saved");
+      toast({
+        title: "Erro ao salvar",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedState || !selectedCity) return;
 
     const state = states.find((s) => s.id.toString() === selectedState);
     const city = cities.find((c) => c.id.toString() === selectedCity);
+    let downloadedData: any = null;
 
     if (!state || !city) return;
 
     try {
       setIsLoading(true);
       setError(null);
+      setSaveStatus("idle");
+      setDataOrigin(null);
 
       const storedData = await getStoredCityData(selectedCity);
       if (storedData) {
@@ -94,7 +153,12 @@ const BaixarDados = () => {
           segments: storedData.segments,
         };
         setCityData(data);
-        handleComplete(data);
+        setSaveStatus("saved");
+        setDataOrigin("database");
+        toast({
+          title: "Dados encontrados",
+          description: `Dados de ${city.nome}/${state.sigla} carregados do banco!`,
+        });
         return;
       }
 
@@ -113,11 +177,6 @@ const BaixarDados = () => {
       const waysData = await fetchCityWays(selectedCity);
       const segments = convertToSegments(waysData, selectedCity);
 
-      await storeCityData(selectedCity, {
-        city: newCity,
-        segments,
-      });
-
       const data = {
         cityId: selectedCity,
         cityName: city.nome,
@@ -126,29 +185,39 @@ const BaixarDados = () => {
         segments,
       };
 
+      downloadedData = data;
       setCityData(data);
-      handleComplete(data);
+      setDataOrigin("api");
+
+      await storeCityData(selectedCity, {
+        city: newCity,
+        segments,
+      });
+
+      setSaveStatus("saved");
 
       toast({
         title: "Dados baixados",
-        description: `Dados de ${city.nome}/${state.sigla} baixados com sucesso!`,
+        description: `Dados de ${city.nome}/${state.sigla} baixados e salvos com sucesso!`,
       });
     } catch (error) {
       console.error("Erro ao baixar dados:", error);
-      setError(error instanceof Error ? error.message : "Erro desconhecido");
+      const message =
+        error instanceof Error ? error.message : "Erro desconhecido";
+      setError(message);
+      if (downloadedData) {
+        setCityData(downloadedData);
+        setDataOrigin("api");
+        setSaveStatus("not_saved");
+      }
       toast({
         title: "Erro",
-        description: "Falha ao baixar os dados da cidade",
+        description: message,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleComplete = (data: any) => {
-    sessionStorage.setItem("cityData", JSON.stringify(data));
-    setTimeout(() => navigate("/avaliacao/refinar-dados"), 1500);
   };
 
   const handleCitySelect = (city: City) => {
@@ -158,7 +227,7 @@ const BaixarDados = () => {
       stateName: city.state,
       city: city,
     };
-    sessionStorage.setItem("cityData", JSON.stringify(cityData));
+    setPersistedCityData(JSON.stringify(cityData));
     navigate("/avaliacao/refinar-dados");
   };
 
@@ -477,14 +546,34 @@ const BaixarDados = () => {
 
               {/* Estado de sucesso */}
               {cityData && (
-                <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+                <div
+                  className={`mt-8 p-6 rounded-lg border ${
+                    saveStatus === "not_saved"
+                      ? "bg-amber-50 border-amber-200"
+                      : "bg-green-50 border-green-200"
+                  }`}
+                >
                   <div className="flex items-center gap-2 mb-4">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                    <h4 className="text-lg font-semibold text-green-700">
-                      Dados Baixados com Sucesso!
+                    {saveStatus === "not_saved" ? (
+                      <AlertTriangle className="h-6 w-6 text-amber-600" />
+                    ) : (
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    )}
+                    <h4
+                      className={`text-lg font-semibold ${
+                        saveStatus === "not_saved"
+                          ? "text-amber-700"
+                          : "text-green-700"
+                      }`}
+                    >
+                      {saveStatus === "not_saved"
+                        ? "Dados baixados, mas ainda nao salvos no banco"
+                        : dataOrigin === "database"
+                        ? "Dados carregados do banco"
+                        : "Dados baixados e salvos com sucesso"}
                     </h4>
                   </div>
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-sm mb-6">
                     <p>
                       <strong>Cidade:</strong> {cityData.cityName},{" "}
                       {cityData.stateName}
@@ -495,8 +584,85 @@ const BaixarDados = () => {
                     </p>
                     <p>
                       <strong>Extensão total:</strong>{" "}
-                      {cityData.city?.extensao_total?.toFixed(2) || 0} km
+                      {getTotalLength(cityData).toFixed(2)} km
                     </p>
+                    <p>
+                      <strong>Origem:</strong>{" "}
+                      {dataOrigin === "database"
+                        ? "banco de dados"
+                        : "download da API"}
+                    </p>
+                  </div>
+
+                  <div className="mb-6">
+                    <h5 className="font-semibold text-text-grey mb-3">
+                      Prévia dos segmentos
+                    </h5>
+                    <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-100 text-left">
+                          <tr>
+                            <th className="px-4 py-3">Nome</th>
+                            <th className="px-4 py-3">Tipologia</th>
+                            <th className="px-4 py-3">Classificação</th>
+                            <th className="px-4 py-3">Extensão</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cityData.segments?.slice(0, 8).map((segment: any) => (
+                            <tr key={segment.id} className="border-t border-gray-100">
+                              <td className="px-4 py-3">{segment.name}</td>
+                              <td className="px-4 py-3">{segment.type}</td>
+                              <td className="px-4 py-3">
+                                {segment.classification || "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {(segment.length || 0).toFixed(2)} km
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {cityData.segments?.length > 8 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Mostrando 8 de {cityData.segments.length} segmentos.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {saveStatus === "saved" ? (
+                      <Button
+                        onClick={handleContinue}
+                        className="bg-ideciclo-blue hover:bg-blue-600 text-white"
+                      >
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        Continuar para Refinamento
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleRetrySave}
+                        disabled={isLoading}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Tentar salvar novamente
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      onClick={handleSubmit}
+                      disabled={isLoading}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Baixar novamente
+                    </Button>
                   </div>
                 </div>
               )}

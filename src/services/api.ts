@@ -38,6 +38,45 @@ const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 
   throw lastError;
 };
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+
+const postOverpassWithFallback = async (
+  query: string,
+  retries = 3,
+  delay = 1000
+) => {
+  let lastError;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: query,
+        },
+        retries,
+        delay
+      );
+
+      return response;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Overpass endpoint failed: ${endpoint}`, error);
+    }
+  }
+
+  throw lastError;
+};
+
 // Helper function to get DF region name by ID
 const getRegionNameById = (regionId: string): string | null => {
   const dfRegions: Record<string, string> = {
@@ -148,20 +187,13 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
       // We'll use the name-based query instead of IBGE code
       const raName = getRegionNameById(cityId);
       if (raName) {
-        const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
         const query = `
           [out:json][timeout:900];
           area["name"="${raName}"]["admin_level"="9"]["is_in:state"="Distrito Federal"];
           out ids;
         `;
 
-        const response = await fetchWithRetry(OVERPASS_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: query,
-        });
+        const response = await postOverpassWithFallback(query, 3, 2000);
 
         const data = await response.json();
         const areaId = data.elements[0]?.id;
@@ -200,18 +232,10 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
         `
       ];
       
-      const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-      
       // Try each query until we find a valid area ID
       for (const query of queries) {
         try {
-          const response = await fetchWithRetry(OVERPASS_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: query,
-          });
+          const response = await postOverpassWithFallback(query, 3, 2000);
           
           const data = await response.json();
           const areaId = data.elements[0]?.id;
@@ -233,20 +257,13 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
     }
     
     // Standard approach for other cities using IBGE code
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     const query = `
       [out:json][timeout:900];
       area["IBGE:GEOCODIGO"=${cityId}];
       out ids;
     `;
 
-    const response = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: query,
-    });
+    const response = await postOverpassWithFallback(query, 3, 2000);
 
     const data = await response.json();
     
@@ -266,10 +283,9 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
 export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassResponse> => {
   try {
     const areaId = await getOverpassAreaId(cityId);
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
     // Increase timeout for Distrito Federal regions
-    const timeout = cityId.startsWith('53001') ? 1200 : 900;
+    const timeout = cityId.startsWith('53001') ? 1200 : 1200;
 
     const query = `
       [out:json][timeout:${timeout}];
@@ -287,13 +303,7 @@ export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassRes
       }
     `;
 
-    const response = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: query,
-    }, 3, 2000); // More retries and longer delay for complex queries
+    const response = await postOverpassWithFallback(query, 3, 2000);
 
     return response.json();
   } catch (error) {
@@ -305,10 +315,9 @@ export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassRes
 export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> => {
   try {
     const areaId = await getOverpassAreaId(cityId);
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     
     // Increase timeout for Distrito Federal regions
-    const timeout = cityId.startsWith('53001') ? 120 : 60;
+    const timeout = cityId.startsWith('53001') ? 180 : 180;
     
     // First query: Get all bicycle infrastructure
     const cycleQuery = `
@@ -332,13 +341,7 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     out geom;
     `;
 
-    const cycleResponse = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: cycleQuery,
-    }, 3, 2000);
+    const cycleResponse = await postOverpassWithFallback(cycleQuery, 3, 2000);
     
     const cycleData = await cycleResponse.json();
     
@@ -372,7 +375,7 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     // Use a larger buffer to ensure we get all relevant roads
     const bufferDegrees = 0.005; // Approximately 500m at the equator
     // Increase timeout for Distrito Federal regions
-    const roadsTimeout = cityId.startsWith('53001') ? 120 : 60;
+    const roadsTimeout = cityId.startsWith('53001') ? 180 : 180;
     
     const roadsQuery = `
     [out:json][timeout:${roadsTimeout}];
@@ -389,21 +392,18 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     out geom;
     `;
     
-    const roadsResponse = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: roadsQuery,
-    }, 3, 2000);
-    
-    const roadsData = await roadsResponse.json();
-    
-    // Combine both responses
-    return {
-      ...cycleData,
-      elements: [...cycleData.elements, ...roadsData.elements]
-    };
+    try {
+      const roadsResponse = await postOverpassWithFallback(roadsQuery, 3, 2000);
+      const roadsData = await roadsResponse.json();
+
+      return {
+        ...cycleData,
+        elements: [...cycleData.elements, ...roadsData.elements]
+      };
+    } catch (roadsError) {
+      console.warn("Failed to fetch nearby roads for classification; returning cycle data only:", roadsError);
+      return cycleData;
+    }
   } catch (error) {
     console.error("Error fetching city ways:", error);
     throw new Error(`Falha ao obter dados cicloviários para a cidade ${cityId}. O serviço Overpass API pode estar indisponível ou com lentidão. Por favor, tente novamente mais tarde.`);
@@ -1041,22 +1041,23 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
     // Store city in database
     const cityResult = await saveCityToDB(data.city);
     if (!cityResult) {
-      console.error("Failed to save city to database");
-      return false;
+      throw new Error(`Falha ao salvar a cidade ${cityId} no banco.`);
     }
     
     // Store segments in database
     const segmentsResult = await saveSegmentsToDB(data.segments);
     if (!segmentsResult) {
-      console.error("Failed to save segments to database");
-      return false;
+      throw new Error(`Falha ao salvar os segmentos da cidade ${cityId} no banco.`);
     }
     
     console.log(`Successfully stored city ${cityId} in database`);
     return true;
   } catch (error) {
     console.error("Error storing city data:", error);
-    return false;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Erro inesperado ao salvar os dados da cidade ${cityId} no banco.`);
   }
 };
 

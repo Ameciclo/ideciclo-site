@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { City, Segment, SegmentType } from "@/types";
+import { useNavigate } from "react-router-dom";
+import { City, Segment, SegmentType, IBGEState, IBGECity } from "@/types";
 import { Button } from "@/components/ui/button";
-import CitySelection from "@/components/CitySelection";
-import StoredCitiesSelection from "@/components/StoredCitiesSelection";
 import {
+  fetchStates,
+  fetchCities,
   fetchCityHighwayStats,
   fetchCityWays,
   calculateCityStats,
@@ -27,11 +27,32 @@ import {
 } from "lucide-react";
 import {
   deleteCityFromDB,
+  fetchAllStoredCities,
   updateSegmentInDB,
 } from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  clearPersistedCityData,
+  getPersistedCityData,
+  setPersistedCityData,
+} from "@/utils/persistedCityData";
+
+interface SelectedCityActionState {
+  cityId: string;
+  cityName: string;
+  stateId: string;
+  stateName: string;
+  storedCity: City | null;
+}
 
 const RefinarDados = () => {
   const [cityId, setCityId] = useState<string>("");
@@ -42,79 +63,243 @@ const RefinarDados = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
+  const [states, setStates] = useState<IBGEState[]>([]);
+  const [cities, setCities] = useState<IBGECity[]>([]);
+  const [selectedStateId, setSelectedStateId] = useState<string>("");
+  const [selectedStateCode, setSelectedStateCode] = useState<string>("");
+  const [selectedCityOption, setSelectedCityOption] = useState<string>("");
+  const [storedCitiesById, setStoredCitiesById] = useState<Record<string, City>>(
+    {}
+  );
+  const [selectedCityAction, setSelectedCityAction] =
+    useState<SelectedCityActionState | null>(null);
+  const [isSelectionLoading, setIsSelectionLoading] = useState<boolean>(false);
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
 
+  const refreshStoredCitiesCache = async () => {
+    const storedCities = await fetchAllStoredCities();
+    const nextMap = storedCities.reduce<Record<string, City>>((acc, storedCity) => {
+      acc[storedCity.id] = storedCity;
+      return acc;
+    }, {});
+    setStoredCitiesById(nextMap);
+    return nextMap;
+  };
+
+  const formatLastDownload = (storedCity?: City | null) => {
+    const rawDate = storedCity?.updated_at || storedCity?.created_at;
+    if (!rawDate) return "Ainda não baixada";
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(rawDate));
+  };
+
+  const handleSelectionStateChange = async (stateId: string) => {
+    setSelectedStateId(stateId);
+    setSelectedCityOption("");
+    setSelectedCityAction(null);
+    setCities([]);
+
+    const state = states.find((item) => item.id.toString() === stateId);
+    setSelectedStateCode(state?.sigla || "");
+
+    if (!stateId) return;
+
+    try {
+      setIsSelectionLoading(true);
+      const citiesData = await fetchCities(stateId);
+      setCities(citiesData);
+    } catch (error) {
+      console.error("Erro ao carregar cidades:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as cidades deste estado.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSelectionLoading(false);
+    }
+  };
+
+  const handleSelectionCityChange = (cityIdValue: string) => {
+    setSelectedCityOption(cityIdValue);
+
+    const selectedCityData = cities.find(
+      (item) => item.id.toString() === cityIdValue
+    );
+
+    if (!selectedCityData || !selectedStateId || !selectedStateCode) {
+      setSelectedCityAction(null);
+      return;
+    }
+
+    setSelectedCityAction({
+      cityId: cityIdValue,
+      cityName: selectedCityData.nome,
+      stateId: selectedStateId,
+      stateName: selectedStateCode,
+      storedCity: storedCitiesById[cityIdValue] || null,
+    });
+  };
+
   useEffect(() => {
-    const storedData = sessionStorage.getItem("cityData");
+    const loadSelectionOptions = async () => {
+      try {
+        setIsSelectionLoading(true);
+        const [statesData, storedCities] = await Promise.all([
+          fetchStates(),
+          fetchAllStoredCities(),
+        ]);
+
+        setStates(statesData);
+        setStoredCitiesById(
+          storedCities.reduce<Record<string, City>>((acc, storedCity) => {
+            acc[storedCity.id] = storedCity;
+            return acc;
+          }, {})
+        );
+      } catch (error) {
+        console.error("Erro ao carregar opções de cidade:", error);
+      } finally {
+        setIsSelectionLoading(false);
+      }
+    };
+
+    loadSelectionOptions();
+  }, []);
+
+  useEffect(() => {
+    const storedData = getPersistedCityData();
     if (storedData) {
       const data = JSON.parse(storedData);
       setCityId(data.cityId);
       setCityName(data.cityName);
       setStateName(data.stateName);
-      loadStoredCityData(data.cityId);
+
+      // Prefer the freshly downloaded session payload when available so the
+      // refinement step still works even if persistence to the database fails.
+      if (data.city && Array.isArray(data.segments) && data.segments.length > 0) {
+        setCity(data.city);
+        setSegments(data.segments);
+        setError(null);
+        return;
+      }
+
+      loadStoredCityData(data.cityId, data.cityName, data.stateName);
     }
   }, []);
 
-  const handleCitySelected = async (
-    stateId: string,
+  const downloadAndStoreCityData = async (
     selectedCityId: string,
     selectedCityName: string,
     selectedStateName: string
   ) => {
+    const highwayStats = await fetchCityHighwayStats(selectedCityId);
+    const cityStats = calculateCityStats(highwayStats);
+
+    const newCity: Partial<City> = {
+      id: selectedCityId,
+      name: selectedCityName,
+      state: selectedStateName,
+      extensao_avaliada: 0,
+      ideciclo: 0,
+      ...cityStats,
+    };
+
+    const waysData = await fetchCityWays(selectedCityId);
+    const downloadedSegments = convertToSegments(waysData, selectedCityId);
+
+    const enhancedSegments = downloadedSegments.map((segment) => ({
+      ...segment,
+      evaluated: false,
+      id_form: undefined,
+    }));
+
+    await storeCityData(selectedCityId, {
+      city: newCity,
+      segments: enhancedSegments,
+    });
+
+    setCity(newCity);
+    setSegments(enhancedSegments);
+
+    return { city: newCity, segments: enhancedSegments };
+  };
+
+  const openCityForRefinement = async (
+    selectedCityId: string,
+    selectedCityName: string,
+    selectedStateName: string,
+    options?: { forceRefresh?: boolean }
+  ) => {
+    setIsLoading(true);
+    setError(null);
+    setCityId(selectedCityId);
+    setCityName(selectedCityName);
+    setStateName(selectedStateName);
+
     try {
-      setIsLoading(true);
-      setError(null);
-      setCityId(selectedCityId);
-      setCityName(selectedCityName);
-      setStateName(selectedStateName);
-
-      const storedData = await getStoredCityData(selectedCityId);
-      if (storedData) {
-        setCity(storedData.city);
-        setSegments([...storedData.segments]);
-        toast({
-          title: "Dados carregados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados!`,
-        });
-      } else {
-        const highwayStats = await fetchCityHighwayStats(selectedCityId);
-        const cityStats = calculateCityStats(highwayStats);
-
-        const newCity: Partial<City> = {
-          id: selectedCityId,
-          name: selectedCityName,
-          state: selectedStateName,
-          extensao_avaliada: 0,
-          ideciclo: 0,
-          ...cityStats,
-        };
-
-        setCity(newCity);
-
-        const waysData = await fetchCityWays(selectedCityId);
-        const segments = convertToSegments(waysData, selectedCityId);
-
-        const enhancedSegments = segments.map((segment) => ({
-          ...segment,
-          evaluated: false,
-          id_form: undefined,
-        }));
-
-        setSegments(enhancedSegments);
-
-        await storeCityData(selectedCityId, {
-          city: newCity,
-          segments: enhancedSegments,
-        });
-
-        toast({
-          title: "Dados baixados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} baixados com sucesso!`,
-        });
+      if (!options?.forceRefresh) {
+        const storedData = await getStoredCityData(selectedCityId);
+        if (storedData) {
+          setCity(storedData.city);
+          setSegments([...storedData.segments]);
+          setPersistedCityData(
+            JSON.stringify({
+              cityId: selectedCityId,
+              cityName: selectedCityName,
+              stateName: selectedStateName,
+              city: storedData.city,
+              segments: storedData.segments,
+            })
+          );
+          toast({
+            title: "Dados carregados",
+            description: `Dados de ${selectedCityName}/${selectedStateName} carregados!`,
+          });
+          return;
+        }
       }
+
+      if (options?.forceRefresh) {
+        await deleteCityFromDB(selectedCityId);
+      }
+
+      const downloadedData = await downloadAndStoreCityData(
+        selectedCityId,
+        selectedCityName,
+        selectedStateName
+      );
+
+      setPersistedCityData(
+        JSON.stringify({
+          cityId: selectedCityId,
+          cityName: selectedCityName,
+          stateName: selectedStateName,
+          ...downloadedData,
+        })
+      );
+
+      const nextStoredCities = await refreshStoredCitiesCache();
+      setSelectedCityAction((current) =>
+        current && current.cityId === selectedCityId
+          ? {
+              ...current,
+              storedCity: nextStoredCities[selectedCityId] || null,
+            }
+          : current
+      );
+
+      toast({
+        title: options?.forceRefresh ? "Dados atualizados" : "Dados baixados",
+        description: options?.forceRefresh
+          ? `Dados de ${selectedCityName}/${selectedStateName} atualizados com sucesso!`
+          : `Dados de ${selectedCityName}/${selectedStateName} baixados com sucesso!`,
+      });
     } catch (error) {
       console.error("Erro ao processar cidade:", error);
       const errorMessage =
@@ -132,7 +317,24 @@ const RefinarDados = () => {
     }
   };
 
-  const loadStoredCityData = async (selectedCityId: string) => {
+  const handleCitySelected = async (
+    stateId: string,
+    selectedCityId: string,
+    selectedCityName: string,
+    selectedStateName: string
+  ) => {
+    await openCityForRefinement(
+      selectedCityId,
+      selectedCityName,
+      selectedStateName
+    );
+  };
+
+  const loadStoredCityData = async (
+    selectedCityId: string,
+    selectedCityName?: string,
+    selectedStateName?: string
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -142,7 +344,19 @@ const RefinarDados = () => {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
       } else {
-        setError("Nenhum dado encontrado para esta cidade");
+        if (selectedCityName && selectedStateName) {
+          await downloadAndStoreCityData(
+            selectedCityId,
+            selectedCityName,
+            selectedStateName
+          );
+          toast({
+            title: "Dados reconstruídos",
+            description: `Os dados de ${selectedCityName}/${selectedStateName} foram baixados novamente.`,
+          });
+        } else {
+          setError("Nenhum dado encontrado para esta cidade");
+        }
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -190,6 +404,16 @@ const RefinarDados = () => {
         city: updatedCity,
         segments: enhancedSegments,
       });
+
+      const nextStoredCities = await refreshStoredCitiesCache();
+      setSelectedCityAction((current) =>
+        current && current.cityId === cityId
+          ? {
+              ...current,
+              storedCity: nextStoredCities[cityId] || null,
+            }
+          : current
+      );
 
       toast({
         title: "Dados recarregados",
@@ -440,7 +664,7 @@ const RefinarDados = () => {
         <a href="/avaliacao" className="hover:underline">
           Avaliação
         </a>{" "}
-        &gt; <span>Aprimorar os Dados</span>
+        &gt; <span>Baixar e Aprimorar os Dados</span>
       </nav>
 
       {/* Título com Design Customizado */}
@@ -468,7 +692,7 @@ const RefinarDados = () => {
                 className="text-4xl md:text-5xl font-bold text-text-grey pb-8 bg-ideciclo-pink 
                          mx-auto px-7 py-6 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)]"
               >
-                Aprimorar os Dados
+                Baixar e Aprimorar os Dados
               </h1>
             </div>
 
@@ -558,7 +782,7 @@ const RefinarDados = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
-              sessionStorage.removeItem("cityData");
+              clearPersistedCityData();
               setCityId("");
               setCityName("");
               setStateName("");
@@ -683,7 +907,7 @@ const RefinarDados = () => {
                   className="text-2xl md:text-3xl font-bold text-text-grey bg-ideciclo-blue 
                            mx-auto px-6 py-4 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] text-white"
                 >
-                  Selecionar Cidade
+                  Baixar e Aprimorar
                 </h2>
               </div>
             </div>
@@ -691,27 +915,135 @@ const RefinarDados = () => {
             <div className="max-w-2xl mx-auto">
               <div className="rounded bg-white shadow-2xl p-8">
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-semibold mb-2">Cidades Já Baixadas</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    Escolha a cidade que deseja revisar
+                  </h3>
                   <p className="text-gray-600 text-sm">
-                    Selecione uma cidade que já foi baixada para aprimorar seus dados
+                    Se a cidade já existir no banco, você poderá continuar ou atualizar os dados. Se ainda não existir, a página oferecerá o download.
                   </p>
                 </div>
-                
-                <div className="flex justify-center">
-                  <StoredCitiesSelection onCitySelected={handleCitySelected} />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="estado-refinar-unificado" className="text-sm font-medium">
+                      Estado
+                    </label>
+                    <Select
+                      value={selectedStateId}
+                      onValueChange={handleSelectionStateChange}
+                      disabled={isSelectionLoading}
+                    >
+                      <SelectTrigger id="estado-refinar-unificado">
+                        <SelectValue placeholder="Selecione um estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((state) => (
+                          <SelectItem
+                            key={state.id}
+                            value={state.id.toString()}
+                          >
+                            {state.nome} - {state.sigla}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="cidade-refinar-unificado" className="text-sm font-medium">
+                      Cidade
+                    </label>
+                    <Select
+                      value={selectedCityOption}
+                      onValueChange={handleSelectionCityChange}
+                      disabled={
+                        isSelectionLoading ||
+                        !selectedStateId ||
+                        cities.length === 0
+                      }
+                    >
+                      <SelectTrigger id="cidade-refinar-unificado">
+                        <SelectValue placeholder="Selecione uma cidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cities.map((cityOption) => (
+                          <SelectItem
+                            key={cityOption.id}
+                            value={cityOption.id.toString()}
+                          >
+                            {cityOption.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                
-                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                  <p className="text-gray-600 text-sm mb-4">
-                    Não encontrou sua cidade? Baixe os dados de uma nova cidade
-                  </p>
-                  <Button 
-                    onClick={() => navigate("/avaliacao/baixar-dados")}
-                    className="bg-ideciclo-yellow hover:bg-yellow-500 text-black px-8 py-3 text-lg font-semibold rounded-[20px] shadow-lg"
-                  >
-                    Baixar Nova Cidade
-                  </Button>
-                </div>
+
+                {selectedCityAction && (
+                  <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
+                    <div className="flex flex-col gap-2 mb-4">
+                      <h4 className="text-lg font-semibold">
+                        {selectedCityAction.cityName}, {selectedCityAction.stateName}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Último download: {formatLastDownload(selectedCityAction.storedCity)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Status:{" "}
+                        {selectedCityAction.storedCity
+                          ? "dados já disponíveis no banco"
+                          : "cidade ainda não baixada"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {selectedCityAction.storedCity ? (
+                        <>
+                          <Button
+                            onClick={() =>
+                              handleCitySelected(
+                                selectedCityAction.stateId,
+                                selectedCityAction.cityId,
+                                selectedCityAction.cityName,
+                                selectedCityAction.stateName
+                              )
+                            }
+                            className="bg-ideciclo-blue hover:bg-blue-600"
+                          >
+                            Continuar com dados salvos
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              openCityForRefinement(
+                                selectedCityAction.cityId,
+                                selectedCityAction.cityName,
+                                selectedCityAction.stateName,
+                                { forceRefresh: true }
+                              )
+                            }
+                          >
+                            Atualizar dados
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          onClick={() =>
+                            handleCitySelected(
+                              selectedCityAction.stateId,
+                              selectedCityAction.cityId,
+                              selectedCityAction.cityName,
+                              selectedCityAction.stateName
+                            )
+                          }
+                          className="bg-ideciclo-yellow hover:bg-yellow-500 text-black"
+                        >
+                          Baixar dados da cidade
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
