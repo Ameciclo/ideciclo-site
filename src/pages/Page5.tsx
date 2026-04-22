@@ -29,11 +29,15 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
     const type = data.infra_typology?.toLowerCase() || "";
     if (type.includes("ciclofaixa")) return "ciclofaixa";
     if (type.includes("ciclovia")) return "ciclovia";
+    if (type.includes("ciclorrota")) return "ciclorrota";
     if (type.includes("compartilhada") || type.includes("calçada")) return "calcada";
     return "ciclofaixa";
   };
 
   const infraType = getInfraType();
+  const isCiclorrota = infraType === "ciclorrota";
+  const isCalcada = infraType === "calcada";
+  const showE3 = !isCiclorrota && !isCalcada;
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
@@ -46,7 +50,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
   return (
     <Card>
       <CardContent className="pt-6">
-        <CriteriaAccordionGroup allValues={["b31", "e3", "b32"]} defaultOpenValues={["b31"]}>
+        <CriteriaAccordionGroup allValues={["b31", "e3", "b32"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]}>
+          {!isCiclorrota ? (
           <AssessmentCriterionAccordion
             value="b31"
             title="B.3.1. Delimitação e separação da infraestrutura"
@@ -170,52 +175,55 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
               </div>
             )}
           </AssessmentCriterionAccordion>
+          ) : null}
 
-          <AssessmentCriterionAccordion
-            value="e3"
-            title="E.3. Estado de conservação dos dispositivos de separação"
-            description="Avalia permanência e estado dos elementos de segregação ou separação."
-            scorePreview={buildCriterionScorePreview(data, ["E3"])}
-            answered={isTouched(["devices_conservation"])}
-            inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
-            onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
-            onClear={() =>
-              onDataChange({
-                devices_conservation: "",
-                touched_fields: { devices_conservation: false },
-              })
-            }
-            helpKey="E3"
-          >
-            <Label className="mb-2 block">
-              Estado de conservação dos dispositivos de segregação ou separação:
-            </Label>
-            <ConceptCriteriaTable
-              value={data.devices_conservation || ""}
-              onValueChange={(value) => handleRadioChange("devices_conservation", value)}
-              options={[
-                {
-                  value: "A",
-                  description:
-                    "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
-                },
-                {
-                  value: "B",
-                  description:
-                    "Dispositivos em mais da metade do trecho em bom estado de conservação.",
-                },
-                {
-                  value: "C",
-                  description:
-                    "Dispositivos em menos da metade do trecho ou estão muito danificados.",
-                },
-                {
-                  value: "D",
-                  description: "Praticamente não há dispositivos.",
-                },
-              ]}
-            />
-          </AssessmentCriterionAccordion>
+          {showE3 ? (
+            <AssessmentCriterionAccordion
+              value="e3"
+              title="E.3. Estado de conservação dos dispositivos de separação"
+              description="Avalia permanência e estado dos elementos de segregação ou separação."
+              scorePreview={buildCriterionScorePreview(data, ["E3"])}
+              answered={isTouched(["devices_conservation"])}
+              inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
+              onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
+              onClear={() =>
+                onDataChange({
+                  devices_conservation: "",
+                  touched_fields: { devices_conservation: false },
+                })
+              }
+              helpKey="E3"
+            >
+              <Label className="mb-2 block">
+                Estado de conservação dos dispositivos de segregação ou separação:
+              </Label>
+              <ConceptCriteriaTable
+                value={data.devices_conservation || ""}
+                onValueChange={(value) => handleRadioChange("devices_conservation", value)}
+                options={[
+                  {
+                    value: "A",
+                    description:
+                      "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
+                  },
+                  {
+                    value: "B",
+                    description:
+                      "Dispositivos em mais da metade do trecho em bom estado de conservação.",
+                  },
+                  {
+                    value: "C",
+                    description:
+                      "Dispositivos em menos da metade do trecho ou estão muito danificados.",
+                  },
+                  {
+                    value: "D",
+                    description: "Praticamente não há dispositivos.",
+                  },
+                ]}
+              />
+            </AssessmentCriterionAccordion>
+          ) : null}
 
           {(infraType === "ciclofaixa" || infraType === "ciclovia") && (
             <AssessmentCriterionAccordion

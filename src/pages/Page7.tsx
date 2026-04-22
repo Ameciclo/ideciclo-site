@@ -16,6 +16,8 @@ interface Page7Props {
 }
 
 const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
+  const normalizedTypology = (data.infra_typology || "").toLowerCase();
+  const isCiclorrota = normalizedTypology.includes("ciclorrota");
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -93,16 +95,18 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             helpKey="B7"
           >
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="bus_school_conflict"
-                  checked={data.bus_school_conflict || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
-                />
-                <Label htmlFor="bus_school_conflict">
-                  Conflito com ponto de onibus ou escola
-                </Label>
-              </div>
+              {!isCiclorrota ? (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="bus_school_conflict"
+                    checked={data.bus_school_conflict || false}
+                    onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
+                  />
+                  <Label htmlFor="bus_school_conflict">
+                    Conflito com ponto de onibus ou escola
+                  </Label>
+                </div>
+              ) : null}
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="horizontal_obstacles"
@@ -119,28 +123,32 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                 />
                 <Label htmlFor="vertical_obstacles">Obstáculos verticais no trecho</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="side_change_mid_block"
-                  checked={data.side_change_mid_block || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
-                />
-                <Label htmlFor="side_change_mid_block">
-                  Mudança de lado da infraestrutura no meio da quadra
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="opposite_flow_direction"
-                  checked={data.opposite_flow_direction || false}
-                  onCheckedChange={(checked) =>
-                    handleCheckboxChange("opposite_flow_direction", !!checked)
-                  }
-                />
-                <Label htmlFor="opposite_flow_direction">
-                  Sentido de circulação da infraestrutura contrário ao fluxo veicular
-                </Label>
-              </div>
+              {!isCiclorrota ? (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="side_change_mid_block"
+                    checked={data.side_change_mid_block || false}
+                    onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
+                  />
+                  <Label htmlFor="side_change_mid_block">
+                    Mudança de lado da infraestrutura no meio da quadra
+                  </Label>
+                </div>
+              ) : null}
+              {!isCiclorrota ? (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="opposite_flow_direction"
+                    checked={data.opposite_flow_direction || false}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange("opposite_flow_direction", !!checked)
+                    }
+                  />
+                  <Label htmlFor="opposite_flow_direction">
+                    Sentido de circulação da infraestrutura contrário ao fluxo veicular
+                  </Label>
+                </div>
+              ) : null}
             </div>
           </AssessmentCriterionAccordion>
 
@@ -227,87 +235,89 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             </div>
           </AssessmentCriterionAccordion>
 
-          <AssessmentCriterionAccordion
-            value="c1e1"
-            title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
-            description="Combina presença da sinalização nas interseções e seu estado de conservação."
-            scorePreview={buildCriterionScorePreview(data, ["C1", "E1"])}
-            answered={isTouched(["intersection_signaling", "intersection_conservation"])}
-            inAnalysis={data.criterion_workflow_state?.c1e1 === "analysis"}
-            onAnalysisChange={(value) =>
-              updateWorkflow("c1e1", value ? "analysis" : "default")
-            }
-            onClear={() =>
-              onDataChange({
-                intersection_signaling: "",
-                intersection_conservation: "",
-                touched_fields: {
-                  intersection_signaling: false,
-                  intersection_conservation: false,
-                },
-              })
-            }
-            helpKey="c1e1"
-          >
-            <div className="space-y-4">
-              <div>
-                <Label className="mb-2 block">Sinalização:</Label>
-                <ConceptCriteriaTable
-                  value={data.intersection_signaling || ""}
-                  onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
-                  options={[
-                    {
-                      value: "A",
-                      description:
-                        "Interseção apresenta pavimento vermelho na largura da infraestrutura e linhas tracejadas brancas.",
-                    },
-                    {
-                      value: "B",
-                      description:
-                        "Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas.",
-                    },
-                    {
-                      value: "C",
-                      description: "Só linhas tracejadas ou só pictogramas.",
-                    },
-                    {
-                      value: "D",
-                      description: "Nenhuma sinalização.",
-                    },
-                  ]}
-                />
-              </div>
+          {!isCiclorrota ? (
+            <AssessmentCriterionAccordion
+              value="c1e1"
+              title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
+              description="Combina presença da sinalização nas interseções e seu estado de conservação."
+              scorePreview={buildCriterionScorePreview(data, ["C1", "E1"])}
+              answered={isTouched(["intersection_signaling", "intersection_conservation"])}
+              inAnalysis={data.criterion_workflow_state?.c1e1 === "analysis"}
+              onAnalysisChange={(value) =>
+                updateWorkflow("c1e1", value ? "analysis" : "default")
+              }
+              onClear={() =>
+                onDataChange({
+                  intersection_signaling: "",
+                  intersection_conservation: "",
+                  touched_fields: {
+                    intersection_signaling: false,
+                    intersection_conservation: false,
+                  },
+                })
+              }
+              helpKey="c1e1"
+            >
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Sinalização:</Label>
+                  <ConceptCriteriaTable
+                    value={data.intersection_signaling || ""}
+                    onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
+                    options={[
+                      {
+                        value: "A",
+                        description:
+                          "Interseção apresenta pavimento vermelho na largura da infraestrutura e linhas tracejadas brancas.",
+                      },
+                      {
+                        value: "B",
+                        description:
+                          "Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas.",
+                      },
+                      {
+                        value: "C",
+                        description: "Só linhas tracejadas ou só pictogramas.",
+                      },
+                      {
+                        value: "D",
+                        description: "Nenhuma sinalização.",
+                      },
+                    ]}
+                  />
+                </div>
 
-              <div>
-                <Label className="mb-2 block">Estado de conservação da sinalização horizontal:</Label>
-                <ConceptCriteriaTable
-                  value={data.intersection_conservation || ""}
-                  onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
-                  options={[
-                    {
-                      value: "A",
-                      description:
-                        "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
-                    },
-                    {
-                      value: "B",
-                      description:
-                        "Há sinalização em mais da metade das interseções e em bom estado.",
-                    },
-                    {
-                      value: "C",
-                      description:
-                        "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
-                    },
-                    {
-                      value: "D",
-                      description: "Praticamente apagada.",
-                    },
-                  ]}
-                />
+                <div>
+                  <Label className="mb-2 block">Estado de conservação da sinalização horizontal:</Label>
+                  <ConceptCriteriaTable
+                    value={data.intersection_conservation || ""}
+                    onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
+                    options={[
+                      {
+                        value: "A",
+                        description:
+                          "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
+                      },
+                      {
+                        value: "B",
+                        description:
+                          "Há sinalização em mais da metade das interseções e em bom estado.",
+                      },
+                      {
+                        value: "C",
+                        description:
+                          "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
+                      },
+                      {
+                        value: "D",
+                        description: "Praticamente apagada.",
+                      },
+                    ]}
+                  />
+                </div>
               </div>
-            </div>
-          </AssessmentCriterionAccordion>
+            </AssessmentCriterionAccordion>
+          ) : null}
 
           <AssessmentCriterionAccordion
             value="c2"
