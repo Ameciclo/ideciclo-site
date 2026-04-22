@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
@@ -55,6 +56,9 @@ export const RefinementTableSortableWrapper = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split">(
+    "split"
+  );
 
   // Splitter state
   const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
@@ -244,46 +248,72 @@ export const RefinementTableSortableWrapper = ({
         showRatingFilter={false}
         showClassificationFilter={true}
       />
-      {/* Table layout without map (temporary fix) */}
       <div className="space-y-4">
-        <div className="flex justify-end">
-          <div className="flex items-center gap-3 text-sm">
-            <span>Segmentos por página</span>
-            <Select
-              value={itemsPerPage.toString()}
-              onValueChange={(value) => setItemsPerPage(parseInt(value, 10))}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="hidden lg:flex items-center gap-2 text-sm">
+            <span>Layout</span>
+            <Button
+              variant={desktopLayout === "split" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDesktopLayout("split")}
             >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 25, 50, 100].map((option) => (
-                  <SelectItem key={option} value={option.toString()}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              Lado a lado
+            </Button>
+            <Button
+              variant={desktopLayout === "stacked" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDesktopLayout("stacked")}
+            >
+              Empilhado
+            </Button>
+          </div>
+
+          <div className="flex justify-end">
+            <div className="flex items-center gap-3 text-sm">
+              <span>Segmentos por página</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => setItemsPerPage(parseInt(value, 10))}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((option) => (
+                    <SelectItem key={option} value={option.toString()}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-        <RefinementSegmentsTable
-          segments={currentItems}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSortChange={handleSortChange}
-          onSelectSegment={onSelectSegment}
-          onSelectAllSegments={onSelectAllSegments}
-          selectedSegments={selectedSegments}
-          onUpdateSegmentName={onUpdateSegmentName}
-          onDeleteSegment={onDeleteSegment}
-          onUnmergeSegments={onUnmergeSegments}
-          onUpdateSegmentClassification={onUpdateSegmentClassification}
-          onUpdateSegmentType={onUpdateSegmentType}
-        />
-        <MapboxMap
-          segments={selectedSegments.length > 0 ? selectedSegments : currentItems}
-          className="w-full h-[400px]"
-        />
+
+        <div
+          className={`grid gap-4 ${
+            desktopLayout === "split" ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]" : "grid-cols-1"
+          }`}
+        >
+          <RefinementSegmentsTable
+            segments={currentItems}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
+            onSelectSegment={onSelectSegment}
+            onSelectAllSegments={onSelectAllSegments}
+            selectedSegments={selectedSegments}
+            onUpdateSegmentName={onUpdateSegmentName}
+            onDeleteSegment={onDeleteSegment}
+            onUnmergeSegments={onUnmergeSegments}
+            onUpdateSegmentClassification={onUpdateSegmentClassification}
+            onUpdateSegmentType={onUpdateSegmentType}
+          />
+          <MapboxMap
+            segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
+            className={`w-full ${desktopLayout === "split" ? "lg:sticky lg:top-6" : ""}`}
+          />
+        </div>
       </div>
 
       <SegmentsPagination

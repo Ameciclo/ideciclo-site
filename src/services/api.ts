@@ -839,15 +839,13 @@ export const mergeGeometry = (segments: Segment[]): any => {
 };
 
 export const calculateMergedLength = (segments: Segment[]): number => {
-  const selectedSegments = segments.filter(segment => segment.selected);
-  
-  if (selectedSegments.length === 0) return 0;
-  
+  if (segments.length === 0) return 0;
+
   let totalLength = 0;
-  selectedSegments.forEach(segment => {
+  segments.forEach(segment => {
     totalLength += segment.length;
   });
-  
+
   return parseFloat(totalLength.toFixed(4));
 };
 

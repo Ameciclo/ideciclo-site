@@ -274,6 +274,7 @@ const SegmentForm = () => {
   );
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
+  const [originalSegmentType, setOriginalSegmentType] = useState("");
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
     createEmptyFormData(effectiveSegmentId)
   );
@@ -292,6 +293,18 @@ const SegmentForm = () => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    const loadOriginalSegmentType = async () => {
+      const currentSegmentId = effectiveSegmentId || formData.segment_id || formData.id;
+      if (!currentSegmentId) return;
+
+      const segmentData = await fetchSegmentById(currentSegmentId);
+      setOriginalSegmentType(segmentData?.type || "");
+    };
+
+    loadOriginalSegmentType();
+  }, [effectiveSegmentId, formData.id, formData.segment_id]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -733,7 +746,7 @@ const SegmentForm = () => {
                 <Page2
                   data={formData}
                   onDataChange={handleDataChange}
-                  segmentType={formData.infra_typology}
+                  segmentType={originalSegmentType}
                 />
               </section>
 
