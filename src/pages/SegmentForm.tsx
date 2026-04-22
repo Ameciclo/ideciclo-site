@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Save, Wifi, WifiOff } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -30,6 +32,8 @@ import {
 } from "@/services/database";
 import { getInitialRatingModes, getScoreBreakdown } from "@/utils/idecicloAssessment";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import SegmentPreviewMap from "@/components/SegmentPreviewMap";
+import { Segment } from "@/types";
 
 const DRAFT_PREFIX = "ideciclo-draft";
 const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
@@ -45,6 +49,59 @@ const getSessionSelectedSegmentId = () => {
 const getSessionSelectedCityId = () => {
   if (typeof window === "undefined") return null;
   return sessionStorage.getItem("selectedCityId");
+};
+
+const HIERARCHY_OPTIONS = [
+  { value: "local", label: "Local" },
+  { value: "alimentadora", label: "Alimentadora" },
+  { value: "estrutural", label: "Estrutural" },
+] as const;
+
+const normalizeHierarchyValue = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const toSegmentPreview = (
+  segmentData: {
+    id?: string;
+    id_cidade?: string;
+    name?: string;
+    type?: Segment["type"];
+    length?: number;
+    neighborhood?: string | null;
+    geometry?: unknown;
+    selected?: boolean | null;
+    evaluated?: boolean | null;
+    id_form?: string | null;
+    is_merged?: boolean | null;
+    parent_segment_id?: string | null;
+    merged_segments?: unknown;
+    classification?: string | null;
+  } | null
+): Segment | null => {
+  if (!segmentData) return null;
+
+  return {
+    id: segmentData.id,
+    id_cidade: segmentData.id_cidade,
+    name: segmentData.name || "",
+    type: segmentData.type,
+    length: segmentData.length || 0,
+    neighborhood: segmentData.neighborhood || undefined,
+    geometry: segmentData.geometry,
+    selected: Boolean(segmentData.selected),
+    evaluated: Boolean(segmentData.evaluated),
+    id_form: segmentData.id_form || undefined,
+    is_merged: Boolean(segmentData.is_merged),
+    parent_segment_id: segmentData.parent_segment_id || undefined,
+    merged_segments: Array.isArray(segmentData.merged_segments)
+      ? segmentData.merged_segments
+      : undefined,
+    classification: segmentData.classification || undefined,
+  };
 };
 
 const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
@@ -275,6 +332,9 @@ const SegmentForm = () => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
   const [originalSegmentType, setOriginalSegmentType] = useState("");
+  const [originalRoadHierarchy, setOriginalRoadHierarchy] = useState("");
+  const [segmentPreview, setSegmentPreview] = useState<Segment | null>(null);
+  const [allowHierarchyEdit, setAllowHierarchyEdit] = useState(false);
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
     createEmptyFormData(effectiveSegmentId)
   );
@@ -295,15 +355,17 @@ const SegmentForm = () => {
   }, []);
 
   useEffect(() => {
-    const loadOriginalSegmentType = async () => {
+    const loadOriginalSegmentContext = async () => {
       const currentSegmentId = effectiveSegmentId || formData.segment_id || formData.id;
       if (!currentSegmentId) return;
 
       const segmentData = await fetchSegmentById(currentSegmentId);
+      setSegmentPreview(toSegmentPreview(segmentData));
       setOriginalSegmentType(segmentData?.type || "");
+      setOriginalRoadHierarchy(segmentData?.classification || "");
     };
 
-    loadOriginalSegmentType();
+    loadOriginalSegmentContext();
   }, [effectiveSegmentId, formData.id, formData.segment_id]);
 
   useEffect(() => {
@@ -438,6 +500,24 @@ const SegmentForm = () => {
     const { name, value, type } = event.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
     handleDataChange({ [name]: processedValue } as Partial<IdecicloFormData>);
+  };
+
+  const handleHierarchyEditToggle = (checked: boolean) => {
+    setAllowHierarchyEdit(checked);
+
+    if (!checked) {
+      handleDataChange({
+        road_hierarchy: originalRoadHierarchy,
+        classification: originalRoadHierarchy || undefined,
+      });
+    }
+  };
+
+  const handleHierarchySelection = (value: string) => {
+    handleDataChange({
+      road_hierarchy: value,
+      classification: value,
+    });
   };
 
   const handleSubmit = async () => {
@@ -616,6 +696,35 @@ const SegmentForm = () => {
         </Card>
       </div>
 
+      <Card className="mb-6 overflow-hidden">
+        <CardHeader>
+          <CardTitle>Mapa do Trecho Avaliado</CardTitle>
+          <CardDescription>
+            Visualizacao do segmento selecionado para apoio ao preenchimento em campo.
+          </CardDescription>
+        </CardHeader>
+        <div className="px-6 pb-6">
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <span>
+              <strong className="text-foreground">Trecho:</strong> {formData.segment_name || "Nao informado"}
+            </span>
+            <span>
+              <strong className="text-foreground">Cidade:</strong> {formData.city || "Nao informada"}
+            </span>
+          </div>
+          {segmentPreview ? (
+            <SegmentPreviewMap
+              segment={segmentPreview}
+              className="h-[340px] overflow-hidden rounded-[24px] border"
+            />
+          ) : (
+            <div className="flex min-h-[220px] items-center justify-center rounded-[24px] border border-dashed text-center text-muted-foreground">
+              Mapa indisponivel para este trecho.
+            </div>
+          )}
+        </div>
+      </Card>
+
       <Card className="mb-6">
         <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between">
           <div>
@@ -713,12 +822,75 @@ const SegmentForm = () => {
               value={formData.end_point || ""}
               onChange={handleHeaderInputChange}
             />
-            <HeaderField
-              label="Hierarquia viária:"
-              name="road_hierarchy"
-              value={formData.road_hierarchy || ""}
-              readOnly
-            />
+            <div className="rounded-xl border p-4 md:col-span-2 lg:col-span-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-foreground">
+                    Hierarquia viária:
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    A hierarquia original vem do cadastro do trecho e pode ser corrigida em campo
+                    se houver erro.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant="outline">
+                    Original: {originalRoadHierarchy || "Nao informada"}
+                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="allow_hierarchy_edit" className="text-sm">
+                      Corrigir hierarquia em campo
+                    </Label>
+                    <Switch
+                      id="allow_hierarchy_edit"
+                      checked={allowHierarchyEdit}
+                      onCheckedChange={handleHierarchyEditToggle}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {HIERARCHY_OPTIONS.map((option) => {
+                  const isSelected =
+                    normalizeHierarchyValue(formData.road_hierarchy || "") === option.value;
+
+                  return (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant="ghost"
+                      aria-disabled={!allowHierarchyEdit}
+                      onClick={() => {
+                        if (!allowHierarchyEdit) return;
+                        handleHierarchySelection(option.value);
+                      }}
+                      className={`h-auto rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        isSelected
+                          ? "border-amber-300 bg-amber-50 text-amber-900 opacity-100"
+                          : "border-slate-200 bg-white text-slate-500 opacity-45"
+                      } ${allowHierarchyEdit ? "cursor-pointer hover:opacity-85" : "cursor-default"}`}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                {allowHierarchyEdit
+                  ? "Selecione acima a hierarquia corrigida."
+                  : "Ao desligar, a hierarquia volta para o valor original do trecho."}
+              </p>
+
+              {allowHierarchyEdit &&
+              normalizeHierarchyValue(formData.road_hierarchy || "") !==
+                normalizeHierarchyValue(originalRoadHierarchy || "") ? (
+                <p className="mt-2 text-sm font-medium text-amber-700">
+                  A hierarquia foi corrigida em campo e esta diferente da classificacao original.
+                </p>
+              ) : null}
+            </div>
           </div>
         </Card>
 

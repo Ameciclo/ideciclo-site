@@ -37,17 +37,10 @@ const classificationLabels: Record<string, string> = {
 
 const formatLength = (length?: number | null) => {
   const safeLength = length ?? 0;
-
-  if (safeLength >= 1000) {
-    return `${(safeLength / 1000).toLocaleString("pt-BR", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 2,
-    })} km`;
-  }
-
   return `${safeLength.toLocaleString("pt-BR", {
-    maximumFractionDigits: 0,
-  })} m`;
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} km`;
 };
 
 const getReadableSegmentName = (segment: Segment, cityId?: string) => {

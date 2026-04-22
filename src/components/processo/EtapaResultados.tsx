@@ -150,7 +150,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">{segment.length?.toFixed(2) || 0} m</p>
+                        <p className="text-sm text-gray-600">{segment.length?.toFixed(2) || 0} km</p>
                       </div>
                     </div>
                   ))}

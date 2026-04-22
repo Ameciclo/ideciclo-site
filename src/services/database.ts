@@ -774,17 +774,36 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
     console.log(`Filtered merged segments: ${parent.merged_segments.length} -> ${remainingMergedSegments.length}`);
     
     // 3. Update the parent segment with the remaining merged segments
-    const { error: updateError } = await supabase
-      .from('segments')
-      .update({
-        merged_segments: remainingMergedSegments,
-        is_merged: remainingMergedSegments.length > 0
-      })
-      .eq('id', parent.id);
+    if (remainingMergedSegments.length > 0) {
+      const updatedLength = parseFloat(
+        remainingMergedSegments
+          .reduce(
+            (total: number, segment: any) => total + (segment.length || 0),
+            0
+          )
+          .toFixed(4)
+      );
 
-    if (updateError) {
-      console.error("Error updating parent segment:", updateError);
-      return false;
+      const updatedGeometry = mergeGeometries(
+        remainingMergedSegments
+          .map((segment: any) => segment.originalGeometry)
+          .filter(Boolean)
+      );
+
+      const { error: updateError } = await supabase
+        .from('segments')
+        .update({
+          merged_segments: remainingMergedSegments,
+          is_merged: true,
+          length: updatedLength,
+          geometry: updatedGeometry
+        })
+        .eq('id', parent.id);
+
+      if (updateError) {
+        console.error("Error updating parent segment:", updateError);
+        return false;
+      }
     }
     
     // Set parent_segment_id to null for unmerged segments
@@ -825,9 +844,19 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
 
 // Helper function to merge geometries
 const mergeGeometries = (geometries: any[]): any => {
-  const allCoordinates: number[][][] = geometries.flatMap(geometry => 
-    geometry?.coordinates || []
-  );
+  const allCoordinates: number[][][] = geometries.flatMap((geometry) => {
+    if (!geometry?.coordinates) return [];
+
+    if (geometry.type === "LineString") {
+      return [geometry.coordinates];
+    }
+
+    if (geometry.type === "MultiLineString") {
+      return geometry.coordinates;
+    }
+
+    return [];
+  });
 
   return {
     type: "MultiLineString",

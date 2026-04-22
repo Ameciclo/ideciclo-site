@@ -100,6 +100,14 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
     onDataChange({ [name]: value });
   };
 
+  const handleTypologyEditToggle = (checked: boolean) => {
+    setAllowTypologyEdit(checked);
+
+    if (!checked && segmentType) {
+      onDataChange({ infra_typology: segmentType });
+    }
+  };
+
   const resolvedTypology = data.infra_typology || segmentType || "";
   const isTypologyEdited =
     Boolean(segmentType) &&
@@ -136,7 +144,7 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
                 <Switch
                   id="allow_typology_edit"
                   checked={allowTypologyEdit}
-                  onCheckedChange={setAllowTypologyEdit}
+                  onCheckedChange={handleTypologyEditToggle}
                 />
               </div>
             </div>
