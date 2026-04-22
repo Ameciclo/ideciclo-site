@@ -46,6 +46,7 @@ export interface IdecicloFormData {
   infra_flow: string;
   position_on_road: string;
   width_meters: number;
+  width_measurements_m: number[];
   includes_gutter: boolean;
   speed_measures: string[];
   avg_distance_measures_m: number;

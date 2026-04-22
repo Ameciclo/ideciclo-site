@@ -168,6 +168,8 @@ const labelFromMap = (value: unknown, labels: Record<string, string>) => {
   return labels[key] || key;
 };
 
+const formatMeters = (value: number) => value.toFixed(2).replace(".", ",");
+
 const listFromMap = (values: string[] | undefined, labels: Record<string, string>) => {
   if (!values || values.length === 0) return "Nenhum";
   return values.map((value) => labels[value] || value).join(", ");
@@ -215,7 +217,8 @@ export const getCriterionEvidence = (
     case "B1":
       return [
         `Fluxo considerado: ${asLabel(data.infra_flow)}`,
-        `Largura registrada: ${data.width_meters || 0} m`,
+        `Largura media registrada: ${formatMeters(data.width_meters || 0)} m`,
+        `Medicoes de largura: ${Array.isArray(data.width_measurements_m) ? data.width_measurements_m.length : 0}`,
         `Inclui sarjeta: ${asBoolLabel(data.includes_gutter)}`,
       ];
     case "B2":

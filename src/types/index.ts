@@ -131,6 +131,7 @@ export interface SurveyResponses {
 
   // B.1.1 Width of cycling infrastructure
   width_meters: number;
+  width_measurements_m: number[];
   includes_gutter: boolean;
 
   // B.1.2 Speed moderation measures (for cyclorrotas)

@@ -41,6 +41,18 @@ const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
 const buildDraftKey = (segmentId?: string | null) =>
   segmentId ? `${DRAFT_PREFIX}:${segmentId}` : DRAFT_PREFIX;
 
+const clampMinimumOne = (value: unknown) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(1, Math.round(numeric));
+};
+
+const clampNonNegative = (value: unknown) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.round(numeric));
+};
+
 const getSessionSelectedSegmentId = () => {
   if (typeof window === "undefined") return null;
   return sessionStorage.getItem("selectedSegmentId");
@@ -118,7 +130,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   start_point: "",
   end_point: "",
   road_hierarchy: "",
-  blocks_count: 0,
+  blocks_count: 1,
   intersections_count: 0,
   relevant_intersections_count: 0,
   connected_intersections_count: 0,
@@ -127,6 +139,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   infra_flow: "unidirectional",
   position_on_road: "pista_calcada",
   width_meters: 0,
+  width_measurements_m: [],
   includes_gutter: false,
   speed_measures: [],
   avg_distance_measures_m: 0,
@@ -231,6 +244,34 @@ const hydrateHeaderFields = async (
     extension_m: data.extension_m || segmentData.length || 0,
     road_hierarchy: data.road_hierarchy || segmentData.classification || "",
     classification: data.classification || segmentData.classification || undefined,
+    blocks_count:
+      data.touched_fields?.blocks_count || data.blocks_count !== 1
+        ? data.blocks_count
+        : clampMinimumOne(segmentData.blocks_count),
+    intersections_count:
+      data.touched_fields?.intersections_count || data.intersections_count !== 0
+        ? data.intersections_count
+        : clampNonNegative(segmentData.intersections_count),
+  };
+};
+
+const normalizeEvaluationCounts = (data: IdecicloFormData): IdecicloFormData => {
+  const intersectionsCount = clampNonNegative(data.intersections_count);
+  const relevantIntersectionsCount = Math.min(
+    clampNonNegative(data.relevant_intersections_count),
+    intersectionsCount
+  );
+  const connectedIntersectionsCount = Math.min(
+    clampNonNegative(data.connected_intersections_count),
+    relevantIntersectionsCount
+  );
+
+  return {
+    ...data,
+    blocks_count: clampMinimumOne(data.blocks_count),
+    intersections_count: intersectionsCount,
+    relevant_intersections_count: relevantIntersectionsCount,
+    connected_intersections_count: connectedIntersectionsCount,
   };
 };
 
@@ -333,6 +374,17 @@ const SegmentForm = () => {
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
   const [originalSegmentType, setOriginalSegmentType] = useState("");
   const [originalRoadHierarchy, setOriginalRoadHierarchy] = useState("");
+  const [originalSegmentCounts, setOriginalSegmentCounts] = useState<{
+    blocks_count: number | null;
+    intersections_count: number | null;
+    relevant_intersections_count: number | null;
+    connected_intersections_count: number | null;
+  }>({
+    blocks_count: null,
+    intersections_count: null,
+    relevant_intersections_count: null,
+    connected_intersections_count: null,
+  });
   const [segmentPreview, setSegmentPreview] = useState<Segment | null>(null);
   const [allowHierarchyEdit, setAllowHierarchyEdit] = useState(false);
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
@@ -363,6 +415,22 @@ const SegmentForm = () => {
       setSegmentPreview(toSegmentPreview(segmentData));
       setOriginalSegmentType(segmentData?.type || "");
       setOriginalRoadHierarchy(segmentData?.classification || "");
+      setOriginalSegmentCounts({
+        blocks_count:
+          typeof segmentData?.blocks_count === "number" ? segmentData.blocks_count : null,
+        intersections_count:
+          typeof segmentData?.intersections_count === "number"
+            ? segmentData.intersections_count
+            : null,
+        relevant_intersections_count:
+          typeof segmentData?.relevant_intersections_count === "number"
+            ? segmentData.relevant_intersections_count
+            : null,
+        connected_intersections_count:
+          typeof segmentData?.connected_intersections_count === "number"
+            ? segmentData.connected_intersections_count
+            : null,
+      });
     };
 
     loadOriginalSegmentContext();
@@ -424,6 +492,20 @@ const SegmentForm = () => {
               neighborhood: segmentData.neighborhood || "",
               road_hierarchy: segmentData.classification || "",
               classification: segmentData.classification || undefined,
+              blocks_count:
+                typeof segmentData.blocks_count === "number" ? segmentData.blocks_count : 1,
+              intersections_count:
+                typeof segmentData.intersections_count === "number"
+                  ? segmentData.intersections_count
+                  : 0,
+              relevant_intersections_count:
+                typeof segmentData.relevant_intersections_count === "number"
+                  ? segmentData.relevant_intersections_count
+                  : 0,
+              connected_intersections_count:
+                typeof segmentData.connected_intersections_count === "number"
+                  ? segmentData.connected_intersections_count
+                  : 0,
             });
           }
         }
@@ -439,7 +521,7 @@ const SegmentForm = () => {
           console.error("Erro ao recuperar rascunho local:", draftError);
         }
 
-        setFormData(nextFormData);
+        setFormData(normalizeEvaluationCounts(nextFormData));
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({
@@ -484,7 +566,7 @@ const SegmentForm = () => {
         return acc;
       }, {});
 
-      return {
+      return normalizeEvaluationCounts({
         ...prevData,
         ...rest,
         touched_fields: {
@@ -492,7 +574,7 @@ const SegmentForm = () => {
           ...autoTouched,
           ...incomingTouched,
         },
-      };
+      });
     });
   };
 
@@ -914,7 +996,11 @@ const SegmentForm = () => {
                     </>
                   }
                 />
-                <Page1 data={formData} onDataChange={handleDataChange} />
+                <Page1
+                  data={formData}
+                  onDataChange={handleDataChange}
+                  originalCounts={originalSegmentCounts}
+                />
                 <Page2
                   data={formData}
                   onDataChange={handleDataChange}
