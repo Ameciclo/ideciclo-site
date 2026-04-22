@@ -1,8 +1,8 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
@@ -46,35 +46,30 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             }
             helpKey="b2"
           >
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.pavement_type || ""}
               onValueChange={(value) => handleRadioChange("pavement_type", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="pavement_A" />
-                <Label htmlFor="pavement_A">
-                  Pisos betuminosos (asfalto) ou cimentícios (concreto)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="B" id="pavement_B" />
-                <Label htmlFor="pavement_B">Pisos modulares (blocos de concreto e similares)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="pavement_C" />
-                <Label htmlFor="pavement_C">
-                  Pedras irregulares (portuguesas e similares), pisos com espaçamento (vãos)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="pavement_D" />
-                <Label htmlFor="pavement_D">
-                  Pisos de barro; grelhas e chapas metálicas; pisos modulares soltos; pisos
-                  derrapantes
-                </Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description: "Pisos betuminosos (asfalto) ou cimentícios (concreto).",
+                },
+                {
+                  value: "B",
+                  description: "Pisos modulares (blocos de concreto e similares).",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Pedras irregulares (portuguesas e similares), pisos com espaçamento (vãos).",
+                },
+                {
+                  value: "D",
+                  description:
+                    "Pisos de barro; grelhas e chapas metálicas; pisos modulares soltos; pisos derrapantes.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion
@@ -93,36 +88,31 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             }
             helpKey="E2"
           >
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.conservation_state || ""}
               onValueChange={(value) => handleRadioChange("conservation_state", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="conservation_A" />
-                <Label htmlFor="conservation_A">Piso nivelado, sem ondulações</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="B" id="conservation_B" />
-                <Label htmlFor="conservation_B">
-                  Piso com leve desnivelamento, que não requeira ao ciclista frear
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="conservation_C" />
-                <Label htmlFor="conservation_C">
-                  Piso com desnível transversal ou buraco raso; piso com desgaste até a metade de
-                  sua largura útil
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="conservation_D" />
-                <Label htmlFor="conservation_D">
-                  Piso com degraus / buracos profundos; pou com desgaste superior à metade da
-                  largura útil
-                </Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description: "Piso nivelado, sem ondulações.",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Piso com leve desnivelamento, que não requeira ao ciclista frear.",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Piso com desnível transversal ou buraco raso; piso com desgaste até a metade de sua largura útil.",
+                },
+                {
+                  value: "D",
+                  description:
+                    "Piso com degraus / buracos profundos; piso com desgaste superior à metade da largura útil.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
         </CriteriaAccordionGroup>
       </CardContent>

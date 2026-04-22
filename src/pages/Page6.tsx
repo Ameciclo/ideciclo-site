@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
@@ -57,38 +58,32 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             onClear={() => onDataChange({ space_identification: "", touched_fields: { space_identification: false } })}
             helpKey="b41"
           >
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.space_identification || ""}
               onValueChange={(value) => handleRadioChange("space_identification", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="id_A" />
-                <Label htmlFor="id_A">
-                  Pavimento ou pintura total em tom vermelho ou ao menos nas aproximações de
-                  travessias de pedestres e áreas de conflito com outros modos.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="B" id="id_B" />
-                <Label htmlFor="id_B">
-                  Faixa de contraste nos dois bordos da infraestrutura cicloviária em toda a
-                  extensão.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="id_C" />
-                <Label htmlFor="id_C">
-                  Faixa de contraste vermelha em apenas um dos bordos da infraestrutura cicloviária.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="id_D" />
-                <Label htmlFor="id_D">
-                  Não há pintura de contraste (vermelha) ou a pintura está muito danificada.
-                </Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description:
+                    "Pavimento ou pintura total em tom vermelho ou ao menos nas aproximações de travessias de pedestres e áreas de conflito com outros modos.",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Faixa de contraste nos dois bordos da infraestrutura cicloviária em toda a extensão.",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Faixa de contraste vermelha em apenas um dos bordos da infraestrutura cicloviária.",
+                },
+                {
+                  value: "D",
+                  description:
+                    "Não há pintura de contraste (vermelha) ou a pintura está muito danificada.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion
@@ -107,37 +102,31 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
             }
             helpKey="e41"
           >
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.identification_conservation || ""}
               onValueChange={(value) => handleRadioChange("identification_conservation", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="cons_A" />
-                <Label htmlFor="cons_A">
-                  Preenchimento total da área útil em tom vermelho (pavimento pigmentado ou
-                  pintura).
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="B" id="cons_B" />
-                <Label htmlFor="cons_B">
-                  Identificação de mais da metade da infraestrutura ou ao menos nas aproximações de
-                  travessias de pedestres e área de conflito com outros modos.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="cons_C" />
-                <Label htmlFor="cons_C">
-                  Há sinalização identificação em menos da metade do trecho da infraestrutura
-                  cicloviária ou está muito danificada.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="cons_D" />
-                <Label htmlFor="cons_D">Praticamente apagada.</Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description:
+                    "Preenchimento total da área útil em tom vermelho (pavimento pigmentado ou pintura).",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Identificação de mais da metade da infraestrutura ou ao menos nas aproximações de travessias de pedestres e área de conflito com outros modos.",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.",
+                },
+                {
+                  value: "D",
+                  description: "Praticamente apagada.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           {isCiclorrota && (
@@ -209,31 +198,29 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
 
                 <div>
                   <Label className="mb-2 block">Estado de conservação dos pictogramas:</Label>
-                  <RadioGroup
+                  <ConceptCriteriaTable
                     value={data.pictograms_conservation || ""}
                     onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
-                    className="grid grid-cols-1 gap-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="A" id="picto_A" />
-                      <Label htmlFor="picto_A">Pictogramas visíveis em toda a extensão.</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="B" id="picto_B" />
-                      <Label htmlFor="picto_B">Pictogramas desgastados em toda a extensão.</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="C" id="picto_C" />
-                      <Label htmlFor="picto_C">
-                        Há sinalização em menos da metade do trecho da infraestrutura cicloviária ou
-                        está muito danificada.
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="D" id="picto_D" />
-                      <Label htmlFor="picto_D">Praticamente apagados ou não há.</Label>
-                    </div>
-                  </RadioGroup>
+                    options={[
+                      {
+                        value: "A",
+                        description: "Pictogramas visíveis em toda a extensão.",
+                      },
+                      {
+                        value: "B",
+                        description: "Pictogramas desgastados em toda a extensão.",
+                      },
+                      {
+                        value: "C",
+                        description:
+                          "Há sinalização em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.",
+                      },
+                      {
+                        value: "D",
+                        description: "Praticamente apagados ou não há.",
+                      },
+                    ]}
+                  />
                 </div>
               </div>
             </AssessmentCriterionAccordion>
@@ -322,30 +309,29 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange }) => {
 
               <div>
                 <Label className="mb-2 block">Estado de conservação da sinalização vertical:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.vertical_signs_conservation || ""}
                   onValueChange={(value) => handleRadioChange("vertical_signs_conservation", value)}
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="signs_A" />
-                    <Label htmlFor="signs_A">Placas e postes em bom estado de conservação.</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="signs_B" />
-                    <Label htmlFor="signs_B">
-                      Menos da metade das placas com danos (sujeira, soltas, outras).
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="signs_C" />
-                    <Label htmlFor="signs_C">Placas bastante danificadas ao longo do trecho.</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="signs_D" />
-                    <Label htmlFor="signs_D">Não há placas no trecho.</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description: "Placas e postes em bom estado de conservação.",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Menos da metade das placas com danos (sujeira, soltas, outras).",
+                    },
+                    {
+                      value: "C",
+                      description: "Placas bastante danificadas ao longo do trecho.",
+                    },
+                    {
+                      value: "D",
+                      description: "Não há placas no trecho.",
+                    },
+                  ]}
+                />
               </div>
             </div>
           </AssessmentCriterionAccordion>

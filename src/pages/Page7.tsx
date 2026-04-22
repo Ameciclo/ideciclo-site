@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
@@ -251,65 +252,59 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             <div className="space-y-4">
               <div>
                 <Label className="mb-2 block">Sinalização:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.intersection_signaling || ""}
                   onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="int_A" />
-                    <Label htmlFor="int_A">
-                      Interseção apresenta pavimento vermelho na largura da infra e linhas
-                      tracejadas brancas
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="int_B" />
-                    <Label htmlFor="int_B">
-                      Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="int_C" />
-                    <Label htmlFor="int_C">Só linhas tracejadadas ou só pictogramas</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="int_D" />
-                    <Label htmlFor="int_D">Nenhuma sinalização</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description:
+                        "Interseção apresenta pavimento vermelho na largura da infraestrutura e linhas tracejadas brancas.",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas.",
+                    },
+                    {
+                      value: "C",
+                      description: "Só linhas tracejadas ou só pictogramas.",
+                    },
+                    {
+                      value: "D",
+                      description: "Nenhuma sinalização.",
+                    },
+                  ]}
+                />
               </div>
 
               <div>
                 <Label className="mb-2 block">Estado de conservação da sinalização horizontal:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.intersection_conservation || ""}
                   onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="int_cons_A" />
-                    <Label htmlFor="int_cons_A">
-                      Há sinalização em todas as interseções do trecho, visível em toda a extensão
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="int_cons_B" />
-                    <Label htmlFor="int_cons_B">
-                      Há sinalização em mais da metade das interseções e em bom estado
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="int_cons_C" />
-                    <Label htmlFor="int_cons_C">
-                      Há sinalização em menos da metade das interseções ou ela está muito danificada
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="int_cons_D" />
-                    <Label htmlFor="int_cons_D">Praticamente apagada</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description:
+                        "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Há sinalização em mais da metade das interseções e em bom estado.",
+                    },
+                    {
+                      value: "C",
+                      description:
+                        "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
+                    },
+                    {
+                      value: "D",
+                      description: "Praticamente apagada.",
+                    },
+                  ]}
+                />
               </div>
             </div>
           </AssessmentCriterionAccordion>
@@ -330,29 +325,27 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             }
             helpKey="C2"
           >
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.connection_accessibility || ""}
               onValueChange={(value) => handleRadioChange("connection_accessibility", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="conn_A" />
-                <Label htmlFor="conn_A">
-                  A conexão é visível e tem acessibilidade física, com rampa pedalável quando há
-                  desnível
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="conn_D" />
-                <Label htmlFor="conn_D">
-                  A conexão não é visível, não existe ou depende apenas de escadas/transposição ruim
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="NA" id="conn_NA" />
-                <Label htmlFor="conn_NA">Não se aplica, porque o trecho não possui conexão</Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description:
+                    "A conexão é visível e tem acessibilidade física, com rampa pedalável quando há desnível.",
+                },
+                {
+                  value: "D",
+                  description:
+                    "A conexão não é visível, não existe ou depende apenas de escadas/transposição ruim.",
+                },
+                {
+                  value: "NA",
+                  label: "N/A",
+                  description: "Não se aplica, porque o trecho não possui conexão.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion

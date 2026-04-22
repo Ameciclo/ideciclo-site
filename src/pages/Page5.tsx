@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
@@ -75,121 +76,97 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             {infraType === "ciclofaixa" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclofaixa):</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.separation_devices_ciclofaixa || ""}
                   onValueChange={(value) =>
                     handleRadioChange("separation_devices_ciclofaixa", value)
                   }
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="ciclofaixa_A" />
-                    <Label htmlFor="ciclofaixa_A">
-                      Dispositivos (tachas, tachinhas ou balizadores) distanciados até 1 m entre si.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="ciclofaixa_B" />
-                    <Label htmlFor="ciclofaixa_B">
-                      Dispositivos distanciados entre 1,5 e 3 m entre si; trechos com aberturas
-                      pontuais para acessar estacionamento dentro dos lotes.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="ciclofaixa_C" />
-                    <Label htmlFor="ciclofaixa_C">
-                      Dispositivos distanciados a mais de 3,5 metros entre si; trechos com muitas
-                      aberturas para acessar estacionamentos dentro dos lotes.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="ciclofaixa_D" />
-                    <Label htmlFor="ciclofaixa_D">
-                      Não há dispositivos na infraestrutura cicloviária.
-                    </Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description:
+                        "Dispositivos (tachas, tachinhas ou balizadores) distanciados até 1 m entre si.",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Dispositivos distanciados entre 1,5 e 3 m entre si; trechos com aberturas pontuais para acessar estacionamento dentro dos lotes.",
+                    },
+                    {
+                      value: "C",
+                      description:
+                        "Dispositivos distanciados a mais de 3,5 metros entre si; trechos com muitas aberturas para acessar estacionamentos dentro dos lotes.",
+                    },
+                    {
+                      value: "D",
+                      description: "Não há dispositivos na infraestrutura cicloviária.",
+                    },
+                  ]}
+                />
               </div>
             )}
 
             {infraType === "ciclovia" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclovia):</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.separation_devices_ciclovia || ""}
                   onValueChange={(value) => handleRadioChange("separation_devices_ciclovia", value)}
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="ciclovia_A" />
-                    <Label htmlFor="ciclovia_A">
-                      Segregação total dos veículos motorizados (segregadores, ilhas físicas e níveis
-                      diferentes)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="ciclovia_B" />
-                    <Label htmlFor="ciclovia_B">
-                      Segregação total, com aberturas pontuais para acessar estacionamento dentro dos
-                      lotes ao longo do trecho.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="ciclovia_C" />
-                    <Label htmlFor="ciclovia_C">
-                      Elementos de segregação distanciados entre si até 2 m ao longo do trecho; com
-                      aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do
-                      trecho.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="ciclovia_D" />
-                    <Label htmlFor="ciclovia_D">
-                      Elementos de segregação com distância superior a 2,5 m entre si ao longo do
-                      trecho; com muitas aberturas para acessar estacionamentos dentro dos lotes.
-                    </Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description:
+                        "Segregação total dos veículos motorizados (segregadores, ilhas físicas e níveis diferentes).",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Segregação total, com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.",
+                    },
+                    {
+                      value: "C",
+                      description:
+                        "Elementos de segregação distanciados entre si até 2 m ao longo do trecho; com aberturas pontuais para acessar estacionamento dentro dos lotes ao longo do trecho.",
+                    },
+                    {
+                      value: "D",
+                      description:
+                        "Elementos de segregação com distância superior a 2,5 m entre si ao longo do trecho; com muitas aberturas para acessar estacionamentos dentro dos lotes.",
+                    },
+                  ]}
+                />
               </div>
             )}
 
             {infraType === "calcada" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (calçada compartilhada):</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.separation_devices_calcada || ""}
                   onValueChange={(value) => handleRadioChange("separation_devices_calcada", value)}
-                  className="grid grid-cols-1 gap-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="calcada_A" />
-                    <Label htmlFor="calcada_A">
-                      Demarcação clara no piso que diferencia os espaços de circulação dos ciclistas,
-                      separado dos pedestres, com o uso de diferentes pavimentos.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="calcada_B" />
-                    <Label htmlFor="calcada_B">
-                      Demarcação dos espaços de pedestres e ciclistas em áreas separadas sobre um
-                      mesmo tipo de pavimento, por sinalização horizontal vermelha, marcas horizontais
-                      e pictogramas.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="calcada_C" />
-                    <Label htmlFor="calcada_C">
-                      Demarcação apenas com marca/linha horizontal ao longo do trecho; (ou) apenas
-                      pictogramas orientando fluxos de circulação.
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="calcada_D" />
-                    <Label htmlFor="calcada_D">
-                      Não há delimitação ou diferenciação dos espaços de ciclistas e de pedestres.
-                    </Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    {
+                      value: "A",
+                      description:
+                        "Demarcação clara no piso que diferencia os espaços de circulação dos ciclistas, separado dos pedestres, com o uso de diferentes pavimentos.",
+                    },
+                    {
+                      value: "B",
+                      description:
+                        "Demarcação dos espaços de pedestres e ciclistas em áreas separadas sobre um mesmo tipo de pavimento, por sinalização horizontal vermelha, marcas horizontais e pictogramas.",
+                    },
+                    {
+                      value: "C",
+                      description:
+                        "Demarcação apenas com marca/linha horizontal ao longo do trecho; (ou) apenas pictogramas orientando fluxos de circulação.",
+                    },
+                    {
+                      value: "D",
+                      description:
+                        "Não há delimitação ou diferenciação dos espaços de ciclistas e de pedestres.",
+                    },
+                  ]}
+                />
               </div>
             )}
           </AssessmentCriterionAccordion>
@@ -213,35 +190,31 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             <Label className="mb-2 block">
               Estado de conservação dos dispositivos de segregação ou separação:
             </Label>
-            <RadioGroup
+            <ConceptCriteriaTable
               value={data.devices_conservation || ""}
               onValueChange={(value) => handleRadioChange("devices_conservation", value)}
-              className="grid grid-cols-1 gap-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="A" id="devices_A" />
-                <Label htmlFor="devices_A">
-                  Há dispositivos de separação ou segregação em todo o trecho, visível em toda a
-                  extensão.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="B" id="devices_B" />
-                <Label htmlFor="devices_B">
-                  Dispositivos em mais da metade do trecho em bom estado de conservação.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="devices_C" />
-                <Label htmlFor="devices_C">
-                  Dispositivos em menos da metade do trecho ou estão muito danificados.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="D" id="devices_D" />
-                <Label htmlFor="devices_D">Praticamente não há dispositivos.</Label>
-              </div>
-            </RadioGroup>
+              options={[
+                {
+                  value: "A",
+                  description:
+                    "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Dispositivos em mais da metade do trecho em bom estado de conservação.",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Dispositivos em menos da metade do trecho ou estão muito danificados.",
+                },
+                {
+                  value: "D",
+                  description: "Praticamente não há dispositivos.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           {(infraType === "ciclofaixa" || infraType === "ciclovia") && (
@@ -312,34 +285,30 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
 
                 <div>
                   <Label>Estado de conservação do afastamento lateral:</Label>
-                  <RadioGroup
+                  <ConceptCriteriaTable
                     value={data.spacing_conservation || ""}
                     onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
-                    className="grid grid-cols-1 gap-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="A" id="spacing_A" />
-                      <Label htmlFor="spacing_A">
-                        Há demarcação em ótimo estado, visível em toda a extensão.
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="B" id="spacing_B" />
-                      <Label htmlFor="spacing_B">
-                        Há demarcação em bom estado em mais da metade do trecho.
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="C" id="spacing_C" />
-                      <Label htmlFor="spacing_C">
-                        Há demarcação em menos da metade do trecho ou está muito danificada.
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="D" id="spacing_D" />
-                      <Label htmlFor="spacing_D">Praticamente inexiste</Label>
-                    </div>
-                  </RadioGroup>
+                    options={[
+                      {
+                        value: "A",
+                        description: "Há demarcação em ótimo estado, visível em toda a extensão.",
+                      },
+                      {
+                        value: "B",
+                        description:
+                          "Há demarcação em bom estado em mais da metade do trecho.",
+                      },
+                      {
+                        value: "C",
+                        description:
+                          "Há demarcação em menos da metade do trecho ou está muito danificada.",
+                      },
+                      {
+                        value: "D",
+                        description: "Praticamente inexiste.",
+                      },
+                    ]}
+                  />
                 </div>
               </div>
             </AssessmentCriterionAccordion>

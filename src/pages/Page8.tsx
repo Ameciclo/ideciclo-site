@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
@@ -114,20 +115,14 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
 
               <div>
                 <Label className="mb-2 block">Tipo de poste:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.lighting_post_type || ""}
                   onValueChange={(value) => handleRadioChange("lighting_post_type", value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="post_A" />
-                    <Label htmlFor="post_A">Postes peatonais</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="post_B" />
-                    <Label htmlFor="post_B">Postes convencionais</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    { value: "A", description: "Postes peatonais." },
+                    { value: "B", description: "Postes convencionais." },
+                  ]}
+                />
               </div>
 
               <div>
@@ -193,20 +188,14 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
 
               <div>
                 <Label className="mb-2 block">Distância dos postes à infraestrutura:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.lighting_distance_to_infra || ""}
                   onValueChange={(value) => handleRadioChange("lighting_distance_to_infra", value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="distance_A" />
-                    <Label htmlFor="distance_A">Postes juntos à infraestrutura</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="distance_B" />
-                    <Label htmlFor="distance_B">Postes a mais de 5 m da infraestrutura</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    { value: "A", description: "Postes juntos à infraestrutura." },
+                    { value: "B", description: "Postes a mais de 5 m da infraestrutura." },
+                  ]}
+                />
               </div>
             </div>
           </AssessmentCriterionAccordion>
@@ -231,50 +220,29 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             <div className="space-y-4">
               <div>
                 <Label className="mb-2 block">Há sombreamento:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.shading_coverage || ""}
                   onValueChange={(value) => handleRadioChange("shading_coverage", value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="shade_A" />
-                    <Label htmlFor="shade_A">Toda extensão</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="shade_B" />
-                    <Label htmlFor="shade_B">Mais da metade</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="shade_C" />
-                    <Label htmlFor="shade_C">Menos da metade</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="D" id="shade_D" />
-                    <Label htmlFor="shade_D">Não há</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    { value: "A", description: "Toda extensão." },
+                    { value: "B", description: "Mais da metade." },
+                    { value: "C", description: "Menos da metade." },
+                    { value: "D", description: "Não há." },
+                  ]}
+                />
               </div>
 
               <div>
                 <Label className="mb-2 block">Arborização:</Label>
-                <RadioGroup
+                <ConceptCriteriaTable
                   value={data.vegetation_size || ""}
                   onValueChange={(value) => handleRadioChange("vegetation_size", value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="A" id="veg_A" />
-                    <Label htmlFor="veg_A">Porte alto</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="B" id="veg_B" />
-                    <Label htmlFor="veg_B">Médio porte</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="C" id="veg_C" />
-                    <Label htmlFor="veg_C">Baixo porte</Label>
-                  </div>
-                </RadioGroup>
+                  options={[
+                    { value: "A", description: "Porte alto." },
+                    { value: "B", description: "Médio porte." },
+                    { value: "C", description: "Baixo porte." },
+                  ]}
+                />
               </div>
             </div>
           </AssessmentCriterionAccordion>
