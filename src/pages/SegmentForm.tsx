@@ -37,6 +37,16 @@ const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
 const buildDraftKey = (segmentId?: string | null) =>
   segmentId ? `${DRAFT_PREFIX}:${segmentId}` : DRAFT_PREFIX;
 
+const getSessionSelectedSegmentId = () => {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem("selectedSegmentId");
+};
+
+const getSessionSelectedCityId = () => {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem("selectedCityId");
+};
+
 const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   researcher: "",
   date: new Date().toISOString().split("T")[0],
@@ -134,6 +144,39 @@ const mergeWithDefaults = (
   };
 };
 
+const hydrateHeaderFields = async (
+  segmentId: string | null | undefined,
+  data: IdecicloFormData
+): Promise<IdecicloFormData> => {
+  const currentSegmentId = segmentId || data.segment_id || data.id;
+  if (!currentSegmentId) return data;
+
+  const segmentData = await fetchSegmentById(currentSegmentId);
+  if (!segmentData) return data;
+
+  let cityName = data.city || "";
+  const cityId = data.city_id || segmentData.id_cidade || "";
+
+  if (!cityName && cityId) {
+    const cityData = await fetchCityFromDB(cityId);
+    cityName = cityData?.name || "";
+  }
+
+  return {
+    ...data,
+    id: data.id || currentSegmentId,
+    segment_id: data.segment_id || currentSegmentId,
+    city: data.city || cityName,
+    city_id: data.city_id || cityId,
+    neighborhood: data.neighborhood || segmentData.neighborhood || "",
+    segment_name: data.segment_name || segmentData.name || "",
+    infra_typology: data.infra_typology || segmentData.type || "",
+    extension_m: data.extension_m || segmentData.length || 0,
+    road_hierarchy: data.road_hierarchy || segmentData.classification || "",
+    classification: data.classification || segmentData.classification || undefined,
+  };
+};
+
 interface PendingSubmission {
   segment_id: string;
   saved_at: string;
@@ -221,6 +264,9 @@ const SegmentForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { segmentId, formId } = useParams();
+  const sessionSegmentId = getSessionSelectedSegmentId();
+  const effectiveSegmentId = segmentId || sessionSegmentId;
+  const sessionCityId = getSessionSelectedCityId();
   const [isLoading, setIsLoading] = useState(false);
   const [existingFormId, setExistingFormId] = useState<string | null>(formId || null);
   const [isOnline, setIsOnline] = useState(
@@ -228,8 +274,10 @@ const SegmentForm = () => {
   );
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
-  const [formData, setFormData] = useState<IdecicloFormData>(() => createEmptyFormData(segmentId));
-  const draftKey = buildDraftKey(segmentId || formData.segment_id || formData.id);
+  const [formData, setFormData] = useState<IdecicloFormData>(() =>
+    createEmptyFormData(effectiveSegmentId)
+  );
+  const draftKey = buildDraftKey(effectiveSegmentId || formData.segment_id || formData.id);
   const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
 
   useEffect(() => {
@@ -250,48 +298,55 @@ const SegmentForm = () => {
       setIsLoading(true);
 
       try {
-        let nextFormData = createEmptyFormData(segmentId);
+        let nextFormData = createEmptyFormData(effectiveSegmentId);
 
         if (formId) {
           const dbForm = await fetchFormById(formId);
           if (!dbForm) throw new Error("Formulário não encontrado");
 
           setExistingFormId(formId);
-          nextFormData = mergeWithDefaults(dbForm.segment_id || segmentId, {
+          nextFormData = mergeWithDefaults(dbForm.segment_id || effectiveSegmentId, {
             ...dbForm.responses,
-            id: dbForm.segment_id || segmentId,
-            segment_id: dbForm.segment_id || segmentId,
-            city_id: dbForm.city_id || "",
+            id: dbForm.segment_id || effectiveSegmentId,
+            segment_id: dbForm.segment_id || effectiveSegmentId,
+            city_id: dbForm.city_id || sessionCityId || "",
           });
-        } else if (segmentId) {
-          const existingForm = await getFormBySegmentId(segmentId);
+          nextFormData = await hydrateHeaderFields(
+            dbForm.segment_id || effectiveSegmentId,
+            nextFormData
+          );
+        } else if (effectiveSegmentId) {
+          const existingForm = await getFormBySegmentId(effectiveSegmentId);
 
           if (existingForm) {
             setExistingFormId(existingForm.id);
-            nextFormData = mergeWithDefaults(segmentId, {
+            nextFormData = mergeWithDefaults(effectiveSegmentId, {
               ...existingForm.responses,
-              id: segmentId,
-              segment_id: segmentId,
-              city_id: existingForm.city_id || "",
+              id: effectiveSegmentId,
+              segment_id: effectiveSegmentId,
+              city_id: existingForm.city_id || sessionCityId || "",
             });
+            nextFormData = await hydrateHeaderFields(effectiveSegmentId, nextFormData);
           } else {
-            const segmentData = await fetchSegmentById(segmentId);
+            const segmentData = await fetchSegmentById(effectiveSegmentId);
             if (!segmentData) throw new Error("Trecho não encontrado");
 
             let cityName = "";
-            if (segmentData.id_cidade) {
-              const cityData = await fetchCityFromDB(segmentData.id_cidade);
+            const resolvedCityId = segmentData.id_cidade || sessionCityId || "";
+            if (resolvedCityId) {
+              const cityData = await fetchCityFromDB(resolvedCityId);
               cityName = cityData?.name || "";
             }
 
-            nextFormData = mergeWithDefaults(segmentId, {
-              id: segmentId,
-              segment_id: segmentId,
+            nextFormData = mergeWithDefaults(effectiveSegmentId, {
+              id: effectiveSegmentId,
+              segment_id: effectiveSegmentId,
               segment_name: segmentData.name || "",
               infra_typology: segmentData.type || "",
               city: cityName,
-              city_id: segmentData.id_cidade || "",
+              city_id: resolvedCityId,
               extension_m: segmentData.length || 0,
+              neighborhood: segmentData.neighborhood || "",
               road_hierarchy: segmentData.classification || "",
               classification: segmentData.classification || undefined,
             });
@@ -302,7 +357,7 @@ const SegmentForm = () => {
           const rawDraft = localStorage.getItem(draftKey);
           if (rawDraft) {
             const draft = JSON.parse(rawDraft);
-            nextFormData = mergeWithDefaults(segmentId, draft.data);
+            nextFormData = mergeWithDefaults(effectiveSegmentId, draft.data);
             setLastLocalSaveAt(draft.savedAt || null);
           }
         } catch (draftError) {
@@ -323,7 +378,7 @@ const SegmentForm = () => {
     };
 
     fetchData();
-  }, [draftKey, formId, segmentId, toast]);
+  }, [draftKey, effectiveSegmentId, formId, sessionCityId, toast]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -373,8 +428,8 @@ const SegmentForm = () => {
   };
 
   const handleSubmit = async () => {
-    const currentSegmentId = segmentId || formData.segment_id || formData.id;
-    const cityId = formData.city_id || sessionStorage.getItem("selectedCityId");
+    const currentSegmentId = effectiveSegmentId || formData.segment_id || formData.id;
+    const cityId = formData.city_id || sessionCityId;
 
     if (!cityId) {
       toast({

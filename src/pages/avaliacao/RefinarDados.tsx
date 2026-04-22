@@ -462,7 +462,11 @@ const RefinarDados = () => {
     classification: string
   ) => {
     try {
-      await updateSegmentInDB({ id: segmentId, classification });
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        classification,
+      });
       setSegments((prevSegments) =>
         prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, classification } : seg
@@ -487,7 +491,11 @@ const RefinarDados = () => {
     type: SegmentType
   ) => {
     try {
-      await updateSegmentInDB({ id: segmentId, type });
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        type,
+      });
       setSegments((prevSegments) =>
         prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, type } : seg

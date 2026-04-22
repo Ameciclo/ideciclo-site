@@ -123,6 +123,48 @@ const updateSegmentWithCompatibility = async (
   }
 };
 
+const resolveDatabaseSegmentId = async (
+  segmentId: string,
+  cityId?: string
+): Promise<{ dbId: string; cityId?: string } | null> => {
+  if (segmentId.includes("_")) {
+    return { dbId: segmentId, cityId };
+  }
+
+  if (cityId) {
+    return { dbId: `${cityId}_${segmentId}`, cityId };
+  }
+
+  const exactMatch = await supabase
+    .from("segments")
+    .select("id, id_cidade")
+    .eq("id", segmentId)
+    .single();
+
+  if (exactMatch.data) {
+    return {
+      dbId: exactMatch.data.id,
+      cityId: exactMatch.data.id_cidade,
+    };
+  }
+
+  const likeMatch = await supabase
+    .from("segments")
+    .select("id, id_cidade")
+    .like("id", `%_${segmentId}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (likeMatch.data) {
+    return {
+      dbId: likeMatch.data.id,
+      cityId: likeMatch.data.id_cidade,
+    };
+  }
+
+  return null;
+};
+
 // Conversion helpers
 const convertCityRowToCity = (row: CityRow): City => ({
   id: row.id,
@@ -623,34 +665,28 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     console.error("Segment ID is required for updates");
     return null;
   }
-  
-  // Get the city ID to construct the full segment ID
-  let cityId = segment.id_cidade;
-  
-  if (!cityId) {
-    // If city ID is not provided, try to get it from the database
-    const { data: segmentData } = await supabase
-      .from('segments')
-      .select('id_cidade')
-      .eq('id', segment.id)
-      .single();
-      
-    if (segmentData) {
-      cityId = segmentData.id_cidade;
-    }
+
+  const resolvedSegment = await resolveDatabaseSegmentId(
+    segment.id,
+    segment.id_cidade
+  );
+
+  if (!resolvedSegment) {
+    console.error("Could not resolve database segment ID for update:", segment.id);
+    return null;
   }
-  
-  // Determine the ID to use for the update
-  // If the ID already contains an underscore, assume it's already prefixed
-  // Otherwise, try to prefix it with the city ID if available
-  const updateId = segment.id.includes('_') ? 
-    segment.id : 
-    (cityId ? `${cityId}_${segment.id}` : segment.id);
+
+  const cityId = resolvedSegment.cityId;
+  const updateId = resolvedSegment.dbId;
   
   // Also handle parent_segment_id if it exists
   let parentSegmentId = segment.parent_segment_id;
-  if (parentSegmentId && cityId && !parentSegmentId.includes('_')) {
-    parentSegmentId = `${cityId}_${parentSegmentId}`;
+  if (parentSegmentId) {
+    const resolvedParentSegment = await resolveDatabaseSegmentId(
+      parentSegmentId,
+      cityId
+    );
+    parentSegmentId = resolvedParentSegment?.dbId || parentSegmentId;
   }
   
   const updatePayload = {
@@ -1036,13 +1072,34 @@ export const getFormBySegmentId = async (segmentId: string): Promise<any | null>
 
 export const fetchSegmentById = async (segmentId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id", segmentId)
-      .single();
+    const candidateIds = Array.from(
+      new Set(
+        segmentId.includes("_")
+          ? [segmentId, segmentId.split("_").slice(1).join("_")]
+          : [segmentId]
+      )
+    ).filter(Boolean);
 
-    if (error) {
+    let data = null;
+    let error = null;
+
+    for (const candidateId of candidateIds) {
+      const result = await supabase
+        .from("segments")
+        .select("*")
+        .eq("id", candidateId)
+        .maybeSingle();
+
+      if (result.data) {
+        data = result.data;
+        error = null;
+        break;
+      }
+
+      error = result.error;
+    }
+
+    if (!data && error) {
       console.error("Error fetching segment by ID:", error);
       return null;
     }

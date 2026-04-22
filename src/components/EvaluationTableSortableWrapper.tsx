@@ -67,6 +67,7 @@ export const EvaluationTableSortableWrapper = ({
             // Form doesn't exist, update segment in database
             updateSegmentInDB({
               id: segment.id,
+              id_cidade: segment.id_cidade,
               evaluated: false,
               id_form: null,
             })

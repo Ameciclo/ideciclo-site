@@ -397,7 +397,11 @@ const Refine = () => {
   ) => {
     try {
       // Update in the database
-      await updateSegmentInDB({ id: segmentId, classification });
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        classification,
+      });
 
       // Update state for UI
       setSegments((prevSegments) =>
@@ -428,7 +432,11 @@ const Refine = () => {
   ) => {
     try {
       // Update in the database
-      await updateSegmentInDB({ id: segmentId, type });
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        type,
+      });
 
       // Update state for UI
       setSegments((prevSegments) =>

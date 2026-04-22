@@ -921,6 +921,39 @@ export const createMergedSegment = async (
   return { mergedSegment, childSegments };
 };
 
+const flattenSegmentsForMerge = (segments: Segment[]): Segment[] => {
+  const flattened = new Map<string, Segment>();
+
+  segments.forEach((segment) => {
+    if (segment.is_merged && segment.merged_segments?.length) {
+      segment.merged_segments.forEach((mergedInfo: any) => {
+        if (!flattened.has(mergedInfo.id)) {
+          flattened.set(mergedInfo.id, {
+            id: mergedInfo.id,
+            id_cidade: segment.id_cidade,
+            name: mergedInfo.name,
+            type: mergedInfo.type,
+            classification: mergedInfo.classification,
+            length: mergedInfo.length,
+            geometry: mergedInfo.originalGeometry,
+            neighborhood: segment.neighborhood,
+            selected: false,
+            evaluated: false,
+          });
+        }
+      });
+      return;
+    }
+
+    flattened.set(segment.id, {
+      ...segment,
+      selected: false,
+    });
+  });
+
+  return Array.from(flattened.values());
+};
+
 // Enhanced function to handle merging with already merged segments
 export const mergeSegmentsInDB = async (
   selectedSegments: Segment[],
@@ -931,88 +964,59 @@ export const mergeSegmentsInDB = async (
   try {
     console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
     
-    // Check if any of the selected segments is already a merged segment
-    const alreadyMergedSegment = selectedSegments.find(s => s.is_merged && s.merged_segments);
-    const newSegmentsToMerge = selectedSegments.filter(s => !s.is_merged || !s.merged_segments);
-    
-    if (alreadyMergedSegment && newSegmentsToMerge.length > 0) {
-      console.log("Merging new segments with existing merged segment:", alreadyMergedSegment.id);
-      
-      // Get all existing merged segments info
-      const existingMergedSegments = alreadyMergedSegment.merged_segments || [];
-      
-      // Create info for new segments being added
-      const newMergedSegmentInfo = newSegmentsToMerge.map(segment => ({
-        id: segment.id,
-        name: segment.name,
-        type: segment.type,
-        length: segment.length,
-        originalGeometry: segment.geometry
-      }));
-      
-      // Combine existing and new merged segments info
-      const allMergedSegments = [...existingMergedSegments, ...newMergedSegmentInfo];
-      
-      // Calculate new geometry by combining all segments
-      const allSegmentsForGeometry = [
-        alreadyMergedSegment,
-        ...newSegmentsToMerge
-      ];
-      const updatedGeometry = mergeGeometry(allSegmentsForGeometry);
-      const updatedLength = alreadyMergedSegment.length + newSegmentsToMerge.reduce((sum, s) => sum + s.length, 0);
-      
-      // Update the existing merged segment
-      const updatedMergedSegment: Segment = {
-        ...alreadyMergedSegment,
-        name: mergedName,
-        type: mergedType,
-        classification: mergedClassification,
-        length: parseFloat(updatedLength.toFixed(4)),
-        geometry: updatedGeometry,
-        merged_segments: allMergedSegments,
-        selected: false
-      };
-      
-      console.log("Updating existing merged segment:", updatedMergedSegment.id);
-      await updateSegmentInDB(updatedMergedSegment);
-      
-      // Update the new segments to be children of the merged segment
-      for (const newSegment of newSegmentsToMerge) {
-        const childSegment: Segment = {
-          ...newSegment,
-          parent_segment_id: alreadyMergedSegment.id,
-          selected: false
-        };
-        console.log("Updating new child segment:", childSegment.id);
-        await updateSegmentInDB(childSegment);
-      }
-      
-      return true;
+    const selectedMergedParents = selectedSegments.filter(
+      (segment) => segment.is_merged && segment.merged_segments?.length
+    );
+    const flattenedSegments = flattenSegmentsForMerge(selectedSegments);
+
+    const { mergedSegment, childSegments } = await createMergedSegment(
+      flattenedSegments,
+      mergedName,
+      mergedType,
+      mergedClassification
+    );
+
+    const targetParent = selectedMergedParents[0];
+    const mergedParentId = targetParent?.id || mergedSegment.id;
+    const parentPayload: Segment = {
+      ...(targetParent || mergedSegment),
+      ...mergedSegment,
+      id: mergedParentId,
+      id_cidade: flattenedSegments[0].id_cidade,
+      selected: false,
+    };
+
+    if (targetParent) {
+      console.log("Updating existing merged parent:", mergedParentId);
+      await updateSegmentInDB({
+        ...parentPayload,
+        id_cidade: flattenedSegments[0].id_cidade,
+      });
     } else {
-      // Standard merge of non-merged segments
-      const { mergedSegment, childSegments } = await createMergedSegment(
-        selectedSegments, 
-        mergedName, 
-        mergedType,
-        mergedClassification
-      );
-
-      console.log("Created merged segment:", mergedSegment.id);
-      console.log("Child segments to update:", childSegments.map(s => s.id));
-
-      // Save the merged segment first
-      await saveSegmentToDB(mergedSegment);
-      console.log("Saved merged segment to DB");
-
-      // Update the original segments to be children of the merged segment
-      for (const childSegment of childSegments) {
-        console.log("Updating child segment:", childSegment.id);
-        await updateSegmentInDB(childSegment);
-      }
-
-      console.log("Merge process completed successfully");
-      return true;
+      console.log("Creating new merged parent:", mergedParentId);
+      await saveSegmentToDB(parentPayload);
     }
+
+    for (const childSegment of childSegments) {
+      console.log("Updating child segment:", childSegment.id);
+      await updateSegmentInDB({
+        ...childSegment,
+        id_cidade: flattenedSegments[0].id_cidade,
+        parent_segment_id: mergedParentId,
+        selected: false,
+      });
+    }
+
+    const redundantParentSegments = selectedMergedParents
+      .slice(1)
+      .map((segment) => segment.id);
+
+    if (redundantParentSegments.length > 0) {
+      await removeSegmentsFromDB(redundantParentSegments);
+    }
+
+    console.log("Merge process completed successfully");
+    return true;
   } catch (error) {
     console.error("Error merging segments in database:", error);
     return false;
@@ -1136,7 +1140,11 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
 export const updateSegmentName = async (cityId: string, segmentId: string, newName: string): Promise<boolean> => {
   try {
     // Update in database only
-    const result = await updateSegmentInDB({ id: segmentId, name: newName });
+    const result = await updateSegmentInDB({
+      id: segmentId,
+      id_cidade: cityId,
+      name: newName,
+    });
     return result !== null;
   } catch (error) {
     console.error("Error updating segment name:", error);    

@@ -4,6 +4,13 @@ import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
 import MapboxMap from "./MapboxMap";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
@@ -44,7 +51,7 @@ export const RefinementTableSortableWrapper = ({
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   // Splitter state
   const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
@@ -154,7 +161,7 @@ export const RefinementTableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter]);
+  }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter, itemsPerPage]);
   
   // Reset to first page when segments change (e.g., after merge)
   useEffect(() => {
@@ -218,6 +225,26 @@ export const RefinementTableSortableWrapper = ({
       />
       {/* Table layout without map (temporary fix) */}
       <div className="space-y-4">
+        <div className="flex justify-end">
+          <div className="flex items-center gap-3 text-sm">
+            <span>Segmentos por página</span>
+            <Select
+              value={itemsPerPage.toString()}
+              onValueChange={(value) => setItemsPerPage(parseInt(value, 10))}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 25, 50, 100].map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <RefinementSegmentsTable
           segments={currentItems}
           sortDirection={sortDirection}
@@ -231,7 +258,10 @@ export const RefinementTableSortableWrapper = ({
           onUpdateSegmentClassification={onUpdateSegmentClassification}
           onUpdateSegmentType={onUpdateSegmentType}
         />
-        <MapboxMap segments={selectedSegments.length > 0 ? selectedSegments : processedSegments.slice(0, 10)} className="w-full h-[400px]" />
+        <MapboxMap
+          segments={selectedSegments.length > 0 ? selectedSegments : currentItems}
+          className="w-full h-[400px]"
+        />
       </div>
 
       <SegmentsPagination
