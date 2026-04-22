@@ -42,6 +42,9 @@ export const RefinementTableSortableWrapper = ({
 }: RefinementTableSortableWrapperProps) => {
   // Debug removed
   // Filter and sort state
+  const [sortField, setSortField] = useState<
+    "name" | "type" | "classification" | "length"
+  >("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedClassification, setSelectedClassification] = useState<string>("all");
@@ -57,8 +60,16 @@ export const RefinementTableSortableWrapper = ({
   const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  const toggleSortDirection = () => {
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  const handleSortChange = (
+    field: "name" | "type" | "classification" | "length"
+  ) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection("asc");
   };
 
   // Reset filters
@@ -130,14 +141,24 @@ export const RefinementTableSortableWrapper = ({
         return true;
       })
       .sort((a, b) => {
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
+        const direction = sortDirection === "asc" ? 1 : -1;
 
-        if (sortDirection === "asc") {
-          return nameA.localeCompare(nameB);
-        } else {
-          return nameB.localeCompare(nameA);
+        if (sortField === "length") {
+          return (a.length - b.length) * direction;
         }
+
+        const valueA =
+          sortField === "classification"
+            ? a.classification || ""
+            : a[sortField] || "";
+        const valueB =
+          sortField === "classification"
+            ? b.classification || ""
+            : b[sortField] || "";
+
+        return valueA.localeCompare(valueB, "pt-BR", {
+          sensitivity: "base",
+        }) * direction;
       });
   };
 
@@ -161,7 +182,7 @@ export const RefinementTableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter, itemsPerPage]);
+  }, [selectedType, selectedClassification, minLength, maxLength, sortField, sortDirection, nameFilter, itemsPerPage]);
   
   // Reset to first page when segments change (e.g., after merge)
   useEffect(() => {
@@ -247,8 +268,9 @@ export const RefinementTableSortableWrapper = ({
         </div>
         <RefinementSegmentsTable
           segments={currentItems}
+          sortField={sortField}
           sortDirection={sortDirection}
-          onToggleSortDirection={toggleSortDirection}
+          onSortChange={handleSortChange}
           onSelectSegment={onSelectSegment}
           onSelectAllSegments={onSelectAllSegments}
           selectedSegments={selectedSegments}

@@ -98,6 +98,26 @@ const RefinarDados = () => {
     }).format(new Date(rawDate));
   };
 
+  const persistCitySnapshot = (
+    nextCityId: string,
+    nextCityName: string,
+    nextStateName: string,
+    nextCity: Partial<City> | null,
+    nextSegments: Segment[]
+  ) => {
+    if (!nextCityId || !nextCity || nextSegments.length === 0) return;
+
+    setPersistedCityData(
+      JSON.stringify({
+        cityId: nextCityId,
+        cityName: nextCityName,
+        stateName: nextStateName,
+        city: nextCity,
+        segments: nextSegments,
+      })
+    );
+  };
+
   const handleSelectionStateChange = async (stateId: string) => {
     setSelectedStateId(stateId);
     setSelectedCityOption("");
@@ -179,17 +199,14 @@ const RefinarDados = () => {
       setCityId(data.cityId);
       setCityName(data.cityName);
       setStateName(data.stateName);
-
-      // Prefer the freshly downloaded session payload when available so the
-      // refinement step still works even if persistence to the database fails.
-      if (data.city && Array.isArray(data.segments) && data.segments.length > 0) {
-        setCity(data.city);
-        setSegments(data.segments);
-        setError(null);
-        return;
-      }
-
-      loadStoredCityData(data.cityId, data.cityName, data.stateName);
+      loadStoredCityData(
+        data.cityId,
+        data.cityName,
+        data.stateName,
+        data.city && Array.isArray(data.segments) && data.segments.length > 0
+          ? { city: data.city, segments: data.segments }
+          : undefined
+      );
     }
   }, []);
 
@@ -333,7 +350,8 @@ const RefinarDados = () => {
   const loadStoredCityData = async (
     selectedCityId: string,
     selectedCityName?: string,
-    selectedStateName?: string
+    selectedStateName?: string,
+    fallbackData?: { city: Partial<City>; segments: Segment[] }
   ) => {
     try {
       setIsLoading(true);
@@ -343,12 +361,36 @@ const RefinarDados = () => {
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
+        persistCitySnapshot(
+          selectedCityId,
+          selectedCityName || storedData.city.name || "",
+          selectedStateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      } else if (fallbackData) {
+        setCity(fallbackData.city);
+        setSegments([...fallbackData.segments]);
+        persistCitySnapshot(
+          selectedCityId,
+          selectedCityName || fallbackData.city.name || "",
+          selectedStateName || fallbackData.city.state || "",
+          fallbackData.city,
+          fallbackData.segments
+        );
       } else {
         if (selectedCityName && selectedStateName) {
-          await downloadAndStoreCityData(
+          const downloadedData = await downloadAndStoreCityData(
             selectedCityId,
             selectedCityName,
             selectedStateName
+          );
+          persistCitySnapshot(
+            selectedCityId,
+            selectedCityName,
+            selectedStateName,
+            downloadedData.city,
+            downloadedData.segments
           );
           toast({
             title: "Dados reconstruídos",
@@ -399,6 +441,7 @@ const RefinarDados = () => {
       }));
 
       setSegments(enhancedSegments);
+      persistCitySnapshot(cityId, cityName, stateName, updatedCity, enhancedSegments);
 
       await storeCityData(cityId, {
         city: updatedCity,
@@ -442,11 +485,13 @@ const RefinarDados = () => {
   ) => {
     try {
       await updateSegmentName(cityId, segmentId, newName);
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, name: newName } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -467,20 +512,22 @@ const RefinarDados = () => {
         id_cidade: cityId,
         classification,
       });
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, classification } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
       toast({
-        title: "Classificação atualizada",
-        description: "A classificação do segmento foi atualizada com sucesso.",
+        title: "Hierarquia da via atualizada",
+        description: "A hierarquia da via do segmento foi atualizada com sucesso.",
       });
     } catch (error) {
       console.error("Erro ao atualizar classificação do segmento:", error);
       toast({
         title: "Erro",
-        description: "Falha ao atualizar a classificação do segmento.",
+        description: "Falha ao atualizar a hierarquia da via do segmento.",
         variant: "destructive",
       });
     }
@@ -496,11 +543,13 @@ const RefinarDados = () => {
         id_cidade: cityId,
         type,
       });
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, type } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
       toast({
         title: "Tipo atualizado",
         description: "O tipo do segmento foi atualizado com sucesso.",
@@ -522,6 +571,7 @@ const RefinarDados = () => {
         (segment) => segment.id !== segmentId
       );
       setSegments(updatedSegments);
+      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
       toast({
         title: "Segmento removido",
         description: "O segmento foi removido com sucesso.",
@@ -569,6 +619,7 @@ const RefinarDados = () => {
       await deleteMultipleSegments(selectedSegmentIds);
       const updatedSegments = segments.filter((segment) => !segment.selected);
       setSegments(updatedSegments);
+      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
       toast({
         title: "Segmentos removidos",
         description: `${selectedSegmentIds.length} segmentos foram removidos com sucesso.`,
@@ -605,7 +656,15 @@ const RefinarDados = () => {
           ...segment,
           selected: false,
         }));
+        setCity(storedData.city);
         setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
       }
 
       toast({
@@ -634,7 +693,15 @@ const RefinarDados = () => {
           ...segment,
           selected: false,
         }));
+        setCity(storedData.city);
         setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
       }
       toast({
         title: "Segmentos desmesclados",

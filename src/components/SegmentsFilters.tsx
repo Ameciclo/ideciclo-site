@@ -78,7 +78,7 @@ export const SegmentsFilters = ({
 
         {showClassificationFilter && (
           <div className="flex items-center gap-2">
-            <Label htmlFor="filter-classification">Filtrar por classificação:</Label>
+            <Label htmlFor="filter-classification">Filtrar por hierarquia da via:</Label>
             <Select value={selectedClassification} onValueChange={onClassificationChange}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue />

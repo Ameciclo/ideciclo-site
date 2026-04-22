@@ -186,7 +186,7 @@ const MergeSegmentsDialog = ({
           </div>
 
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right pt-2">Classificação</Label>
+            <Label className="text-right pt-2">Hierarquia da via</Label>
             <div className="col-span-3">
               {haveSameClassification && selectedSegments[0].classification ? (
                 <p className="text-sm font-semibold capitalize">

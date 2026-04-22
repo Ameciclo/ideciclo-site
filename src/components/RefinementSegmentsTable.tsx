@@ -32,8 +32,9 @@ import {
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
+  sortField?: "name" | "type" | "classification" | "length";
   sortDirection?: "asc" | "desc";
-  onToggleSortDirection?: () => void;
+  onSortChange?: (field: "name" | "type" | "classification" | "length") => void;
   onSelectSegment: (id: string, selected: boolean) => void;
   onSelectAllSegments: (segmentIds: string[], selected: boolean) => void;
   selectedSegments: Segment[];
@@ -52,8 +53,9 @@ interface RefinementSegmentsTableProps {
 
 const RefinementSegmentsTable = ({
   segments,
+  sortField,
   sortDirection,
-  onToggleSortDirection,
+  onSortChange,
   onSelectSegment,
   onSelectAllSegments,
   selectedSegments,
@@ -185,6 +187,38 @@ const RefinementSegmentsTable = ({
     selectedSegments.some((selected) => selected.id === segment.id)
   );
 
+  const renderSortButton = (
+    field: "name" | "type" | "classification" | "length",
+    label: string,
+    align: "left" | "right" = "left"
+  ) => (
+    <div
+      className={`flex items-center gap-2 ${
+        align === "right" ? "justify-end" : ""
+      }`}
+    >
+      <span>{label}</span>
+      {sortDirection !== undefined && onSortChange && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="p-0 h-6 w-6"
+          onClick={() => onSortChange(field)}
+        >
+          {sortField === field ? (
+            sortDirection === "asc" ? (
+              <ArrowUp size={14} />
+            ) : (
+              <ArrowDown size={14} />
+            )
+          ) : (
+            <ArrowUp size={14} className="opacity-30" />
+          )}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -202,26 +236,12 @@ const RefinementSegmentsTable = ({
                 }
               />
             </TableHead>
-            <TableHead className="flex items-center gap-2">
-              Nome
-              {sortDirection !== undefined && onToggleSortDirection && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 h-6 w-6"
-                  onClick={onToggleSortDirection}
-                >
-                  {sortDirection === "asc" ? (
-                    <ArrowUp size={14} />
-                  ) : (
-                    <ArrowDown size={14} />
-                  )}
-                </Button>
-              )}
+            <TableHead>{renderSortButton("name", "Nome")}</TableHead>
+            <TableHead>{renderSortButton("type", "Tipo")}</TableHead>
+            <TableHead>{renderSortButton("classification", "Hierarquia da via")}</TableHead>
+            <TableHead className="text-right">
+              {renderSortButton("length", "km", "right")}
             </TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Classificação</TableHead>
-            <TableHead className="text-right">km</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
