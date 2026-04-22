@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { fetchSegmentsByCity } from "@/services/database";
@@ -446,8 +447,9 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
 
           {selectedSegment ? (
             <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
+                <div className="flex flex-col justify-between">
+                  <div>
                   <div className="flex items-center gap-2 text-emerald-700">
                     <CheckCircle2 className="h-5 w-5" />
                     <span className="font-semibold">Estrutura selecionada</span>
@@ -473,11 +475,24 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                       ? "Esse trecho já possui avaliação salva. Você pode revisá-la e atualizar os dados."
                       : "O próximo passo abre o formulário IDECICLO já vinculado a este trecho."}
                   </p>
+                  </div>
+                  <div className="mt-5">
+                    <Button onClick={handleGoToEvaluation} className="gap-2">
+                      {selectedSegment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button onClick={handleGoToEvaluation} className="gap-2 self-start lg:self-center">
-                  {selectedSegment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white">
+                  <div className="border-b border-emerald-100 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-900">Mapa do trecho selecionado</p>
+                    <p className="text-xs text-slate-500">Visualização aproximada da geometria salva para este segmento.</p>
+                  </div>
+                  <SegmentPreviewMap
+                    segment={selectedSegment}
+                    className="h-[280px] w-full"
+                  />
+                </div>
               </div>
             </div>
           ) : null}
