@@ -1,21 +1,24 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page7Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
+  filter?: CriterionFilter;
+  command?: { type: "expand" | "collapse"; nonce: number } | null;
 }
 
-const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
+const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) => {
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,12 +58,54 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
       },
     });
 
+  const renderCounter = ({
+    label,
+    value,
+    onDecrease,
+    onIncrease,
+  }: {
+    label: string;
+    value: number;
+    onDecrease: () => void;
+    onIncrease: () => void;
+  }) => (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <div className="mb-3 text-sm font-medium text-slate-700">{label}</div>
+      <div className="flex items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 rounded-full p-0"
+          onClick={onDecrease}
+          disabled={value <= 0}
+        >
+          -
+        </Button>
+        <div className="min-w-[44px] text-center text-xl font-bold text-slate-900">{value}</div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 w-9 rounded-full p-0"
+          onClick={onIncrease}
+        >
+          +
+        </Button>
+      </div>
+    </div>
+  );
+
+  const signalizedCrossingsCount = Number(data.signalized_crossings_count || 0);
+  const blocksCount = Number(data.blocks_count || 0);
+  const crossingsPerBlock = blocksCount > 0 ? signalizedCrossingsCount / blocksCount : 0;
+
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <CriteriaAccordionGroup
+    <CriteriaAccordionGroup
           allValues={["b7", "b5", "c1e1", "c2", "c3"]}
           defaultOpenValues={["b7"]}
+          filter={filter}
+          command={command}
         >
           <AssessmentCriterionAccordion
             value="b7"
@@ -94,49 +139,66 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             }
             helpKey="B7"
           >
-            <div className="space-y-2">
+            <div className="space-y-3">
               {!isCiclorrota ? (
-                <div className="flex items-center space-x-2">
+                <label
+                  htmlFor="bus_school_conflict"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+                >
                   <Checkbox
                     id="bus_school_conflict"
                     checked={data.bus_school_conflict || false}
                     onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
                   />
-                  <Label htmlFor="bus_school_conflict">
+                  <span className="text-sm font-medium text-slate-700">
                     Conflito com ponto de onibus ou escola
-                  </Label>
-                </div>
+                  </span>
+                </label>
               ) : null}
-              <div className="flex items-center space-x-2">
+              <label
+                htmlFor="horizontal_obstacles"
+                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+              >
                 <Checkbox
                   id="horizontal_obstacles"
                   checked={data.horizontal_obstacles || false}
                   onCheckedChange={(checked) => handleCheckboxChange("horizontal_obstacles", !!checked)}
                 />
-                <Label htmlFor="horizontal_obstacles">Obstáculos horizontais no trecho</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Obstaculos horizontais no trecho
+                </span>
+              </label>
+              <label
+                htmlFor="vertical_obstacles"
+                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+              >
                 <Checkbox
                   id="vertical_obstacles"
                   checked={data.vertical_obstacles || false}
                   onCheckedChange={(checked) => handleCheckboxChange("vertical_obstacles", !!checked)}
                 />
-                <Label htmlFor="vertical_obstacles">Obstáculos verticais no trecho</Label>
-              </div>
+                <span className="text-sm font-medium text-slate-700">Obstaculos verticais no trecho</span>
+              </label>
               {!isCiclorrota ? (
-                <div className="flex items-center space-x-2">
+                <label
+                  htmlFor="side_change_mid_block"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+                >
                   <Checkbox
                     id="side_change_mid_block"
                     checked={data.side_change_mid_block || false}
                     onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
                   />
-                  <Label htmlFor="side_change_mid_block">
-                    Mudança de lado da infraestrutura no meio da quadra
-                  </Label>
-                </div>
+                  <span className="text-sm font-medium text-slate-700">
+                    Mudanca de lado da infraestrutura no meio da quadra
+                  </span>
+                </label>
               ) : null}
               {!isCiclorrota ? (
-                <div className="flex items-center space-x-2">
+                <label
+                  htmlFor="opposite_flow_direction"
+                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
+                >
                   <Checkbox
                     id="opposite_flow_direction"
                     checked={data.opposite_flow_direction || false}
@@ -144,10 +206,10 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
                       handleCheckboxChange("opposite_flow_direction", !!checked)
                     }
                   />
-                  <Label htmlFor="opposite_flow_direction">
-                    Sentido de circulação da infraestrutura contrário ao fluxo veicular
-                  </Label>
-                </div>
+                  <span className="text-sm font-medium text-slate-700">
+                    Sentido de circulacao contrario ao fluxo veicular
+                  </span>
+                </label>
               ) : null}
             </div>
           </AssessmentCriterionAccordion>
@@ -155,82 +217,58 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
           <AssessmentCriterionAccordion
             value="b5"
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
-            description="Considera travessias e permeabilidade do trecho frente aos usos do entorno."
+            description="Conta travessias sinalizadas ao longo do trecho e relaciona com o numero de quadras."
             scorePreview={buildCriterionScorePreview(data, ["B5"])}
-            answered={isTouched(["traffic_lanes_count", "signalized_crossings_per_block"])}
+            answered={isTouched(["signalized_crossings_count"]) || signalizedCrossingsCount > 0}
             inAnalysis={data.criterion_workflow_state?.b5 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b5", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
-                traffic_lanes_count: 0,
-                signalized_crossings_per_block: 0,
+                signalized_crossings_count: 0,
                 touched_fields: {
-                  traffic_lanes_count: false,
-                  signalized_crossings_per_block: false,
+                  signalized_crossings_count: false,
                 },
               })
             }
             helpKey="B5"
           >
             <div className="space-y-4">
-              <div>
-                <Label className="mb-2 block">N° de faixas de rolamento:</Label>
-                <RadioGroup
-                  value={data.traffic_lanes_count?.toString() || "2"}
-                  onValueChange={(value) =>
-                    handleRadioChange("traffic_lanes_count", parseInt(value, 10))
-                  }
-                  className="flex flex-wrap gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="1" id="lanes_1" />
-                    <Label htmlFor="lanes_1">1</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="2" id="lanes_2" />
-                    <Label htmlFor="lanes_2">2</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="3" id="lanes_3" />
-                    <Label htmlFor="lanes_3">3</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="4" id="lanes_4" />
-                    <Label htmlFor="lanes_4">4</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="5" id="lanes_5" />
-                    <Label htmlFor="lanes_5">5</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="6" id="lanes_6" />
-                    <Label htmlFor="lanes_6">6 ou mais</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
+                {renderCounter({
+                  label: "Travessias sinalizadas ao longo do trecho",
+                  value: signalizedCrossingsCount,
+                  onDecrease: () =>
+                    onDataChange({
+                      signalized_crossings_count: Math.max(0, signalizedCrossingsCount - 1),
+                      touched_fields: { signalized_crossings_count: true },
+                    }),
+                  onIncrease: () =>
+                    onDataChange({
+                      signalized_crossings_count: signalizedCrossingsCount + 1,
+                      touched_fields: { signalized_crossings_count: true },
+                    }),
+                })}
 
-              <div>
-                <Label className="mb-2 block">N° de travessias sinalizadas na quadra:</Label>
-                <RadioGroup
-                  value={data.signalized_crossings_per_block?.toString() || "0"}
-                  onValueChange={(value) =>
-                    handleRadioChange("signalized_crossings_per_block", parseInt(value, 10))
-                  }
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="0" id="crossings_0" />
-                    <Label htmlFor="crossings_0">Nao ha</Label>
+                <div className="rounded-2xl border p-4">
+                  <div className="text-sm font-medium text-slate-700">Resumo automatico</div>
+                  <div className="mt-3 space-y-2 text-sm text-slate-700">
+                    <div>
+                      Quadras do trecho: <strong>{blocksCount}</strong>
+                    </div>
+                    <div>
+                      Travessias por quadra: <strong>{crossingsPerBlock.toFixed(2).replace(".", ",")}</strong>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      A: 2 ou mais por quadra
+                      <br />
+                      B: 1 por quadra
+                      <br />
+                      C: menos de 1 por quadra, mas existe
+                      <br />
+                      D: nenhuma
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="1" id="crossings_1" />
-                    <Label htmlFor="crossings_1">1</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="2" id="crossings_2" />
-                    <Label htmlFor="crossings_2">2 ou mais</Label>
-                  </div>
-                </RadioGroup>
+                </div>
               </div>
             </div>
           </AssessmentCriterionAccordion>
@@ -506,8 +544,6 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange }) => {
             )}
           </AssessmentCriterionAccordion>
         </CriteriaAccordionGroup>
-      </CardContent>
-    </Card>
   );
 };
 

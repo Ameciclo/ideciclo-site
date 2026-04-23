@@ -216,7 +216,7 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                         </div>
                       </div>
 
-                      <div className="rounded-xl bg-slate-50 p-4">
+                      <div className="border-t border-slate-200 pt-4">
                         <div className="mb-2 text-sm font-medium text-slate-700">
                           Elementos considerados para esta nota
                         </div>

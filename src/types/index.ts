@@ -133,9 +133,17 @@ export interface SurveyResponses {
   width_meters: number;
   width_measurements_m: number[];
   includes_gutter: boolean;
+  buffer_width_m: number;
+  buffer_measurements_m: number[];
 
   // B.1.2 Speed moderation measures (for cyclorrotas)
   speed_measures: string[];
+  traffic_calming_counts: Partial<
+    Record<
+      "lombada" | "valas" | "faixa_elevada" | "elevacao_intersecao" | "reducao_largura",
+      number
+    >
+  >;
   avg_distance_measures_m: number;
 
   // B.2 Pavement type
@@ -174,7 +182,7 @@ export interface SurveyResponses {
 
   // B.5 Accessibility relative to adjacent land use
   traffic_lanes_count: number;
-  signalized_crossings_per_block: number;
+  signalized_crossings_count: number;
 
   // B.6 Risk situations along infrastructure
   bus_school_conflict: boolean;

@@ -208,6 +208,7 @@ export const getCriterionEvidence = (
         `Tipologia considerada: ${asLabel(data.infra_typology)}`,
         `Hierarquia viaria: ${asLabel(data.road_hierarchy || data.classification)}`,
         `Velocidade regulamentada: ${data.velocity_kmh || 0} km/h`,
+        `Largura da zona de amortecimento: ${data.buffer_width_m || 0} m`,
       ];
     case "A2":
       return [
@@ -220,6 +221,8 @@ export const getCriterionEvidence = (
         `Largura media registrada: ${formatMeters(data.width_meters || 0)} m`,
         `Medicoes de largura: ${Array.isArray(data.width_measurements_m) ? data.width_measurements_m.length : 0}`,
         `Inclui sarjeta: ${asBoolLabel(data.includes_gutter)}`,
+        `Largura do buffer lateral: ${data.buffer_width_m || 0} m`,
+        `Medicoes de buffer: ${Array.isArray(data.buffer_measurements_m) ? data.buffer_measurements_m.length : 0}`,
       ];
     case "B2":
       return [`Tipo de pavimento marcado: ${labelFromMap(data.pavement_type, PAVEMENT_TYPE_LABELS)}`];
@@ -240,14 +243,26 @@ export const getCriterionEvidence = (
       ];
     case "B5":
       return [
-        `Faixas de rolamento: ${data.traffic_lanes_count || 0}`,
-        `Travessias sinalizadas por quadra: ${data.signalized_crossings_per_block || 0}`,
+        `Quadras consideradas: ${data.blocks_count || 0}`,
+        `Travessias sinalizadas ao longo do trecho: ${data.signalized_crossings_count || 0}`,
+        `Densidade de travessias: ${
+          data.blocks_count > 0
+            ? (Number(data.signalized_crossings_count || 0) / Number(data.blocks_count)).toFixed(2)
+            : "0.00"
+        } por quadra`,
       ];
-    case "B6":
+    case "B6": {
+      const calmingCounts = data.traffic_calming_counts || {};
       return [
-        `Medidas marcadas: ${listFromMap(data.speed_measures, SPEED_MEASURE_LABELS)}`,
+        `Elementos contabilizados: ${
+          Object.entries(calmingCounts)
+            .filter(([, value]) => Number(value) > 0)
+            .map(([key, value]) => `${SPEED_MEASURE_LABELS[key] || key}: ${value}`)
+            .join(", ") || listFromMap(data.speed_measures, SPEED_MEASURE_LABELS)
+        }`,
         `Distancia media entre medidas: ${data.avg_distance_measures_m || 0} m`,
       ];
+    }
     case "B7":
       return [
         `Ocorrencias marcadas: ${
@@ -331,14 +346,19 @@ export const getCriterionEvidence = (
         )}`,
       ];
     case "E4":
+      if ((data.infra_typology || "").toLowerCase().includes("ciclorrota")) {
+        return [
+          `Conservacao das inscricoes no pavimento: ${labelFromMap(
+            data.pictograms_conservation,
+            PICTOGRAM_CONSERVATION_LABELS
+          )}`,
+        ];
+      }
+
       return [
         `Conservacao da identificacao: ${labelFromMap(
           data.identification_conservation,
           IDENTIFICATION_CONSERVATION_LABELS
-        )}`,
-        `Conservacao dos pictogramas: ${labelFromMap(
-          data.pictograms_conservation,
-          PICTOGRAM_CONSERVATION_LABELS
         )}`,
         `Conservacao da sinalizacao vertical: ${labelFromMap(
           data.vertical_signs_conservation,

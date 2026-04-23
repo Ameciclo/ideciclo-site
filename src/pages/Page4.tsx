@@ -1,18 +1,20 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page4Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
+  filter?: CriterionFilter;
+  command?: { type: "expand" | "collapse"; nonce: number } | null;
 }
 
-const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
+const Page4: React.FC<Page4Props> = ({ data, onDataChange, filter, command }) => {
   const handleRadioChange = (name: string, value: string) => {
     onDataChange({ [name]: value });
   };
@@ -27,9 +29,7 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
     });
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <CriteriaAccordionGroup allValues={["b2", "e2"]} defaultOpenValues={["b2"]}>
+    <CriteriaAccordionGroup allValues={["b2", "e2"]} defaultOpenValues={["b2"]} filter={filter} command={command}>
           <AssessmentCriterionAccordion
             value="b2"
             title="B.2. Tipo de pavimento da infraestrutura cicloviária"
@@ -115,8 +115,6 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange }) => {
             />
           </AssessmentCriterionAccordion>
         </CriteriaAccordionGroup>
-      </CardContent>
-    </Card>
   );
 };
 

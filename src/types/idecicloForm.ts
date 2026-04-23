@@ -1,6 +1,12 @@
 export type IdecicloRating = "A" | "B" | "C" | "D";
 export type RatingMode = "auto" | "manual";
 export type CriterionWorkflowState = "default" | "analysis";
+export type TrafficCalmingMeasure =
+  | "lombada"
+  | "valas"
+  | "faixa_elevada"
+  | "elevacao_intersecao"
+  | "reducao_largura";
 export type CriterionCode =
   | "A1"
   | "A2"
@@ -48,7 +54,10 @@ export interface IdecicloFormData {
   width_meters: number;
   width_measurements_m: number[];
   includes_gutter: boolean;
+  buffer_width_m: number;
+  buffer_measurements_m: number[];
   speed_measures: string[];
+  traffic_calming_counts: Partial<Record<TrafficCalmingMeasure, number>>;
   avg_distance_measures_m: number;
   pavement_type: IdecicloRating | "";
   conservation_state: IdecicloRating | "";
@@ -68,7 +77,7 @@ export interface IdecicloFormData {
   signs_both_directions: boolean | null;
   vertical_signs_conservation: IdecicloRating | "";
   traffic_lanes_count: number;
-  signalized_crossings_per_block: number;
+  signalized_crossings_count: number;
   bus_school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;

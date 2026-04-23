@@ -1,21 +1,23 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page8Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
+  filter?: CriterionFilter;
+  command?: { type: "expand" | "collapse"; nonce: number } | null;
 }
 
-const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
+const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -50,9 +52,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
     });
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <CriteriaAccordionGroup allValues={["d1", "d2", "d3"]} defaultOpenValues={["d1"]}>
+    <CriteriaAccordionGroup allValues={["d1", "d2", "d3"]} defaultOpenValues={["d1"]} filter={filter} command={command}>
           <AssessmentCriterionAccordion
             value="d1"
             title="D.1. Iluminação pública"
@@ -333,8 +333,6 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange }) => {
             </div>
           </AssessmentCriterionAccordion>
         </CriteriaAccordionGroup>
-      </CardContent>
-    </Card>
   );
 };
 

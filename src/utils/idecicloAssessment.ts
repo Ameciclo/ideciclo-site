@@ -322,6 +322,16 @@ const calculateB1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   return "D";
 };
 
+const getTrafficCalmingCount = (formData: Partial<IdecicloFormData>) => {
+  const counts = formData.traffic_calming_counts || {};
+  const totalFromCounts = Object.values(counts).reduce((sum, value) => sum + toNumber(value), 0);
+
+  if (totalFromCounts > 0) return totalFromCounts;
+
+  const measures = Array.isArray(formData.speed_measures) ? formData.speed_measures : [];
+  return measures.length;
+};
+
 const calculateB2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null =>
   isRating(formData.pavement_type) ? formData.pavement_type : null;
 
@@ -455,50 +465,32 @@ const calculateB5 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   const typology = normalizeTypology(formData.infra_typology);
   if (!typology) return null;
 
-  const lanes = toNumber(formData.traffic_lanes_count);
-  const crossings = toNumber(formData.signalized_crossings_per_block);
+  const crossings = toNumber(formData.signalized_crossings_count);
+  const blocks = toNumber(formData.blocks_count);
 
-  if (lanes <= 0) return null;
+  if (blocks <= 0) return null;
+  if (crossings === 0) return "D";
 
-  if (typology === "ciclorrota") {
-    if (crossings >= 2) {
-      if (lanes <= 2) return "A";
-      if (lanes === 3) return "B";
-      return "C";
-    }
+  const density = crossings / blocks;
 
-    if (crossings === 1) {
-      if (lanes <= 2) return "B";
-      if (lanes === 3) return "C";
-      return "D";
-    }
-
-    if (lanes <= 2) return "C";
-    return "D";
-  }
-
-  if (crossings >= 2) {
-    if (lanes <= 4) return "A";
-    return "B";
-  }
-
-  if (crossings === 1) {
-    if (lanes <= 4) return "B";
-    return "C";
-  }
-
-  if (lanes <= 2) return "C";
-  return "D";
+  if (density >= 2) return "A";
+  if (density >= 1) return "B";
+  return "C";
 };
 
 const calculateB6 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   if (normalizeTypology(formData.infra_typology) !== "ciclorrota") return null;
 
-  const measures = Array.isArray(formData.speed_measures) ? formData.speed_measures : [];
-  const averageDistance = toNumber(formData.avg_distance_measures_m);
+  const totalMeasures = getTrafficCalmingCount(formData);
+  const extension = toNumber(formData.extension_m);
+  const averageDistance =
+    totalMeasures > 0 && extension > 0
+      ? extension / totalMeasures
+      : toNumber(formData.avg_distance_measures_m);
   const velocity = toNumber(formData.velocity_kmh);
 
-  if (measures.length === 0) return "D";
+  if (totalMeasures === 0) return "D";
+  if (averageDistance <= 0) return null;
 
   const recommended = velocity <= 20 ? 20 : 50;
   const maximum = velocity <= 20 ? 50 : 75;
@@ -652,11 +644,8 @@ const calculateE4 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
     const pictogramsConservation = isRating(formData.pictograms_conservation)
       ? formData.pictograms_conservation
       : null;
-    const verticalSignsConservation = isRating(formData.vertical_signs_conservation)
-      ? formData.vertical_signs_conservation
-      : null;
-
-    return worseOf(pictogramsConservation, verticalSignsConservation);
+    if (!pictogramsConservation) return null;
+    return pictogramsConservation;
   }
 
   const identificationConservation = isRating(formData.identification_conservation)

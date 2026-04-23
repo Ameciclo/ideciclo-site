@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Save, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Filter, Save, Wifi, WifiOff } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import Page1 from "./Page1";
@@ -30,7 +30,13 @@ import {
   updateFormInDB,
   updateSegmentEvaluationStatus,
 } from "@/services/database";
-import { getInitialRatingModes, getScoreBreakdown } from "@/utils/idecicloAssessment";
+import {
+  CRITERION_CODES,
+  CriterionCode,
+  getInitialRatingModes,
+  getScoreBreakdown,
+  isCriterionApplicable,
+} from "@/utils/idecicloAssessment";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Segment } from "@/types";
@@ -141,7 +147,10 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   width_meters: 0,
   width_measurements_m: [],
   includes_gutter: false,
+  buffer_width_m: 0,
+  buffer_measurements_m: [],
   speed_measures: [],
+  traffic_calming_counts: {},
   avg_distance_measures_m: 0,
   pavement_type: "",
   conservation_state: "",
@@ -161,7 +170,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   signs_both_directions: null,
   vertical_signs_conservation: "",
   traffic_lanes_count: 2,
-  signalized_crossings_per_block: 0,
+  signalized_crossings_count: 0,
   bus_school_conflict: false,
   horizontal_obstacles: false,
   vertical_obstacles: false,
@@ -197,10 +206,24 @@ const mergeWithDefaults = (
 ): IdecicloFormData => {
   const defaults = createEmptyFormData(segmentId);
   const data = incoming ?? {};
+  const legacyData = data as Partial<IdecicloFormData> & {
+    signalized_crossings_per_block?: number;
+  };
+  const fallbackTrafficCalmingCounts =
+    data.traffic_calming_counts && Object.keys(data.traffic_calming_counts).length > 0
+      ? data.traffic_calming_counts
+      : Array.isArray(data.speed_measures)
+        ? Object.fromEntries(data.speed_measures.map((measure) => [measure, 1]))
+        : {};
 
   return {
     ...defaults,
     ...data,
+    buffer_width_m: data.buffer_width_m ?? defaults.buffer_width_m,
+    buffer_measurements_m: data.buffer_measurements_m ?? defaults.buffer_measurements_m,
+    traffic_calming_counts: fallbackTrafficCalmingCounts,
+    signalized_crossings_count:
+      data.signalized_crossings_count ?? legacyData.signalized_crossings_per_block ?? 0,
     id: data.id || defaults.id,
     segment_id: data.segment_id || defaults.segment_id,
     city_id: data.city_id || defaults.city_id,
@@ -284,17 +307,58 @@ interface PendingSubmission {
 interface AxisRibbonProps {
   tone: "a" | "b" | "c" | "d" | "e";
   title: string;
-  badges?: React.ReactNode;
 }
 
-const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title, badges }) => (
-  <div className="space-y-3">
-    <div className={`ideciclo-axis-ribbon ideciclo-axis-ribbon-${tone}`}>
-      <h3 className="text-xl font-bold tracking-tight text-black md:text-2xl">{title}</h3>
-    </div>
-    {badges ? <div className="flex flex-wrap items-center gap-3">{badges}</div> : null}
+const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title }) => (
+  <div className={`ideciclo-axis-ribbon ideciclo-axis-ribbon-${tone}`}>
+    <h3 className="text-xl font-bold tracking-tight text-black md:text-2xl">{title}</h3>
   </div>
 );
+
+type GlobalCriterionFilter = "all" | "answered" | "unanswered" | "analysis";
+
+const FILTER_SEQUENCE: Array<{
+  value: GlobalCriterionFilter;
+  label: string;
+}> = [
+  { value: "all", label: "Todos" },
+  { value: "answered", label: "Respondidos" },
+  { value: "unanswered", label: "Não respondidos" },
+  { value: "analysis", label: "Em análise" },
+];
+
+const CRITERION_NAV_ITEMS: Array<{
+  code: CriterionCode;
+  anchor: string;
+}> = [
+  { code: "A1", anchor: "section-a" },
+  { code: "A2", anchor: "section-a" },
+  { code: "B1", anchor: "criterion-b11" },
+  { code: "B2", anchor: "criterion-b2" },
+  { code: "B3", anchor: "criterion-b31" },
+  { code: "B4", anchor: "criterion-b41" },
+  { code: "B5", anchor: "criterion-b5" },
+  { code: "B6", anchor: "criterion-b12" },
+  { code: "B7", anchor: "criterion-b7" },
+  { code: "C1", anchor: "criterion-c1e1" },
+  { code: "C2", anchor: "criterion-c2" },
+  { code: "C3", anchor: "criterion-c3" },
+  { code: "D1", anchor: "criterion-d1" },
+  { code: "D2", anchor: "criterion-d2" },
+  { code: "D3", anchor: "criterion-d3" },
+  { code: "E1", anchor: "criterion-c1e1" },
+  { code: "E2", anchor: "criterion-e2" },
+  { code: "E3", anchor: "criterion-e3" },
+  { code: "E4", anchor: "criterion-e41" },
+];
+
+const ratingChipClassName = (rating: string | null | undefined) => {
+  if (rating === "A") return "border-[#b8e5db] bg-[#b8e5db] text-[#163b38]";
+  if (rating === "B") return "border-[#9fd3cb] bg-[#9fd3cb] text-[#163b38]";
+  if (rating === "C") return "border-[#8fafad] bg-[#8fafad] text-[#163b38]";
+  if (rating === "D") return "border-[#748987] bg-[#748987] text-white";
+  return "border-slate-200 bg-white text-slate-500";
+};
 
 const HeaderField = ({
   label,
@@ -387,11 +451,74 @@ const SegmentForm = () => {
   });
   const [segmentPreview, setSegmentPreview] = useState<Segment | null>(null);
   const [allowHierarchyEdit, setAllowHierarchyEdit] = useState(false);
+  const [globalCriterionFilter, setGlobalCriterionFilter] =
+    useState<GlobalCriterionFilter>("all");
+  const [accordionCommand, setAccordionCommand] = useState<{
+    type: "expand" | "collapse";
+    nonce: number;
+  } | null>(null);
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
     createEmptyFormData(effectiveSegmentId)
   );
   const draftKey = buildDraftKey(effectiveSegmentId || formData.segment_id || formData.id);
   const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
+
+  const getWorkflowStateKey = (code: CriterionCode) => {
+    const typology = String(formData.infra_typology || "").toLowerCase();
+
+    if (code === "B1") return "b11";
+    if (code === "B6") return "b12";
+    if (code === "B2") return "b2";
+    if (code === "E2") return "e2";
+    if (code === "B3") return "b31";
+    if (code === "E3") return "e3";
+    if (code === "B4") return typology.includes("ciclorrota") ? "b42" : "b41";
+    if (code === "E4") return typology.includes("ciclorrota") ? "b43" : "e41";
+    if (code === "B5") return "b5";
+    if (code === "B7") return "b7";
+    if (code === "C1" || code === "E1") return "c1e1";
+    if (code === "C2") return "c2";
+    if (code === "C3") return "c3";
+    if (code === "D1") return "d1";
+    if (code === "D2") return "d2";
+    if (code === "D3") return "d3";
+    return "";
+  };
+
+  const cycleGlobalFilter = () => {
+    setGlobalCriterionFilter((current) => {
+      const currentIndex = FILTER_SEQUENCE.findIndex((item) => item.value === current);
+      return FILTER_SEQUENCE[(currentIndex + 1) % FILTER_SEQUENCE.length].value;
+    });
+  };
+
+  const triggerAccordionCommand = (type: "expand" | "collapse") => {
+    setAccordionCommand({
+      type,
+      nonce: Date.now(),
+    });
+  };
+
+  const currentFilterLabel =
+    FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter)?.label || "Todos";
+
+  const getCriterionAnchor = (code: CriterionCode) => {
+    const workflowKey = getWorkflowStateKey(code);
+    if (workflowKey) return `criterion-${workflowKey}`;
+    return CRITERION_NAV_ITEMS.find((item) => item.code === code)?.anchor || "section-a";
+  };
+
+  const criterionAnswered = (code: CriterionCode) => {
+    const rating = liveSummary.resolvedRatings?.[code];
+    return Boolean(rating);
+  };
+
+  const scrollToCriterion = (code: CriterionCode) => {
+    const targetId = getCriterionAnchor(code);
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -977,140 +1104,187 @@ const SegmentForm = () => {
         </Card>
 
         {currentStep === 1 ? (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Formulário de Coleta</CardTitle>
-              <CardDescription>
-                A primeira pagina segue a logica de preenchimento do formulario em papel.
-              </CardDescription>
-            </CardHeader>
-            <div className="space-y-8 px-6 pb-2">
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="a"
-                  title="Caracterizacao do Trecho e Enquadramento Inicial"
-                  badges={
-                    <>
-                      <Badge variant="outline">A1</Badge>
-                      <Badge variant="outline">A2</Badge>
-                    </>
-                  }
-                />
-                <Page1
-                  data={formData}
-                  onDataChange={handleDataChange}
-                  originalCounts={originalSegmentCounts}
-                />
+          <div className="space-y-10 pb-28">
+            <section id="section-a" className="space-y-6">
+              <AxisRibbon tone="a" title="Caracterizacao do Trecho e Enquadramento Inicial" />
+              <div
+                id="criterion-a1"
+                className="rounded-[24px] border border-slate-200 bg-background px-4 py-5 shadow-sm"
+              >
+                <div className="mb-5">
+                  <div className="text-sm font-semibold text-foreground">
+                    A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada
+                    antes de seguir para a conectividade do trecho.
+                  </p>
+                </div>
                 <Page2
                   data={formData}
                   onDataChange={handleDataChange}
                   segmentType={originalSegmentType}
                 />
-              </section>
+              </div>
+              <Page1
+                data={formData}
+                onDataChange={handleDataChange}
+                originalCounts={originalSegmentCounts}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="b"
-                  title="Espaco Util da Estrutura (B1) e Moderacao de Velocidade (B6)"
-                  badges={
-                    <>
-                      <Badge variant="outline">B1</Badge>
-                      <Badge variant="outline">B6</Badge>
-                    </>
-                  }
-                />
-                <Page3 data={formData} onDataChange={handleDataChange} />
-              </section>
+            <section className="space-y-6">
+              <AxisRibbon tone="b" title="Espaco Util da Estrutura (B1) e Moderacao de Velocidade (B6)" />
+              <Page3
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="e"
-                  title="Pavimento e Conservacao do Piso (B2 / E2)"
-                  badges={
-                    <>
-                      <Badge variant="outline">B2</Badge>
-                      <Badge variant="outline">E2</Badge>
-                    </>
-                  }
-                />
-                <Page4 data={formData} onDataChange={handleDataChange} />
-              </section>
+            <section className="space-y-6">
+              <AxisRibbon tone="e" title="Pavimento e Conservacao do Piso (B2 / E2)" />
+              <Page4
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="b"
-                  title="Delimitacao da Estrutura e Conservacao da Separacao (B3 / E3)"
-                  badges={
-                    <>
-                      <Badge variant="outline">B3</Badge>
-                      <Badge variant="outline">E3</Badge>
-                    </>
-                  }
-                />
-                <Page5 data={formData} onDataChange={handleDataChange} />
-              </section>
+            <section className="space-y-6">
+              <AxisRibbon tone="b" title="Delimitacao da Estrutura e Conservacao da Separacao (B3 / E3)" />
+              <Page5
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="b"
-                  title="Identificacao do Espaco Cicloviario e Sinalizacao (B4 / E4)"
-                  badges={
-                    <>
-                      <Badge variant="outline">B4</Badge>
-                      <Badge variant="outline">E4</Badge>
-                    </>
-                  }
-                />
-                <Page6 data={formData} onDataChange={handleDataChange} />
-              </section>
+            <section className="space-y-6">
+              <AxisRibbon tone="b" title="Identificacao do Espaco Cicloviario e Sinalizacao (B4 / E4)" />
+              <Page6
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="c"
-                  title="Acessibilidade aos Lados, Riscos e Avaliacao das Intersecoes"
-                  badges={
-                    <>
-                      <Badge variant="outline">B5</Badge>
-                      <Badge variant="outline">B7</Badge>
-                      <Badge variant="outline">C1</Badge>
-                      <Badge variant="outline">C2</Badge>
-                      <Badge variant="outline">C3</Badge>
-                      <Badge variant="outline">E1</Badge>
-                    </>
-                  }
-                />
-                <Page7 data={formData} onDataChange={handleDataChange} />
-              </section>
+            <section className="space-y-6">
+              <AxisRibbon tone="c" title="Acessibilidade aos Lados, Riscos e Avaliacao das Intersecoes" />
+              <Page7
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-              <section className="space-y-6">
-                <AxisRibbon
-                  tone="d"
-                  title="Iluminacao, Sombreamento e Mobiliario no Entorno"
-                  badges={
-                    <>
-                      <Badge variant="outline">D1</Badge>
-                      <Badge variant="outline">D2</Badge>
-                      <Badge variant="outline">D3</Badge>
-                    </>
-                  }
-                />
-                <Page8 data={formData} onDataChange={handleDataChange} />
-              </section>
-            </div>
+            <section className="space-y-6">
+              <AxisRibbon tone="d" title="Iluminacao, Sombreamento e Mobiliario no Entorno" />
+              <Page8
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+            </section>
 
-            <div className="flex justify-end px-6 py-6">
+            <div className="flex justify-end">
               <Button type="button" onClick={() => setCurrentStep(2)} size="lg">
                 Ir para a Revisão Final
               </Button>
             </div>
-          </Card>
+
+            <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3">
+              <div className="w-full max-w-5xl rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur">
+                <div className="flex flex-col gap-3">
+                  <div className="overflow-x-auto">
+                    <div className="flex min-w-max items-center gap-2">
+                    {CRITERION_CODES.map((code) => {
+                      const applicable = isCriterionApplicable(formData, code);
+                      const rating = liveSummary.resolvedRatings?.[code];
+                      const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
+                      const inAnalysis =
+                        formData.criterion_workflow_state?.[getWorkflowStateKey(code)] === "analysis";
+
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => scrollToCriterion(code)}
+                          className={`flex h-10 min-w-[42px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition ${
+                            !applicable
+                              ? "border-slate-200 bg-slate-100 text-slate-400 opacity-45"
+                              : criterionAnswered(code)
+                                ? ratingChipClassName(rating)
+                                : "border-slate-200 bg-white text-slate-700"
+                          } ${inAnalysis ? "ring-2 ring-amber-300" : ""}`}
+                        >
+                          <span>{code}</span>
+                          {typeof points === "number" ? (
+                            <span className="hidden sm:inline">
+                              {" "}
+                              {points > 0 ? `+${points}` : points}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs text-slate-500">
+                      Toque em um badge para ir direto ao critério.
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-full px-3"
+                      onClick={() => triggerAccordionCommand("expand")}
+                    >
+                      <ChevronDown className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">Expandir</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-full px-3"
+                      onClick={() => triggerAccordionCommand("collapse")}
+                    >
+                      <ChevronUp className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">Retrair</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-full px-3"
+                      onClick={cycleGlobalFilter}
+                    >
+                      <Filter className="h-4 w-4 md:mr-2" />
+                      <span>{currentFilterLabel}</span>
+                    </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Revisão Final</CardTitle>
               <CardDescription>
-                Revise as notas, veja o que foi considerado em cada criterio e faca overrides
-                manuais quando necessario.
+                Revise as notas, veja o que foi considerado em cada criterio e troque para o
+                modo manual quando precisar ajustar algum conceito.
               </CardDescription>
             </CardHeader>
             <div className="px-6 pb-2">

@@ -3,7 +3,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { IdecicloFormData } from "@/types/idecicloForm";
 
@@ -12,6 +11,8 @@ interface Page2Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   segmentType: string;
 }
+
+const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 
 const TYPOLOGY_OPTIONS = [
   {
@@ -126,8 +127,7 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6 space-y-4">
+      <div className="space-y-4">
         <div>
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -290,6 +290,36 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
           </div>
         </div>
 
+        <div>
+          <Label className="mb-3 block">Velocidade máxima regulamentada:</Label>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
+            {SPEED_OPTIONS.map((speed) => {
+              const isSelected = data.velocity_kmh === speed;
+
+              return (
+                <Button
+                  key={speed}
+                  type="button"
+                  variant="ghost"
+                  className={`h-auto flex-col gap-2 rounded-2xl border px-3 py-3 transition-all ${
+                    isSelected
+                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
+                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
+                  }`}
+                  onClick={() => onDataChange({ velocity_kmh: speed })}
+                >
+                  <img
+                    src={`/icones/${speed}-speed.svg`}
+                    alt={`${speed} km/h`}
+                    className="h-16 w-16 object-contain"
+                  />
+                  <span className="text-sm font-semibold text-slate-700">{speed} km/h</span>
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
         {String(resolvedTypology || "")
           .toLowerCase()
           .includes("partilh") && (
@@ -309,8 +339,7 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
             </p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
   );
 };
 

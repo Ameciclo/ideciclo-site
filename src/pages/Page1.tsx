@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +15,6 @@ interface Page1Props {
     connected_intersections_count: number | null;
   };
 }
-
-const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 
 const clampMinimumOne = (value: number) => Math.max(1, Math.round(value));
 const clampNonNegative = (value: number) => Math.max(0, Math.round(value));
@@ -205,158 +202,136 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts }) => 
   );
 
   return (
-    <Card>
-      <CardContent className="space-y-6 pt-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Label className="mb-3 block">Velocidade máxima regulamentada:</Label>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
-              {SPEED_OPTIONS.map((speed) => {
-                const isSelected = data.velocity_kmh === speed;
-
-                return (
-                  <Button
-                    key={speed}
-                    type="button"
-                    variant="ghost"
-                    className={`h-auto flex-col gap-2 rounded-2xl border px-3 py-3 transition-all ${
-                      isSelected
-                        ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
-                        : "border-slate-200 bg-white opacity-45 hover:opacity-85"
-                    }`}
-                    onClick={() => onDataChange({ velocity_kmh: speed })}
-                  >
-                    <img
-                      src={`/icones/${speed}-speed.svg`}
-                      alt={`${speed} km/h`}
-                      className="h-16 w-16 object-contain"
-                    />
-                    <span className="text-sm font-semibold text-slate-700">{speed} km/h</span>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border p-4">
+    <div className="space-y-6">
+        <div className="rounded-2xl border p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-sm font-medium text-foreground">Quadras do trecho</div>
+              <div className="text-sm font-medium text-foreground">A.2. Conectividade da rede cicloviaria</div>
               <p className="text-sm text-muted-foreground">
-                Quando houver dado prévio do trecho, ele fica bloqueado até a correção em campo.
+                Primeiro confirme o numero de quadras do trecho. Depois ajuste as intersecoes
+                relevantes e quantas delas conectam com outra infraestrutura.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline">
-                Original:{" "}
-                {originalCounts.blocks_count !== null ? resolvedOriginals.blocks_count : "Sem dado"}
-              </Badge>
-              <div className="flex items-center gap-3">
-                <Label htmlFor="allow_blocks_edit" className="text-sm">
-                  Corrigir quadras
-                </Label>
-                <Switch
-                  id="allow_blocks_edit"
-                  checked={allowBlocksEdit}
-                  onCheckedChange={handleBlocksEditToggle}
-                />
+          </div>
+
+          <div className="mt-5 space-y-5">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-foreground">Quadras do trecho</div>
+                  <p className="text-sm text-muted-foreground">
+                    Quando houver dado prévio do trecho, ele fica bloqueado até a correção em campo.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant="outline">
+                    Original:{" "}
+                    {originalCounts.blocks_count !== null ? resolvedOriginals.blocks_count : "Sem dado"}
+                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="allow_blocks_edit" className="text-sm">
+                      Corrigir quadras
+                    </Label>
+                    <Switch
+                      id="allow_blocks_edit"
+                      checked={allowBlocksEdit}
+                      onCheckedChange={handleBlocksEditToggle}
+                    />
+                  </div>
+                </div>
               </div>
+
+              {renderStepper({
+                id: "blocks_count",
+                label: "N° quadras:",
+                value: clampMinimumOne(data.blocks_count || 1),
+                disabled: !allowBlocksEdit,
+                min: 1,
+                onDecrease: () =>
+                  updateCountField("blocks_count", clampMinimumOne(data.blocks_count || 1) - 1),
+                onIncrease: () =>
+                  updateCountField("blocks_count", clampMinimumOne(data.blocks_count || 1) + 1),
+              })}
             </div>
-          </div>
 
-          <div className="mt-4">
-            {renderStepper({
-              id: "blocks_count",
-              label: "N° quadras:",
-              value: clampMinimumOne(data.blocks_count || 1),
-              disabled: !allowBlocksEdit,
-              min: 1,
-              onDecrease: () =>
-                updateCountField("blocks_count", clampMinimumOne(data.blocks_count || 1) - 1),
-              onIncrease: () =>
-                updateCountField("blocks_count", clampMinimumOne(data.blocks_count || 1) + 1),
-            })}
-          </div>
-        </div>
-
-        <div className="rounded-xl border p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-sm font-medium text-foreground">Interseções do trecho</div>
-              <p className="text-sm text-muted-foreground">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-foreground">Intersecoes consideradas em A.2</div>
+                  <p className="text-sm text-muted-foreground">
                 Interseções com arteriais/coletoras nunca passam do total de interseções, e as com
                 infra cicloviária nunca passam das arteriais/coletoras.
               </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Label htmlFor="allow_intersections_edit" className="text-sm">
-                Corrigir interseções
-              </Label>
-              <Switch
-                id="allow_intersections_edit"
-                checked={allowIntersectionsEdit}
-                onCheckedChange={handleIntersectionsEditToggle}
-              />
-            </div>
-          </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="allow_intersections_edit" className="text-sm">
+                    Corrigir interseções
+                  </Label>
+                  <Switch
+                    id="allow_intersections_edit"
+                    checked={allowIntersectionsEdit}
+                    onCheckedChange={handleIntersectionsEditToggle}
+                  />
+                </div>
+              </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-            {renderStepper({
-              id: "intersections_count",
-              label: "N° Interseções:",
-              value: clampNonNegative(data.intersections_count || 0),
-              disabled: !allowIntersectionsEdit,
-              min: 0,
-              onDecrease: () =>
-                updateCountField(
-                  "intersections_count",
-                  clampNonNegative(data.intersections_count || 0) - 1
-                ),
-              onIncrease: () =>
-                updateCountField(
-                  "intersections_count",
-                  clampNonNegative(data.intersections_count || 0) + 1
-                ),
-            })}
-            {renderStepper({
-              id: "relevant_intersections_count",
-              label: "Interseções com arteriais/coletoras:",
-              value: clampNonNegative(data.relevant_intersections_count || 0),
-              disabled: !allowIntersectionsEdit,
-              min: 0,
-              onDecrease: () =>
-                updateCountField(
-                  "relevant_intersections_count",
-                  clampNonNegative(data.relevant_intersections_count || 0) - 1
-                ),
-              onIncrease: () =>
-                updateCountField(
-                  "relevant_intersections_count",
-                  clampNonNegative(data.relevant_intersections_count || 0) + 1
-                ),
-            })}
-            {renderStepper({
-              id: "connected_intersections_count",
-              label: "Interseções com arteriais/coletoras com infra cicloviária:",
-              value: clampNonNegative(data.connected_intersections_count || 0),
-              disabled: !allowIntersectionsEdit,
-              min: 0,
-              onDecrease: () =>
-                updateCountField(
-                  "connected_intersections_count",
-                  clampNonNegative(data.connected_intersections_count || 0) - 1
-                ),
-              onIncrease: () =>
-                updateCountField(
-                  "connected_intersections_count",
-                  clampNonNegative(data.connected_intersections_count || 0) + 1
-                ),
-            })}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {renderStepper({
+                  id: "intersections_count",
+                  label: "N° Interseções:",
+                  value: clampNonNegative(data.intersections_count || 0),
+                  disabled: !allowIntersectionsEdit,
+                  min: 0,
+                  onDecrease: () =>
+                    updateCountField(
+                      "intersections_count",
+                      clampNonNegative(data.intersections_count || 0) - 1
+                    ),
+                  onIncrease: () =>
+                    updateCountField(
+                      "intersections_count",
+                      clampNonNegative(data.intersections_count || 0) + 1
+                    ),
+                })}
+                {renderStepper({
+                  id: "relevant_intersections_count",
+                  label: "Interseções com arteriais/coletoras:",
+                  value: clampNonNegative(data.relevant_intersections_count || 0),
+                  disabled: !allowIntersectionsEdit,
+                  min: 0,
+                  onDecrease: () =>
+                    updateCountField(
+                      "relevant_intersections_count",
+                      clampNonNegative(data.relevant_intersections_count || 0) - 1
+                    ),
+                  onIncrease: () =>
+                    updateCountField(
+                      "relevant_intersections_count",
+                      clampNonNegative(data.relevant_intersections_count || 0) + 1
+                    ),
+                })}
+                {renderStepper({
+                  id: "connected_intersections_count",
+                  label: "Interseções com arteriais/coletoras com infra cicloviária:",
+                  value: clampNonNegative(data.connected_intersections_count || 0),
+                  disabled: !allowIntersectionsEdit,
+                  min: 0,
+                  onDecrease: () =>
+                    updateCountField(
+                      "connected_intersections_count",
+                      clampNonNegative(data.connected_intersections_count || 0) - 1
+                    ),
+                  onIncrease: () =>
+                    updateCountField(
+                      "connected_intersections_count",
+                      clampNonNegative(data.connected_intersections_count || 0) + 1
+                    ),
+                })}
+              </div>
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 };
 

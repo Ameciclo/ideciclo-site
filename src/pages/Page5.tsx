@@ -1,26 +1,20 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page5Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
+  filter?: CriterionFilter;
+  command?: { type: "expand" | "collapse"; nonce: number } | null;
 }
 
-const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    const processedValue = type === "number" ? parseFloat(value) || 0 : value;
-    onDataChange({ [name]: processedValue });
-  };
-
+const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) => {
   const handleRadioChange = (name: string, value: string) => {
     onDataChange({ [name]: value });
   };
@@ -48,9 +42,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
     });
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <CriteriaAccordionGroup allValues={["b31", "e3", "b32"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]}>
+    <CriteriaAccordionGroup allValues={["b31", "e3"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]} filter={filter} command={command}>
           {!isCiclorrota ? (
           <AssessmentCriterionAccordion
             value="b31"
@@ -78,6 +70,11 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
             }
             helpKey="b31"
           >
+            <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+              O conceito final de B.3 e calculado internamente a partir desta resposta e do buffer
+              lateral informado em B.1. Para calçada partilhada, B.3 equivale diretamente a B.3.1.
+            </div>
+
             {infraType === "ciclofaixa" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclofaixa):</Label>
@@ -180,126 +177,73 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
           {showE3 ? (
             <AssessmentCriterionAccordion
               value="e3"
-              title="E.3. Estado de conservação dos dispositivos de separação"
-              description="Avalia permanência e estado dos elementos de segregação ou separação."
+              title="E.3. Conservação dos elementos de delimitação"
+              description="Aplicável a ciclovias e ciclofaixas, com resultado final calculado por matriz entre E.3.1 e E.3.2."
               scorePreview={buildCriterionScorePreview(data, ["E3"])}
-              answered={isTouched(["devices_conservation"])}
+              answered={isTouched(["devices_conservation", "spacing_conservation"])}
               inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
               onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
               onClear={() =>
                 onDataChange({
                   devices_conservation: "",
-                  touched_fields: { devices_conservation: false },
-                })
-              }
-              helpKey="E3"
-            >
-              <Label className="mb-2 block">
-                Estado de conservação dos dispositivos de segregação ou separação:
-              </Label>
-              <ConceptCriteriaTable
-                value={data.devices_conservation || ""}
-                onValueChange={(value) => handleRadioChange("devices_conservation", value)}
-                options={[
-                  {
-                    value: "A",
-                    description:
-                      "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
-                  },
-                  {
-                    value: "B",
-                    description:
-                      "Dispositivos em mais da metade do trecho em bom estado de conservação.",
-                  },
-                  {
-                    value: "C",
-                    description:
-                      "Dispositivos em menos da metade do trecho ou estão muito danificados.",
-                  },
-                  {
-                    value: "D",
-                    description: "Praticamente não há dispositivos.",
-                  },
-                ]}
-              />
-            </AssessmentCriterionAccordion>
-          ) : null}
-
-          {(infraType === "ciclofaixa" || infraType === "ciclovia") && (
-            <AssessmentCriterionAccordion
-              value="b32"
-              title="B.3.2. Afastamento lateral do fluxo veicular"
-              description="Usado para estruturas segregadas ou separadas em relação ao tráfego motorizado."
-              scorePreview={buildCriterionScorePreview(data, ["B3"])}
-              answered={isTouched([
-                "lateral_spacing_type",
-                "lateral_spacing_width_m",
-                "spacing_conservation",
-              ])}
-              inAnalysis={data.criterion_workflow_state?.b32 === "analysis"}
-              onAnalysisChange={(value) =>
-                updateWorkflow("b32", value ? "analysis" : "default")
-              }
-              onClear={() =>
-                onDataChange({
-                  lateral_spacing_type: "",
-                  lateral_spacing_width_m: 0,
                   spacing_conservation: "",
                   touched_fields: {
-                    lateral_spacing_type: false,
-                    lateral_spacing_width_m: false,
+                    devices_conservation: false,
                     spacing_conservation: false,
                   },
                 })
               }
-              helpKey="b32"
+              helpKey="E3"
             >
-              <div className="space-y-4">
-                <div>
-                  <Label>Afastamento:</Label>
-                  <RadioGroup
-                    value={data.lateral_spacing_type || ""}
-                    onValueChange={(value) => handleRadioChange("lateral_spacing_type", value)}
-                    className="flex flex-wrap gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="linha" id="spacing_linha" />
-                      <Label htmlFor="spacing_linha">Somente linha de delimitação</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="dispositivos" id="spacing_dispositivos" />
-                      <Label htmlFor="spacing_dispositivos">
-                        Existência de dispositivos de separação ou segregação
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="apagada" id="spacing_apagada" />
-                      <Label htmlFor="spacing_apagada">Pintura apagada ou impossível avaliar</Label>
-                    </div>
-                  </RadioGroup>
+              <div className="space-y-6">
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                  O conceito final de <strong>E.3</strong> e calculado pela combinacao entre
+                  <strong> E.3.1</strong> e <strong>E.3.2</strong>.
                 </div>
 
                 <div>
-                  <Label htmlFor="lateral_spacing_width_m">Largura do afastamento lateral (m):</Label>
-                  <Input
-                    id="lateral_spacing_width_m"
-                    name="lateral_spacing_width_m"
-                    type="number"
-                    step="0.1"
-                    value={data.lateral_spacing_width_m || ""}
-                    onChange={handleChange}
+                  <Label className="mb-2 block">
+                    E.3.1. Estado de conservação dos dispositivos de separação
+                  </Label>
+                  <ConceptCriteriaTable
+                    value={data.devices_conservation || ""}
+                    onValueChange={(value) => handleRadioChange("devices_conservation", value)}
+                    options={[
+                      {
+                        value: "A",
+                        description:
+                          "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
+                      },
+                      {
+                        value: "B",
+                        description:
+                          "Dispositivos em mais da metade do trecho em bom estado de conservação.",
+                      },
+                      {
+                        value: "C",
+                        description:
+                          "Dispositivos em menos da metade do trecho ou estão muito danificados.",
+                      },
+                      {
+                        value: "D",
+                        description: "Praticamente não há dispositivos.",
+                      },
+                    ]}
                   />
                 </div>
 
                 <div>
-                  <Label>Estado de conservação do afastamento lateral:</Label>
+                  <Label className="mb-2 block">
+                    E.3.2. Estado de conservação da faixa de afastamento lateral
+                  </Label>
                   <ConceptCriteriaTable
                     value={data.spacing_conservation || ""}
                     onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
                     options={[
                       {
                         value: "A",
-                        description: "Há demarcação em ótimo estado, visível em toda a extensão.",
+                        description:
+                          "Há demarcação em ótimo estado, visível em toda a extensão.",
                       },
                       {
                         value: "B",
@@ -320,10 +264,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange }) => {
                 </div>
               </div>
             </AssessmentCriterionAccordion>
-          )}
+          ) : null}
         </CriteriaAccordionGroup>
-      </CardContent>
-    </Card>
   );
 };
 

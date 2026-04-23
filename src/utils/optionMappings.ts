@@ -67,24 +67,24 @@ export const optionMappings = {
 
   // E.3.1 Conservation state of identification
   identification_conservation: {
-    A: 'Preenchimento total da área útil em tom vermelho (pavimento pigmentado ou pintura).',
-    B: 'Identificação de mais da metade da infraestrutura ou ao menos nas aproximações de travessias de pedestres e área de conflito com outros modos.',
-    C: 'Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
+    A: 'Boa identificação da infraestrutura cicloviária, com preenchimento total da área útil em tom vermelho (pavimento pigmentado ou pintura).',
+    B: 'Há identificação de mais da metade da infraestrutura ou ao menos nas aproximações de travessias de pedestres e áreas de conflito com outros modos.',
+    C: 'Há identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
     D: 'Praticamente apagada.'
   },
 
   // B.4.2 Pictogram conservation
   pictograms_conservation: {
     A: 'Pictogramas visíveis em toda a extensão.',
-    B: 'Pictogramas desgastados em toda a extensão.',
-    C: 'Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
+    B: 'Não se aplica.',
+    C: 'Pictogramas desgastados em toda a extensão.',
     D: 'Praticamente apagados ou não há.'
   },
 
   // B.4.3 Vertical signs conservation
   vertical_signs_conservation: {
     A: 'Placas e postes em bom estado de conservação.',
-    B: 'Menos da metade das placas com danos (sujeira, soltas, outras).',
+    B: 'Menos da metade das placas com danos ( soltas, sujas, pichadas, adesivadas, outros).',
     C: 'Placas bastante danificadas ao longo do trecho.',
     D: 'Não há placas no trecho.'
   },
