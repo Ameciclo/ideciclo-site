@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Brush, Pin } from "lucide-react";
 import ManualHelpDialog from "@/components/ManualHelpDialog";
 import { useCriteriaAccordionFilter } from "@/components/criteriaAccordionContext";
+import { CriterionScorePreviewItem } from "@/utils/criterionScorePreview";
 
 interface AssessmentCriterionAccordionProps {
   value: string;
   title: string;
   description?: string;
-  scorePreview?: unknown;
+  scorePreview?: CriterionScorePreviewItem[];
   answered?: boolean;
   inAnalysis?: boolean;
   onAnalysisChange?: (value: boolean) => void;
@@ -27,6 +28,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   value,
   title,
   description,
+  scorePreview = [],
   answered = false,
   inAnalysis = false,
   onAnalysisChange,
@@ -35,6 +37,13 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   children,
 }) => {
   const { filter } = useCriteriaAccordionFilter();
+  const ratingBadgeClassName = (rating: string | null | undefined) => {
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-slate-200 bg-white text-slate-500";
+  };
   const handleClear = () => {
     if (!onClear) return;
 
@@ -74,6 +83,19 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
         </AccordionTrigger>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
+          {scorePreview.map((item) => (
+            <Badge
+              key={item.code}
+              variant="outline"
+              className={`rounded-full px-3 py-1 text-xs ${ratingBadgeClassName(item.rating)}`}
+            >
+              {item.rating ? <span>{item.rating}</span> : null}
+              {item.rating && typeof item.points === "number" ? <span className="mx-1 opacity-70">·</span> : null}
+              {typeof item.points === "number" ? (
+                <span>{item.points > 0 ? `+${item.points}` : item.points} pts</span>
+              ) : null}
+            </Badge>
+          ))}
           <Badge
             variant="outline"
             className={`rounded-full px-3 py-1 text-xs ${
