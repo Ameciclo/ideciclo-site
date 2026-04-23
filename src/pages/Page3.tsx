@@ -279,23 +279,49 @@ const Page3: React.FC<Page3Props> = ({
       traffic_calming_counts: nextCounts,
       speed_measures: nextMeasures,
       avg_distance_measures_m: Number(nextAverage.toFixed(2)),
+      no_traffic_calming_measures: false,
       touched_fields: {
         traffic_calming_counts: nextTotal > 0,
         speed_measures: nextTotal > 0,
         avg_distance_measures_m: nextTotal > 0,
+        no_traffic_calming_measures: false,
       },
     });
   };
+
+  const handleNoTrafficCalmingChange = (checked: boolean) =>
+    onDataChange({
+      no_traffic_calming_measures: checked,
+      ...(checked
+        ? {
+            traffic_calming_counts: {},
+            speed_measures: [],
+            avg_distance_measures_m: 0,
+          }
+        : {}),
+      touched_fields: {
+        no_traffic_calming_measures: checked,
+        ...(checked
+          ? {
+              traffic_calming_counts: false,
+              speed_measures: false,
+              avg_distance_measures_m: false,
+            }
+          : {}),
+      },
+    });
 
   const clearTrafficCalming = () =>
     onDataChange({
       traffic_calming_counts: {},
       speed_measures: [],
       avg_distance_measures_m: 0,
+      no_traffic_calming_measures: false,
       touched_fields: {
         traffic_calming_counts: false,
         speed_measures: false,
         avg_distance_measures_m: false,
+        no_traffic_calming_measures: false,
       },
     });
 
@@ -479,13 +505,21 @@ const Page3: React.FC<Page3Props> = ({
           title="B.6. Medidas de moderação de velocidade"
           description="Aplicável a ciclorrotas, com contagem dos elementos físicos ao longo do trecho."
           scorePreview={buildCriterionScorePreview(data, ["B6"])}
-          answered={totalTrafficCalming > 0}
+          answered={totalTrafficCalming > 0 || Boolean(data.no_traffic_calming_measures)}
           inAnalysis={data.criterion_workflow_state?.b12 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b12", value ? "analysis" : "default")}
           onClear={clearTrafficCalming}
           helpKey="B6"
         >
           <div className="space-y-4">
+            <label className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800">
+              <span>Sem medidas de moderação</span>
+              <Switch
+                checked={Boolean(data.no_traffic_calming_measures) && totalTrafficCalming === 0}
+                onCheckedChange={handleNoTrafficCalmingChange}
+              />
+            </label>
+
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {TRAFFIC_CALMING_OPTIONS.map((option) => (
                 <button

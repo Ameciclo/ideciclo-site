@@ -147,6 +147,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   speed_measures: [],
   traffic_calming_counts: {},
   avg_distance_measures_m: 0,
+  no_traffic_calming_measures: false,
   pavement_type: "",
   conservation_state: "",
   separation_devices_ciclofaixa: "",
@@ -561,6 +562,13 @@ const SegmentForm = () => {
     const typology = String(formData.infra_typology || "").toLowerCase();
 
     if (code === "B5") return hasTouched(["signalized_crossings_count"]);
+    if (code === "B6") {
+      const totalTrafficCalming = Object.values(formData.traffic_calming_counts || {}).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0
+      );
+      return totalTrafficCalming > 0 || Boolean(formData.no_traffic_calming_measures);
+    }
     if (code === "B7") {
       return hasTouched([
         "no_risk_situations",

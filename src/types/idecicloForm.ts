@@ -59,6 +59,7 @@ export interface IdecicloFormData {
   speed_measures: string[];
   traffic_calming_counts: Partial<Record<TrafficCalmingMeasure, number>>;
   avg_distance_measures_m: number;
+  no_traffic_calming_measures: boolean;
   pavement_type: IdecicloRating | "";
   conservation_state: IdecicloRating | "";
   separation_devices_ciclofaixa: IdecicloRating | "";
