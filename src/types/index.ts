@@ -203,6 +203,7 @@ export interface SurveyResponses {
   motorized_conflicts: string[];
 
   // D.1 Public lighting
+  lighting_rating: 'A' | 'B' | 'C' | 'D';
   lighting_post_type: 'A' | 'B';
   lighting_distance_m: number;
   lighting_directed: boolean;

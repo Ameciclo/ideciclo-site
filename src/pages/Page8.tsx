@@ -1,7 +1,6 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
@@ -58,193 +57,85 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) =>
             title="D.1. Iluminação pública"
             description="Condições de iluminação ao longo do trecho cicloviário."
             scorePreview={buildCriterionScorePreview(data, ["D1"])}
-            answered={isTouched([
-              "has_lighting_posts",
-              "lighting_post_type",
-              "lighting_distance_m",
-              "lighting_directed",
-              "lighting_barriers",
-              "lighting_distance_to_infra",
-            ])}
+            answered={isTouched(["lighting_rating"])}
             inAnalysis={data.criterion_workflow_state?.d1 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d1", value ? "analysis" : "default")}
             helpKey="D1"
             onClear={() =>
               onDataChange({
-                has_lighting_posts: null,
-                lighting_post_type: "",
-                lighting_distance_m: 0,
-                lighting_directed: null,
-                lighting_barriers: null,
-                lighting_distance_to_infra: "",
+                lighting_rating: "",
                 touched_fields: {
-                  has_lighting_posts: false,
-                  lighting_post_type: false,
-                  lighting_distance_m: false,
-                  lighting_directed: false,
-                  lighting_barriers: false,
-                  lighting_distance_to_infra: false,
+                  lighting_rating: false,
                 },
               })
             }
           >
-            <div className="space-y-4">
-              <div>
-                <Label className="mb-2 block">Existem postes ao longo do trecho?</Label>
-                <RadioGroup
-                  value={
-                    data.has_lighting_posts === null
-                      ? ""
-                      : data.has_lighting_posts === false
-                        ? "false"
-                        : "true"
-                  }
-                  onValueChange={(value) => handleRadioChange("has_lighting_posts", value === "true")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="true" id="posts_yes" />
-                    <Label htmlFor="posts_yes">Sim</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="false" id="posts_no" />
-                    <Label htmlFor="posts_no">Não</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">Tipo de poste:</Label>
-                <ConceptCriteriaTable
-                  value={data.lighting_post_type || ""}
-                  onValueChange={(value) => handleRadioChange("lighting_post_type", value)}
-                  options={[
-                    { value: "A", description: "Postes peatonais." },
-                    { value: "B", description: "Postes convencionais." },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="lighting_distance_m">Distância entre postes (m):</Label>
-                <Input
-                  id="lighting_distance_m"
-                  name="lighting_distance_m"
-                  type="number"
-                  value={data.lighting_distance_m || ""}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <Label className="mb-2 block">Direcionados à infraestrutura cicloviária:</Label>
-                <RadioGroup
-                  value={
-                    data.lighting_directed === null
-                      ? ""
-                      : data.lighting_directed
-                        ? "true"
-                        : "false"
-                  }
-                  onValueChange={(value) => handleRadioChange("lighting_directed", value === "true")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="true" id="directed_yes" />
-                    <Label htmlFor="directed_yes">Sim</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="false" id="directed_no" />
-                    <Label htmlFor="directed_no">Não</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">
-                  Barreiras abaixo do poste que limitam a iluminação:
-                </Label>
-                <RadioGroup
-                  value={
-                    data.lighting_barriers === null
-                      ? ""
-                      : data.lighting_barriers
-                        ? "true"
-                        : "false"
-                  }
-                  onValueChange={(value) => handleRadioChange("lighting_barriers", value === "true")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="true" id="barriers_yes" />
-                    <Label htmlFor="barriers_yes">Sim</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="false" id="barriers_no" />
-                    <Label htmlFor="barriers_no">Não</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label className="mb-2 block">Distância dos postes à infraestrutura:</Label>
-                <ConceptCriteriaTable
-                  value={data.lighting_distance_to_infra || ""}
-                  onValueChange={(value) => handleRadioChange("lighting_distance_to_infra", value)}
-                  options={[
-                    { value: "A", description: "Postes juntos à infraestrutura." },
-                    { value: "B", description: "Postes a mais de 5 m da infraestrutura." },
-                  ]}
-                />
-              </div>
-            </div>
+            <ConceptCriteriaTable
+              value={data.lighting_rating || ""}
+              onValueChange={(value) => handleRadioChange("lighting_rating", value)}
+              options={[
+                {
+                  value: "A",
+                  description:
+                    "Há postes de iluminação peatonais ou exclusivos para a infraestrutura cicloviária, instalados próximos e direcionados à estrutura, com espaçamento máximo de 30 metros entre os postes.",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Há postes de iluminação ao lado da infraestrutura cicloviária, direcionados à via; distanciamento entre 30 e 50 metros entre postes.",
+                },
+                {
+                  value: "C",
+                  description:
+                    "Há postes na via, com distanciamento superior a 5 metros da infraestrutura cicloviária, e distanciamento superior a 50 metros entre os postes; há postes próximos à infraestrutura cicloviária com barreiras abaixo que impedem a iluminação direta da infraestrutura (ex: coberturas, árvores).",
+                },
+                {
+                  value: "D",
+                  description: "Não há postes de iluminação no trecho analisado.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion
             value="d2"
             title="D.2. Conforto térmico (sombreamento)"
-            description="Cobertura de sombra e porte da arborização do trecho."
+            description="Avalia a presença de sombra ao longo da extensão da infraestrutura."
             scorePreview={buildCriterionScorePreview(data, ["D2"])}
-            answered={isTouched(["shading_coverage", "vegetation_size"])}
+            answered={isTouched(["shading_coverage"])}
             inAnalysis={data.criterion_workflow_state?.d2 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d2", value ? "analysis" : "default")}
             helpKey="D2"
             onClear={() =>
               onDataChange({
                 shading_coverage: "",
-                vegetation_size: "",
-                touched_fields: { shading_coverage: false, vegetation_size: false },
+                touched_fields: { shading_coverage: false },
               })
             }
           >
-            <div className="space-y-4">
-              <div>
-                <Label className="mb-2 block">Há sombreamento:</Label>
-                <ConceptCriteriaTable
-                  value={data.shading_coverage || ""}
-                  onValueChange={(value) => handleRadioChange("shading_coverage", value)}
-                  options={[
-                    { value: "A", description: "Toda extensão." },
-                    { value: "B", description: "Mais da metade." },
-                    { value: "C", description: "Menos da metade." },
-                    { value: "D", description: "Não há." },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <Label className="mb-2 block">Arborização:</Label>
-                <ConceptCriteriaTable
-                  value={data.vegetation_size || ""}
-                  onValueChange={(value) => handleRadioChange("vegetation_size", value)}
-                  options={[
-                    { value: "A", description: "Porte alto." },
-                    { value: "B", description: "Médio porte." },
-                    { value: "C", description: "Baixo porte." },
-                  ]}
-                />
-              </div>
-            </div>
+            <ConceptCriteriaTable
+              value={data.shading_coverage || ""}
+              onValueChange={(value) => handleRadioChange("shading_coverage", value)}
+              options={[
+                {
+                  value: "A",
+                  description: "Há sombreamento em praticamente toda a extensão.",
+                },
+                {
+                  value: "B",
+                  description:
+                    "Há sombra em mais da metade da extensão; há arborização de baixo porte em quase todo o trecho.",
+                },
+                {
+                  value: "C",
+                  description: "Há sombra em menos da metade da extensão.",
+                },
+                {
+                  value: "D",
+                  description: "Não há ou praticamente não há sombra.",
+                },
+              ]}
+            />
           </AssessmentCriterionAccordion>
 
           <AssessmentCriterionAccordion

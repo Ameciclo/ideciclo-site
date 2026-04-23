@@ -112,6 +112,14 @@ export const optionMappings = {
   },
 
   // D.1 Lighting post type
+  lighting_rating: {
+    A: 'Há postes de iluminação peatonais ou exclusivos para a infraestrutura cicloviária, instalados próximos e direcionados à estrutura, com espaçamento máximo de 30 metros entre os postes.',
+    B: 'Há postes de iluminação ao lado da infraestrutura cicloviária, direcionados à via; distanciamento entre 30 e 50 metros entre postes.',
+    C: 'Há postes na via, com distanciamento superior a 5 metros da infraestrutura cicloviária, e distanciamento superior a 50 metros entre os postes; há postes próximos à infraestrutura cicloviária com barreiras abaixo que impedem a iluminação direta da infraestrutura (ex: coberturas, árvores).',
+    D: 'Não há postes de iluminação no trecho analisado.'
+  },
+
+  // D.1 Lighting post type
   lighting_post_type: {
     A: 'Postes peatonais',
     B: 'Postes convencionais'
@@ -125,10 +133,10 @@ export const optionMappings = {
 
   // D.2 Shading coverage
   shading_coverage: {
-    A: 'Toda extensão',
-    B: 'Mais da metade',
-    C: 'Menos da metade',
-    D: 'Não há'
+    A: 'Há sombreamento em praticamente toda a extensão.',
+    B: 'Há sombra em mais da metade da extensão; há arborização de baixo porte em quase todo o trecho.',
+    C: 'Há sombra em menos da metade da extensão.',
+    D: 'Não há ou praticamente não há sombra.'
   },
 
   // D.2 Vegetation size

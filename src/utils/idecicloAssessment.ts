@@ -482,10 +482,10 @@ const calculateB6 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   if (normalizeTypology(formData.infra_typology) !== "ciclorrota") return null;
 
   const totalMeasures = getTrafficCalmingCount(formData);
-  const extension = toNumber(formData.extension_m);
+  const extensionMeters = toNumber(formData.extension_m) * 1000;
   const averageDistance =
-    totalMeasures > 0 && extension > 0
-      ? extension / totalMeasures
+    totalMeasures > 0 && extensionMeters > 0
+      ? extensionMeters / totalMeasures
       : toNumber(formData.avg_distance_measures_m);
   const velocity = toNumber(formData.velocity_kmh);
 
@@ -561,6 +561,8 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 };
 
 const calculateD1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  if (isRating(formData.lighting_rating)) return formData.lighting_rating;
+
   if (!formData.has_lighting_posts) return "D";
 
   const distanceBetweenPosts = toNumber(formData.lighting_distance_m);

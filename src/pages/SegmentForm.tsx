@@ -40,6 +40,8 @@ import {
 import { IdecicloFormData } from "@/types/idecicloForm";
 import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Segment } from "@/types";
+import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 
 const DRAFT_PREFIX = "ideciclo-draft";
 const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
@@ -185,6 +187,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   has_intersection_traffic_calming: false,
   motorized_conflicts: [],
   has_lighting_posts: null,
+  lighting_rating: "",
   lighting_post_type: "",
   lighting_distance_m: 0,
   lighting_directed: null,
@@ -467,6 +470,8 @@ const SegmentForm = () => {
   const getWorkflowStateKey = (code: CriterionCode) => {
     const typology = String(formData.infra_typology || "").toLowerCase();
 
+    if (code === "A1") return "a1";
+    if (code === "A2") return "a2";
     if (code === "B1") return "b11";
     if (code === "B6") return "b12";
     if (code === "B2") return "b2";
@@ -474,7 +479,7 @@ const SegmentForm = () => {
     if (code === "B3") return "b31";
     if (code === "E3") return "e3";
     if (code === "B4") return typology.includes("ciclorrota") ? "b42" : "b41";
-    if (code === "E4") return typology.includes("ciclorrota") ? "b43" : "e41";
+    if (code === "E4") return typology.includes("ciclorrota") ? "e43" : "e41";
     if (code === "B5") return "b5";
     if (code === "B7") return "b7";
     if (code === "C1" || code === "E1") return "c1e1";
@@ -1108,29 +1113,63 @@ const SegmentForm = () => {
           <div className="space-y-10 pb-28">
             <section id="section-a" className="space-y-6">
               <AxisRibbon tone="a" title="Caracterizacao do Trecho e Enquadramento Inicial" />
-              <div
-                id="criterion-a1"
-                className="rounded-[24px] border border-slate-200 bg-background px-4 py-5 shadow-sm"
+              <CriteriaAccordionGroup
+                allValues={["a1"]}
+                defaultOpenValues={["a1"]}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
               >
-                <div className="mb-5">
-                  <div className="text-sm font-semibold text-foreground">
-                    A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada
-                    antes de seguir para a conectividade do trecho.
-                  </p>
-                </div>
-                <Page2
-                  data={formData}
-                  onDataChange={handleDataChange}
-                  segmentType={originalSegmentType}
-                />
-              </div>
+                <AssessmentCriterionAccordion
+                  value="a1"
+                  title="A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia"
+                  description="Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada antes de seguir para a conectividade do trecho."
+                  answered={Boolean(
+                    formData.infra_typology &&
+                      formData.infra_flow &&
+                      formData.position_on_road &&
+                      formData.velocity_kmh > 0 &&
+                      (formData.road_hierarchy || formData.classification)
+                  )}
+                  inAnalysis={formData.criterion_workflow_state?.a1 === "analysis"}
+                  onAnalysisChange={(value) =>
+                    handleDataChange({
+                      criterion_workflow_state: {
+                        ...(formData.criterion_workflow_state || {}),
+                        a1: value ? "analysis" : "default",
+                      },
+                    })
+                  }
+                  onClear={() =>
+                    handleDataChange({
+                      infra_typology: originalSegmentType || "",
+                      infra_flow: "unidirectional",
+                      position_on_road: "pista_calcada",
+                      velocity_kmh: 0,
+                      pedestrian_flow_per_hour_per_meter: 0,
+                      touched_fields: {
+                        infra_typology: false,
+                        infra_flow: false,
+                        position_on_road: false,
+                        velocity_kmh: false,
+                        pedestrian_flow_per_hour_per_meter: false,
+                      },
+                    })
+                  }
+                  helpKey="A1"
+                >
+                  <Page2
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    segmentType={originalSegmentType}
+                  />
+                </AssessmentCriterionAccordion>
+              </CriteriaAccordionGroup>
               <Page1
                 data={formData}
                 onDataChange={handleDataChange}
                 originalCounts={originalSegmentCounts}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
               />
             </section>
 

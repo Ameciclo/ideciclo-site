@@ -173,9 +173,10 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
     (sum, value) => sum + Number(value || 0),
     0
   );
+  const extensionMeters = Number(data.extension_m || 0) * 1000;
   const computedAverageDistance =
-    totalTrafficCalming > 0 && Number(data.extension_m) > 0
-      ? Number(data.extension_m) / totalTrafficCalming
+    totalTrafficCalming > 0 && extensionMeters > 0
+      ? extensionMeters / totalTrafficCalming
       : 0;
   const displayAverageDistance = computedAverageDistance || data.avg_distance_measures_m || 0;
 
@@ -194,7 +195,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
       0
     );
     const nextAverage =
-      nextTotal > 0 && Number(data.extension_m) > 0 ? Number(data.extension_m) / nextTotal : 0;
+      nextTotal > 0 && extensionMeters > 0 ? extensionMeters / nextTotal : 0;
 
     onDataChange({
       traffic_calming_counts: nextCounts,
@@ -522,7 +523,8 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
                   {displayAverageDistance.toFixed(1).replace(".", ",")} m
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Calculada automaticamente por extensao / numero de elementos.
+                  Calculada automaticamente por extensão em metros / número de elementos.
+                  Extensão considerada: {(Number(data.extension_m || 0)).toFixed(2).replace(".", ",")} km.
                 </p>
               </div>
               <div className="rounded-2xl border p-4">

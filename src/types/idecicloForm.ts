@@ -92,6 +92,7 @@ export interface IdecicloFormData {
   has_intersection_traffic_calming: boolean;
   motorized_conflicts: string[];
   has_lighting_posts: boolean | null;
+  lighting_rating: IdecicloRating | "";
   lighting_post_type: "A" | "B" | "";
   lighting_distance_m: number;
   lighting_directed: boolean | null;

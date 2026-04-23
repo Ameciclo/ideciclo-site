@@ -43,7 +43,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-      allValues={["b41", "e41", "b42", "b43"]}
+      allValues={["b41", "e41", "b42", "e43", "b43"]}
       defaultOpenValues={isCiclorrota ? ["b42"] : ["b41"]}
       filter={filter}
       command={command}
@@ -188,7 +188,6 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
           answered={isTouched([
             "pictograms_per_block",
             "pictograms_cover_all_blocks",
-            "pictograms_conservation",
           ])}
           inAnalysis={data.criterion_workflow_state?.b42 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b42", value ? "analysis" : "default")}
@@ -196,11 +195,9 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
             onDataChange({
               pictograms_per_block: 0,
               pictograms_cover_all_blocks: false,
-              pictograms_conservation: "",
               touched_fields: {
                 pictograms_per_block: false,
                 pictograms_cover_all_blocks: false,
-                pictograms_conservation: false,
               },
             })
           }
@@ -243,35 +240,51 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
                 Os pictogramas aparecem em todas as quadras do trecho
               </Label>
             </div>
-
-            <div>
-              <Label className="mb-2 block">
-                E.4.3. Estado de conservação das inscrições no pavimento
-              </Label>
-              <ConceptCriteriaTable
-                value={data.pictograms_conservation || ""}
-                onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
-                options={[
-                  {
-                    value: "A",
-                    description: "Pictogramas visíveis em toda a extensão.",
-                  },
-                  {
-                    value: "B",
-                    description: "Não se aplica.",
-                  },
-                  {
-                    value: "C",
-                    description: "Pictogramas desgastados em toda a extensão.",
-                  },
-                  {
-                    value: "D",
-                    description: "Praticamente apagados ou não há.",
-                  },
-                ]}
-              />
-            </div>
           </div>
+        </AssessmentCriterionAccordion>
+      ) : null}
+
+      {isCiclorrota ? (
+        <AssessmentCriterionAccordion
+          value="e43"
+          title="E.4.3. Estado de conservação das inscrições no pavimento"
+          description="Avalia a conservação dos pictogramas e inscrições no pavimento em ciclorrotas."
+          scorePreview={buildCriterionScorePreview(data, ["E4"])}
+          answered={isTouched(["pictograms_conservation"])}
+          inAnalysis={data.criterion_workflow_state?.e43 === "analysis"}
+          onAnalysisChange={(value) => updateWorkflow("e43", value ? "analysis" : "default")}
+          onClear={() =>
+            onDataChange({
+              pictograms_conservation: "",
+              touched_fields: {
+                pictograms_conservation: false,
+              },
+            })
+          }
+          helpKey="E4"
+        >
+          <ConceptCriteriaTable
+            value={data.pictograms_conservation || ""}
+            onValueChange={(value) => handleRadioChange("pictograms_conservation", value)}
+            options={[
+              {
+                value: "A",
+                description: "Pictogramas visíveis em toda a extensão.",
+              },
+              {
+                value: "B",
+                description: "Não se aplica.",
+              },
+              {
+                value: "C",
+                description: "Pictogramas desgastados em toda a extensão.",
+              },
+              {
+                value: "D",
+                description: "Praticamente apagados ou não há.",
+              },
+            ]}
+          />
         </AssessmentCriterionAccordion>
       ) : null}
 

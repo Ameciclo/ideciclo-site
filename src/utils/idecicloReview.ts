@@ -107,6 +107,13 @@ const LIGHTING_POST_TYPE_LABELS: Record<string, string> = {
   B: "Postes convencionais",
 };
 
+const LIGHTING_RATING_LABELS: Record<string, string> = {
+  A: "Postes peatonais/exclusivos próximos, direcionados e com espaçamento máximo de 30 m",
+  B: "Postes ao lado da infraestrutura, direcionados à via, entre 30 m e 50 m",
+  C: "Postes distantes, espaçados acima de 50 m ou com barreiras à iluminação direta",
+  D: "Não há postes de iluminação no trecho analisado",
+};
+
 const LIGHTING_DISTANCE_TO_INFRA_LABELS: Record<string, string> = {
   A: "Postes junto à infraestrutura",
   B: "Postes a mais de 5 m da infraestrutura",
@@ -261,6 +268,7 @@ export const getCriterionEvidence = (
             .join(", ") || listFromMap(data.speed_measures, SPEED_MEASURE_LABELS)
         }`,
         `Distancia media entre medidas: ${data.avg_distance_measures_m || 0} m`,
+        `Extensao considerada: ${data.extension_m || 0} km`,
       ];
     }
     case "B7":
@@ -299,6 +307,12 @@ export const getCriterionEvidence = (
         `Ha moderacao no cruzamento: ${asBoolLabel(data.has_intersection_traffic_calming)}`,
       ];
     case "D1":
+      if (data.lighting_rating) {
+        return [
+          `Iluminacao marcada: ${labelFromMap(data.lighting_rating, LIGHTING_RATING_LABELS)}`,
+        ];
+      }
+
       return [
         `Existem postes: ${asBoolLabel(data.has_lighting_posts)}`,
         `Tipo de poste: ${labelFromMap(data.lighting_post_type, LIGHTING_POST_TYPE_LABELS)}`,
@@ -313,7 +327,6 @@ export const getCriterionEvidence = (
     case "D2":
       return [
         `Sombreamento: ${labelFromMap(data.shading_coverage, SHADING_COVERAGE_LABELS)}`,
-        `Arborizacao: ${labelFromMap(data.vegetation_size, VEGETATION_SIZE_LABELS)}`,
       ];
     case "D3":
       return [

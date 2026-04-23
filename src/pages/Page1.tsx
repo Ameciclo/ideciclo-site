@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import { CriterionFilter } from "@/components/criteriaAccordionContext";
 
 interface Page1Props {
   data: IdecicloFormData;
@@ -14,12 +17,14 @@ interface Page1Props {
     relevant_intersections_count: number | null;
     connected_intersections_count: number | null;
   };
+  filter?: CriterionFilter;
+  command?: { type: "expand" | "collapse"; nonce: number } | null;
 }
 
 const clampMinimumOne = (value: number) => Math.max(1, Math.round(value));
 const clampNonNegative = (value: number) => Math.max(0, Math.round(value));
 
-const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts }) => {
+const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts, filter, command }) => {
   const [allowBlocksEdit, setAllowBlocksEdit] = useState(false);
   const [allowIntersectionsEdit, setAllowIntersectionsEdit] = useState(false);
 
@@ -201,20 +206,64 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts }) => 
     </div>
   );
 
-  return (
-    <div className="space-y-6">
-        <div className="rounded-2xl border p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="text-sm font-medium text-foreground">A.2. Conectividade da rede cicloviaria</div>
-              <p className="text-sm text-muted-foreground">
-                Primeiro confirme o numero de quadras do trecho. Depois ajuste as intersecoes
-                relevantes e quantas delas conectam com outra infraestrutura.
-              </p>
-            </div>
-          </div>
+  const isA2Answered =
+    Boolean(
+      data.touched_fields?.blocks_count ||
+        data.touched_fields?.intersections_count ||
+        data.touched_fields?.relevant_intersections_count ||
+        data.touched_fields?.connected_intersections_count
+    ) ||
+    originalCounts.blocks_count !== null ||
+    originalCounts.intersections_count !== null ||
+    originalCounts.relevant_intersections_count !== null ||
+    originalCounts.connected_intersections_count !== null;
 
-          <div className="mt-5 space-y-5">
+  const updateWorkflow = (value: "default" | "analysis") =>
+    onDataChange({
+      criterion_workflow_state: {
+        ...(data.criterion_workflow_state || {}),
+        a2: value,
+      },
+    });
+
+  return (
+    <CriteriaAccordionGroup
+      allValues={["a2"]}
+      defaultOpenValues={["a2"]}
+      filter={filter}
+      command={command}
+    >
+      <AssessmentCriterionAccordion
+        value="a2"
+        title="A.2. Conectividade da rede cicloviaria"
+        description="Primeiro confirme o numero de quadras do trecho. Depois ajuste as intersecoes relevantes e quantas delas conectam com outra infraestrutura."
+        answered={isA2Answered}
+        inAnalysis={data.criterion_workflow_state?.a2 === "analysis"}
+        onAnalysisChange={(value) => updateWorkflow(value ? "analysis" : "default")}
+        onClear={() =>
+          onDataChange({
+            blocks_count: resolvedOriginals.blocks_count,
+            intersections_count: resolvedOriginals.intersections_count,
+            relevant_intersections_count: Math.min(
+              resolvedOriginals.relevant_intersections_count,
+              resolvedOriginals.intersections_count
+            ),
+            connected_intersections_count: Math.min(
+              resolvedOriginals.connected_intersections_count,
+              resolvedOriginals.relevant_intersections_count,
+              resolvedOriginals.intersections_count
+            ),
+            touched_fields: {
+              blocks_count: false,
+              intersections_count: false,
+              relevant_intersections_count: false,
+              connected_intersections_count: false,
+            },
+          })
+        }
+        helpKey="A2"
+      >
+        <div className="space-y-5">
             <div className="rounded-2xl bg-slate-50 p-4">
               <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -329,9 +378,9 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts }) => 
                 })}
               </div>
             </div>
-          </div>
         </div>
-    </div>
+      </AssessmentCriterionAccordion>
+    </CriteriaAccordionGroup>
   );
 };
 
