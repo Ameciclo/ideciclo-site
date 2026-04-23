@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Save, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Pin, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -323,8 +323,8 @@ const REVIEW_FILTER_SEQUENCE: Array<{
   label: string;
 }> = [
   { value: "all", label: "Todos" },
-  { value: "analysis", label: "Em análise" },
-  { value: "reviewed", label: "Revisados" },
+  { value: "analysis", label: "Fixados" },
+  { value: "reviewed", label: "Não fixados" },
 ];
 
 const CRITERION_NAV_ITEMS: Array<{
@@ -470,8 +470,8 @@ const SegmentForm = () => {
     if (code === "B2") return "b2";
     if (code === "E2") return "e2";
     if (code === "B3") return "b31";
-    if (code === "E3") return "e3";
-    if (code === "B4") return typology.includes("ciclorrota") ? "b42" : "b41";
+    if (code === "E3") return "e31";
+    if (code === "B4") return typology.includes("ciclorrota") ? "b43" : "b41";
     if (code === "E4") return typology.includes("ciclorrota") ? "e43" : "e41";
     if (code === "B5") return "b5";
     if (code === "B7") return "b7";
@@ -537,8 +537,75 @@ const SegmentForm = () => {
   };
 
   const criterionAnswered = (code: CriterionCode) => {
+    const manualRating = formData.manual_ratings?.[code];
+    if (manualRating) return true;
+
+    const touched = formData.touched_fields || {};
+    const hasTouched = (fields: string[]) => fields.some((field) => Boolean(touched[field]));
+    const typology = String(formData.infra_typology || "").toLowerCase();
+
+    if (code === "B5") return hasTouched(["signalized_crossings_count"]);
+    if (code === "B7") {
+      return hasTouched([
+        "no_risk_situations",
+        "bus_school_conflict",
+        "horizontal_obstacles",
+        "vertical_obstacles",
+        "side_change_mid_block",
+        "opposite_flow_direction",
+      ]);
+    }
+    if (code === "B4") {
+      return typology.includes("ciclorrota")
+        ? hasTouched([
+            "pictograms_per_block",
+            "pictograms_cover_all_blocks",
+            "regulation_signs_per_block",
+            "signs_both_directions",
+          ])
+        : hasTouched([
+            "regulation_signs_per_block",
+            "signs_both_directions",
+            "space_identification",
+          ]);
+    }
+    if (code === "C3") {
+      return typology.includes("ciclorrota")
+        ? hasTouched([
+            "traffic_lanes_per_direction",
+            "mixed_lane_width_m",
+            "has_intersection_traffic_calming",
+          ])
+        : hasTouched(["motorized_conflicts"]);
+    }
+    if (code === "D1") return hasTouched(["lighting_rating"]);
+    if (code === "D3") return hasTouched(["blocks_with_cycling_furniture", "cycling_furniture"]);
+
     const rating = liveSummary.resolvedRatings?.[code];
     return Boolean(rating);
+  };
+
+  const criterionPinned = (code: CriterionCode) => {
+    const workflow = formData.criterion_workflow_state || {};
+    const typology = String(formData.infra_typology || "").toLowerCase();
+
+    if (code === "B4") {
+      return typology.includes("ciclorrota")
+        ? workflow.b43 === "analysis" || workflow.b44 === "analysis"
+        : workflow.b41 === "analysis" || workflow.b42 === "analysis";
+    }
+
+    if (code === "E3") {
+      return workflow.e31 === "analysis" || workflow.e32 === "analysis";
+    }
+
+    if (code === "E4") {
+      return typology.includes("ciclorrota")
+        ? workflow.e43 === "analysis"
+        : workflow.e41 === "analysis" || workflow.e42 === "analysis";
+    }
+
+    return workflow[getWorkflowStateKey(code)] === "analysis";
   };
 
   const scrollToCriterion = (code: CriterionCode) => {
@@ -1208,8 +1275,7 @@ const SegmentForm = () => {
                     {CRITERION_CODES.map((code) => {
                       const applicable = isCriterionApplicable(formData, code);
                       const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
-                      const inAnalysis =
-                        formData.criterion_workflow_state?.[getWorkflowStateKey(code)] === "analysis";
+                      const inAnalysis = criterionPinned(code);
                       const answered = criterionAnswered(code);
 
                       return (
@@ -1240,10 +1306,7 @@ const SegmentForm = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-xs text-slate-500">
-                      Toque em um badge para ir direto ao critério.
-                    </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
@@ -1289,6 +1352,11 @@ const SegmentForm = () => {
                         }`}
                         onClick={cycleReviewFilter}
                       >
+                        <Pin
+                          className={`mr-1 h-3.5 w-3.5 ${
+                            globalCriterionFilter.review === "analysis" ? "fill-current" : ""
+                          }`}
+                        />
                         <span>{currentReviewFilterLabel}</span>
                       </Button>
                     </div>

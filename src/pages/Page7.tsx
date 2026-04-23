@@ -133,6 +133,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
             scorePreview={buildCriterionScorePreview(data, ["B7"])}
             answered={isTouched([
+              "no_risk_situations",
               "bus_school_conflict",
               "horizontal_obstacles",
               "vertical_obstacles",
@@ -150,6 +151,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
                 side_change_mid_block: false,
                 opposite_flow_direction: false,
                 touched_fields: {
+                  no_risk_situations: false,
                   bus_school_conflict: false,
                   horizontal_obstacles: false,
                   vertical_obstacles: false,

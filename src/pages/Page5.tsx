@@ -42,7 +42,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
     });
 
   return (
-    <CriteriaAccordionGroup allValues={["b31", "e3"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]} filter={filter} command={command}>
+    <CriteriaAccordionGroup allValues={["b31", "e31", "e32"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]} filter={filter} command={command}>
           {!isCiclorrota ? (
           <AssessmentCriterionAccordion
             value="b31"
@@ -176,93 +176,93 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
 
           {showE3 ? (
             <AssessmentCriterionAccordion
-              value="e3"
-              title="E.3. Conservação dos elementos de delimitação"
-              description="Aplicável a ciclovias e ciclofaixas, com resultado final calculado por matriz entre E.3.1 e E.3.2."
+              value="e31"
+              title="E.3.1. Estado de conservação dos dispositivos de separação"
+              description="Primeira entrada do cálculo E.3, aplicada a ciclovias e ciclofaixas."
               scorePreview={buildCriterionScorePreview(data, ["E3"])}
-              answered={isTouched(["devices_conservation", "spacing_conservation"])}
-              inAnalysis={data.criterion_workflow_state?.e3 === "analysis"}
-              onAnalysisChange={(value) => updateWorkflow("e3", value ? "analysis" : "default")}
+              answered={isTouched(["devices_conservation"])}
+              inAnalysis={data.criterion_workflow_state?.e31 === "analysis"}
+              onAnalysisChange={(value) => updateWorkflow("e31", value ? "analysis" : "default")}
               onClear={() =>
                 onDataChange({
                   devices_conservation: "",
-                  spacing_conservation: "",
                   touched_fields: {
                     devices_conservation: false,
+                  },
+                })
+              }
+              helpKey="E3"
+            >
+              <ConceptCriteriaTable
+                value={data.devices_conservation || ""}
+                onValueChange={(value) => handleRadioChange("devices_conservation", value)}
+                options={[
+                  {
+                    value: "A",
+                    description:
+                      "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
+                  },
+                  {
+                    value: "B",
+                    description:
+                      "Dispositivos em mais da metade do trecho em bom estado de conservação.",
+                  },
+                  {
+                    value: "C",
+                    description:
+                      "Dispositivos em menos da metade do trecho ou estão muito danificados.",
+                  },
+                  {
+                    value: "D",
+                    description: "Praticamente não há dispositivos.",
+                  },
+                ]}
+              />
+            </AssessmentCriterionAccordion>
+          ) : null}
+
+          {showE3 ? (
+            <AssessmentCriterionAccordion
+              value="e32"
+              title="E.3.2. Estado de conservação da faixa de afastamento lateral"
+              description="Segunda entrada do cálculo E.3, combinada com E.3.1 pela matriz do manual."
+              scorePreview={buildCriterionScorePreview(data, ["E3"])}
+              answered={isTouched(["spacing_conservation"])}
+              inAnalysis={data.criterion_workflow_state?.e32 === "analysis"}
+              onAnalysisChange={(value) => updateWorkflow("e32", value ? "analysis" : "default")}
+              onClear={() =>
+                onDataChange({
+                  spacing_conservation: "",
+                  touched_fields: {
                     spacing_conservation: false,
                   },
                 })
               }
               helpKey="E3"
             >
-              <div className="space-y-6">
-                <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                  O conceito final de <strong>E.3</strong> e calculado pela combinacao entre
-                  <strong> E.3.1</strong> e <strong>E.3.2</strong>.
-                </div>
-
-                <div>
-                  <Label className="mb-2 block">
-                    E.3.1. Estado de conservação dos dispositivos de separação
-                  </Label>
-                  <ConceptCriteriaTable
-                    value={data.devices_conservation || ""}
-                    onValueChange={(value) => handleRadioChange("devices_conservation", value)}
-                    options={[
-                      {
-                        value: "A",
-                        description:
-                          "Há dispositivos de separação ou segregação em todo o trecho, visível em toda a extensão.",
-                      },
-                      {
-                        value: "B",
-                        description:
-                          "Dispositivos em mais da metade do trecho em bom estado de conservação.",
-                      },
-                      {
-                        value: "C",
-                        description:
-                          "Dispositivos em menos da metade do trecho ou estão muito danificados.",
-                      },
-                      {
-                        value: "D",
-                        description: "Praticamente não há dispositivos.",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <Label className="mb-2 block">
-                    E.3.2. Estado de conservação da faixa de afastamento lateral
-                  </Label>
-                  <ConceptCriteriaTable
-                    value={data.spacing_conservation || ""}
-                    onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
-                    options={[
-                      {
-                        value: "A",
-                        description:
-                          "Há demarcação em ótimo estado, visível em toda a extensão.",
-                      },
-                      {
-                        value: "B",
-                        description:
-                          "Há demarcação em bom estado em mais da metade do trecho.",
-                      },
-                      {
-                        value: "C",
-                        description:
-                          "Há demarcação em menos da metade do trecho ou está muito danificada.",
-                      },
-                      {
-                        value: "D",
-                        description: "Praticamente inexiste.",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
+              <ConceptCriteriaTable
+                value={data.spacing_conservation || ""}
+                onValueChange={(value) => handleRadioChange("spacing_conservation", value)}
+                options={[
+                  {
+                    value: "A",
+                    description: "Há demarcação em ótimo estado, visível em toda a extensão.",
+                  },
+                  {
+                    value: "B",
+                    description: "Há demarcação em bom estado em mais da metade do trecho.",
+                  },
+                  {
+                    value: "C",
+                    description:
+                      "Há demarcação em menos da metade do trecho ou está muito danificada.",
+                  },
+                  {
+                    value: "D",
+                    description: "Praticamente inexiste.",
+                  },
+                ]}
+              />
             </AssessmentCriterionAccordion>
           ) : null}
         </CriteriaAccordionGroup>

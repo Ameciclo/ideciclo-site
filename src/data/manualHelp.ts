@@ -77,18 +77,23 @@ export const MANUAL_HELP_MAP: Record<string, ManualHelpEntry> = {
     [27, 28, 29, 30]
   ),
   b41: entry(
+    "B.4.1 Sinalização vertical ao longo do trecho",
+    "Páginas do manual que descrevem as placas de regulamentação, o método de apuração e os critérios por tipologia.",
+    [28, 29]
+  ),
+  b42: entry(
     "B.4.2 Identificação do espaço de circulação de bicicletas",
     "Página do manual que descreve a identificação em vermelho e os critérios de avaliação desse item.",
     [29]
   ),
-  b42: entry(
+  b43: entry(
     "B.4.3 Aplicação de inscrições no pavimento",
     "Página do manual com a explicação dos pictogramas em ciclorrotas e dos critérios de avaliação.",
     [30]
   ),
-  b43: entry(
-    "B.4.1 Sinalização vertical ao longo do trecho",
-    "Páginas do manual que descrevem as placas de regulamentação, o método de apuração e os critérios por tipologia.",
+  b44: entry(
+    "B.4.4 Sinalização vertical de regulamentação",
+    "Páginas do manual que descrevem as placas de regulamentação e o método de apuração em ciclorrotas.",
     [28, 29]
   ),
   B5: entry(
@@ -182,13 +187,13 @@ export const MANUAL_HELP_MAP: Record<string, ManualHelpEntry> = {
     [51]
   ),
   e42: entry(
-    "E.4.2 Estado de conservação das inscrições no pavimento",
-    "Página do manual com os critérios de conservação dos pictogramas em ciclorrotas.",
+    "E.4.2 Estado de conservação da sinalização vertical",
+    "Página do manual com os critérios de conservação das placas de regulamentação.",
     [52]
   ),
   e43: entry(
-    "E.4.3 Estado de conservação da sinalização vertical",
-    "Página do manual com os critérios de conservação das placas de regulamentação.",
+    "E.4.3 Estado de conservação das inscrições no pavimento",
+    "Página do manual com os critérios de conservação dos pictogramas em ciclorrotas.",
     [52]
   ),
 };
