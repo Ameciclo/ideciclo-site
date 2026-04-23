@@ -7,6 +7,12 @@ export type TrafficCalmingMeasure =
   | "faixa_elevada"
   | "elevacao_intersecao"
   | "reducao_largura";
+export type RiskOccurrenceKey =
+  | "bus_school_conflict"
+  | "horizontal_obstacles"
+  | "vertical_obstacles"
+  | "side_change_mid_block"
+  | "opposite_flow_direction";
 export type CriterionCode =
   | "A1"
   | "A2"
@@ -80,6 +86,7 @@ export interface IdecicloFormData {
   traffic_lanes_count: number;
   signalized_crossings_count: number;
   no_risk_situations: boolean;
+  risk_occurrence_counts: Partial<Record<RiskOccurrenceKey, number>>;
   bus_school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;

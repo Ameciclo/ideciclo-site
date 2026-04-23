@@ -168,6 +168,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   traffic_lanes_count: 2,
   signalized_crossings_count: 0,
   no_risk_situations: false,
+  risk_occurrence_counts: {},
   bus_school_conflict: false,
   horizontal_obstacles: false,
   vertical_obstacles: false,
@@ -213,6 +214,16 @@ const mergeWithDefaults = (
       : Array.isArray(data.speed_measures)
         ? Object.fromEntries(data.speed_measures.map((measure) => [measure, 1]))
         : {};
+  const fallbackRiskOccurrenceCounts =
+    data.risk_occurrence_counts && Object.keys(data.risk_occurrence_counts).length > 0
+      ? data.risk_occurrence_counts
+      : {
+          ...(data.bus_school_conflict ? { bus_school_conflict: 1 } : {}),
+          ...(data.horizontal_obstacles ? { horizontal_obstacles: 1 } : {}),
+          ...(data.vertical_obstacles ? { vertical_obstacles: 1 } : {}),
+          ...(data.side_change_mid_block ? { side_change_mid_block: 1 } : {}),
+          ...(data.opposite_flow_direction ? { opposite_flow_direction: 1 } : {}),
+        };
 
   return {
     ...defaults,
@@ -220,6 +231,7 @@ const mergeWithDefaults = (
     buffer_width_m: data.buffer_width_m ?? defaults.buffer_width_m,
     buffer_measurements_m: data.buffer_measurements_m ?? defaults.buffer_measurements_m,
     traffic_calming_counts: fallbackTrafficCalmingCounts,
+    risk_occurrence_counts: fallbackRiskOccurrenceCounts,
     signalized_crossings_count:
       data.signalized_crossings_count ?? legacyData.signalized_crossings_per_block ?? 0,
     id: data.id || defaults.id,
@@ -570,14 +582,12 @@ const SegmentForm = () => {
       return totalTrafficCalming > 0 || Boolean(formData.no_traffic_calming_measures);
     }
     if (code === "B7") {
-      return hasTouched([
-        "no_risk_situations",
-        "bus_school_conflict",
-        "horizontal_obstacles",
-        "vertical_obstacles",
-        "side_change_mid_block",
-        "opposite_flow_direction",
-      ]);
+      return Boolean(formData.no_risk_situations) ||
+        Boolean(formData.bus_school_conflict) ||
+        Boolean(formData.horizontal_obstacles) ||
+        Boolean(formData.vertical_obstacles) ||
+        Boolean(formData.side_change_mid_block) ||
+        Boolean(formData.opposite_flow_direction);
     }
     if (code === "B4") {
       return typology.includes("ciclorrota")
@@ -1309,13 +1319,6 @@ const SegmentForm = () => {
                 filter={globalCriterionFilter}
                 command={accordionCommand}
               />
-              <Page3
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                visibleValues={["b32"]}
-              />
             </section>
 
             <section className="space-y-6">
@@ -1336,7 +1339,14 @@ const SegmentForm = () => {
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
-                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b12"] : ["b11"]}
+                visibleValues={
+                  String(formData.infra_typology || "").toLowerCase().includes("ciclorrota")
+                    ? ["b12"]
+                    : String(formData.infra_typology || "").toLowerCase().includes("compart") ||
+                        String(formData.infra_typology || "").toLowerCase().includes("calçada")
+                      ? ["b11"]
+                      : ["b11", "b32"]
+                }
               />
               <Page6
                 data={formData}

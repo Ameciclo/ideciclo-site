@@ -8,8 +8,46 @@ import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccord
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
-import { IdecicloFormData } from "@/types/idecicloForm";
+import { IdecicloFormData, RiskOccurrenceKey } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
+
+const RISK_OPTIONS = [
+  {
+    key: "bus_school_conflict",
+    label: "Conflito com ponto de ônibus ou escola",
+    icons: ["/icones/onibus.svg", "/icones/escola.svg"],
+    ciclorrota: false,
+  },
+  {
+    key: "horizontal_obstacles",
+    label: "Obstáculos horizontais no trecho",
+    icons: ["/icones/obstaculos-horizontal.svg"],
+    ciclorrota: true,
+  },
+  {
+    key: "vertical_obstacles",
+    label: "Obstáculos verticais no trecho",
+    icons: ["/icones/obstaculos.svg"],
+    ciclorrota: true,
+  },
+  {
+    key: "side_change_mid_block",
+    label: "Mudança de lado da infraestrutura no meio da quadra",
+    icons: ["/icones/risco-troca-de-lado.svg"],
+    ciclorrota: false,
+  },
+  {
+    key: "opposite_flow_direction",
+    label: "Sentido de circulação contrário ao fluxo veicular",
+    icons: ["/icones/contramao-estrutura.svg"],
+    ciclorrota: false,
+  },
+] as const satisfies ReadonlyArray<{
+  key: RiskOccurrenceKey;
+  label: string;
+  icons: string[];
+  ciclorrota: boolean;
+}>;
 
 interface Page7Props {
   data: IdecicloFormData;
@@ -40,7 +78,7 @@ const Page7: React.FC<Page7Props> = ({
     onDataChange({ [name]: value });
   };
 
-  const handleCheckboxChange = (name: string, checked: boolean) => {
+  const handleCheckboxChange = (name: RiskOccurrenceKey, checked: boolean) => {
     onDataChange({
       [name]: checked,
       no_risk_situations:
@@ -56,6 +94,33 @@ const Page7: React.FC<Page7Props> = ({
           : data.no_risk_situations,
     });
   };
+
+  const riskOccurrenceCounts = data.risk_occurrence_counts || {};
+
+  const handleRiskCountChange = (name: RiskOccurrenceKey, delta: number) => {
+    const currentCount = Number(riskOccurrenceCounts[name] || 0);
+    const nextCount = Math.max(0, currentCount + delta);
+    const nextCounts = {
+      ...riskOccurrenceCounts,
+      [name]: nextCount,
+    };
+    const hasAnyRisk = Object.values(nextCounts).some((value) => Number(value || 0) > 0);
+
+    onDataChange({
+      risk_occurrence_counts: nextCounts,
+      [name]: nextCount > 0,
+      no_risk_situations: hasAnyRisk ? false : data.no_risk_situations,
+      touched_fields: {
+        risk_occurrence_counts: hasAnyRisk,
+        [name]: nextCount > 0,
+      },
+    });
+  };
+
+  const availableRiskOptions = RISK_OPTIONS.filter((option) => option.ciclorrota || !isCiclorrota);
+  const selectedRiskOptions = availableRiskOptions.filter((option) =>
+    Number(riskOccurrenceCounts[option.key] || 0) > 0
+  );
 
   const handleConflictCheckboxChange = (conflict: string, checked: boolean) => {
     const currentConflicts = [...(data.motorized_conflicts || [])];
@@ -122,11 +187,7 @@ const Page7: React.FC<Page7Props> = ({
   const blocksCount = Number(data.blocks_count || 0);
   const crossingsPerBlock = blocksCount > 0 ? signalizedCrossingsCount / blocksCount : 0;
   const hasAnyRiskSelected = Boolean(
-    data.bus_school_conflict ||
-      data.horizontal_obstacles ||
-      data.vertical_obstacles ||
-      data.side_change_mid_block ||
-      data.opposite_flow_direction
+    selectedRiskOptions.length > 0
   );
 
   return (
@@ -144,12 +205,13 @@ const Page7: React.FC<Page7Props> = ({
             answered={Boolean(data.no_risk_situations) || hasAnyRiskSelected}
             inAnalysis={data.criterion_workflow_state?.b7 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b7", value ? "analysis" : "default")}
-            onClear={() =>
-              onDataChange({
-                no_risk_situations: false,
-                bus_school_conflict: false,
-                horizontal_obstacles: false,
-                vertical_obstacles: false,
+              onClear={() =>
+                onDataChange({
+                  no_risk_situations: false,
+                  risk_occurrence_counts: {},
+                  bus_school_conflict: false,
+                  horizontal_obstacles: false,
+                  vertical_obstacles: false,
                 side_change_mid_block: false,
                 opposite_flow_direction: false,
                 touched_fields: {
@@ -181,6 +243,7 @@ const Page7: React.FC<Page7Props> = ({
                       no_risk_situations: active,
                       ...(active
                         ? {
+                            risk_occurrence_counts: {},
                             bus_school_conflict: false,
                             horizontal_obstacles: false,
                             vertical_obstacles: false,
@@ -192,77 +255,79 @@ const Page7: React.FC<Page7Props> = ({
                   }}
                 />
               </div>
-              {!isCiclorrota ? (
-                <label
-                  htmlFor="bus_school_conflict"
-                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-                >
-                  <Checkbox
-                    id="bus_school_conflict"
-                    checked={data.bus_school_conflict || false}
-                    onCheckedChange={(checked) => handleCheckboxChange("bus_school_conflict", !!checked)}
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    Conflito com ponto de onibus ou escola
-                  </span>
-                </label>
-              ) : null}
-              <label
-                htmlFor="horizontal_obstacles"
-                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-              >
-                <Checkbox
-                  id="horizontal_obstacles"
-                  checked={data.horizontal_obstacles || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("horizontal_obstacles", !!checked)}
-                />
-                <span className="text-sm font-medium text-slate-700">
-                  Obstaculos horizontais no trecho
-                </span>
-              </label>
-              <label
-                htmlFor="vertical_obstacles"
-                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-              >
-                <Checkbox
-                  id="vertical_obstacles"
-                  checked={data.vertical_obstacles || false}
-                  onCheckedChange={(checked) => handleCheckboxChange("vertical_obstacles", !!checked)}
-                />
-                <span className="text-sm font-medium text-slate-700">Obstaculos verticais no trecho</span>
-              </label>
-              {!isCiclorrota ? (
-                <label
-                  htmlFor="side_change_mid_block"
-                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-                >
-                  <Checkbox
-                    id="side_change_mid_block"
-                    checked={data.side_change_mid_block || false}
-                    onCheckedChange={(checked) => handleCheckboxChange("side_change_mid_block", !!checked)}
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    Mudanca de lado da infraestrutura no meio da quadra
-                  </span>
-                </label>
-              ) : null}
-              {!isCiclorrota ? (
-                <label
-                  htmlFor="opposite_flow_direction"
-                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3"
-                >
-                  <Checkbox
-                    id="opposite_flow_direction"
-                    checked={data.opposite_flow_direction || false}
-                    onCheckedChange={(checked) =>
-                      handleCheckboxChange("opposite_flow_direction", !!checked)
-                    }
-                  />
-                  <span className="text-sm font-medium text-slate-700">
-                    Sentido de circulacao contrario ao fluxo veicular
-                  </span>
-                </label>
-              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {availableRiskOptions.map((option) => {
+                  const count = Number(riskOccurrenceCounts[option.key] || 0);
+                  const selected = count > 0;
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => handleRiskCountChange(option.key, 1)}
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                        selected
+                          ? "border-rose-300 bg-rose-50 shadow-sm"
+                          : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {option.icons.map((icon) => (
+                          <img
+                            key={icon}
+                            src={icon}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-10 w-10 object-contain"
+                          />
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        <span className="block text-sm font-semibold text-slate-700">
+                          {option.label}
+                        </span>
+                        <span className="block text-xs text-slate-500">
+                          {selected ? `Toque para somar (${count})` : "Toque para marcar"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div>
+                {selectedRiskOptions.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRiskOptions.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => handleRiskCountChange(option.key, -1)}
+                        className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                      >
+                        {option.icons.map((icon) => (
+                          <img
+                            key={icon}
+                            src={icon}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-4 w-4 object-contain"
+                          />
+                        ))}
+                        <span>{option.label}</span>
+                        <span className="font-semibold text-slate-500">
+                          x{Number(riskOccurrenceCounts[option.key] || 0)}
+                        </span>
+                        <span>×</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma situação de risco marcada ainda.
+                  </p>
+                )}
+              </div>
             </div>
           </AssessmentCriterionAccordion> : null}
 
