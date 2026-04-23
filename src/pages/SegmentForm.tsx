@@ -369,6 +369,18 @@ const CRITERION_NAV_ITEMS: Array<{
   { code: "C3", anchor: "criterion-c3" },
 ];
 
+const SECTION_NAV_ITEMS = [
+  { id: "section-a", label: "Caracterização", tone: "a" },
+  { id: "section-pavimento", label: "Pavimento", tone: "e" },
+  { id: "section-luz", label: "Iluminação", tone: "d" },
+  { id: "section-identificacao", label: "Identificação", tone: "b" },
+  { id: "section-separacao", label: "Separação", tone: "b" },
+  { id: "section-risco", label: "Risco", tone: "b" },
+  { id: "section-quadras", label: "Quadras", tone: "b" },
+  { id: "section-intersecoes", label: "Interseções", tone: "c" },
+  { id: "section-comentarios", label: "Comentários", tone: "e" },
+] as const;
+
 const HeaderField = ({
   label,
   value,
@@ -690,6 +702,12 @@ const SegmentForm = () => {
     target.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -702,6 +720,12 @@ const SegmentForm = () => {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  const normalizedTypology = String(formData.infra_typology || "").toLowerCase();
+  const showIdentificationSection = !normalizedTypology.includes("ciclorrota");
+  const sectionNavItems = SECTION_NAV_ITEMS.filter(
+    (item) => item.id !== "section-identificacao" || showIdentificationSection
+  );
 
   useEffect(() => {
     const loadOriginalSegmentContext = async () => {
@@ -1277,7 +1301,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-6">
+            <section id="section-pavimento" className="space-y-6">
               <AxisRibbon tone="e" title="Pavimento" />
               <Page4
                 data={formData}
@@ -1287,7 +1311,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-6">
+            <section id="section-luz" className="space-y-6">
               <AxisRibbon tone="d" title="Iluminacao e conforto termico" />
               <Page8
                 data={formData}
@@ -1299,7 +1323,7 @@ const SegmentForm = () => {
             </section>
 
             {!String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? (
-            <section className="space-y-6">
+            <section id="section-identificacao" className="space-y-6">
               <AxisRibbon tone="b" title="Identificacao do espaco cicloviario" />
               <Page6
                 data={formData}
@@ -1311,7 +1335,7 @@ const SegmentForm = () => {
             </section>
             ) : null}
 
-            <section className="space-y-6">
+            <section id="section-separacao" className="space-y-6">
               <AxisRibbon tone="b" title="Delimitacao e conservacao da separacao" />
               <Page5
                 data={formData}
@@ -1321,7 +1345,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-6">
+            <section id="section-risco" className="space-y-6">
               <AxisRibbon tone="b" title="Situacoes de risco" />
               <Page7
                 data={formData}
@@ -1332,7 +1356,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-6">
+            <section id="section-quadras" className="space-y-6">
               <AxisRibbon tone="b" title="Avaliacao das quadras" />
               <Page3
                 data={formData}
@@ -1371,7 +1395,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-6">
+            <section id="section-intersecoes" className="space-y-6">
               <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
               <Page7
                 data={formData}
@@ -1382,7 +1406,7 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section className="space-y-4">
+            <section id="section-comentarios" className="space-y-4">
               <AxisRibbon tone="e" title="Comentarios" />
               <Card>
                 <CardHeader>
@@ -1416,6 +1440,31 @@ const SegmentForm = () => {
             <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3">
               <div className="w-full max-w-5xl rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur">
                 <div className="flex flex-col gap-3">
+                  <div className="overflow-x-auto">
+                    <div className="flex min-w-max items-center gap-2">
+                      {sectionNavItems.map((section) => (
+                        <button
+                          key={section.id}
+                          type="button"
+                          onClick={() => scrollToSection(section.id)}
+                          className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${
+                            section.tone === "a"
+                              ? "bg-[#f6d26d]"
+                              : section.tone === "b"
+                                ? "bg-[#de6d57]"
+                                : section.tone === "c"
+                                  ? "bg-[#70c3df]"
+                                  : section.tone === "d"
+                                    ? "bg-[#6cab73]"
+                                    : "bg-[#f4c4cc]"
+                          }`}
+                        >
+                          {section.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
                     <div className="flex min-w-max items-center gap-2">
                     {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
