@@ -56,11 +56,32 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
     }
   };
 
-  const hidden =
-    (filter.answer === "answered" && !answered) ||
-    (filter.answer === "unanswered" && answered && !inAnalysis) ||
-    (filter.review === "analysis" && !inAnalysis) ||
-    (filter.review === "reviewed" && inAnalysis);
+  const answerMatches =
+    filter.answer === "all" ||
+    (filter.answer === "answered" && answered) ||
+    (filter.answer === "unanswered" && (!answered || inAnalysis));
+
+  const reviewMatches =
+    filter.review === "all" ||
+    (filter.review === "analysis" && inAnalysis);
+
+  const hasAnswerFilter = filter.answer !== "all";
+  const hasReviewFilter = filter.review !== "all";
+
+  let visible = true;
+
+  if (hasAnswerFilter && hasReviewFilter) {
+    visible =
+      filter.mode === "and"
+        ? answerMatches && reviewMatches
+        : answerMatches || reviewMatches;
+  } else if (hasAnswerFilter) {
+    visible = answerMatches;
+  } else if (hasReviewFilter) {
+    visible = reviewMatches;
+  }
+
+  const hidden = !visible;
 
   if (hidden) return null;
 

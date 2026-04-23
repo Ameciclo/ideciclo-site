@@ -1,11 +1,13 @@
 import { createContext, useContext } from "react";
 
 export type CriterionAnswerFilter = "all" | "answered" | "unanswered";
-export type CriterionReviewFilter = "all" | "analysis" | "reviewed";
+export type CriterionReviewFilter = "all" | "analysis";
+export type CriterionFilterMode = "or" | "and";
 
 export interface CriterionFilter {
   answer: CriterionAnswerFilter;
   review: CriterionReviewFilter;
+  mode: CriterionFilterMode;
 }
 
 interface CriteriaAccordionContextValue {
@@ -16,6 +18,7 @@ export const CriteriaAccordionContext = createContext<CriteriaAccordionContextVa
   filter: {
     answer: "all",
     review: "all",
+    mode: "or",
   },
 });
 

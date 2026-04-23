@@ -19,7 +19,7 @@ interface CriteriaAccordionGroupProps {
 const CriteriaAccordionGroup: React.FC<CriteriaAccordionGroupProps> = ({
   allValues,
   defaultOpenValues,
-  filter = { answer: "all", review: "all" },
+  filter = { answer: "all", review: "all", mode: "or" },
   command,
   children,
 }) => {

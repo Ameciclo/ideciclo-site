@@ -43,6 +43,7 @@ import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import {
   CriterionAnswerFilter,
   CriterionFilter,
+  CriterionFilterMode,
   CriterionReviewFilter,
 } from "@/components/criteriaAccordionContext";
 
@@ -324,7 +325,6 @@ const REVIEW_FILTER_SEQUENCE: Array<{
 }> = [
   { value: "all", label: "Todos" },
   { value: "analysis", label: "Fixados" },
-  { value: "reviewed", label: "Não fixados" },
 ];
 
 const CRITERION_NAV_ITEMS: Array<{
@@ -446,6 +446,7 @@ const SegmentForm = () => {
   const [globalCriterionFilter, setGlobalCriterionFilter] = useState<CriterionFilter>({
     answer: "all",
     review: "all",
+    mode: "or",
   });
   const [accordionDisplayMode, setAccordionDisplayMode] = useState<"expanded" | "collapsed">(
     "expanded"
@@ -508,6 +509,13 @@ const SegmentForm = () => {
     });
   };
 
+  const toggleFilterMode = () => {
+    setGlobalCriterionFilter((current) => ({
+      ...current,
+      mode: current.mode === "or" ? "and" : "or",
+    }));
+  };
+
   const triggerAccordionCommand = (type: "expand" | "collapse") => {
     setAccordionCommand({
       type,
@@ -529,6 +537,9 @@ const SegmentForm = () => {
   const currentReviewFilterLabel =
     REVIEW_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.review)?.label ||
     "Todos";
+  const shouldShowFilterModeToggle =
+    globalCriterionFilter.answer !== "all" && globalCriterionFilter.review !== "all";
+  const currentFilterModeLabel = globalCriterionFilter.mode === "or" ? "OU" : "E";
 
   const getCriterionAnchor = (code: CriterionCode) => {
     const workflowKey = getWorkflowStateKey(code);
@@ -606,6 +617,44 @@ const SegmentForm = () => {
     }
 
     return workflow[getWorkflowStateKey(code)] === "analysis";
+  };
+
+  const criterionMatchesCurrentFilters = (code: CriterionCode) => {
+    const applicable = isCriterionApplicable(formData, code);
+    const answered = criterionAnswered(code);
+    const pinned = criterionPinned(code);
+
+    if (!applicable) {
+      return false;
+    }
+
+    const answerMatches =
+      globalCriterionFilter.answer === "all" ||
+      (globalCriterionFilter.answer === "answered" && answered) ||
+      (globalCriterionFilter.answer === "unanswered" && (!answered || pinned));
+
+    const reviewMatches =
+      globalCriterionFilter.review === "all" ||
+      (globalCriterionFilter.review === "analysis" && pinned);
+
+    const hasAnswerFilter = globalCriterionFilter.answer !== "all";
+    const hasReviewFilter = globalCriterionFilter.review !== "all";
+
+    if (!hasAnswerFilter && !hasReviewFilter) {
+      return true;
+    }
+
+    if (hasAnswerFilter && hasReviewFilter) {
+      return globalCriterionFilter.mode === "and"
+        ? answerMatches && reviewMatches
+        : answerMatches || reviewMatches;
+    }
+
+    if (hasAnswerFilter) {
+      return answerMatches;
+    }
+
+    return reviewMatches;
   };
 
   const scrollToCriterion = (code: CriterionCode) => {
@@ -1272,7 +1321,7 @@ const SegmentForm = () => {
                 <div className="flex flex-col gap-3">
                   <div className="overflow-x-auto">
                     <div className="flex min-w-max items-center gap-2">
-                    {CRITERION_CODES.map((code) => {
+                    {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
                       const applicable = isCriterionApplicable(formData, code);
                       const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
                       const inAnalysis = criterionPinned(code);
@@ -1306,51 +1355,63 @@ const SegmentForm = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 rounded-full px-2.5 text-[11px] font-semibold"
-                        onClick={toggleAccordionDisplayMode}
-                      >
-                        {accordionDisplayMode === "expanded" ? (
-                          <ChevronDown className="mr-1 h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronRight className="mr-1 h-3.5 w-3.5" />
-                        )}
-                        <span>
-                          {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
-                        </span>
-                      </Button>
+                  <div className="flex flex-wrap items-center justify-start gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-full px-2.5 text-[11px] font-semibold"
+                      onClick={toggleAccordionDisplayMode}
+                    >
+                      {accordionDisplayMode === "expanded" ? (
+                        <ChevronDown className="mr-1 h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronRight className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      <span>
+                        {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
+                      </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
+                        globalCriterionFilter.answer === "answered"
+                          ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
+                          : globalCriterionFilter.answer === "unanswered"
+                            ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                      onClick={cycleAnswerFilter}
+                    >
+                      <span>{currentAnswerFilterLabel}</span>
+                    </Button>
+                    {shouldShowFilterModeToggle ? (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                          globalCriterionFilter.answer === "answered"
-                            ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
-                            : globalCriterionFilter.answer === "unanswered"
-                              ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90"
-                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          globalCriterionFilter.mode === "or"
+                            ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-600/90"
+                            : "border-violet-600 bg-violet-600 text-white hover:bg-violet-600/90"
                         }`}
-                        onClick={cycleAnswerFilter}
+                        onClick={toggleFilterMode}
                       >
-                        <span>{currentAnswerFilterLabel}</span>
+                        <span>{currentFilterModeLabel}</span>
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                          globalCriterionFilter.review === "analysis"
-                            ? "border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100/90"
-                            : globalCriterionFilter.review === "reviewed"
-                              ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
-                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                        }`}
-                        onClick={cycleReviewFilter}
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
+                        globalCriterionFilter.review === "analysis"
+                          ? "border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100/90"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                      onClick={cycleReviewFilter}
                       >
                         <Pin
                           className={`mr-1 h-3.5 w-3.5 ${
@@ -1358,8 +1419,7 @@ const SegmentForm = () => {
                           }`}
                         />
                         <span>{currentReviewFilterLabel}</span>
-                      </Button>
-                    </div>
+                    </Button>
                   </div>
                 </div>
               </div>
