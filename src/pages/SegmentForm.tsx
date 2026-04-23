@@ -1347,12 +1347,6 @@ const SegmentForm = () => {
                           }`}
                         >
                           <span>{code}</span>
-                          {typeof points === "number" ? (
-                            <span className="hidden sm:inline">
-                              {" "}
-                              {points > 0 ? `+${points}` : points}
-                            </span>
-                          ) : null}
                         </button>
                       );
                     })}

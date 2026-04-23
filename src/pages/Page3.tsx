@@ -314,25 +314,45 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
                 <Label htmlFor="width_measurement_cm" className="mb-3 block">
                   Adicionar medição de largura
                 </Label>
-                <div className="flex flex-col gap-3 md:flex-row">
-                  <div className="flex-1">
-                    <Input
-                      id="width_measurement_cm"
-                      inputMode="decimal"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="Ex.: 235"
-                      value={widthDraftCm}
-                      onChange={(event) => setWidthDraftCm(event.target.value)}
-                    />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Digite em centímetros para permitir precisão centimétrica. Ex.: 235 = 2,35 m.
-                    </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 md:flex-row">
+                    <div className="flex-1">
+                      <Input
+                        id="width_measurement_cm"
+                        inputMode="decimal"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Ex.: 235"
+                        value={widthDraftCm}
+                        onChange={(event) => setWidthDraftCm(event.target.value)}
+                      />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Digite em centímetros para permitir precisão centimétrica. Ex.: 235 = 2,35 m.
+                      </p>
+                    </div>
+                    <Button type="button" className="md:self-start" onClick={addWidthMeasurement}>
+                      Adicionar medida
+                    </Button>
                   </div>
-                  <Button type="button" className="md:self-start" onClick={addWidthMeasurement}>
-                    Adicionar medida
-                  </Button>
+
+                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-800">Inclui sarjeta</div>
+                      <p className="text-xs text-muted-foreground">
+                        Marque se a largura registrada considera a sarjeta.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={Boolean(data.includes_gutter)}
+                      onCheckedChange={(checked) =>
+                        onDataChange({
+                          includes_gutter: checked,
+                          touched_fields: { includes_gutter: true },
+                        })
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -428,7 +448,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
                   </p>
                 </div>
 
-                <div className="space-y-4 rounded-2xl border p-4">
+                <div className="rounded-2xl border p-4">
                   <div>
                     <div className="text-sm font-medium text-foreground">Histórico de afastamentos</div>
                     {bufferMeasurements.length > 0 ? (
@@ -457,24 +477,6 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
                     <p className="mt-3 text-xs text-muted-foreground">
                       Toque em uma medição para removê-la do cálculo.
                     </p>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3">
-                    <div>
-                      <div className="text-sm font-medium text-slate-800">Inclui sarjeta</div>
-                      <p className="text-xs text-muted-foreground">
-                        Marque se a largura registrada considera a sarjeta.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={Boolean(data.includes_gutter)}
-                      onCheckedChange={(checked) =>
-                        onDataChange({
-                          includes_gutter: checked,
-                          touched_fields: { includes_gutter: true },
-                        })
-                      }
-                    />
                   </div>
                 </div>
               </div>
