@@ -343,13 +343,13 @@ const CRITERION_NAV_ITEMS: Array<{
   { code: "B5", anchor: "criterion-b5" },
   { code: "B6", anchor: "criterion-b12" },
   { code: "B7", anchor: "criterion-b7" },
-  { code: "C1", anchor: "criterion-c1e1" },
+  { code: "C1", anchor: "criterion-c1" },
   { code: "C2", anchor: "criterion-c2" },
   { code: "C3", anchor: "criterion-c3" },
   { code: "D1", anchor: "criterion-d1" },
   { code: "D2", anchor: "criterion-d2" },
   { code: "D3", anchor: "criterion-d3" },
-  { code: "E1", anchor: "criterion-c1e1" },
+  { code: "E1", anchor: "criterion-e1" },
   { code: "E2", anchor: "criterion-e2" },
   { code: "E3", anchor: "criterion-e3" },
   { code: "E4", anchor: "criterion-e41" },
@@ -479,7 +479,8 @@ const SegmentForm = () => {
     if (code === "E4") return typology.includes("ciclorrota") ? "e43" : "e41";
     if (code === "B5") return "b5";
     if (code === "B7") return "b7";
-    if (code === "C1" || code === "E1") return "c1e1";
+    if (code === "C1") return "c1";
+    if (code === "E1") return "e1";
     if (code === "C2") return "c2";
     if (code === "C3") return "c3";
     if (code === "D1") return "d1";
@@ -617,6 +618,14 @@ const SegmentForm = () => {
       return typology.includes("ciclorrota")
         ? workflow.e43 === "analysis"
         : workflow.e41 === "analysis" || workflow.e42 === "analysis";
+    }
+
+    if (code === "C1") {
+      return workflow.c1 === "analysis" || workflow.c1e1 === "analysis";
+    }
+
+    if (code === "E1") {
+      return workflow.e1 === "analysis" || workflow.c1e1 === "analysis";
     }
 
     return workflow[getWorkflowStateKey(code)] === "analysis";

@@ -122,7 +122,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-          allValues={["b7", "b5", "c1e1", "c2", "c3"]}
+          allValues={["b7", "b5", "c1", "e1", "c2", "c3"]}
           defaultOpenValues={["b7"]}
           filter={filter}
           command={command}
@@ -132,14 +132,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             title="B.7. Situações de risco ao longo da infraestrutura"
             description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
             scorePreview={buildCriterionScorePreview(data, ["B7"])}
-            answered={isTouched([
-              "no_risk_situations",
-              "bus_school_conflict",
-              "horizontal_obstacles",
-              "vertical_obstacles",
-              "side_change_mid_block",
-              "opposite_flow_direction",
-            ])}
+            answered={Boolean(data.no_risk_situations) || hasAnyRiskSelected}
             inAnalysis={data.criterion_workflow_state?.b7 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b7", value ? "analysis" : "default")}
             onClear={() =>
@@ -325,85 +318,100 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
 
           {!isCiclorrota ? (
             <AssessmentCriterionAccordion
-              value="c1e1"
-              title="C.1 / E.1. Sinalização horizontal cicloviária nas interseções"
-              description="Combina presença da sinalização nas interseções e seu estado de conservação."
-              scorePreview={buildCriterionScorePreview(data, ["C1", "E1"])}
-              answered={isTouched(["intersection_signaling", "intersection_conservation"])}
-              inAnalysis={data.criterion_workflow_state?.c1e1 === "analysis"}
-              onAnalysisChange={(value) =>
-                updateWorkflow("c1e1", value ? "analysis" : "default")
+              value="c1"
+              title="C.1. Sinalização horizontal cicloviária nas interseções"
+              description="Avalia a presença e o tipo de sinalização horizontal nas interseções."
+              scorePreview={buildCriterionScorePreview(data, ["C1"])}
+              answered={isTouched(["intersection_signaling"])}
+              inAnalysis={
+                data.criterion_workflow_state?.c1 === "analysis" ||
+                data.criterion_workflow_state?.c1e1 === "analysis"
               }
+              onAnalysisChange={(value) => updateWorkflow("c1", value ? "analysis" : "default")}
               onClear={() =>
                 onDataChange({
                   intersection_signaling: "",
-                  intersection_conservation: "",
                   touched_fields: {
                     intersection_signaling: false,
+                  },
+                })
+              }
+              helpKey="C1"
+            >
+              <ConceptCriteriaTable
+                value={data.intersection_signaling || ""}
+                onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
+                options={[
+                  {
+                    value: "A",
+                    description:
+                      "Interseção apresenta pavimento vermelho na largura da infraestrutura e linhas tracejadas brancas.",
+                  },
+                  {
+                    value: "B",
+                    description:
+                      "Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas.",
+                  },
+                  {
+                    value: "C",
+                    description: "Só linhas tracejadas ou só pictogramas.",
+                  },
+                  {
+                    value: "D",
+                    description: "Nenhuma sinalização.",
+                  },
+                ]}
+              />
+            </AssessmentCriterionAccordion>
+          ) : null}
+
+          {!isCiclorrota ? (
+            <AssessmentCriterionAccordion
+              value="e1"
+              title="E.1. Estado de conservação da sinalização horizontal nas interseções"
+              description="Avalia a conservação da sinalização horizontal cicloviária nas interseções."
+              scorePreview={buildCriterionScorePreview(data, ["E1"])}
+              answered={isTouched(["intersection_conservation"])}
+              inAnalysis={
+                data.criterion_workflow_state?.e1 === "analysis" ||
+                data.criterion_workflow_state?.c1e1 === "analysis"
+              }
+              onAnalysisChange={(value) => updateWorkflow("e1", value ? "analysis" : "default")}
+              onClear={() =>
+                onDataChange({
+                  intersection_conservation: "",
+                  touched_fields: {
                     intersection_conservation: false,
                   },
                 })
               }
-              helpKey="c1e1"
+              helpKey="E1"
             >
-              <div className="space-y-4">
-                <div>
-                  <Label className="mb-2 block">Sinalização:</Label>
-                  <ConceptCriteriaTable
-                    value={data.intersection_signaling || ""}
-                    onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
-                    options={[
-                      {
-                        value: "A",
-                        description:
-                          "Interseção apresenta pavimento vermelho na largura da infraestrutura e linhas tracejadas brancas.",
-                      },
-                      {
-                        value: "B",
-                        description:
-                          "Pavimento em tom vermelho estreito ou pavimento vermelho sem linhas tracejadas.",
-                      },
-                      {
-                        value: "C",
-                        description: "Só linhas tracejadas ou só pictogramas.",
-                      },
-                      {
-                        value: "D",
-                        description: "Nenhuma sinalização.",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <Label className="mb-2 block">Estado de conservação da sinalização horizontal:</Label>
-                  <ConceptCriteriaTable
-                    value={data.intersection_conservation || ""}
-                    onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
-                    options={[
-                      {
-                        value: "A",
-                        description:
-                          "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
-                      },
-                      {
-                        value: "B",
-                        description:
-                          "Há sinalização em mais da metade das interseções e em bom estado.",
-                      },
-                      {
-                        value: "C",
-                        description:
-                          "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
-                      },
-                      {
-                        value: "D",
-                        description: "Praticamente apagada.",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
+              <ConceptCriteriaTable
+                value={data.intersection_conservation || ""}
+                onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
+                options={[
+                  {
+                    value: "A",
+                    description:
+                      "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
+                  },
+                  {
+                    value: "B",
+                    description:
+                      "Há sinalização em mais da metade das interseções e em bom estado.",
+                  },
+                  {
+                    value: "C",
+                    description:
+                      "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
+                  },
+                  {
+                    value: "D",
+                    description: "Praticamente apagada.",
+                  },
+                ]}
+              />
             </AssessmentCriterionAccordion>
           ) : null}
 

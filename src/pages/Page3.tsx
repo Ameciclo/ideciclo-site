@@ -321,8 +321,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
           scorePreview={buildCriterionScorePreview(data, ["B1"])}
           answered={
             widthMeasurements.length > 0 ||
-            data.width_meters > 0 ||
-            isTouched(["width_meters", "width_measurements_m", "includes_gutter", "infra_flow"])
+            Boolean(data.includes_gutter)
           }
           inAnalysis={data.criterion_workflow_state?.b11 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b11", value ? "analysis" : "default")}
