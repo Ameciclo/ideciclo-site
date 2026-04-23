@@ -314,18 +314,20 @@ const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title }) => (
 const ANSWER_FILTER_SEQUENCE: Array<{
   value: CriterionAnswerFilter;
   label: string;
+  shortLabel: string;
 }> = [
-  { value: "all", label: "Todos" },
-  { value: "answered", label: "Respondidos" },
-  { value: "unanswered", label: "Pendentes" },
+  { value: "all", label: "Todos", shortLabel: "Todos" },
+  { value: "answered", label: "Respondidos", shortLabel: "Resp." },
+  { value: "unanswered", label: "Pendentes", shortLabel: "Pend." },
 ];
 
 const REVIEW_FILTER_SEQUENCE: Array<{
   value: CriterionReviewFilter;
   label: string;
+  shortLabel: string;
 }> = [
-  { value: "all", label: "Todos" },
-  { value: "analysis", label: "Fixados" },
+  { value: "all", label: "Todos", shortLabel: "Todos" },
+  { value: "analysis", label: "Fixados", shortLabel: "Fix." },
 ];
 
 const CRITERION_NAV_ITEMS: Array<{
@@ -532,12 +534,12 @@ const SegmentForm = () => {
     });
   };
 
-  const currentAnswerFilterLabel =
-    ANSWER_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.answer)?.label ||
-    "Todos";
-  const currentReviewFilterLabel =
-    REVIEW_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.review)?.label ||
-    "Todos";
+  const currentAnswerFilter =
+    ANSWER_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.answer) ||
+    ANSWER_FILTER_SEQUENCE[0];
+  const currentReviewFilter =
+    REVIEW_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.review) ||
+    REVIEW_FILTER_SEQUENCE[0];
   const shouldShowFilterModeToggle =
     globalCriterionFilter.answer !== "all" && globalCriterionFilter.review !== "all";
   const currentFilterModeLabel = globalCriterionFilter.mode === "or" ? "OU" : "E";
@@ -1387,7 +1389,8 @@ const SegmentForm = () => {
                       }`}
                       onClick={cycleAnswerFilter}
                     >
-                      <span>{currentAnswerFilterLabel}</span>
+                      <span className="sm:hidden">{currentAnswerFilter.shortLabel}</span>
+                      <span className="hidden sm:inline">{currentAnswerFilter.label}</span>
                     </Button>
                     {shouldShowFilterModeToggle ? (
                       <Button
@@ -1420,7 +1423,8 @@ const SegmentForm = () => {
                             globalCriterionFilter.review === "analysis" ? "fill-current" : ""
                           }`}
                         />
-                        <span>{currentReviewFilterLabel}</span>
+                        <span className="sm:hidden">{currentReviewFilter.shortLabel}</span>
+                        <span className="hidden sm:inline">{currentReviewFilter.label}</span>
                     </Button>
                   </div>
                 </div>

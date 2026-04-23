@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Brush, Pin } from "lucide-react";
+import { Pin, Trash2 } from "lucide-react";
 import ManualHelpDialog from "@/components/ManualHelpDialog";
 import { useCriteriaAccordionFilter } from "@/components/criteriaAccordionContext";
 import { CriterionScorePreviewItem } from "@/utils/criterionScorePreview";
@@ -113,7 +113,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
               {item.rating ? <span>{item.rating}</span> : null}
               {item.rating && typeof item.points === "number" ? <span className="mx-1 opacity-70">·</span> : null}
               {typeof item.points === "number" ? (
-                <span>{item.points > 0 ? `+${item.points}` : item.points} pts</span>
+                <span>{item.points}</span>
               ) : null}
             </Badge>
           ))}
@@ -125,7 +125,8 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
                 : "border-rose-600 bg-rose-600 text-white"
             }`}
           >
-            {answered ? "Respondido" : "Pendente"}
+            <span className="sm:hidden">{answered ? "Resp." : "Pend."}</span>
+            <span className="hidden sm:inline">{answered ? "Respondido" : "Pendente"}</span>
           </Badge>
           {onAnalysisChange ? (
             <Button
@@ -157,7 +158,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
               onClick={handleClear}
               title="Limpar respostas deste item"
             >
-              <Brush className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
               <span className="sr-only">Limpar respostas deste item</span>
             </Button>
           ) : null}
