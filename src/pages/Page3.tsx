@@ -19,12 +19,33 @@ interface Page3Props {
 const TRAFFIC_CALMING_OPTIONS: Array<{
   key: TrafficCalmingMeasure;
   label: string;
+  icon: string;
 }> = [
-  { key: "lombada", label: "Lombadas, quebra-molas ou ondulacoes transversais" },
-  { key: "valas", label: "Valas transversais" },
-  { key: "faixa_elevada", label: "Faixas de travessia elevadas" },
-  { key: "elevacao_intersecao", label: "Elevacoes de intersecao" },
-  { key: "reducao_largura", label: "Estreitamentos de faixa" },
+  {
+    key: "lombada",
+    label: "Lombada",
+    icon: "/icones/lombada.svg",
+  },
+  {
+    key: "valas",
+    label: "Vala transversal",
+    icon: "/icones/vala-transversal.svg",
+  },
+  {
+    key: "faixa_elevada",
+    label: "Faixa em nível",
+    icon: "/icones/faixa%20em%20nível.svg",
+  },
+  {
+    key: "elevacao_intersecao",
+    label: "Elevamento de interseção",
+    icon: "/icones/elevamento-intersecao.svg",
+  },
+  {
+    key: "reducao_largura",
+    label: "Estreitamento de pista",
+    icon: "/icones/estreitamento-pista.svg",
+  },
 ];
 
 const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) => {
@@ -213,7 +234,10 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
     });
   };
 
-  const trafficCalmingCounts = data.traffic_calming_counts || {};
+  const trafficCalmingCounts = useMemo(
+    () => data.traffic_calming_counts || {},
+    [data.traffic_calming_counts]
+  );
   const totalTrafficCalming = Object.values(trafficCalmingCounts).reduce(
     (sum, value) => sum + Number(value || 0),
     0
@@ -266,43 +290,18 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
       },
     });
 
-  const renderStepper = ({
-    label,
-    value,
-    onDecrease,
-    onIncrease,
-  }: {
-    label: string;
-    value: number;
-    onDecrease: () => void;
-    onIncrease: () => void;
-  }) => (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-      <div className="mb-3 text-sm font-medium text-slate-700">{label}</div>
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 w-9 rounded-full p-0"
-          onClick={onDecrease}
-          disabled={value <= 0}
-        >
-          -
-        </Button>
-        <div className="min-w-[44px] text-center text-xl font-bold text-slate-900">{value}</div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9 w-9 rounded-full p-0"
-          onClick={onIncrease}
-        >
-          +
-        </Button>
-      </div>
-    </div>
+  const trafficCalmingHistory = useMemo(
+    () =>
+      TRAFFIC_CALMING_OPTIONS.map((option) => ({
+        ...option,
+        count: Number(trafficCalmingCounts[option.key] || 0),
+      })).filter((option) => option.count > 0),
+    [trafficCalmingCounts]
   );
+
+  const removeTrafficCalmingMeasurement = (measure: TrafficCalmingMeasure) => {
+    handleTrafficCalmingCountChange(measure, -1);
+  };
 
   return (
     <CriteriaAccordionGroup
@@ -473,51 +472,53 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
           title="B.6. Medidas de moderação de velocidade"
           description="Aplicável a ciclorrotas, com contagem dos elementos físicos ao longo do trecho."
           scorePreview={buildCriterionScorePreview(data, ["B6"])}
-          answered={
-            totalTrafficCalming > 0 ||
-            isTouched(["traffic_calming_counts", "speed_measures", "avg_distance_measures_m"])
-          }
+          answered={totalTrafficCalming > 0}
           inAnalysis={data.criterion_workflow_state?.b12 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b12", value ? "analysis" : "default")}
           onClear={clearTrafficCalming}
           helpKey="B6"
         >
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {TRAFFIC_CALMING_OPTIONS.map((option) => (
-                <div key={option.key}>
-                  {renderStepper({
-                    label: option.label,
-                    value: Number(trafficCalmingCounts[option.key] || 0),
-                    onDecrease: () => handleTrafficCalmingCountChange(option.key, -1),
-                    onIncrease: () => handleTrafficCalmingCountChange(option.key, 1),
-                  })}
-                </div>
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => handleTrafficCalmingCountChange(option.key, 1)}
+                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:bg-slate-50"
+                >
+                  <img src={option.icon} alt={option.label} className="h-12 w-12 object-contain" />
+                  <div className="space-y-1">
+                    <span className="block text-sm font-semibold text-slate-700">{option.label}</span>
+                    <span className="block text-xs text-slate-500">Toque para adicionar</span>
+                  </div>
+                </button>
               ))}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border p-4">
-                <div className="text-sm font-medium text-slate-700">Total de elementos</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">{totalTrafficCalming}</div>
-              </div>
-              <div className="rounded-2xl border p-4">
-                <div className="text-sm font-medium text-slate-700">Distância média</div>
-                <div className="mt-2 text-3xl font-bold text-slate-900">
-                  {displayAverageDistance.toFixed(1).replace(".", ",")} m
+            <div>
+              {trafficCalmingHistory.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {trafficCalmingHistory.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => removeTrafficCalmingMeasurement(item.key)}
+                      className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    >
+                      <img src={item.icon} alt={item.label} className="h-5 w-5 object-contain" />
+                      <span>{item.label}</span>
+                      <span className="font-semibold text-slate-500">x{item.count}</span>
+                      <span>×</span>
+                    </button>
+                  ))}
+                  <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">
+                    = {displayAverageDistance.toFixed(1).replace(".", ",")} m
+                  </div>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Calculada automaticamente por extensão em metros / número de elementos.
-                  Extensão considerada: {(Number(data.extension_m || 0)).toFixed(2).replace(".", ",")} km.
-                </p>
-              </div>
-              <div className="rounded-2xl border p-4">
-                <div className="text-sm font-medium text-slate-700">Referencia do manual</div>
-                <div className="mt-2 space-y-1 text-sm text-slate-700">
-                  <div>10-20 km/h: recomendado ate 20 m, maximo 50 m</div>
-                  <div>30 km/h ou mais: recomendado ate 50 m, maximo 75 m</div>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhuma medida adicionada ainda.</p>
+              )}
             </div>
           </div>
         </AssessmentCriterionAccordion>

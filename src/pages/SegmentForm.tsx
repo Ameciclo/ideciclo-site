@@ -572,12 +572,7 @@ const SegmentForm = () => {
     }
     if (code === "B4") {
       return typology.includes("ciclorrota")
-        ? hasTouched([
-            "pictograms_per_block",
-            "pictograms_cover_all_blocks",
-            "regulation_signs_per_block",
-            "signs_both_directions",
-          ])
+        ? hasTouched(["pictograms_per_block", "pictograms_cover_all_blocks"])
         : hasTouched([
             "regulation_signs_per_block",
             "signs_both_directions",
@@ -606,7 +601,7 @@ const SegmentForm = () => {
 
     if (code === "B4") {
       return typology.includes("ciclorrota")
-        ? workflow.b43 === "analysis" || workflow.b44 === "analysis"
+        ? workflow.b43 === "analysis"
         : workflow.b41 === "analysis" || workflow.b42 === "analysis";
     }
 

@@ -91,11 +91,6 @@ export const MANUAL_HELP_MAP: Record<string, ManualHelpEntry> = {
     "Página do manual com a explicação dos pictogramas em ciclorrotas e dos critérios de avaliação.",
     [30]
   ),
-  b44: entry(
-    "B.4.4 Sinalização vertical de regulamentação",
-    "Páginas do manual que descrevem as placas de regulamentação e o método de apuração em ciclorrotas.",
-    [28, 29]
-  ),
   B5: entry(
     "B.5 Acessibilidade relativa ao uso do solo lindeiro",
     "Páginas do manual que explicam a avaliação de travessias e acessibilidade entre a infraestrutura e os usos do entorno.",

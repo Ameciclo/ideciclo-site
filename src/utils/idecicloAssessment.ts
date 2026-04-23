@@ -95,16 +95,6 @@ const B4_CICLOFAIXA_MATRIX: Record<
   D: { A: "C", B: "C", C: "D", D: "D" },
 };
 
-const B4_CICLORROTA_MATRIX: Record<
-  IdecicloRating,
-  Record<IdecicloRating, IdecicloRating>
-> = {
-  A: { A: "A", B: "A", C: "B", D: "B" },
-  B: { A: "A", B: "B", C: "B", D: "C" },
-  C: { A: "B", B: "B", C: "C", D: "D" },
-  D: { A: "C", B: "C", C: "D", D: "D" },
-};
-
 const E3_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
   A: { A: "A", B: "B", C: "C", D: "D" },
   B: { A: "B", B: "B", C: "C", D: "D" },
@@ -442,14 +432,12 @@ const calculateB4 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   const typology = normalizeTypology(formData.infra_typology);
   if (!typology) return null;
 
+  if (typology === "ciclorrota") {
+    return calculateB4Pictograms(formData);
+  }
+
   const verticalSigns = calculateB4VerticalSigns(formData);
   if (!verticalSigns) return null;
-
-  if (typology === "ciclorrota") {
-    const pictograms = calculateB4Pictograms(formData);
-    if (!pictograms) return null;
-    return B4_CICLORROTA_MATRIX[verticalSigns][pictograms];
-  }
 
   const spaceIdentification = calculateB4SpaceIdentification(formData);
   if (!spaceIdentification) return null;

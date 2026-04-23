@@ -43,7 +43,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-      allValues={["b41", "b42", "e41", "e42", "b43", "e43", "b44"]}
+      allValues={["b41", "b42", "e41", "e42", "b43", "e43"]}
       defaultOpenValues={isCiclorrota ? ["b43"] : ["b41"]}
       filter={filter}
       command={command}
@@ -363,80 +363,6 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {isCiclorrota ? (
-        <AssessmentCriterionAccordion
-          value="b44"
-          title="B.4.4. Sinalização vertical de regulamentação"
-          description="Aplicado a ciclorrotas, com presença das placas ao longo do trecho."
-          scorePreview={buildCriterionScorePreview(data, ["B4"])}
-          answered={isTouched(["regulation_signs_per_block", "signs_both_directions"])}
-          inAnalysis={data.criterion_workflow_state?.b44 === "analysis"}
-          onAnalysisChange={(value) => updateWorkflow("b44", value ? "analysis" : "default")}
-          onClear={() =>
-            onDataChange({
-              regulation_signs_per_block: 0,
-              signs_both_directions: null,
-              touched_fields: {
-                regulation_signs_per_block: false,
-                signs_both_directions: false,
-              },
-            })
-          }
-          helpKey="b44"
-        >
-          <div className="space-y-4">
-            <div>
-              <Label className="mb-2 block">N° de placas por quadra:</Label>
-              <RadioGroup
-                value={data.regulation_signs_per_block?.toString() || "0"}
-                onValueChange={(value) =>
-                  handleRadioChange("regulation_signs_per_block", parseInt(value, 10))
-                }
-                className="flex flex-wrap gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="0" id="signs_0" />
-                  <Label htmlFor="signs_0">0</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1" id="signs_1" />
-                  <Label htmlFor="signs_1">1</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="2" id="signs_2" />
-                  <Label htmlFor="signs_2">2 ou mais</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Placas nos dois sentidos:</Label>
-              <RadioGroup
-                value={
-                  data.signs_both_directions === null
-                    ? ""
-                    : data.signs_both_directions
-                      ? "true"
-                      : "false"
-                }
-                onValueChange={(value) =>
-                  handleRadioChange("signs_both_directions", value === "true")
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="signs_both_yes" />
-                  <Label htmlFor="signs_both_yes">Sim</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="signs_both_no" />
-                  <Label htmlFor="signs_both_no">Não</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-        </AssessmentCriterionAccordion>
-      ) : null}
     </CriteriaAccordionGroup>
   );
 };
