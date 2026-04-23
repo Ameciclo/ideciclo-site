@@ -32,6 +32,8 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
   const [bufferDraftCm, setBufferDraftCm] = useState("");
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
+  const isCalcada =
+    normalizedTypology.includes("compart") || normalizedTypology.includes("calçada");
 
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
@@ -64,6 +66,28 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
   }, [bufferMeasurements, data.buffer_width_m]);
 
   const formatMeters = (value: number) => value.toFixed(2).replace(".", ",");
+  const ratingChipClassName = (rating: string | null | undefined) => {
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-slate-300 bg-slate-900 text-white";
+  };
+  const formatDraftAsMeters = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return "";
+
+    const numericValue = Number(digits) / 100;
+    return numericValue.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+  const parseDraftToMeters = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return 0;
+    return Number(digits) / 100;
+  };
 
   const measuredFlowLabel =
     data.infra_flow === "bidirectional" ? "Bidirecional" : "Unidirecional";
@@ -86,11 +110,35 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
               ? "C"
               : "D";
 
-  const addWidthMeasurement = () => {
-    const parsedCentimeters = Number(widthDraftCm.replace(",", "."));
-    if (!Number.isFinite(parsedCentimeters) || parsedCentimeters <= 0) return;
+  const bufferConcept =
+    bufferAverage <= 0
+      ? null
+      : Number(data.velocity_kmh || 0) >= 50
+        ? data.lateral_spacing_type === "linha" || data.lateral_spacing_type === "apagada"
+          ? "D"
+          : bufferAverage > 1
+            ? "A"
+            : bufferAverage >= 0.4
+              ? "B"
+              : bufferAverage >= 0.2
+                ? "C"
+                : "D"
+        : data.lateral_spacing_type === "apagada"
+          ? "D"
+          : bufferAverage > 0.7
+            ? "A"
+            : data.lateral_spacing_type === "dispositivos" &&
+                bufferAverage > 0.4 &&
+                bufferAverage <= 0.7
+              ? "B"
+              : data.lateral_spacing_type === "linha"
+                ? "C"
+                : "D";
 
-    const measurementMeters = parsedCentimeters / 100;
+  const addWidthMeasurement = () => {
+    const measurementMeters = parseDraftToMeters(widthDraftCm);
+    if (!Number.isFinite(measurementMeters) || measurementMeters <= 0) return;
+
     const nextMeasurements = [...widthMeasurements, measurementMeters];
     const nextAverage =
       nextMeasurements.reduce((sum, measurement) => sum + measurement, 0) /
@@ -104,14 +152,12 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
         width_meters: true,
       },
     });
-    setWidthDraftCm("");
   };
 
   const addBufferMeasurement = () => {
-    const parsedCentimeters = Number(bufferDraftCm.replace(",", "."));
-    if (!Number.isFinite(parsedCentimeters) || parsedCentimeters <= 0) return;
+    const measurementMeters = parseDraftToMeters(bufferDraftCm);
+    if (!Number.isFinite(measurementMeters) || measurementMeters <= 0) return;
 
-    const measurementMeters = parsedCentimeters / 100;
     const nextMeasurements = [...bufferMeasurements, measurementMeters];
     const nextAverage =
       nextMeasurements.reduce((sum, measurement) => sum + measurement, 0) /
@@ -127,7 +173,6 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
         lateral_spacing_width_m: true,
       },
     });
-    setBufferDraftCm("");
   };
 
   const removeWidthMeasurement = (indexToRemove: number) => {
@@ -261,30 +306,23 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-      allValues={["b11", "b12"]}
-      defaultOpenValues={isCiclorrota ? ["b12"] : ["b11"]}
+      allValues={
+        isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32", "b12"]
+      }
+      defaultOpenValues={isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32"]}
       filter={filter}
       command={command}
     >
       {!isCiclorrota ? (
         <AssessmentCriterionAccordion
           value="b11"
-          title="B.1. Largura da infraestrutura cicloviária / B.3.2 Afastamento Lateral"
-          description="Permite informar as medições de largura e de afastamento para cálculo automático."
+          title="B.1. Largura da infraestrutura cicloviária"
+          description="Adicione as medições da largura observada em campo para cálculo automático."
           scorePreview={buildCriterionScorePreview(data, ["B1"])}
           answered={
             widthMeasurements.length > 0 ||
-            bufferMeasurements.length > 0 ||
             data.width_meters > 0 ||
-            data.buffer_width_m > 0 ||
-            isTouched([
-              "width_meters",
-              "width_measurements_m",
-              "includes_gutter",
-              "buffer_width_m",
-              "buffer_measurements_m",
-              "infra_flow",
-            ])
+            isTouched(["width_meters", "width_measurements_m", "includes_gutter", "infra_flow"])
           }
           inAnalysis={data.criterion_workflow_state?.b11 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b11", value ? "analysis" : "default")}
@@ -293,193 +331,138 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
               width_meters: 0,
               width_measurements_m: [],
               includes_gutter: false,
-              buffer_width_m: 0,
-              buffer_measurements_m: [],
-              lateral_spacing_width_m: 0,
               touched_fields: {
                 width_meters: false,
                 width_measurements_m: false,
                 includes_gutter: false,
-                buffer_width_m: false,
-                buffer_measurements_m: false,
-                lateral_spacing_width_m: false,
               },
             })
           }
           helpKey="B1"
         >
           <div className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border p-4">
-                <Label htmlFor="width_measurement_cm" className="mb-3 block">
-                  Adicionar medição de largura
-                </Label>
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-3 md:flex-row">
-                    <div className="flex-1">
-                      <Input
-                        id="width_measurement_cm"
-                        inputMode="decimal"
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="Ex.: 235"
-                        value={widthDraftCm}
-                        onChange={(event) => setWidthDraftCm(event.target.value)}
-                      />
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Digite em centímetros para permitir precisão centimétrica. Ex.: 235 = 2,35 m.
-                      </p>
-                    </div>
-                    <Button type="button" className="md:self-start" onClick={addWidthMeasurement}>
-                      Adicionar medida
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3">
-                    <div>
-                      <div className="text-sm font-medium text-slate-800">Inclui sarjeta</div>
-                      <p className="text-xs text-muted-foreground">
-                        Marque se a largura registrada considera a sarjeta.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={Boolean(data.includes_gutter)}
-                      onCheckedChange={(checked) =>
-                        onDataChange({
-                          includes_gutter: checked,
-                          touched_fields: { includes_gutter: true },
-                        })
-                      }
-                    />
+            <div className="flex items-center gap-2">
+              <Input
+                id="width_measurement_cm"
+                inputMode="numeric"
+                type="text"
+                placeholder="Ex.: 2,35"
+                value={formatDraftAsMeters(widthDraftCm)}
+                onChange={(event) => setWidthDraftCm(event.target.value.replace(/\D/g, ""))}
+              />
+              <Button type="button" className="h-10 px-3" onClick={addWidthMeasurement}>
+                Adicionar
+              </Button>
+            </div>
+            <div>
+              {widthMeasurements.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {widthMeasurements.map((measurement, index) => (
+                    <button
+                      key={`${measurement}-${index}`}
+                      type="button"
+                      onClick={() => removeWidthMeasurement(index)}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    >
+                      {formatMeters(measurement)} m ×
+                    </button>
+                  ))}
+                  <div
+                    className={`rounded-full px-3 py-2 text-sm font-semibold ${ratingChipClassName(widthConcept)}`}
+                  >
+                    = {formatMeters(widthAverage)} m
                   </div>
                 </div>
-              </div>
-
-              <div className="rounded-2xl border p-4">
-                <Label htmlFor="buffer_width_cm" className="mb-3 block">
-                  Adicionar medição de afastamento lateral
-                </Label>
-                <div className="flex flex-col gap-3 md:flex-row">
-                  <div className="flex-1">
-                    <Input
-                      id="buffer_width_cm"
-                      inputMode="decimal"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="Ex.: 80"
-                      value={bufferDraftCm}
-                      onChange={(event) => setBufferDraftCm(event.target.value)}
-                    />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Digite em centímetros. Ex.: 80 = 0,80 m.
-                    </p>
-                  </div>
-                  <Button type="button" className="md:self-start" onClick={addBufferMeasurement}>
-                    Adicionar medida
-                  </Button>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhuma medição adicionada ainda.</p>
+              )}
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-              <div className="rounded-2xl border p-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-medium text-foreground">Média da largura</div>
-                    <div className="mt-2 text-3xl font-bold text-slate-900">
-                      {formatMeters(widthAverage)} m
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-sm font-medium text-foreground">Média do afastamento</div>
-                    <div className="mt-2 text-3xl font-bold text-slate-900">
-                      {formatMeters(bufferAverage)} m
-                    </div>
-                  </div>
-                </div>
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-800">
+              <Switch
+                checked={Boolean(data.includes_gutter)}
+                onCheckedChange={(checked) =>
+                  onDataChange({
+                    includes_gutter: checked,
+                    touched_fields: { includes_gutter: true },
+                  })
+                }
+              />
+              <span>Inclui sarjeta</span>
+            </label>
 
-                <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-                  <div>
-                    Fluxo considerado: <strong>{measuredFlowLabel}</strong>
-                  </div>
-                  {widthConcept ? (
-                    <div>
-                      Conceito atual de B.1: <strong>{widthConcept}</strong>
-                    </div>
-                  ) : null}
-                  {!data.touched_fields?.infra_flow ? (
-                    <p className="text-amber-700">
-                      Revise o fluxo da infraestrutura. A nota da largura depende dele.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+            {!data.touched_fields?.infra_flow ? (
+              <p className="text-sm text-amber-700">
+                Revise o fluxo da infraestrutura. A nota da largura depende dele.
+              </p>
+            ) : null}
+          </div>
+        </AssessmentCriterionAccordion>
+      ) : null}
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border p-4">
-                  <div className="text-sm font-medium text-foreground">Histórico de larguras</div>
-                  {widthMeasurements.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {widthMeasurements.map((measurement, index) => (
-                        <button
-                          key={`${measurement}-${index}`}
-                          type="button"
-                          onClick={() => removeWidthMeasurement(index)}
-                          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                        >
-                          {index + 1}. {formatMeters(measurement)} m ×
-                        </button>
-                      ))}
-                    </div>
-                  ) : data.width_meters > 0 ? (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Há uma média registrada de {formatMeters(data.width_meters)} m, mas ainda sem
-                      histórico individual de medições.
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Nenhuma medição adicionada ainda.
-                    </p>
-                  )}
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Toque em uma medição para removê-la do cálculo.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border p-4">
-                  <div>
-                    <div className="text-sm font-medium text-foreground">Histórico de afastamentos</div>
-                    {bufferMeasurements.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {bufferMeasurements.map((measurement, index) => (
-                          <button
-                            key={`${measurement}-${index}`}
-                            type="button"
-                            onClick={() => removeBufferMeasurement(index)}
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                          >
-                            {index + 1}. {formatMeters(measurement)} m ×
-                          </button>
-                        ))}
-                      </div>
-                    ) : data.buffer_width_m > 0 ? (
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Há uma média registrada de {formatMeters(data.buffer_width_m)} m, mas ainda sem
-                        histórico individual de medições.
-                      </p>
-                    ) : (
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Nenhuma medição adicionada ainda.
-                      </p>
-                    )}
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Toque em uma medição para removê-la do cálculo.
-                    </p>
+      {!isCiclorrota && !isCalcada ? (
+        <AssessmentCriterionAccordion
+          value="b32"
+          title="B.3.2. Afastamento lateral"
+          description="Adicione as medições observadas em campo para compor o cálculo de B.3."
+          scorePreview={buildCriterionScorePreview(data, ["B3"])}
+          answered={
+            bufferMeasurements.length > 0 ||
+            data.buffer_width_m > 0 ||
+            isTouched(["buffer_width_m", "buffer_measurements_m", "lateral_spacing_width_m"])
+          }
+          inAnalysis={data.criterion_workflow_state?.b32 === "analysis"}
+          onAnalysisChange={(value) => updateWorkflow("b32", value ? "analysis" : "default")}
+          onClear={() =>
+            onDataChange({
+              buffer_width_m: 0,
+              buffer_measurements_m: [],
+              lateral_spacing_width_m: 0,
+              touched_fields: {
+                buffer_width_m: false,
+                buffer_measurements_m: false,
+                lateral_spacing_width_m: false,
+              },
+            })
+          }
+          helpKey="b32"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Input
+                id="buffer_width_cm"
+                inputMode="numeric"
+                type="text"
+                placeholder="Ex.: 0,80"
+                value={formatDraftAsMeters(bufferDraftCm)}
+                onChange={(event) => setBufferDraftCm(event.target.value.replace(/\D/g, ""))}
+              />
+              <Button type="button" className="h-10 px-3" onClick={addBufferMeasurement}>
+                Adicionar
+              </Button>
+            </div>
+            <div>
+              {bufferMeasurements.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {bufferMeasurements.map((measurement, index) => (
+                    <button
+                      key={`${measurement}-${index}`}
+                      type="button"
+                      onClick={() => removeBufferMeasurement(index)}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    >
+                      {formatMeters(measurement)} m ×
+                    </button>
+                  ))}
+                  <div
+                    className={`rounded-full px-3 py-2 text-sm font-semibold ${ratingChipClassName(bufferConcept)}`}
+                  >
+                    = {formatMeters(bufferAverage)} m
                   </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nenhuma medição adicionada ainda.</p>
+              )}
             </div>
           </div>
         </AssessmentCriterionAccordion>
