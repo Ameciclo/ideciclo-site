@@ -14,9 +14,17 @@ interface Page8Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
+  visibleValues?: Array<"d1" | "d2" | "d3">;
 }
 
-const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) => {
+const Page8: React.FC<Page8Props> = ({
+  data,
+  onDataChange,
+  filter,
+  command,
+  visibleValues,
+}) => {
+  const canShow = (value: "d1" | "d2" | "d3") => !visibleValues || visibleValues.includes(value);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -51,8 +59,8 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) =>
     });
 
   return (
-    <CriteriaAccordionGroup allValues={["d1", "d2", "d3"]} defaultOpenValues={["d1"]} filter={filter} command={command}>
-          <AssessmentCriterionAccordion
+    <CriteriaAccordionGroup allValues={["d1", "d2", "d3"].filter(canShow)} defaultOpenValues={["d1", "d2"].filter(canShow)} filter={filter} command={command}>
+          {canShow("d1") ? <AssessmentCriterionAccordion
             value="d1"
             title="D.1. Iluminação pública"
             description="Condições de iluminação ao longo do trecho cicloviário."
@@ -95,9 +103,9 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) =>
                 },
               ]}
             />
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
 
-          <AssessmentCriterionAccordion
+          {canShow("d2") ? <AssessmentCriterionAccordion
             value="d2"
             title="D.2. Conforto térmico (sombreamento)"
             description="Avalia a presença de sombra ao longo da extensão da infraestrutura."
@@ -136,9 +144,9 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) =>
                 },
               ]}
             />
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
 
-          <AssessmentCriterionAccordion
+          {canShow("d3") ? <AssessmentCriterionAccordion
             value="d3"
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
@@ -222,7 +230,7 @@ const Page8: React.FC<Page8Props> = ({ data, onDataChange, filter, command }) =>
                 </Label>
               </div>
             </div>
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
         </CriteriaAccordionGroup>
   );
 };

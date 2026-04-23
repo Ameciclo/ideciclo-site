@@ -14,6 +14,7 @@ interface Page3Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
+  visibleValues?: Array<"b11" | "b32" | "b12">;
 }
 
 const TRAFFIC_CALMING_OPTIONS: Array<{
@@ -48,13 +49,21 @@ const TRAFFIC_CALMING_OPTIONS: Array<{
   },
 ];
 
-const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) => {
+const Page3: React.FC<Page3Props> = ({
+  data,
+  onDataChange,
+  filter,
+  command,
+  visibleValues,
+}) => {
   const [widthDraftCm, setWidthDraftCm] = useState("");
   const [bufferDraftCm, setBufferDraftCm] = useState("");
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
   const isCalcada =
     normalizedTypology.includes("compart") || normalizedTypology.includes("calçada");
+  const canShow = (value: "b11" | "b32" | "b12") =>
+    !visibleValues || visibleValues.includes(value);
 
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
@@ -305,14 +314,12 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-      allValues={
-        isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32", "b12"]
-      }
-      defaultOpenValues={isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32"]}
+      allValues={(isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32", "b12"]).filter(canShow)}
+      defaultOpenValues={(isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32"]).filter(canShow)}
       filter={filter}
       command={command}
     >
-      {!isCiclorrota ? (
+      {!isCiclorrota && canShow("b11") ? (
         <AssessmentCriterionAccordion
           value="b11"
           title="B.1. Largura da infraestrutura cicloviária"
@@ -398,7 +405,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {!isCiclorrota && !isCalcada ? (
+      {!isCiclorrota && !isCalcada && canShow("b32") ? (
         <AssessmentCriterionAccordion
           value="b32"
           title="B.3.2. Afastamento lateral"
@@ -466,7 +473,7 @@ const Page3: React.FC<Page3Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {isCiclorrota ? (
+      {isCiclorrota && canShow("b12") ? (
         <AssessmentCriterionAccordion
           value="b12"
           title="B.6. Medidas de moderação de velocidade"

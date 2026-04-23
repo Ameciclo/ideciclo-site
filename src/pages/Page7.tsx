@@ -16,11 +16,20 @@ interface Page7Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
+  visibleValues?: Array<"b7" | "b5" | "c1" | "e1" | "c2" | "c3">;
 }
 
-const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) => {
+const Page7: React.FC<Page7Props> = ({
+  data,
+  onDataChange,
+  filter,
+  command,
+  visibleValues,
+}) => {
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
+  const canShow = (value: "b7" | "b5" | "c1" | "e1" | "c2" | "c3") =>
+    !visibleValues || visibleValues.includes(value);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -122,12 +131,12 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-          allValues={["b7", "b5", "c1", "e1", "c2", "c3"]}
-          defaultOpenValues={["b7"]}
+          allValues={["b7", "b5", "c1", "e1", "c2", "c3"].filter(canShow)}
+          defaultOpenValues={["b7", "b5", "c1"].filter(canShow)}
           filter={filter}
           command={command}
         >
-          <AssessmentCriterionAccordion
+          {canShow("b7") ? <AssessmentCriterionAccordion
             value="b7"
             title="B.7. Situações de risco ao longo da infraestrutura"
             description="Marque ocorrências que representem conflito, obstáculo ou descontinuidade."
@@ -255,9 +264,9 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
                 </label>
               ) : null}
             </div>
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
 
-          <AssessmentCriterionAccordion
+          {canShow("b5") ? <AssessmentCriterionAccordion
             value="b5"
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
             description="Conta travessias sinalizadas ao longo do trecho e relaciona com o numero de quadras."
@@ -314,9 +323,9 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
                 </div>
               </div>
             </div>
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
 
-          {!isCiclorrota ? (
+          {!isCiclorrota && canShow("c1") ? (
             <AssessmentCriterionAccordion
               value="c1"
               title="C.1. Sinalização horizontal cicloviária nas interseções"
@@ -365,7 +374,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             </AssessmentCriterionAccordion>
           ) : null}
 
-          {!isCiclorrota ? (
+          {!isCiclorrota && canShow("e1") ? (
             <AssessmentCriterionAccordion
               value="e1"
               title="E.1. Estado de conservação da sinalização horizontal nas interseções"
@@ -415,7 +424,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             </AssessmentCriterionAccordion>
           ) : null}
 
-          <AssessmentCriterionAccordion
+          {canShow("c2") ? <AssessmentCriterionAccordion
             value="c2"
             title="C.2. Acessibilidade entre conexões cicloviárias"
             description="Indica se a ligação com outras estruturas é visível e pedalável."
@@ -452,9 +461,9 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
                 },
               ]}
             />
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
 
-          <AssessmentCriterionAccordion
+          {canShow("c3") ? <AssessmentCriterionAccordion
             value="c3"
             title="C.3. Conflitos com circulação de modos motorizados"
             description="Marque os elementos presentes para caracterizar o tratamento do conflito."
@@ -600,7 +609,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
                 </div>
               </div>
             )}
-          </AssessmentCriterionAccordion>
+          </AssessmentCriterionAccordion> : null}
         </CriteriaAccordionGroup>
   );
 };

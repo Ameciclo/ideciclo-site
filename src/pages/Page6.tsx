@@ -14,9 +14,16 @@ interface Page6Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
+  visibleValues?: Array<"b41" | "b42" | "e41" | "e42" | "b43" | "e43">;
 }
 
-const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) => {
+const Page6: React.FC<Page6Props> = ({
+  data,
+  onDataChange,
+  filter,
+  command,
+  visibleValues,
+}) => {
   const handleRadioChange = (name: string, value: string | boolean | number) => {
     onDataChange({ [name]: value });
   };
@@ -32,6 +39,8 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
 
   const infraType = getInfraType();
   const isCiclorrota = infraType === "ciclorrota";
+  const canShow = (value: "b41" | "b42" | "e41" | "e42" | "b43" | "e43") =>
+    !visibleValues || visibleValues.includes(value);
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
@@ -43,12 +52,12 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
 
   return (
     <CriteriaAccordionGroup
-      allValues={["b41", "b42", "e41", "e42", "b43", "e43"]}
-      defaultOpenValues={isCiclorrota ? ["b43"] : ["b41"]}
+      allValues={["b41", "b42", "e41", "e42", "b43", "e43"].filter(canShow)}
+      defaultOpenValues={(isCiclorrota ? ["b43"] : ["b41"]).filter(canShow)}
       filter={filter}
       command={command}
     >
-      {!isCiclorrota ? (
+      {!isCiclorrota && canShow("b41") ? (
         <AssessmentCriterionAccordion
           value="b41"
           title="B.4.1. Sinalização vertical de regulamentação"
@@ -123,7 +132,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {!isCiclorrota ? (
+      {!isCiclorrota && canShow("b42") ? (
         <AssessmentCriterionAccordion
           value="b42"
           title="B.4.2. Identificação do espaço de circulação de bicicletas"
@@ -166,7 +175,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {!isCiclorrota ? (
+      {!isCiclorrota && canShow("e41") ? (
         <AssessmentCriterionAccordion
           value="e41"
           title="E.4.1. Estado de conservação da identificação do espaço cicloviário"
@@ -211,7 +220,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {!isCiclorrota ? (
+      {!isCiclorrota && canShow("e42") ? (
         <AssessmentCriterionAccordion
           value="e42"
           title="E.4.2. Estado de conservação da sinalização vertical"
@@ -254,7 +263,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {isCiclorrota ? (
+      {isCiclorrota && canShow("b43") ? (
         <AssessmentCriterionAccordion
           value="b43"
           title="B.4.3. Inscrições no pavimento - pictogramas"
@@ -319,7 +328,7 @@ const Page6: React.FC<Page6Props> = ({ data, onDataChange, filter, command }) =>
         </AssessmentCriterionAccordion>
       ) : null}
 
-      {isCiclorrota ? (
+      {isCiclorrota && canShow("e43") ? (
         <AssessmentCriterionAccordion
           value="e43"
           title="E.4.3. Estado de conservação das inscrições no pavimento"

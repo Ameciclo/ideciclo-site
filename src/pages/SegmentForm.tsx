@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronRight, Pin, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
@@ -336,23 +337,23 @@ const CRITERION_NAV_ITEMS: Array<{
 }> = [
   { code: "A1", anchor: "section-a" },
   { code: "A2", anchor: "section-a" },
-  { code: "B1", anchor: "criterion-b11" },
   { code: "B2", anchor: "criterion-b2" },
-  { code: "B3", anchor: "criterion-b31" },
-  { code: "B4", anchor: "criterion-b41" },
-  { code: "B5", anchor: "criterion-b5" },
-  { code: "B6", anchor: "criterion-b12" },
-  { code: "B7", anchor: "criterion-b7" },
-  { code: "C1", anchor: "criterion-c1" },
-  { code: "C2", anchor: "criterion-c2" },
-  { code: "C3", anchor: "criterion-c3" },
+  { code: "E2", anchor: "criterion-e2" },
   { code: "D1", anchor: "criterion-d1" },
   { code: "D2", anchor: "criterion-d2" },
-  { code: "D3", anchor: "criterion-d3" },
-  { code: "E1", anchor: "criterion-e1" },
-  { code: "E2", anchor: "criterion-e2" },
-  { code: "E3", anchor: "criterion-e3" },
+  { code: "B4", anchor: "criterion-b42" },
   { code: "E4", anchor: "criterion-e41" },
+  { code: "B3", anchor: "criterion-b31" },
+  { code: "E3", anchor: "criterion-e31" },
+  { code: "B7", anchor: "criterion-b7" },
+  { code: "B1", anchor: "criterion-b11" },
+  { code: "B5", anchor: "criterion-b5" },
+  { code: "D3", anchor: "criterion-d3" },
+  { code: "B6", anchor: "criterion-b12" },
+  { code: "C1", anchor: "criterion-c1" },
+  { code: "E1", anchor: "criterion-e1" },
+  { code: "C2", anchor: "criterion-c2" },
+  { code: "C3", anchor: "criterion-c3" },
 ];
 
 const HeaderField = ({
@@ -1259,17 +1260,7 @@ const SegmentForm = () => {
             </section>
 
             <section className="space-y-6">
-              <AxisRibbon tone="b" title="Espaco Util da Estrutura (B1) e Moderacao de Velocidade (B6)" />
-              <Page3
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-              />
-            </section>
-
-            <section className="space-y-6">
-              <AxisRibbon tone="e" title="Pavimento e Conservacao do Piso (B2 / E2)" />
+              <AxisRibbon tone="e" title="Pavimento" />
               <Page4
                 data={formData}
                 onDataChange={handleDataChange}
@@ -1279,43 +1270,123 @@ const SegmentForm = () => {
             </section>
 
             <section className="space-y-6">
-              <AxisRibbon tone="b" title="Delimitacao da Estrutura e Conservacao da Separacao (B3 / E3)" />
+              <AxisRibbon tone="d" title="Iluminacao e conforto termico" />
+              <Page8
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={["d1", "d2"]}
+              />
+            </section>
+
+            {!String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? (
+            <section className="space-y-6">
+              <AxisRibbon tone="b" title="Identificacao do espaco cicloviario" />
+              <Page6
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={["b42", "e41", "e42"]}
+              />
+            </section>
+            ) : null}
+
+            <section className="space-y-6">
+              <AxisRibbon tone="b" title="Delimitacao e conservacao da separacao" />
               <Page5
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
               />
-            </section>
-
-            <section className="space-y-6">
-              <AxisRibbon tone="b" title="Identificacao do Espaco Cicloviario e Sinalizacao (B4 / E4)" />
-              <Page6
+              <Page3
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                visibleValues={["b32"]}
               />
             </section>
 
             <section className="space-y-6">
-              <AxisRibbon tone="c" title="Acessibilidade aos Lados, Riscos e Avaliacao das Intersecoes" />
+              <AxisRibbon tone="b" title="Situacoes de risco" />
               <Page7
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                visibleValues={["b7"]}
               />
             </section>
 
             <section className="space-y-6">
-              <AxisRibbon tone="d" title="Iluminacao, Sombreamento e Mobiliario no Entorno" />
+              <AxisRibbon tone="b" title="Avaliacao das quadras" />
+              <Page3
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b12"] : ["b11"]}
+              />
+              <Page6
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41"]}
+              />
+              <Page7
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={["b5"]}
+              />
               <Page8
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                visibleValues={["d3"]}
               />
+            </section>
+
+            <section className="space-y-6">
+              <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
+              <Page7
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={["c1", "e1", "c2", "c3"]}
+              />
+            </section>
+
+            <section className="space-y-4">
+              <AxisRibbon tone="e" title="Comentarios" />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Observacoes de campo</CardTitle>
+                  <CardDescription>
+                    Registre contexto, justificativas, ressalvas ou qualquer detalhe importante da avaliacao.
+                  </CardDescription>
+                </CardHeader>
+                <div className="px-6 pb-6">
+                  <Textarea
+                    value={formData.observations || ""}
+                    onChange={(event) =>
+                      handleDataChange({
+                        observations: event.target.value,
+                        touched_fields: { observations: event.target.value.trim().length > 0 },
+                      })
+                    }
+                    placeholder="Ex.: interferencias temporarias, duvidas de classificacao, condicoes do trecho no momento da visita..."
+                    className="min-h-[140px]"
+                  />
+                </div>
+              </Card>
             </section>
 
             <div className="flex justify-end">
