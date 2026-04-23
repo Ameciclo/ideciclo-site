@@ -7,6 +7,7 @@ import { IdecicloFormData } from "@/types/idecicloForm";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page1Props {
   data: IdecicloFormData;
@@ -237,6 +238,7 @@ const Page1: React.FC<Page1Props> = ({ data, onDataChange, originalCounts, filte
         value="a2"
         title="A.2. Conectividade da rede cicloviaria"
         description="Primeiro confirme o numero de quadras do trecho. Depois ajuste as intersecoes relevantes e quantas delas conectam com outra infraestrutura."
+        scorePreview={buildCriterionScorePreview(data, ["A2"])}
         answered={isA2Answered}
         inAnalysis={data.criterion_workflow_state?.a2 === "analysis"}
         onAnalysisChange={(value) => updateWorkflow(value ? "analysis" : "default")}

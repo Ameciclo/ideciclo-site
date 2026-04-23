@@ -208,16 +208,7 @@ const Page2: React.FC<Page2Props> = ({
             })}
           </div>
 
-          {!allowHierarchyEdit ? (
-            <Input
-              id="road_hierarchy"
-              name="road_hierarchy"
-              value={resolvedHierarchy}
-              readOnly
-              disabled
-              className="bg-gray-100"
-            />
-          ) : (
+          {!allowHierarchyEdit ? null : (
             <div className="space-y-3">
               <Alert>
                 <AlertTitle>Atenção ao alterar a hierarquia</AlertTitle>

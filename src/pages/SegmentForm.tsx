@@ -46,6 +46,7 @@ import {
   CriterionFilterMode,
   CriterionReviewFilter,
 } from "@/components/criteriaAccordionContext";
+import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 const DRAFT_PREFIX = "ideciclo-draft";
 const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
@@ -1192,6 +1193,7 @@ const SegmentForm = () => {
                   value="a1"
                   title="A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia"
                   description="Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada antes de seguir para a conectividade do trecho."
+                  scorePreview={buildCriterionScorePreview(formData, ["A1"])}
                   answered={Boolean(
                     formData.infra_typology &&
                       formData.infra_flow &&
