@@ -10,9 +10,26 @@ interface Page2Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   segmentType: string;
+  originalRoadHierarchy: string;
+  allowHierarchyEdit: boolean;
+  onHierarchyEditToggle: (checked: boolean) => void;
+  onHierarchySelection: (value: string) => void;
 }
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+
+const HIERARCHY_OPTIONS = [
+  { value: "local", label: "Local" },
+  { value: "alimentadora", label: "Alimentadora" },
+  { value: "estrutural", label: "Estrutural" },
+] as const;
+
+const normalizeHierarchyValue = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 const TYPOLOGY_OPTIONS = [
   {
@@ -83,7 +100,15 @@ const POSITION_OPTIONS = [
   },
 ] as const;
 
-const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
+const Page2: React.FC<Page2Props> = ({
+  data,
+  onDataChange,
+  segmentType,
+  originalRoadHierarchy,
+  allowHierarchyEdit,
+  onHierarchyEditToggle,
+  onHierarchySelection,
+}) => {
   const [allowTypologyEdit, setAllowTypologyEdit] = useState(false);
 
   useEffect(() => {
@@ -115,6 +140,14 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
     Boolean(data.infra_typology) &&
     data.infra_typology.toLowerCase() !== segmentType.toLowerCase();
   const normalizedTypology = resolvedTypology.trim().toLowerCase();
+  const resolvedHierarchy = data.road_hierarchy || data.classification || originalRoadHierarchy || "";
+  const normalizedHierarchy = normalizeHierarchyValue(resolvedHierarchy);
+  const normalizedOriginalHierarchy = normalizeHierarchyValue(originalRoadHierarchy || "");
+  const isHierarchyEdited =
+    allowHierarchyEdit &&
+    Boolean(normalizedHierarchy) &&
+    Boolean(normalizedOriginalHierarchy) &&
+    normalizedHierarchy !== normalizedOriginalHierarchy;
 
   const isTypologySelected = (value: string) => {
     const normalizedValue = value.toLowerCase();
@@ -128,6 +161,91 @@ const Page2: React.FC<Page2Props> = ({ data, onDataChange, segmentType }) => {
 
   return (
       <div className="space-y-4">
+        <div className="flex flex-col gap-3 rounded-lg border p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <Label htmlFor="road_hierarchy">Hierarquia viária:</Label>
+              <p className="text-sm text-muted-foreground">
+                A hierarquia original vem do cadastro do trecho e entra no cálculo de adequação da
+                tipologia.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="allow_hierarchy_edit" className="text-sm">
+                Corrigir hierarquia em campo
+              </Label>
+              <Switch
+                id="allow_hierarchy_edit"
+                checked={allowHierarchyEdit}
+                onCheckedChange={onHierarchyEditToggle}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {HIERARCHY_OPTIONS.map((option) => {
+              const isSelected = normalizedHierarchy === option.value;
+
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant="ghost"
+                  aria-disabled={!allowHierarchyEdit}
+                  onClick={() => {
+                    if (!allowHierarchyEdit) return;
+                    onHierarchySelection(option.value);
+                  }}
+                  className={`h-auto rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                    isSelected
+                      ? "border-amber-300 bg-amber-50 text-amber-900 opacity-100"
+                      : "border-slate-200 bg-white text-slate-500 opacity-45"
+                  } ${allowHierarchyEdit ? "cursor-pointer hover:opacity-85" : "cursor-default"}`}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          {!allowHierarchyEdit ? (
+            <Input
+              id="road_hierarchy"
+              name="road_hierarchy"
+              value={resolvedHierarchy}
+              readOnly
+              disabled
+              className="bg-gray-100"
+            />
+          ) : (
+            <div className="space-y-3">
+              <Alert>
+                <AlertTitle>Atenção ao alterar a hierarquia</AlertTitle>
+                <AlertDescription>
+                  Essa mudança afeta o enquadramento do A.1. Use apenas quando a classificação
+                  prévia do trecho estiver incorreta.
+                </AlertDescription>
+              </Alert>
+
+              {originalRoadHierarchy ? (
+                <p className="text-sm text-muted-foreground">
+                  Hierarquia original do trecho: <strong>{originalRoadHierarchy}</strong>
+                </p>
+              ) : null}
+
+              <p className="text-sm text-muted-foreground">
+                Clique na hierarquia acima para corrigir a classificação do trecho.
+              </p>
+
+              {isHierarchyEdited ? (
+                <p className="text-sm font-medium text-amber-700">
+                  A hierarquia foi corrigida em campo e está diferente da classificação original.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
+
         <div>
           <div className="flex flex-col gap-3 rounded-lg border p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

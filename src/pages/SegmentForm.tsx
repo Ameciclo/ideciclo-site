@@ -8,9 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Filter, Save, Wifi, WifiOff } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { ChevronDown, ChevronRight, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -42,6 +40,11 @@ import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Segment } from "@/types";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
+import {
+  CriterionAnswerFilter,
+  CriterionFilter,
+  CriterionReviewFilter,
+} from "@/components/criteriaAccordionContext";
 
 const DRAFT_PREFIX = "ideciclo-draft";
 const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
@@ -70,19 +73,6 @@ const getSessionSelectedCityId = () => {
   if (typeof window === "undefined") return null;
   return sessionStorage.getItem("selectedCityId");
 };
-
-const HIERARCHY_OPTIONS = [
-  { value: "local", label: "Local" },
-  { value: "alimentadora", label: "Alimentadora" },
-  { value: "estrutural", label: "Estrutural" },
-] as const;
-
-const normalizeHierarchyValue = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 
 const toSegmentPreview = (
   segmentData: {
@@ -319,16 +309,22 @@ const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title }) => (
   </div>
 );
 
-type GlobalCriterionFilter = "all" | "answered" | "unanswered" | "analysis";
-
-const FILTER_SEQUENCE: Array<{
-  value: GlobalCriterionFilter;
+const ANSWER_FILTER_SEQUENCE: Array<{
+  value: CriterionAnswerFilter;
   label: string;
 }> = [
   { value: "all", label: "Todos" },
   { value: "answered", label: "Respondidos" },
-  { value: "unanswered", label: "Não respondidos" },
+  { value: "unanswered", label: "Pendentes" },
+];
+
+const REVIEW_FILTER_SEQUENCE: Array<{
+  value: CriterionReviewFilter;
+  label: string;
+}> = [
+  { value: "all", label: "Todos" },
   { value: "analysis", label: "Em análise" },
+  { value: "reviewed", label: "Revisados" },
 ];
 
 const CRITERION_NAV_ITEMS: Array<{
@@ -355,14 +351,6 @@ const CRITERION_NAV_ITEMS: Array<{
   { code: "E3", anchor: "criterion-e3" },
   { code: "E4", anchor: "criterion-e41" },
 ];
-
-const ratingChipClassName = (rating: string | null | undefined) => {
-  if (rating === "A") return "border-[#b8e5db] bg-[#b8e5db] text-[#163b38]";
-  if (rating === "B") return "border-[#9fd3cb] bg-[#9fd3cb] text-[#163b38]";
-  if (rating === "C") return "border-[#8fafad] bg-[#8fafad] text-[#163b38]";
-  if (rating === "D") return "border-[#748987] bg-[#748987] text-white";
-  return "border-slate-200 bg-white text-slate-500";
-};
 
 const HeaderField = ({
   label,
@@ -455,8 +443,13 @@ const SegmentForm = () => {
   });
   const [segmentPreview, setSegmentPreview] = useState<Segment | null>(null);
   const [allowHierarchyEdit, setAllowHierarchyEdit] = useState(false);
-  const [globalCriterionFilter, setGlobalCriterionFilter] =
-    useState<GlobalCriterionFilter>("all");
+  const [globalCriterionFilter, setGlobalCriterionFilter] = useState<CriterionFilter>({
+    answer: "all",
+    review: "all",
+  });
+  const [accordionDisplayMode, setAccordionDisplayMode] = useState<"expanded" | "collapsed">(
+    "expanded"
+  );
   const [accordionCommand, setAccordionCommand] = useState<{
     type: "expand" | "collapse";
     nonce: number;
@@ -491,10 +484,27 @@ const SegmentForm = () => {
     return "";
   };
 
-  const cycleGlobalFilter = () => {
+  const cycleAnswerFilter = () => {
     setGlobalCriterionFilter((current) => {
-      const currentIndex = FILTER_SEQUENCE.findIndex((item) => item.value === current);
-      return FILTER_SEQUENCE[(currentIndex + 1) % FILTER_SEQUENCE.length].value;
+      const currentIndex = ANSWER_FILTER_SEQUENCE.findIndex(
+        (item) => item.value === current.answer
+      );
+      return {
+        ...current,
+        answer: ANSWER_FILTER_SEQUENCE[(currentIndex + 1) % ANSWER_FILTER_SEQUENCE.length].value,
+      };
+    });
+  };
+
+  const cycleReviewFilter = () => {
+    setGlobalCriterionFilter((current) => {
+      const currentIndex = REVIEW_FILTER_SEQUENCE.findIndex(
+        (item) => item.value === current.review
+      );
+      return {
+        ...current,
+        review: REVIEW_FILTER_SEQUENCE[(currentIndex + 1) % REVIEW_FILTER_SEQUENCE.length].value,
+      };
     });
   };
 
@@ -505,8 +515,20 @@ const SegmentForm = () => {
     });
   };
 
-  const currentFilterLabel =
-    FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter)?.label || "Todos";
+  const toggleAccordionDisplayMode = () => {
+    setAccordionDisplayMode((current) => {
+      const next = current === "expanded" ? "collapsed" : "expanded";
+      triggerAccordionCommand(next === "expanded" ? "expand" : "collapse");
+      return next;
+    });
+  };
+
+  const currentAnswerFilterLabel =
+    ANSWER_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.answer)?.label ||
+    "Todos";
+  const currentReviewFilterLabel =
+    REVIEW_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.review)?.label ||
+    "Todos";
 
   const getCriterionAnchor = (code: CriterionCode) => {
     const workflowKey = getWorkflowStateKey(code);
@@ -1037,75 +1059,6 @@ const SegmentForm = () => {
               value={formData.end_point || ""}
               onChange={handleHeaderInputChange}
             />
-            <div className="rounded-xl border p-4 md:col-span-2 lg:col-span-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-foreground">
-                    Hierarquia viária:
-                  </label>
-                  <p className="text-sm text-muted-foreground">
-                    A hierarquia original vem do cadastro do trecho e pode ser corrigida em campo
-                    se houver erro.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="outline">
-                    Original: {originalRoadHierarchy || "Nao informada"}
-                  </Badge>
-                  <div className="flex items-center gap-3">
-                    <Label htmlFor="allow_hierarchy_edit" className="text-sm">
-                      Corrigir hierarquia em campo
-                    </Label>
-                    <Switch
-                      id="allow_hierarchy_edit"
-                      checked={allowHierarchyEdit}
-                      onCheckedChange={handleHierarchyEditToggle}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {HIERARCHY_OPTIONS.map((option) => {
-                  const isSelected =
-                    normalizeHierarchyValue(formData.road_hierarchy || "") === option.value;
-
-                  return (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      variant="ghost"
-                      aria-disabled={!allowHierarchyEdit}
-                      onClick={() => {
-                        if (!allowHierarchyEdit) return;
-                        handleHierarchySelection(option.value);
-                      }}
-                      className={`h-auto rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
-                        isSelected
-                          ? "border-amber-300 bg-amber-50 text-amber-900 opacity-100"
-                          : "border-slate-200 bg-white text-slate-500 opacity-45"
-                      } ${allowHierarchyEdit ? "cursor-pointer hover:opacity-85" : "cursor-default"}`}
-                    >
-                      {option.label}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              <p className="mt-3 text-sm text-muted-foreground">
-                {allowHierarchyEdit
-                  ? "Selecione acima a hierarquia corrigida."
-                  : "Ao desligar, a hierarquia volta para o valor original do trecho."}
-              </p>
-
-              {allowHierarchyEdit &&
-              normalizeHierarchyValue(formData.road_hierarchy || "") !==
-                normalizeHierarchyValue(originalRoadHierarchy || "") ? (
-                <p className="mt-2 text-sm font-medium text-amber-700">
-                  A hierarquia foi corrigida em campo e esta diferente da classificacao original.
-                </p>
-              ) : null}
-            </div>
           </div>
         </Card>
 
@@ -1139,8 +1092,11 @@ const SegmentForm = () => {
                       },
                     })
                   }
-                  onClear={() =>
+                  onClear={() => {
+                    setAllowHierarchyEdit(false);
                     handleDataChange({
+                      road_hierarchy: originalRoadHierarchy || "",
+                      classification: originalRoadHierarchy || undefined,
                       infra_typology: originalSegmentType || "",
                       infra_flow: "unidirectional",
                       position_on_road: "pista_calcada",
@@ -1151,16 +1107,21 @@ const SegmentForm = () => {
                         infra_flow: false,
                         position_on_road: false,
                         velocity_kmh: false,
+                        road_hierarchy: false,
                         pedestrian_flow_per_hour_per_meter: false,
                       },
-                    })
-                  }
+                    });
+                  }}
                   helpKey="A1"
                 >
                   <Page2
                     data={formData}
                     onDataChange={handleDataChange}
                     segmentType={originalSegmentType}
+                    originalRoadHierarchy={originalRoadHierarchy}
+                    allowHierarchyEdit={allowHierarchyEdit}
+                    onHierarchyEditToggle={handleHierarchyEditToggle}
+                    onHierarchySelection={handleHierarchySelection}
                   />
                 </AssessmentCriterionAccordion>
               </CriteriaAccordionGroup>
@@ -1246,23 +1207,25 @@ const SegmentForm = () => {
                     <div className="flex min-w-max items-center gap-2">
                     {CRITERION_CODES.map((code) => {
                       const applicable = isCriterionApplicable(formData, code);
-                      const rating = liveSummary.resolvedRatings?.[code];
                       const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
                       const inAnalysis =
                         formData.criterion_workflow_state?.[getWorkflowStateKey(code)] === "analysis";
+                      const answered = criterionAnswered(code);
 
                       return (
                         <button
                           key={code}
                           type="button"
                           onClick={() => scrollToCriterion(code)}
-                          className={`flex h-10 min-w-[42px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition ${
+                          className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${
                             !applicable
                               ? "border-slate-200 bg-slate-100 text-slate-400 opacity-45"
-                              : criterionAnswered(code)
-                                ? ratingChipClassName(rating)
-                                : "border-slate-200 bg-white text-slate-700"
-                          } ${inAnalysis ? "ring-2 ring-amber-300" : ""}`}
+                              : inAnalysis
+                                ? "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300"
+                                : answered
+                                  ? "border-emerald-700 bg-emerald-700 text-white"
+                                  : "border-rose-600 bg-rose-600 text-white"
+                          }`}
                         >
                           <span>{code}</span>
                           {typeof points === "number" ? (
@@ -1282,36 +1245,52 @@ const SegmentForm = () => {
                       Toque em um badge para ir direto ao critério.
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-full px-3"
-                      onClick={() => triggerAccordionCommand("expand")}
-                    >
-                      <ChevronDown className="h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">Expandir</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-full px-3"
-                      onClick={() => triggerAccordionCommand("collapse")}
-                    >
-                      <ChevronUp className="h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">Retrair</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 rounded-full px-3"
-                      onClick={cycleGlobalFilter}
-                    >
-                      <Filter className="h-4 w-4 md:mr-2" />
-                      <span>{currentFilterLabel}</span>
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 rounded-full px-2.5 text-[11px] font-semibold"
+                        onClick={toggleAccordionDisplayMode}
+                      >
+                        {accordionDisplayMode === "expanded" ? (
+                          <ChevronDown className="mr-1 h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronRight className="mr-1 h-3.5 w-3.5" />
+                        )}
+                        <span>
+                          {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
+                        </span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
+                          globalCriterionFilter.answer === "answered"
+                            ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
+                            : globalCriterionFilter.answer === "unanswered"
+                              ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                        onClick={cycleAnswerFilter}
+                      >
+                        <span>{currentAnswerFilterLabel}</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
+                          globalCriterionFilter.review === "analysis"
+                            ? "border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100/90"
+                            : globalCriterionFilter.review === "reviewed"
+                              ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                        onClick={cycleReviewFilter}
+                      >
+                        <span>{currentReviewFilterLabel}</span>
+                      </Button>
                     </div>
                   </div>
                 </div>

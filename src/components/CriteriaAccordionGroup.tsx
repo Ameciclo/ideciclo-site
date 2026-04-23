@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Accordion } from "@/components/ui/accordion";
 import {
   CriteriaAccordionContext,
@@ -24,13 +24,18 @@ const CriteriaAccordionGroup: React.FC<CriteriaAccordionGroupProps> = ({
   children,
 }) => {
   const [openValues, setOpenValues] = useState<string[]>(defaultOpenValues || allValues);
+  const allValuesRef = useRef(allValues);
 
   const contextValue = useMemo(() => ({ filter }), [filter]);
 
   React.useEffect(() => {
+    allValuesRef.current = allValues;
+  }, [allValues]);
+
+  React.useEffect(() => {
     if (!command) return;
-    setOpenValues(command.type === "expand" ? allValues : []);
-  }, [allValues, command]);
+    setOpenValues(command.type === "expand" ? allValuesRef.current : []);
+  }, [command]);
 
   return (
     <CriteriaAccordionContext.Provider value={contextValue}>

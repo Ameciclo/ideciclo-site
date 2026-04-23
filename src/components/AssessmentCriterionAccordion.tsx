@@ -37,9 +37,10 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   const { filter } = useCriteriaAccordionFilter();
 
   const hidden =
-    (filter === "answered" && !answered) ||
-    (filter === "unanswered" && answered) ||
-    (filter === "analysis" && !inAnalysis);
+    (filter.answer === "answered" && !answered) ||
+    (filter.answer === "unanswered" && answered && !inAnalysis) ||
+    (filter.review === "analysis" && !inAnalysis) ||
+    (filter.review === "reviewed" && inAnalysis);
 
   if (hidden) return null;
 
@@ -62,13 +63,20 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Badge
-                variant={answered ? "default" : "outline"}
-                className="rounded-full px-3 py-1 text-xs"
+                variant="outline"
+                className={`rounded-full px-3 py-1 text-xs ${
+                  answered
+                    ? "border-emerald-700 bg-emerald-700 text-white"
+                    : "border-rose-600 bg-rose-600 text-white"
+                }`}
               >
-                {answered ? "Respondido" : "Não respondido"}
+                {answered ? "Respondido" : "Pendente"}
               </Badge>
               {inAnalysis ? (
-                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-amber-300 bg-amber-100 px-3 py-1 text-xs text-amber-950"
+                >
                   Em análise
                 </Badge>
               ) : null}
