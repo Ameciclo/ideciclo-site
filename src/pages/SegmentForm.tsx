@@ -171,6 +171,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   vertical_signs_conservation: "",
   traffic_lanes_count: 2,
   signalized_crossings_count: 0,
+  no_risk_situations: false,
   bus_school_conflict: false,
   horizontal_obstacles: false,
   vertical_obstacles: false,

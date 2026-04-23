@@ -78,6 +78,7 @@ export interface IdecicloFormData {
   vertical_signs_conservation: IdecicloRating | "";
   traffic_lanes_count: number;
   signalized_crossings_count: number;
+  no_risk_situations: boolean;
   bus_school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;

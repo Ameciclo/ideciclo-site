@@ -183,6 +183,7 @@ export interface SurveyResponses {
   // B.5 Accessibility relative to adjacent land use
   traffic_lanes_count: number;
   signalized_crossings_count: number;
+  no_risk_situations: boolean;
 
   // B.6 Risk situations along infrastructure
   bus_school_conflict: boolean;

@@ -32,7 +32,20 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
   };
 
   const handleCheckboxChange = (name: string, checked: boolean) => {
-    onDataChange({ [name]: checked });
+    onDataChange({
+      [name]: checked,
+      no_risk_situations:
+        checked ||
+        Boolean(
+          (name !== "bus_school_conflict" && data.bus_school_conflict) ||
+            (name !== "horizontal_obstacles" && data.horizontal_obstacles) ||
+            (name !== "vertical_obstacles" && data.vertical_obstacles) ||
+            (name !== "side_change_mid_block" && data.side_change_mid_block) ||
+            (name !== "opposite_flow_direction" && data.opposite_flow_direction)
+        )
+          ? false
+          : data.no_risk_situations,
+    });
   };
 
   const handleConflictCheckboxChange = (conflict: string, checked: boolean) => {
@@ -99,6 +112,13 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
   const signalizedCrossingsCount = Number(data.signalized_crossings_count || 0);
   const blocksCount = Number(data.blocks_count || 0);
   const crossingsPerBlock = blocksCount > 0 ? signalizedCrossingsCount / blocksCount : 0;
+  const hasAnyRiskSelected = Boolean(
+    data.bus_school_conflict ||
+      data.horizontal_obstacles ||
+      data.vertical_obstacles ||
+      data.side_change_mid_block ||
+      data.opposite_flow_direction
+  );
 
   return (
     <CriteriaAccordionGroup
@@ -123,6 +143,7 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             onAnalysisChange={(value) => updateWorkflow("b7", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
+                no_risk_situations: false,
                 bus_school_conflict: false,
                 horizontal_obstacles: false,
                 vertical_obstacles: false,
@@ -140,6 +161,33 @@ const Page7: React.FC<Page7Props> = ({ data, onDataChange, filter, command }) =>
             helpKey="B7"
           >
             <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">Sem situações de risco</div>
+                  <p className="text-xs text-muted-foreground">
+                    Ative quando nenhuma das situações abaixo estiver presente.
+                  </p>
+                </div>
+                <Checkbox
+                  id="no_risk_situations"
+                  checked={Boolean(data.no_risk_situations) && !hasAnyRiskSelected}
+                  onCheckedChange={(checked) => {
+                    const active = Boolean(checked);
+                    onDataChange({
+                      no_risk_situations: active,
+                      ...(active
+                        ? {
+                            bus_school_conflict: false,
+                            horizontal_obstacles: false,
+                            vertical_obstacles: false,
+                            side_change_mid_block: false,
+                            opposite_flow_direction: false,
+                          }
+                        : {}),
+                    });
+                  }}
+                />
+              </div>
               {!isCiclorrota ? (
                 <label
                   htmlFor="bus_school_conflict"
