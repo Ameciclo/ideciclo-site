@@ -1573,12 +1573,42 @@ const SegmentForm = () => {
 
             <section id="section-intersecoes" className="space-y-6">
               <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
+              {intersectionCount > 0 ? (
+                <div className="sticky top-24 z-20 -mx-1 px-1">
+                  <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      Intersecao em edicao
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: intersectionCount }, (_, index) => {
+                        const isActive = index === currentIntersectionIndex;
+
+                        return (
+                          <button
+                            key={`section-intersecoes-i-${index + 1}`}
+                            type="button"
+                            onClick={() => setCurrentIntersectionIndex(index)}
+                            className={`h-9 rounded-full border px-3 text-sm font-semibold transition ${
+                              isActive
+                                ? "border-slate-900 bg-slate-900 text-white"
+                                : "border-[#70c3df] bg-[#edf8fc] text-[#124457] hover:bg-[#e0f1f8]"
+                            }`}
+                          >
+                            I{index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <Page7
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
                 intersectionPager={intersectionPager}
+                hideIntersectionPager
                 currentIntersectionIndex={currentIntersectionIndex}
                 visibleValues={["c1", "e1", "c2", "c3"]}
               />

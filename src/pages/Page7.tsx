@@ -62,6 +62,7 @@ interface Page7Props {
   blockPager?: CriterionPagerConfig;
   hideBlockPager?: boolean;
   intersectionPager?: CriterionPagerConfig;
+  hideIntersectionPager?: boolean;
   currentIntersectionIndex?: number;
 }
 
@@ -74,6 +75,7 @@ const Page7: React.FC<Page7Props> = ({
   blockPager,
   hideBlockPager = false,
   intersectionPager,
+  hideIntersectionPager = false,
   currentIntersectionIndex = 0,
 }) => {
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
@@ -647,6 +649,7 @@ const Page7: React.FC<Page7Props> = ({
                   ? { ...intersectionPager, itemRatings: c1IntersectionRatings }
                   : undefined
               }
+              showPager={!hideIntersectionPager}
             >
               <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
                 Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
@@ -714,6 +717,7 @@ const Page7: React.FC<Page7Props> = ({
               }
               helpKey="E1"
               pager={intersectionPager}
+              showPager={!hideIntersectionPager}
             >
               <ConceptCriteriaTable
                 value={data.intersection_conservation || ""}
@@ -772,6 +776,7 @@ const Page7: React.FC<Page7Props> = ({
                 ? { ...intersectionPager, itemRatings: c2IntersectionRatings }
                 : undefined
             }
+            showPager={!hideIntersectionPager}
           >
             <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
               Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
@@ -859,6 +864,7 @@ const Page7: React.FC<Page7Props> = ({
                 ? { ...intersectionPager, itemRatings: c3IntersectionRatings }
                 : undefined
             }
+            showPager={!hideIntersectionPager}
           >
             <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
               Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
