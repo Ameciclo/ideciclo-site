@@ -249,12 +249,24 @@ export const getCriterionEvidence = (
         `Placas nos dois sentidos: ${asBoolLabel(data.signs_both_directions)}`,
       ];
     case "B5":
+      const totalCrossings = Array.isArray(data.signalized_crossings_count_by_block) &&
+        data.signalized_crossings_count_by_block.length > 0
+          ? data.signalized_crossings_count_by_block.reduce(
+              (sum, value) => sum + Number(value || 0),
+              0
+            )
+          : Number(data.signalized_crossings_count || 0);
       return [
         `Quadras consideradas: ${data.blocks_count || 0}`,
-        `Travessias sinalizadas ao longo do trecho: ${data.signalized_crossings_count || 0}`,
+        `Travessias sinalizadas ao longo do trecho: ${totalCrossings}`,
+        `Faixas de rolamento por quadra: ${
+          Array.isArray(data.traffic_lanes_count_by_block) && data.traffic_lanes_count_by_block.length > 0
+            ? data.traffic_lanes_count_by_block.join(", ")
+            : data.traffic_lanes_count || 0
+        }`,
         `Densidade de travessias: ${
           data.blocks_count > 0
-            ? (Number(data.signalized_crossings_count || 0) / Number(data.blocks_count)).toFixed(2)
+            ? (totalCrossings / Number(data.blocks_count)).toFixed(2)
             : "0.00"
         } por quadra`,
       ];

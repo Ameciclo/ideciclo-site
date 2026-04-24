@@ -1,6 +1,5 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion, {
   CriterionPagerConfig,
@@ -29,18 +28,17 @@ const Page8: React.FC<Page8Props> = ({
   blockPager,
 }) => {
   const canShow = (value: "d1" | "d2" | "d3") => !visibleValues || visibleValues.includes(value);
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    const processedValue = type === "number" ? parseFloat(value) || 0 : value;
-    onDataChange({ [name]: processedValue });
-  };
-
   const handleRadioChange = (name: string, value: string | boolean) => {
     onDataChange({ [name]: value });
   };
 
   const handleFurnitureCheckboxChange = (item: string, checked: boolean) => {
-    const currentItems = [...(data.cycling_furniture || [])];
+    const currentBlockIndex = blockPager?.currentIndex || 0;
+    const blockCount = Math.max(0, Number(data.blocks_count || 0));
+    const currentItems = Array.isArray(data.cycling_furniture_by_block?.[currentBlockIndex])
+      ? [...(data.cycling_furniture_by_block?.[currentBlockIndex] || [])]
+      : [...(data.cycling_furniture || [])];
+
     if (checked) {
       if (!currentItems.includes(item)) {
         currentItems.push(item);
@@ -51,7 +49,29 @@ const Page8: React.FC<Page8Props> = ({
         currentItems.splice(index, 1);
       }
     }
-    onDataChange({ cycling_furniture: currentItems });
+
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const nextByBlock = Array.from({ length: nextLength }, (_, index) =>
+      Array.isArray(data.cycling_furniture_by_block?.[index])
+        ? [...(data.cycling_furniture_by_block?.[index] || [])]
+        : []
+    );
+
+    nextByBlock[currentBlockIndex] = currentItems;
+
+    const blocksWithFurniture = nextByBlock.filter((items) => items.length > 0).length;
+    const aggregatedFurniture = Array.from(new Set(nextByBlock.flat()));
+
+    onDataChange({
+      blocks_with_cycling_furniture: blocksWithFurniture,
+      cycling_furniture: aggregatedFurniture,
+      cycling_furniture_by_block: nextByBlock,
+      touched_fields: {
+        blocks_with_cycling_furniture: blocksWithFurniture > 0,
+        cycling_furniture: aggregatedFurniture.length > 0,
+        cycling_furniture_by_block: true,
+      },
+    });
   };
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
@@ -155,7 +175,7 @@ const Page8: React.FC<Page8Props> = ({
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
             scorePreview={buildCriterionScorePreview(data, ["D3"])}
-            answered={isTouched(["blocks_with_cycling_furniture", "cycling_furniture"])}
+            answered={isTouched(["cycling_furniture_by_block", "cycling_furniture"])}
             inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}
             pager={blockPager}
@@ -164,30 +184,24 @@ const Page8: React.FC<Page8Props> = ({
               onDataChange({
                 blocks_with_cycling_furniture: 0,
                 cycling_furniture: [],
+                cycling_furniture_by_block: [],
                 touched_fields: {
                   blocks_with_cycling_furniture: false,
                   cycling_furniture: false,
+                  cycling_furniture_by_block: false,
                 },
               })
             }
           >
-            <div className="mb-4">
-              <Label htmlFor="blocks_with_cycling_furniture">
-                Quantas quadras do trecho têm ao menos um mobiliário cicloviário?
-              </Label>
-              <Input
-                id="blocks_with_cycling_furniture"
-                name="blocks_with_cycling_furniture"
-                type="number"
-                value={data.blocks_with_cycling_furniture || ""}
-                onChange={handleChange}
-              />
-            </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="furniture_bicicletarios"
-                  checked={(data.cycling_furniture || []).includes("bicicletarios")}
+                  checked={Boolean(
+                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
+                      "bicicletarios"
+                    )
+                  )}
                   onCheckedChange={(checked) =>
                     handleFurnitureCheckboxChange("bicicletarios", !!checked)
                   }
@@ -197,7 +211,11 @@ const Page8: React.FC<Page8Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="furniture_estacoes"
-                  checked={(data.cycling_furniture || []).includes("estacoes")}
+                  checked={Boolean(
+                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
+                      "estacoes"
+                    )
+                  )}
                   onCheckedChange={(checked) => handleFurnitureCheckboxChange("estacoes", !!checked)}
                 />
                 <Label htmlFor="furniture_estacoes">Estações de autoatendimento</Label>
@@ -205,7 +223,11 @@ const Page8: React.FC<Page8Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="furniture_paraciclos"
-                  checked={(data.cycling_furniture || []).includes("paraciclos")}
+                  checked={Boolean(
+                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
+                      "paraciclos"
+                    )
+                  )}
                   onCheckedChange={(checked) =>
                     handleFurnitureCheckboxChange("paraciclos", !!checked)
                   }
@@ -215,7 +237,11 @@ const Page8: React.FC<Page8Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="furniture_bebedouros"
-                  checked={(data.cycling_furniture || []).includes("bebedouros")}
+                  checked={Boolean(
+                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
+                      "bebedouros"
+                    )
+                  )}
                   onCheckedChange={(checked) =>
                     handleFurnitureCheckboxChange("bebedouros", !!checked)
                   }
@@ -225,7 +251,11 @@ const Page8: React.FC<Page8Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="furniture_compartilhadas"
-                  checked={(data.cycling_furniture || []).includes("compartilhadas")}
+                  checked={Boolean(
+                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
+                      "compartilhadas"
+                    )
+                  )}
                   onCheckedChange={(checked) =>
                     handleFurnitureCheckboxChange("compartilhadas", !!checked)
                   }

@@ -70,11 +70,6 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
             }
             helpKey="b31"
           >
-            <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-              O conceito final de B.3 e calculado internamente a partir desta resposta e do buffer
-              lateral informado em B.1. Para calçada partilhada, B.3 equivale diretamente a B.3.1.
-            </div>
-
             {infraType === "ciclofaixa" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclofaixa):</Label>

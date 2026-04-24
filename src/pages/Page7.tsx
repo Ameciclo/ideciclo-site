@@ -345,9 +345,63 @@ const Page7: React.FC<Page7Props> = ({
   );
 
   const signalizedCrossingsCount = Number(data.signalized_crossings_count || 0);
+  const currentBlockIndex = blockPager?.currentIndex || 0;
+  const normalizedTypologyForB5 = (data.infra_typology || "").toLowerCase();
+  const maxTrafficLanesForB5 = normalizedTypologyForB5.includes("ciclorrota") ? 4 : 6;
+  const currentBlockCrossings = Array.isArray(data.signalized_crossings_count_by_block)
+    ? Number(data.signalized_crossings_count_by_block[currentBlockIndex] || 0)
+    : signalizedCrossingsCount;
+  const currentBlockTrafficLanes = Array.isArray(data.traffic_lanes_count_by_block)
+    ? Number(data.traffic_lanes_count_by_block[currentBlockIndex] || 0)
+    : Number(data.traffic_lanes_count || 0);
   const hasAnyRiskSelected = Boolean(
     selectedRiskOptions.length > 0
   );
+  const chipClassName = (selected: boolean) =>
+    `rounded-full border px-3 py-2 text-sm font-medium transition ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+    }`;
+
+  const setB5BlockValue = (
+    field: "signalized_crossings_count_by_block" | "traffic_lanes_count_by_block",
+    nextValue: number
+  ) => {
+    const blockCount = Math.max(0, Number(data.blocks_count || 0));
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const sourceValues = Array.isArray(data[field]) ? data[field] : [];
+    const nextValues = Array.from({ length: nextLength }, (_, index) =>
+      Number(sourceValues[index] || 0)
+    );
+    nextValues[currentBlockIndex] = nextValue;
+
+    const nextCrossings =
+      field === "signalized_crossings_count_by_block"
+        ? nextValues
+        : Array.from({ length: nextLength }, (_, index) =>
+            Number(data.signalized_crossings_count_by_block?.[index] || 0)
+          );
+    const nextTrafficLanes =
+      field === "traffic_lanes_count_by_block"
+        ? nextValues
+        : Array.from({ length: nextLength }, (_, index) =>
+            Number(data.traffic_lanes_count_by_block?.[index] || 0)
+          );
+
+    onDataChange({
+      signalized_crossings_count_by_block: nextCrossings,
+      signalized_crossings_count: nextCrossings.reduce((sum, value) => sum + Number(value || 0), 0),
+      traffic_lanes_count_by_block: nextTrafficLanes,
+      traffic_lanes_count: Math.max(...nextTrafficLanes, 0),
+      touched_fields: {
+        signalized_crossings_count_by_block: true,
+        signalized_crossings_count: nextCrossings.some((value) => Number(value || 0) > 0),
+        traffic_lanes_count_by_block: true,
+        traffic_lanes_count: nextTrafficLanes.some((value) => Number(value || 0) > 0),
+      },
+    });
+  };
 
   return (
     <CriteriaAccordionGroup
@@ -495,14 +549,27 @@ const Page7: React.FC<Page7Props> = ({
             title="B.5. Acessibilidade relativa ao uso do solo lindeiro"
             description="Conta travessias sinalizadas ao longo do trecho e relaciona com o numero de quadras."
             scorePreview={buildCriterionScorePreview(data, ["B5"])}
-            answered={isTouched(["signalized_crossings_count"]) || signalizedCrossingsCount > 0}
+            answered={
+              isTouched([
+                "signalized_crossings_count",
+                "signalized_crossings_count_by_block",
+                "traffic_lanes_count",
+                "traffic_lanes_count_by_block",
+              ]) || signalizedCrossingsCount > 0
+            }
             inAnalysis={data.criterion_workflow_state?.b5 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b5", value ? "analysis" : "default")}
             onClear={() =>
               onDataChange({
                 signalized_crossings_count: 0,
+                signalized_crossings_count_by_block: [],
+                traffic_lanes_count: 0,
+                traffic_lanes_count_by_block: [],
                 touched_fields: {
                   signalized_crossings_count: false,
+                  signalized_crossings_count_by_block: false,
+                  traffic_lanes_count: false,
+                  traffic_lanes_count_by_block: false,
                 },
               })
             }
@@ -510,20 +577,37 @@ const Page7: React.FC<Page7Props> = ({
             pager={blockPager}
           >
             <div className="space-y-4">
-              {renderCounter({
-                label: "Travessias sinalizadas ao longo do trecho",
-                value: signalizedCrossingsCount,
-                onDecrease: () =>
-                  onDataChange({
-                    signalized_crossings_count: Math.max(0, signalizedCrossingsCount - 1),
-                    touched_fields: { signalized_crossings_count: true },
-                  }),
-                onIncrease: () =>
-                  onDataChange({
-                    signalized_crossings_count: signalizedCrossingsCount + 1,
-                    touched_fields: { signalized_crossings_count: true },
-                  }),
-              })}
+              <div>
+                <Label className="mb-2 block">Travessias sinalizadas na quadra</Label>
+                <div className="flex flex-wrap gap-2">
+                  {[0, 1, 2].map((value) => (
+                    <button
+                      key={`crossings-${value}`}
+                      type="button"
+                      className={chipClassName(currentBlockCrossings === value)}
+                      onClick={() => setB5BlockValue("signalized_crossings_count_by_block", value)}
+                    >
+                      {value === 2 ? "2+" : value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Faixas de rolamento na quadra</Label>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: maxTrafficLanesForB5 + 1 }, (_, value) => (
+                    <button
+                      key={`lanes-${value}`}
+                      type="button"
+                      className={chipClassName(currentBlockTrafficLanes === value)}
+                      onClick={() => setB5BlockValue("traffic_lanes_count_by_block", value)}
+                    >
+                      {value === maxTrafficLanesForB5 ? `${value}+` : value}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </AssessmentCriterionAccordion> : null}
 

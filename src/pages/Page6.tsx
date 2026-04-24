@@ -1,6 +1,5 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion, {
   CriterionPagerConfig,
@@ -8,7 +7,7 @@ import AssessmentCriterionAccordion, {
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
-import { IdecicloFormData } from "@/types/idecicloForm";
+import { IdecicloFormData, VerticalSignsConditionByBlock } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 interface Page6Props {
@@ -46,6 +45,12 @@ const Page6: React.FC<Page6Props> = ({
   const canShow = (value: "b41" | "b42" | "e41" | "e42" | "b43" | "e43") =>
     !visibleValues || visibleValues.includes(value);
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const chipClassName = (selected: boolean) =>
+    `rounded-full border px-3 py-2 text-sm font-medium transition ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+    }`;
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
@@ -53,6 +58,42 @@ const Page6: React.FC<Page6Props> = ({
         [criterion]: value,
       },
     });
+  const currentBlockIndex = blockPager?.currentIndex || 0;
+  const currentVerticalSignsCondition =
+    data.vertical_signs_conservation_by_block?.[currentBlockIndex] || "";
+  const setVerticalSignsConditionByBlock = (nextValue: VerticalSignsConditionByBlock) => {
+    const blockCount = Math.max(0, Number(data.blocks_count || 0));
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const nextByBlock = Array.from({ length: nextLength }, (_, index) =>
+      (data.vertical_signs_conservation_by_block?.[index] || "") as VerticalSignsConditionByBlock
+    );
+    nextByBlock[currentBlockIndex] = nextValue;
+
+    const answeredConditions = nextByBlock.filter((value) => value !== "");
+    const damagedConditions = answeredConditions.filter((value) => value === "damage").length;
+    const totalAnsweredConditions = answeredConditions.length;
+    const hasAnySigns = (data.regulation_signs_per_block || 0) > 0;
+
+    const derivedConservation =
+      !hasAnySigns
+        ? "D"
+        : totalAnsweredConditions === 0
+          ? ""
+          : damagedConditions === 0
+            ? "A"
+            : damagedConditions < totalAnsweredConditions / 2
+              ? "B"
+              : "C";
+
+    onDataChange({
+      vertical_signs_conservation_by_block: nextByBlock,
+      vertical_signs_conservation: derivedConservation,
+      touched_fields: {
+        vertical_signs_conservation_by_block: true,
+        vertical_signs_conservation: answeredConditions.length > 0 || !hasAnySigns,
+      },
+    });
+  };
 
   return (
     <CriteriaAccordionGroup
@@ -86,52 +127,37 @@ const Page6: React.FC<Page6Props> = ({
           <div className="space-y-4">
             <div>
               <Label className="mb-2 block">N° de placas por quadra:</Label>
-              <RadioGroup
-                value={data.regulation_signs_per_block?.toString() || "0"}
-                onValueChange={(value) =>
-                  handleRadioChange("regulation_signs_per_block", parseInt(value, 10))
-                }
-                className="flex flex-wrap gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="0" id="signs_regular_0" />
-                  <Label htmlFor="signs_regular_0">0</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1" id="signs_regular_1" />
-                  <Label htmlFor="signs_regular_1">1</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="2" id="signs_regular_2" />
-                  <Label htmlFor="signs_regular_2">2 ou mais</Label>
-                </div>
-              </RadioGroup>
+              <div className="flex flex-wrap gap-2">
+                {[0, 1, 2].map((value) => (
+                  <button
+                    key={`signs-${value}`}
+                    type="button"
+                    className={chipClassName((data.regulation_signs_per_block || 0) === value)}
+                    onClick={() => handleRadioChange("regulation_signs_per_block", value)}
+                  >
+                    {value === 2 ? "2+" : value}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
               <Label className="mb-2 block">Placas nos dois sentidos:</Label>
-              <RadioGroup
-                value={
-                  data.signs_both_directions === null
-                    ? ""
-                    : data.signs_both_directions
-                      ? "true"
-                      : "false"
-                }
-                onValueChange={(value) =>
-                  handleRadioChange("signs_both_directions", value === "true")
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="signs_regular_both_yes" />
-                  <Label htmlFor="signs_regular_both_yes">Sim</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="signs_regular_both_no" />
-                  <Label htmlFor="signs_regular_both_no">Não</Label>
-                </div>
-              </RadioGroup>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Sim", value: true },
+                  { label: "Não", value: false },
+                ].map((option) => (
+                  <button
+                    key={`directions-${option.label}`}
+                    type="button"
+                    className={chipClassName(data.signs_both_directions === option.value)}
+                    onClick={() => handleRadioChange("signs_both_directions", option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </AssessmentCriterionAccordion>
@@ -186,41 +212,45 @@ const Page6: React.FC<Page6Props> = ({
           title="E.4.1. Estado de conservação da sinalização vertical"
           description="Entrada de conservação da sinalização vertical para avaliação por quadra."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
-          answered={isTouched(["vertical_signs_conservation"])}
+          answered={isTouched([
+            "vertical_signs_conservation",
+            "vertical_signs_conservation_by_block",
+          ])}
           inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
           onClear={() =>
             onDataChange({
               vertical_signs_conservation: "",
-              touched_fields: { vertical_signs_conservation: false },
+              vertical_signs_conservation_by_block: [],
+              touched_fields: {
+                vertical_signs_conservation: false,
+                vertical_signs_conservation_by_block: false,
+              },
             })
           }
           helpKey="e42"
           pager={blockPager}
         >
-          <ConceptCriteriaTable
-            value={data.vertical_signs_conservation || ""}
-            onValueChange={(value) => handleRadioChange("vertical_signs_conservation", value)}
-            options={[
-              {
-                value: "A",
-                description: "Placas e postes em bom estado de conservação.",
-              },
-              {
-                value: "B",
-                description:
-                  "Menos da metade das placas com danos ( soltas, sujas, pichadas, adesivadas, outros).",
-              },
-              {
-                value: "C",
-                description: "Placas bastante danificadas ao longo do trecho.",
-              },
-              {
-                value: "D",
-                description: "Não há placas no trecho.",
-              },
-            ]}
-          />
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Estado de conservação na quadra</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Bom", value: "good" as const },
+                  { label: "Danos", value: "damage" as const },
+                ].map((option) => (
+                  <button
+                    key={`vertical-signs-condition-${option.value}`}
+                    type="button"
+                    className={chipClassName(currentVerticalSignsCondition === option.value)}
+                    onClick={() => setVerticalSignsConditionByBlock(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </AssessmentCriterionAccordion>
       ) : null}
 

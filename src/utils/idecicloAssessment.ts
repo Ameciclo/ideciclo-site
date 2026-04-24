@@ -469,7 +469,13 @@ const calculateB5 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   const typology = normalizeTypology(formData.infra_typology);
   if (!typology) return null;
 
-  const crossings = toNumber(formData.signalized_crossings_count);
+  const crossings = Array.isArray(formData.signalized_crossings_count_by_block) &&
+    formData.signalized_crossings_count_by_block.length > 0
+      ? formData.signalized_crossings_count_by_block.reduce(
+          (sum, value) => sum + toNumber(value),
+          0
+        )
+      : toNumber(formData.signalized_crossings_count);
   const blocks = toNumber(formData.blocks_count);
 
   if (blocks <= 0) return null;
@@ -739,9 +745,26 @@ const calculateE4 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   const identificationConservation = isRating(formData.identification_conservation)
     ? formData.identification_conservation
     : null;
-  const verticalSignsConservation = isRating(formData.vertical_signs_conservation)
-    ? formData.vertical_signs_conservation
+  const derivedVerticalSignsConservationFromBlocks = Array.isArray(
+    formData.vertical_signs_conservation_by_block
+  )
+    ? (() => {
+        const answeredConditions = formData.vertical_signs_conservation_by_block.filter(
+          (value): value is "good" | "damage" => value === "good" || value === "damage"
+        );
+        const damagedConditions = answeredConditions.filter((value) => value === "damage").length;
+        const hasAnySigns = toNumber(formData.regulation_signs_per_block) > 0;
+
+        if (!hasAnySigns) return "D" as IdecicloRating;
+        if (answeredConditions.length === 0) return null;
+        if (damagedConditions === 0) return "A" as IdecicloRating;
+        if (damagedConditions < answeredConditions.length / 2) return "B" as IdecicloRating;
+        return "C" as IdecicloRating;
+      })()
     : null;
+  const verticalSignsConservation =
+    derivedVerticalSignsConservationFromBlocks ??
+    (isRating(formData.vertical_signs_conservation) ? formData.vertical_signs_conservation : null);
 
   if (!identificationConservation || !verticalSignsConservation) return null;
 

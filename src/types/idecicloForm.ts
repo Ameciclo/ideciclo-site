@@ -13,6 +13,7 @@ export type RiskOccurrenceKey =
   | "vertical_obstacles"
   | "side_change_mid_block"
   | "opposite_flow_direction";
+export type VerticalSignsConditionByBlock = "good" | "damage" | "";
 export type CriterionCode =
   | "A1"
   | "A2"
@@ -83,8 +84,11 @@ export interface IdecicloFormData {
   regulation_signs_per_block: number;
   signs_both_directions: boolean | null;
   vertical_signs_conservation: IdecicloRating | "";
+  vertical_signs_conservation_by_block: VerticalSignsConditionByBlock[];
   traffic_lanes_count: number;
   signalized_crossings_count: number;
+  traffic_lanes_count_by_block: number[];
+  signalized_crossings_count_by_block: number[];
   no_risk_situations: boolean;
   risk_occurrence_counts: Partial<Record<RiskOccurrenceKey, number>>;
   bus_school_conflict: boolean;
@@ -116,6 +120,7 @@ export interface IdecicloFormData {
   vegetation_size: "A" | "B" | "C" | "";
   blocks_with_cycling_furniture: number;
   cycling_furniture: string[];
+  cycling_furniture_by_block: string[][];
   observations: string;
   rating_modes: Partial<Record<CriterionCode, RatingMode>>;
   manual_ratings: Partial<Record<CriterionCode, IdecicloRating>>;

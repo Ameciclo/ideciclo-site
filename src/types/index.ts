@@ -179,10 +179,13 @@ export interface SurveyResponses {
   regulation_signs_per_block: number;
   signs_both_directions: boolean;
   vertical_signs_conservation: 'A' | 'B' | 'C' | 'D';
+  vertical_signs_conservation_by_block?: Array<'good' | 'damage' | ''>;
 
   // B.5 Accessibility relative to adjacent land use
   traffic_lanes_count: number;
   signalized_crossings_count: number;
+  traffic_lanes_count_by_block?: number[];
+  signalized_crossings_count_by_block?: number[];
   no_risk_situations: boolean;
 
   // B.6 Risk situations along infrastructure
@@ -216,4 +219,5 @@ export interface SurveyResponses {
 
   // D.3 Cycling furniture
   cycling_furniture: string[];
+  cycling_furniture_by_block?: string[][];
 }

@@ -166,8 +166,11 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   regulation_signs_per_block: 0,
   signs_both_directions: null,
   vertical_signs_conservation: "",
+  vertical_signs_conservation_by_block: [],
   traffic_lanes_count: 2,
   signalized_crossings_count: 0,
+  traffic_lanes_count_by_block: [],
+  signalized_crossings_count_by_block: [],
   no_risk_situations: false,
   risk_occurrence_counts: {},
   bus_school_conflict: false,
@@ -199,6 +202,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   vegetation_size: "",
   blocks_with_cycling_furniture: 0,
   cycling_furniture: [],
+  cycling_furniture_by_block: [],
   observations: "",
   rating_modes: getInitialRatingModes(),
   manual_ratings: {},
@@ -273,6 +277,30 @@ const mergeWithDefaults = (
       : Array.isArray(data.motorized_conflicts) && data.motorized_conflicts.length > 0
         ? [data.motorized_conflicts]
         : [];
+  const fallbackCyclingFurnitureByBlock =
+    Array.isArray(data.cycling_furniture_by_block) && data.cycling_furniture_by_block.length > 0
+      ? data.cycling_furniture_by_block
+      : Array.isArray(data.cycling_furniture) && data.cycling_furniture.length > 0
+        ? [data.cycling_furniture]
+        : [];
+  const fallbackTrafficLanesCountByBlock =
+    Array.isArray(data.traffic_lanes_count_by_block) && data.traffic_lanes_count_by_block.length > 0
+      ? data.traffic_lanes_count_by_block
+      : typeof data.traffic_lanes_count === "number"
+        ? [data.traffic_lanes_count]
+        : [];
+  const fallbackSignalizedCrossingsByBlock =
+    Array.isArray(data.signalized_crossings_count_by_block) &&
+    data.signalized_crossings_count_by_block.length > 0
+      ? data.signalized_crossings_count_by_block
+      : typeof data.signalized_crossings_count === "number"
+        ? [data.signalized_crossings_count]
+        : [];
+  const fallbackVerticalSignsConservationByBlock =
+    Array.isArray(data.vertical_signs_conservation_by_block) &&
+    data.vertical_signs_conservation_by_block.length > 0
+      ? data.vertical_signs_conservation_by_block
+      : [];
 
   return {
     ...defaults,
@@ -287,6 +315,10 @@ const mergeWithDefaults = (
     mixed_lane_width_m_by_intersection: fallbackMixedLaneWidthPerIntersection,
     has_intersection_traffic_calming_by_intersection: fallbackIntersectionTrafficCalming,
     motorized_conflicts_by_intersection: fallbackMotorizedConflictsByIntersection,
+    cycling_furniture_by_block: fallbackCyclingFurnitureByBlock,
+    traffic_lanes_count_by_block: fallbackTrafficLanesCountByBlock,
+    signalized_crossings_count_by_block: fallbackSignalizedCrossingsByBlock,
+    vertical_signs_conservation_by_block: fallbackVerticalSignsConservationByBlock,
     signalized_crossings_count:
       data.signalized_crossings_count ?? legacyData.signalized_crossings_per_block ?? 0,
     id: data.id || defaults.id,
@@ -429,6 +461,7 @@ const SECTION_NAV_ITEMS = [
   { id: "section-pavimento", label: "Cicloviário", tone: "e" },
   { id: "section-luz", label: "Iluminação", tone: "d" },
   { id: "section-risco", label: "Risco", tone: "b" },
+  { id: "section-medicoes", label: "Medições", tone: "b" },
   { id: "section-quadras", label: "Quadras", tone: "b" },
   { id: "section-intersecoes", label: "Interseções", tone: "c" },
   { id: "section-comentarios", label: "Comentários", tone: "e" },
@@ -640,7 +673,14 @@ const SegmentForm = () => {
     const hasTouched = (fields: string[]) => fields.some((field) => Boolean(touched[field]));
     const typology = String(formData.infra_typology || "").toLowerCase();
 
-    if (code === "B5") return hasTouched(["signalized_crossings_count"]);
+    if (code === "B5") {
+      return hasTouched([
+        "signalized_crossings_count",
+        "signalized_crossings_count_by_block",
+        "traffic_lanes_count",
+        "traffic_lanes_count_by_block",
+      ]);
+    }
     if (code === "B6") {
       const totalTrafficCalming = Object.values(formData.traffic_calming_counts || {}).reduce(
         (sum, value) => sum + Number(value || 0),
@@ -687,7 +727,13 @@ const SegmentForm = () => {
         : hasTouched(["motorized_conflicts_by_intersection", "motorized_conflicts"]);
     }
     if (code === "D1") return hasTouched(["lighting_rating"]);
-    if (code === "D3") return hasTouched(["blocks_with_cycling_furniture", "cycling_furniture"]);
+    if (code === "D3") {
+      return hasTouched([
+        "blocks_with_cycling_furniture",
+        "cycling_furniture",
+        "cycling_furniture_by_block",
+      ]);
+    }
 
     const rating = liveSummary.resolvedRatings?.[code];
     return Boolean(rating);
@@ -1433,8 +1479,8 @@ const SegmentForm = () => {
               />
             </section>
 
-            <section id="section-quadras" className="space-y-6">
-              <AxisRibbon tone="b" title="Avaliacao das quadras" />
+            <section id="section-medicoes" className="space-y-6">
+              <AxisRibbon tone="b" title="Medicoes da estrutura" />
               <Page3
                 data={formData}
                 onDataChange={handleDataChange}
@@ -1450,6 +1496,10 @@ const SegmentForm = () => {
                       : ["b11", "b32"]
                 }
               />
+            </section>
+
+            <section id="section-quadras" className="space-y-6">
+              <AxisRibbon tone="b" title="Avaliacao das quadras" />
               <Page6
                 data={formData}
                 onDataChange={handleDataChange}
