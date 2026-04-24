@@ -3,7 +3,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import AssessmentCriterionAccordion, {
+  CriterionPagerConfig,
+} from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData, TrafficCalmingMeasure } from "@/types/idecicloForm";
@@ -15,6 +17,7 @@ interface Page3Props {
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"b11" | "b32" | "b12">;
+  blockPager?: CriterionPagerConfig;
 }
 
 const TRAFFIC_CALMING_OPTIONS: Array<{

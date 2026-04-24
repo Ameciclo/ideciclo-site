@@ -177,14 +177,14 @@ export const MANUAL_HELP_MAP: Record<string, ManualHelpEntry> = {
     [51, 52]
   ),
   e41: entry(
-    "E.4.1 Estado de conservação da identificação do espaço de circulação",
-    "Página do manual dedicada à manutenção da identificação em vermelho do espaço cicloviário.",
-    [51]
-  ),
-  e42: entry(
-    "E.4.2 Estado de conservação da sinalização vertical",
+    "E.4.1 Estado de conservação da sinalização vertical",
     "Página do manual com os critérios de conservação das placas de regulamentação.",
     [52]
+  ),
+  e42: entry(
+    "E.4.2 Estado de conservação da identificação do espaço de circulação",
+    "Página do manual dedicada à manutenção da identificação em vermelho do espaço cicloviário.",
+    [51]
   ),
   e43: entry(
     "E.4.3 Estado de conservação das inscrições no pavimento",

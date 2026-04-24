@@ -40,6 +40,7 @@ import { IdecicloFormData } from "@/types/idecicloForm";
 import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Segment } from "@/types";
 import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import { CriterionPagerConfig } from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import {
   CriterionAnswerFilter,
@@ -175,12 +176,18 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   side_change_mid_block: false,
   opposite_flow_direction: false,
   intersection_signaling: "",
+  intersection_signaling_by_intersection: [],
   intersection_conservation: "",
   connection_accessibility: "",
+  connection_accessibility_by_intersection: [],
   traffic_lanes_per_direction: 1,
+  traffic_lanes_per_direction_by_intersection: [],
   mixed_lane_width_m: 2.7,
+  mixed_lane_width_m_by_intersection: [],
   has_intersection_traffic_calming: false,
+  has_intersection_traffic_calming_by_intersection: [],
   motorized_conflicts: [],
+  motorized_conflicts_by_intersection: [],
   has_lighting_posts: null,
   lighting_rating: "",
   lighting_post_type: "",
@@ -224,6 +231,48 @@ const mergeWithDefaults = (
           ...(data.side_change_mid_block ? { side_change_mid_block: 1 } : {}),
           ...(data.opposite_flow_direction ? { opposite_flow_direction: 1 } : {}),
         };
+  const fallbackIntersectionSignaling =
+    Array.isArray(data.intersection_signaling_by_intersection) &&
+    data.intersection_signaling_by_intersection.length > 0
+      ? data.intersection_signaling_by_intersection
+      : data.intersection_signaling
+        ? [data.intersection_signaling]
+        : [];
+  const fallbackConnectionAccessibility =
+    Array.isArray(data.connection_accessibility_by_intersection) &&
+    data.connection_accessibility_by_intersection.length > 0
+      ? data.connection_accessibility_by_intersection
+      : data.connection_accessibility
+        ? [data.connection_accessibility]
+        : [];
+  const fallbackTrafficLanesPerIntersection =
+    Array.isArray(data.traffic_lanes_per_direction_by_intersection) &&
+    data.traffic_lanes_per_direction_by_intersection.length > 0
+      ? data.traffic_lanes_per_direction_by_intersection
+      : typeof data.traffic_lanes_per_direction === "number"
+        ? [data.traffic_lanes_per_direction]
+        : [];
+  const fallbackMixedLaneWidthPerIntersection =
+    Array.isArray(data.mixed_lane_width_m_by_intersection) &&
+    data.mixed_lane_width_m_by_intersection.length > 0
+      ? data.mixed_lane_width_m_by_intersection
+      : typeof data.mixed_lane_width_m === "number"
+        ? [data.mixed_lane_width_m]
+        : [];
+  const fallbackIntersectionTrafficCalming =
+    Array.isArray(data.has_intersection_traffic_calming_by_intersection) &&
+    data.has_intersection_traffic_calming_by_intersection.length > 0
+      ? data.has_intersection_traffic_calming_by_intersection
+      : typeof data.has_intersection_traffic_calming === "boolean"
+        ? [data.has_intersection_traffic_calming]
+        : [];
+  const fallbackMotorizedConflictsByIntersection =
+    Array.isArray(data.motorized_conflicts_by_intersection) &&
+    data.motorized_conflicts_by_intersection.length > 0
+      ? data.motorized_conflicts_by_intersection
+      : Array.isArray(data.motorized_conflicts) && data.motorized_conflicts.length > 0
+        ? [data.motorized_conflicts]
+        : [];
 
   return {
     ...defaults,
@@ -232,6 +281,12 @@ const mergeWithDefaults = (
     buffer_measurements_m: data.buffer_measurements_m ?? defaults.buffer_measurements_m,
     traffic_calming_counts: fallbackTrafficCalmingCounts,
     risk_occurrence_counts: fallbackRiskOccurrenceCounts,
+    intersection_signaling_by_intersection: fallbackIntersectionSignaling,
+    connection_accessibility_by_intersection: fallbackConnectionAccessibility,
+    traffic_lanes_per_direction_by_intersection: fallbackTrafficLanesPerIntersection,
+    mixed_lane_width_m_by_intersection: fallbackMixedLaneWidthPerIntersection,
+    has_intersection_traffic_calming_by_intersection: fallbackIntersectionTrafficCalming,
+    motorized_conflicts_by_intersection: fallbackMotorizedConflictsByIntersection,
     signalized_crossings_count:
       data.signalized_crossings_count ?? legacyData.signalized_crossings_per_block ?? 0,
     id: data.id || defaults.id,
@@ -371,10 +426,8 @@ const CRITERION_NAV_ITEMS: Array<{
 
 const SECTION_NAV_ITEMS = [
   { id: "section-a", label: "Caracterização", tone: "a" },
-  { id: "section-pavimento", label: "Pavimento", tone: "e" },
+  { id: "section-pavimento", label: "Cicloviário", tone: "e" },
   { id: "section-luz", label: "Iluminação", tone: "d" },
-  { id: "section-identificacao", label: "Identificação", tone: "b" },
-  { id: "section-separacao", label: "Separação", tone: "b" },
   { id: "section-risco", label: "Risco", tone: "b" },
   { id: "section-quadras", label: "Quadras", tone: "b" },
   { id: "section-intersecoes", label: "Interseções", tone: "c" },
@@ -484,6 +537,8 @@ const SegmentForm = () => {
     type: "expand" | "collapse";
     nonce: number;
   } | null>(null);
+  const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
+  const [currentIntersectionIndex, setCurrentIntersectionIndex] = useState(0);
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
     createEmptyFormData(effectiveSegmentId)
   );
@@ -502,7 +557,7 @@ const SegmentForm = () => {
     if (code === "B3") return "b31";
     if (code === "E3") return "e31";
     if (code === "B4") return typology.includes("ciclorrota") ? "b43" : "b41";
-    if (code === "E4") return typology.includes("ciclorrota") ? "e43" : "e41";
+    if (code === "E4") return typology.includes("ciclorrota") ? "e43" : "e42";
     if (code === "B5") return "b5";
     if (code === "B7") return "b7";
     if (code === "C1") return "c1";
@@ -610,14 +665,26 @@ const SegmentForm = () => {
             "space_identification",
           ]);
     }
+    if (code === "C1") {
+      return hasTouched(["intersection_signaling_by_intersection", "intersection_signaling"]);
+    }
+    if (code === "C2") {
+      return hasTouched([
+        "connection_accessibility_by_intersection",
+        "connection_accessibility",
+      ]);
+    }
     if (code === "C3") {
       return typology.includes("ciclorrota")
         ? hasTouched([
+            "traffic_lanes_per_direction_by_intersection",
+            "mixed_lane_width_m_by_intersection",
+            "has_intersection_traffic_calming_by_intersection",
             "traffic_lanes_per_direction",
             "mixed_lane_width_m",
             "has_intersection_traffic_calming",
           ])
-        : hasTouched(["motorized_conflicts"]);
+        : hasTouched(["motorized_conflicts_by_intersection", "motorized_conflicts"]);
     }
     if (code === "D1") return hasTouched(["lighting_rating"]);
     if (code === "D3") return hasTouched(["blocks_with_cycling_furniture", "cycling_furniture"]);
@@ -721,11 +788,31 @@ const SegmentForm = () => {
     };
   }, []);
 
-  const normalizedTypology = String(formData.infra_typology || "").toLowerCase();
-  const showIdentificationSection = !normalizedTypology.includes("ciclorrota");
-  const sectionNavItems = SECTION_NAV_ITEMS.filter(
-    (item) => item.id !== "section-identificacao" || showIdentificationSection
-  );
+  const sectionNavItems = SECTION_NAV_ITEMS;
+  const blockCount = Math.max(0, Number(formData.blocks_count || 0));
+  const intersectionCount = Math.max(0, Number(formData.intersections_count || 0));
+
+  useEffect(() => {
+    setCurrentBlockIndex((prev) => Math.min(prev, Math.max(blockCount - 1, 0)));
+  }, [blockCount]);
+
+  useEffect(() => {
+    setCurrentIntersectionIndex((prev) => Math.min(prev, Math.max(intersectionCount - 1, 0)));
+  }, [intersectionCount]);
+
+  const blockPager: CriterionPagerConfig = {
+    count: blockCount,
+    currentIndex: currentBlockIndex,
+    prefix: "Q",
+    onSelect: setCurrentBlockIndex,
+  };
+
+  const intersectionPager: CriterionPagerConfig = {
+    count: intersectionCount,
+    currentIndex: currentIntersectionIndex,
+    prefix: "I",
+    onSelect: setCurrentIntersectionIndex,
+  };
 
   useEffect(() => {
     const loadOriginalSegmentContext = async () => {
@@ -1302,8 +1389,21 @@ const SegmentForm = () => {
             </section>
 
             <section id="section-pavimento" className="space-y-6">
-              <AxisRibbon tone="e" title="Pavimento" />
+              <AxisRibbon tone="e" title="Pavimento, Identificacao e Separacao do Cicloviario" />
               <Page4
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+              />
+              <Page6
+                data={formData}
+                onDataChange={handleDataChange}
+                filter={globalCriterionFilter}
+                command={accordionCommand}
+                visibleValues={["b42", "e42"]}
+              />
+              <Page5
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
@@ -1319,29 +1419,6 @@ const SegmentForm = () => {
                 filter={globalCriterionFilter}
                 command={accordionCommand}
                 visibleValues={["d1", "d2"]}
-              />
-            </section>
-
-            {!String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? (
-            <section id="section-identificacao" className="space-y-6">
-              <AxisRibbon tone="b" title="Identificacao do espaco cicloviario" />
-              <Page6
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                visibleValues={["b42", "e41", "e42"]}
-              />
-            </section>
-            ) : null}
-
-            <section id="section-separacao" className="space-y-6">
-              <AxisRibbon tone="b" title="Delimitacao e conservacao da separacao" />
-              <Page5
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
               />
             </section>
 
@@ -1363,6 +1440,7 @@ const SegmentForm = () => {
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                blockPager={blockPager}
                 visibleValues={
                   String(formData.infra_typology || "").toLowerCase().includes("ciclorrota")
                     ? ["b12"]
@@ -1377,13 +1455,16 @@ const SegmentForm = () => {
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
-                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41"]}
+                blockPager={blockPager}
+                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41", "e41"]}
               />
               <Page7
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                blockPager={blockPager}
+                currentIntersectionIndex={currentIntersectionIndex}
                 visibleValues={["b5"]}
               />
               <Page8
@@ -1391,6 +1472,7 @@ const SegmentForm = () => {
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                blockPager={blockPager}
                 visibleValues={["d3"]}
               />
             </section>
@@ -1402,6 +1484,8 @@ const SegmentForm = () => {
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
+                intersectionPager={intersectionPager}
+                currentIntersectionIndex={currentIntersectionIndex}
                 visibleValues={["c1", "e1", "c2", "c3"]}
               />
             </section>
@@ -1448,7 +1532,11 @@ const SegmentForm = () => {
                           type="button"
                           onClick={() => scrollToSection(section.id)}
                           className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${
-                            section.tone === "a"
+                            section.id === "section-quadras"
+                              ? "bg-[#f4c4cc]"
+                              : section.id === "section-comentarios"
+                                ? "bg-[#f3df8a]"
+                                : section.tone === "a"
                               ? "bg-[#f6d26d]"
                               : section.tone === "b"
                                 ? "bg-[#de6d57]"

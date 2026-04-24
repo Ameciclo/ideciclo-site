@@ -4,11 +4,15 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import { Badge } from "@/components/ui/badge";
+import AssessmentCriterionAccordion, {
+  CriterionPagerConfig,
+} from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
-import { IdecicloFormData, RiskOccurrenceKey } from "@/types/idecicloForm";
+import { IdecicloFormData, IdecicloRating, RiskOccurrenceKey } from "@/types/idecicloForm";
+import { getMedianRating } from "@/utils/idecicloAssessment";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 const RISK_OPTIONS = [
@@ -55,6 +59,9 @@ interface Page7Props {
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"b7" | "b5" | "c1" | "e1" | "c2" | "c3">;
+  blockPager?: CriterionPagerConfig;
+  intersectionPager?: CriterionPagerConfig;
+  currentIntersectionIndex?: number;
 }
 
 const Page7: React.FC<Page7Props> = ({
@@ -63,6 +70,9 @@ const Page7: React.FC<Page7Props> = ({
   filter,
   command,
   visibleValues,
+  blockPager,
+  intersectionPager,
+  currentIntersectionIndex = 0,
 }) => {
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
@@ -144,6 +154,157 @@ const Page7: React.FC<Page7Props> = ({
         [criterion]: value,
       },
     });
+  const intersectionCount = Math.max(0, Number(data.intersections_count || 0));
+  const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-slate-200 bg-white text-slate-500";
+  };
+
+  const getIntersectionArrayValue = <T,>(values: T[] | undefined, fallback: T) =>
+    Array.isArray(values) && currentIntersectionIndex < values.length
+      ? (values[currentIntersectionIndex] ?? fallback)
+      : fallback;
+
+  const setIntersectionArrayValue = <T,>(
+    values: T[] | undefined,
+    nextValue: T,
+    fallback: T
+  ) => {
+    const nextLength = Math.max(intersectionCount, currentIntersectionIndex + 1);
+    const nextValues = Array.from({ length: nextLength }, (_, index) =>
+      Array.isArray(values) && index < values.length ? (values[index] ?? fallback) : fallback
+    );
+    nextValues[currentIntersectionIndex] = nextValue;
+    return nextValues;
+  };
+
+  const getIntersectionMatrixValue = <T,>(values: T[][] | undefined, fallback: T[]) =>
+    Array.isArray(values) && currentIntersectionIndex < values.length
+      ? (values[currentIntersectionIndex] ?? fallback)
+      : fallback;
+
+  const setIntersectionMatrixValue = <T,>(
+    values: T[][] | undefined,
+    nextValue: T[],
+    fallback: T[]
+  ) => {
+    const nextLength = Math.max(intersectionCount, currentIntersectionIndex + 1);
+    const nextValues = Array.from({ length: nextLength }, (_, index) =>
+      Array.isArray(values) && index < values.length ? [...(values[index] ?? fallback)] : [...fallback]
+    );
+    nextValues[currentIntersectionIndex] = [...nextValue];
+    return nextValues;
+  };
+
+  const currentIntersectionSignaling = getIntersectionArrayValue(
+    data.intersection_signaling_by_intersection,
+    data.intersection_signaling || ""
+  );
+  const currentConnectionAccessibility = getIntersectionArrayValue(
+    data.connection_accessibility_by_intersection,
+    data.connection_accessibility || ""
+  );
+  const currentTrafficLanesPerDirection = getIntersectionArrayValue(
+    data.traffic_lanes_per_direction_by_intersection,
+    Number(data.traffic_lanes_per_direction || 1)
+  );
+  const currentMixedLaneWidth = getIntersectionArrayValue(
+    data.mixed_lane_width_m_by_intersection,
+    Number(data.mixed_lane_width_m || 2.7)
+  );
+  const currentHasIntersectionTrafficCalming = getIntersectionArrayValue(
+    data.has_intersection_traffic_calming_by_intersection,
+    Boolean(data.has_intersection_traffic_calming)
+  );
+  const currentMotorizedConflicts = getIntersectionMatrixValue(
+    data.motorized_conflicts_by_intersection,
+    data.motorized_conflicts || []
+  );
+
+  const mapConnectionAccessibilityToRating = (
+    value: "A" | "D" | "NA" | "" | string
+  ): IdecicloRating | null => {
+    if (value === "A") return "A";
+    if (value === "D") return "D";
+    return null;
+  };
+
+  const calculateC3IntersectionRating = (index: number): IdecicloRating | null => {
+    if (isCiclorrota) {
+      const lanesPerDirection =
+        data.traffic_lanes_per_direction_by_intersection?.[index] ?? data.traffic_lanes_per_direction;
+      const laneWidth =
+        data.mixed_lane_width_m_by_intersection?.[index] ?? data.mixed_lane_width_m;
+      const hasModeration =
+        data.has_intersection_traffic_calming_by_intersection?.[index] ??
+        data.has_intersection_traffic_calming;
+
+      if (lanesPerDirection <= 1 && laneWidth > 0 && laneWidth <= 2.7) return "A";
+      if (lanesPerDirection <= 1 && laneWidth > 2.7) return "B";
+      if (lanesPerDirection > 1 && hasModeration) return "C";
+      return "D";
+    }
+
+    const conflicts = new Set(
+      data.motorized_conflicts_by_intersection?.[index] ?? data.motorized_conflicts ?? []
+    );
+
+    if (conflicts.has("no_conversion") || conflicts.has("exclusive_signal")) return "A";
+    if (
+      String(data.infra_flow || "") === "unidirectional" &&
+      conflicts.has("conversion") &&
+      conflicts.has("protection")
+    ) {
+      return "B";
+    }
+    if (conflicts.has("pedestrian_signal") || conflicts.has("traffic_calming")) return "C";
+    return "D";
+  };
+
+  const c1IntersectionRatings = Array.from({ length: intersectionCount }, (_, index) => {
+    const value =
+      data.intersection_signaling_by_intersection?.[index] ??
+      (index === 0 ? data.intersection_signaling : "");
+    return ["A", "B", "C", "D"].includes(String(value)) ? (value as IdecicloRating) : null;
+  });
+  const c2IntersectionRatings = Array.from({ length: intersectionCount }, (_, index) =>
+    mapConnectionAccessibilityToRating(
+      (data.connection_accessibility_by_intersection?.[index] ??
+        (index === 0 ? data.connection_accessibility : "")) as "A" | "D" | "NA" | ""
+    )
+  );
+  const c3IntersectionRatings = Array.from({ length: intersectionCount }, (_, index) =>
+    calculateC3IntersectionRating(index)
+  );
+
+  const renderMedianBadges = (
+    prefix: string,
+    currentRating: IdecicloRating | null | undefined,
+    ratings: Array<IdecicloRating | null | undefined>
+  ) => (
+    <>
+      <Badge
+        variant="outline"
+        className={`rounded-full px-3 py-1 text-xs ${ratingBadgeClassName(currentRating)}`}
+      >
+        {prefix}
+        {currentIntersectionIndex + 1}
+        <span className="mx-1 opacity-70">·</span>
+        {currentRating ?? "-"}
+      </Badge>
+      <Badge
+        variant="outline"
+        className={`rounded-full px-3 py-1 text-xs ${ratingBadgeClassName(getMedianRating(ratings))}`}
+      >
+        Mediana
+        <span className="mx-1 opacity-70">·</span>
+        {getMedianRating(ratings) ?? "-"}
+      </Badge>
+    </>
+  );
 
   const renderCounter = ({
     label,
@@ -184,8 +345,6 @@ const Page7: React.FC<Page7Props> = ({
   );
 
   const signalizedCrossingsCount = Number(data.signalized_crossings_count || 0);
-  const blocksCount = Number(data.blocks_count || 0);
-  const crossingsPerBlock = blocksCount > 0 ? signalizedCrossingsCount / blocksCount : 0;
   const hasAnyRiskSelected = Boolean(
     selectedRiskOptions.length > 0
   );
@@ -348,45 +507,23 @@ const Page7: React.FC<Page7Props> = ({
               })
             }
             helpKey="B5"
+            pager={blockPager}
           >
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
-                {renderCounter({
-                  label: "Travessias sinalizadas ao longo do trecho",
-                  value: signalizedCrossingsCount,
-                  onDecrease: () =>
-                    onDataChange({
-                      signalized_crossings_count: Math.max(0, signalizedCrossingsCount - 1),
-                      touched_fields: { signalized_crossings_count: true },
-                    }),
-                  onIncrease: () =>
-                    onDataChange({
-                      signalized_crossings_count: signalizedCrossingsCount + 1,
-                      touched_fields: { signalized_crossings_count: true },
-                    }),
-                })}
-
-                <div className="rounded-2xl border p-4">
-                  <div className="text-sm font-medium text-slate-700">Resumo automatico</div>
-                  <div className="mt-3 space-y-2 text-sm text-slate-700">
-                    <div>
-                      Quadras do trecho: <strong>{blocksCount}</strong>
-                    </div>
-                    <div>
-                      Travessias por quadra: <strong>{crossingsPerBlock.toFixed(2).replace(".", ",")}</strong>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-3">
-                      A: 2 ou mais por quadra
-                      <br />
-                      B: 1 por quadra
-                      <br />
-                      C: menos de 1 por quadra, mas existe
-                      <br />
-                      D: nenhuma
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {renderCounter({
+                label: "Travessias sinalizadas ao longo do trecho",
+                value: signalizedCrossingsCount,
+                onDecrease: () =>
+                  onDataChange({
+                    signalized_crossings_count: Math.max(0, signalizedCrossingsCount - 1),
+                    touched_fields: { signalized_crossings_count: true },
+                  }),
+                onIncrease: () =>
+                  onDataChange({
+                    signalized_crossings_count: signalizedCrossingsCount + 1,
+                    touched_fields: { signalized_crossings_count: true },
+                  }),
+              })}
             </div>
           </AssessmentCriterionAccordion> : null}
 
@@ -405,16 +542,45 @@ const Page7: React.FC<Page7Props> = ({
               onClear={() =>
                 onDataChange({
                   intersection_signaling: "",
+                  intersection_signaling_by_intersection: [],
                   touched_fields: {
                     intersection_signaling: false,
+                    intersection_signaling_by_intersection: false,
                   },
                 })
               }
               helpKey="C1"
+              extraBadges={renderMedianBadges(
+                "I",
+                c1IntersectionRatings[currentIntersectionIndex],
+                c1IntersectionRatings
+              )}
+              pager={
+                intersectionPager
+                  ? { ...intersectionPager, itemRatings: c1IntersectionRatings }
+                  : undefined
+              }
             >
+              <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
+                utilizada como nota final.
+              </p>
               <ConceptCriteriaTable
-                value={data.intersection_signaling || ""}
-                onValueChange={(value) => handleRadioChange("intersection_signaling", value)}
+                value={currentIntersectionSignaling || ""}
+                onValueChange={(value) =>
+                  onDataChange({
+                    intersection_signaling: value,
+                    intersection_signaling_by_intersection: setIntersectionArrayValue(
+                      data.intersection_signaling_by_intersection,
+                      value,
+                      ""
+                    ),
+                    touched_fields: {
+                      intersection_signaling: true,
+                      intersection_signaling_by_intersection: true,
+                    },
+                  })
+                }
                 options={[
                   {
                     value: "A",
@@ -460,6 +626,7 @@ const Page7: React.FC<Page7Props> = ({
                 })
               }
               helpKey="E1"
+              pager={intersectionPager}
             >
               <ConceptCriteriaTable
                 value={data.intersection_conservation || ""}
@@ -500,14 +667,45 @@ const Page7: React.FC<Page7Props> = ({
             onClear={() =>
               onDataChange({
                 connection_accessibility: "",
-                touched_fields: { connection_accessibility: false },
+                connection_accessibility_by_intersection: [],
+                touched_fields: {
+                  connection_accessibility: false,
+                  connection_accessibility_by_intersection: false,
+                },
               })
             }
             helpKey="C2"
+            extraBadges={renderMedianBadges(
+              "I",
+              c2IntersectionRatings[currentIntersectionIndex],
+              c2IntersectionRatings
+            )}
+            pager={
+              intersectionPager
+                ? { ...intersectionPager, itemRatings: c2IntersectionRatings }
+                : undefined
+            }
           >
+            <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
+              utilizada como nota final.
+            </p>
             <ConceptCriteriaTable
-              value={data.connection_accessibility || ""}
-              onValueChange={(value) => handleRadioChange("connection_accessibility", value)}
+              value={currentConnectionAccessibility || ""}
+              onValueChange={(value) =>
+                onDataChange({
+                  connection_accessibility: value,
+                  connection_accessibility_by_intersection: setIntersectionArrayValue(
+                    data.connection_accessibility_by_intersection,
+                    value,
+                    ""
+                  ),
+                  touched_fields: {
+                    connection_accessibility: true,
+                    connection_accessibility_by_intersection: true,
+                  },
+                })
+              }
               options={[
                 {
                   value: "A",
@@ -544,24 +742,46 @@ const Page7: React.FC<Page7Props> = ({
             onClear={() =>
               onDataChange({
                 motorized_conflicts: [],
+                motorized_conflicts_by_intersection: [],
                 traffic_lanes_per_direction: 1,
+                traffic_lanes_per_direction_by_intersection: [],
                 mixed_lane_width_m: 2.7,
+                mixed_lane_width_m_by_intersection: [],
                 has_intersection_traffic_calming: false,
+                has_intersection_traffic_calming_by_intersection: [],
                 touched_fields: {
                   motorized_conflicts: false,
+                  motorized_conflicts_by_intersection: false,
                   traffic_lanes_per_direction: false,
+                  traffic_lanes_per_direction_by_intersection: false,
                   mixed_lane_width_m: false,
+                  mixed_lane_width_m_by_intersection: false,
                   has_intersection_traffic_calming: false,
+                  has_intersection_traffic_calming_by_intersection: false,
                 },
               })
             }
             helpKey="C3"
+            extraBadges={renderMedianBadges(
+              "I",
+              c3IntersectionRatings[currentIntersectionIndex],
+              c3IntersectionRatings
+            )}
+            pager={
+              intersectionPager
+                ? { ...intersectionPager, itemRatings: c3IntersectionRatings }
+                : undefined
+            }
           >
+            <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
+              utilizada como nota final.
+            </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_no_conversion"
-                  checked={(data.motorized_conflicts || []).includes("no_conversion")}
+                  checked={currentMotorizedConflicts.includes("no_conversion")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("no_conversion", !!checked)
                   }
@@ -573,7 +793,7 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_conversion"
-                  checked={(data.motorized_conflicts || []).includes("conversion")}
+                  checked={currentMotorizedConflicts.includes("conversion")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("conversion", !!checked)
                   }
@@ -585,7 +805,7 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_exclusive_signal"
-                  checked={(data.motorized_conflicts || []).includes("exclusive_signal")}
+                  checked={currentMotorizedConflicts.includes("exclusive_signal")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("exclusive_signal", !!checked)
                   }
@@ -597,7 +817,7 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_protection"
-                  checked={(data.motorized_conflicts || []).includes("protection")}
+                  checked={currentMotorizedConflicts.includes("protection")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("protection", !!checked)
                   }
@@ -609,7 +829,7 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_pedestrian_signal"
-                  checked={(data.motorized_conflicts || []).includes("pedestrian_signal")}
+                  checked={currentMotorizedConflicts.includes("pedestrian_signal")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("pedestrian_signal", !!checked)
                   }
@@ -621,7 +841,7 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="conflict_traffic_calming"
-                  checked={(data.motorized_conflicts || []).includes("traffic_calming")}
+                  checked={currentMotorizedConflicts.includes("traffic_calming")}
                   onCheckedChange={(checked) =>
                     handleConflictCheckboxChange("traffic_calming", !!checked)
                   }
@@ -643,8 +863,21 @@ const Page7: React.FC<Page7Props> = ({
                     id="traffic_lanes_per_direction"
                     name="traffic_lanes_per_direction"
                     type="number"
-                    value={data.traffic_lanes_per_direction || ""}
-                    onChange={handleChange}
+                    value={currentTrafficLanesPerDirection || ""}
+                    onChange={(event) =>
+                      onDataChange({
+                        traffic_lanes_per_direction: parseFloat(event.target.value) || 0,
+                        traffic_lanes_per_direction_by_intersection: setIntersectionArrayValue(
+                          data.traffic_lanes_per_direction_by_intersection,
+                          parseFloat(event.target.value) || 0,
+                          1
+                        ),
+                        touched_fields: {
+                          traffic_lanes_per_direction: true,
+                          traffic_lanes_per_direction_by_intersection: true,
+                        },
+                      })
+                    }
                   />
                 </div>
                 <div>
@@ -654,17 +887,42 @@ const Page7: React.FC<Page7Props> = ({
                     name="mixed_lane_width_m"
                     type="number"
                     step="0.1"
-                    value={data.mixed_lane_width_m || ""}
-                    onChange={handleChange}
+                    value={currentMixedLaneWidth || ""}
+                    onChange={(event) =>
+                      onDataChange({
+                        mixed_lane_width_m: parseFloat(event.target.value) || 0,
+                        mixed_lane_width_m_by_intersection: setIntersectionArrayValue(
+                          data.mixed_lane_width_m_by_intersection,
+                          parseFloat(event.target.value) || 0,
+                          2.7
+                        ),
+                        touched_fields: {
+                          mixed_lane_width_m: true,
+                          mixed_lane_width_m_by_intersection: true,
+                        },
+                      })
+                    }
                   />
                 </div>
                 <div className="flex items-end pb-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="has_intersection_traffic_calming"
-                      checked={data.has_intersection_traffic_calming || false}
+                      checked={currentHasIntersectionTrafficCalming || false}
                       onCheckedChange={(checked) =>
-                        handleCheckboxChange("has_intersection_traffic_calming", !!checked)
+                        onDataChange({
+                          has_intersection_traffic_calming: !!checked,
+                          has_intersection_traffic_calming_by_intersection:
+                            setIntersectionArrayValue(
+                              data.has_intersection_traffic_calming_by_intersection,
+                              !!checked,
+                              false
+                            ),
+                          touched_fields: {
+                            has_intersection_traffic_calming: true,
+                            has_intersection_traffic_calming_by_intersection: true,
+                          },
+                        })
                       }
                     />
                     <Label htmlFor="has_intersection_traffic_calming">

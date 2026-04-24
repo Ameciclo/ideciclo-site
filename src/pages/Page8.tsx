@@ -2,7 +2,9 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import AssessmentCriterionAccordion, {
+  CriterionPagerConfig,
+} from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
@@ -15,6 +17,7 @@ interface Page8Props {
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"d1" | "d2" | "d3">;
+  blockPager?: CriterionPagerConfig;
 }
 
 const Page8: React.FC<Page8Props> = ({
@@ -23,6 +26,7 @@ const Page8: React.FC<Page8Props> = ({
   filter,
   command,
   visibleValues,
+  blockPager,
 }) => {
   const canShow = (value: "d1" | "d2" | "d3") => !visibleValues || visibleValues.includes(value);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +158,7 @@ const Page8: React.FC<Page8Props> = ({
             answered={isTouched(["blocks_with_cycling_furniture", "cycling_furniture"])}
             inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}
+            pager={blockPager}
             helpKey="D3"
             onClear={() =>
               onDataChange({

@@ -93,12 +93,18 @@ export interface IdecicloFormData {
   side_change_mid_block: boolean;
   opposite_flow_direction: boolean;
   intersection_signaling: IdecicloRating | "";
+  intersection_signaling_by_intersection: Array<IdecicloRating | "">;
   intersection_conservation: IdecicloRating | "";
   connection_accessibility: "A" | "D" | "NA" | "";
+  connection_accessibility_by_intersection: Array<"A" | "D" | "NA" | "">;
   traffic_lanes_per_direction: number;
+  traffic_lanes_per_direction_by_intersection: number[];
   mixed_lane_width_m: number;
+  mixed_lane_width_m_by_intersection: number[];
   has_intersection_traffic_calming: boolean;
+  has_intersection_traffic_calming_by_intersection: boolean[];
   motorized_conflicts: string[];
+  motorized_conflicts_by_intersection: string[][];
   has_lighting_posts: boolean | null;
   lighting_rating: IdecicloRating | "";
   lighting_post_type: "A" | "B" | "";

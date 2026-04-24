@@ -11,6 +11,14 @@ import ManualHelpDialog from "@/components/ManualHelpDialog";
 import { useCriteriaAccordionFilter } from "@/components/criteriaAccordionContext";
 import { CriterionScorePreviewItem } from "@/utils/criterionScorePreview";
 
+export interface CriterionPagerConfig {
+  count: number;
+  currentIndex: number;
+  prefix: string;
+  onSelect: (index: number) => void;
+  itemRatings?: Array<string | null | undefined>;
+}
+
 interface AssessmentCriterionAccordionProps {
   value: string;
   title: string;
@@ -21,6 +29,8 @@ interface AssessmentCriterionAccordionProps {
   onAnalysisChange?: (value: boolean) => void;
   onClear?: () => void;
   helpKey?: string;
+  pager?: CriterionPagerConfig;
+  extraBadges?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -34,6 +44,8 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   onAnalysisChange,
   onClear,
   helpKey,
+  pager,
+  extraBadges,
   children,
 }) => {
   const { filter } = useCriteriaAccordionFilter();
@@ -85,6 +97,39 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
 
   if (hidden) return null;
 
+  const primaryRating = scorePreview.find((item) => item.rating)?.rating;
+  const pagerChipClassName = (index: number, isActive: boolean) => {
+    const itemRating = pager?.itemRatings?.[index] || primaryRating;
+
+    if (!answered || !itemRating) {
+      return isActive
+        ? "border-slate-400 bg-white text-slate-900"
+        : "border-slate-200 bg-white text-slate-500";
+    }
+
+    if (itemRating === "A") {
+      return isActive
+        ? "border-transparent bg-[#b8e5db] text-[#163b38]"
+        : "border-[#b8e5db] bg-[#edf8f5] text-[#163b38]";
+    }
+
+    if (itemRating === "B") {
+      return isActive
+        ? "border-transparent bg-[#9fd3cb] text-[#163b38]"
+        : "border-[#9fd3cb] bg-[#ecf7f5] text-[#163b38]";
+    }
+
+    if (itemRating === "C") {
+      return isActive
+        ? "border-transparent bg-[#8fafad] text-[#163b38]"
+        : "border-[#8fafad] bg-[#edf2f2] text-[#163b38]";
+    }
+
+    return isActive
+      ? "border-transparent bg-[#748987] text-white"
+      : "border-[#748987] bg-[#e8eceb] text-[#314543]";
+  };
+
   return (
     <AccordionItem
       value={value}
@@ -117,6 +162,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
               ) : null}
             </Badge>
           ))}
+          {extraBadges}
           <Badge
             variant="outline"
             className={`rounded-full px-3 py-1 text-xs ${
@@ -164,6 +210,34 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
           ) : null}
           {helpKey ? <ManualHelpDialog helpKey={helpKey} compact /> : null}
         </div>
+
+        {pager && pager.count > 0 ? (
+          <div className="mt-3 overflow-x-auto">
+            <div className="flex min-w-max items-center gap-2">
+              {Array.from({ length: pager.count }, (_, index) => {
+                const isActive = index === pager.currentIndex;
+
+                return (
+                  <button
+                    key={`${value}-${pager.prefix}-${index + 1}`}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      pager.onSelect(index);
+                    }}
+                    className={`h-8 rounded-full border px-3 text-xs font-semibold transition ${pagerChipClassName(
+                      index,
+                      isActive
+                    )}`}
+                  >
+                    {pager.prefix}
+                    {index + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
       <AccordionContent className="pt-2 text-sm">
         {children}

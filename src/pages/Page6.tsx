@@ -2,7 +2,9 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccordion";
+import AssessmentCriterionAccordion, {
+  CriterionPagerConfig,
+} from "@/components/AssessmentCriterionAccordion";
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
@@ -15,6 +17,7 @@ interface Page6Props {
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"b41" | "b42" | "e41" | "e42" | "b43" | "e43">;
+  blockPager?: CriterionPagerConfig;
 }
 
 const Page6: React.FC<Page6Props> = ({
@@ -23,6 +26,7 @@ const Page6: React.FC<Page6Props> = ({
   filter,
   command,
   visibleValues,
+  blockPager,
 }) => {
   const handleRadioChange = (name: string, value: string | boolean | number) => {
     onDataChange({ [name]: value });
@@ -77,6 +81,7 @@ const Page6: React.FC<Page6Props> = ({
             })
           }
           helpKey="b41"
+          pager={blockPager}
         >
           <div className="space-y-4">
             <div>
@@ -178,12 +183,56 @@ const Page6: React.FC<Page6Props> = ({
       {!isCiclorrota && canShow("e41") ? (
         <AssessmentCriterionAccordion
           value="e41"
-          title="E.4.1. Estado de conservação da identificação do espaço cicloviário"
-          description="Primeira entrada do cálculo de E.4 para ciclovias, ciclofaixas e calçadas partilhadas."
+          title="E.4.1. Estado de conservação da sinalização vertical"
+          description="Entrada de conservação da sinalização vertical para avaliação por quadra."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
-          answered={isTouched(["identification_conservation"])}
+          answered={isTouched(["vertical_signs_conservation"])}
           inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
+          onClear={() =>
+            onDataChange({
+              vertical_signs_conservation: "",
+              touched_fields: { vertical_signs_conservation: false },
+            })
+          }
+          helpKey="e42"
+          pager={blockPager}
+        >
+          <ConceptCriteriaTable
+            value={data.vertical_signs_conservation || ""}
+            onValueChange={(value) => handleRadioChange("vertical_signs_conservation", value)}
+            options={[
+              {
+                value: "A",
+                description: "Placas e postes em bom estado de conservação.",
+              },
+              {
+                value: "B",
+                description:
+                  "Menos da metade das placas com danos ( soltas, sujas, pichadas, adesivadas, outros).",
+              },
+              {
+                value: "C",
+                description: "Placas bastante danificadas ao longo do trecho.",
+              },
+              {
+                value: "D",
+                description: "Não há placas no trecho.",
+              },
+            ]}
+          />
+        </AssessmentCriterionAccordion>
+      ) : null}
+
+      {!isCiclorrota && canShow("e42") ? (
+        <AssessmentCriterionAccordion
+          value="e42"
+          title="E.4.2. Estado de conservação da identificação do espaço cicloviário"
+          description="Entrada de conservação da identificação do espaço para o cálculo de E.4."
+          scorePreview={buildCriterionScorePreview(data, ["E4"])}
+          answered={isTouched(["identification_conservation"])}
+          inAnalysis={data.criterion_workflow_state?.e42 === "analysis"}
+          onAnalysisChange={(value) => updateWorkflow("e42", value ? "analysis" : "default")}
           onClear={() =>
             onDataChange({
               identification_conservation: "",
@@ -214,49 +263,6 @@ const Page6: React.FC<Page6Props> = ({
               {
                 value: "D",
                 description: "Praticamente apagada.",
-              },
-            ]}
-          />
-        </AssessmentCriterionAccordion>
-      ) : null}
-
-      {!isCiclorrota && canShow("e42") ? (
-        <AssessmentCriterionAccordion
-          value="e42"
-          title="E.4.2. Estado de conservação da sinalização vertical"
-          description="Segunda entrada do cálculo de E.4 para ciclovias, ciclofaixas e calçadas partilhadas."
-          scorePreview={buildCriterionScorePreview(data, ["E4"])}
-          answered={isTouched(["vertical_signs_conservation"])}
-          inAnalysis={data.criterion_workflow_state?.e42 === "analysis"}
-          onAnalysisChange={(value) => updateWorkflow("e42", value ? "analysis" : "default")}
-          onClear={() =>
-            onDataChange({
-              vertical_signs_conservation: "",
-              touched_fields: { vertical_signs_conservation: false },
-            })
-          }
-          helpKey="e42"
-        >
-          <ConceptCriteriaTable
-            value={data.vertical_signs_conservation || ""}
-            onValueChange={(value) => handleRadioChange("vertical_signs_conservation", value)}
-            options={[
-              {
-                value: "A",
-                description: "Placas e postes em bom estado de conservação.",
-              },
-              {
-                value: "B",
-                description:
-                  "Menos da metade das placas com danos ( soltas, sujas, pichadas, adesivadas, outros).",
-              },
-              {
-                value: "C",
-                description: "Placas bastante danificadas ao longo do trecho.",
-              },
-              {
-                value: "D",
-                description: "Não há placas no trecho.",
               },
             ]}
           />

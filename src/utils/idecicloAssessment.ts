@@ -68,6 +68,22 @@ type ScoreSections = Record<string, ScoreSection>;
 
 const RATING_ORDER: IdecicloRating[] = ["A", "B", "C", "D"];
 
+export const getMedianRating = (
+  ratings: Array<IdecicloRating | null | undefined>
+): IdecicloRating | null => {
+  const validRatings = ratings.filter((rating): rating is IdecicloRating =>
+    RATING_ORDER.includes(rating as IdecicloRating)
+  );
+
+  if (validRatings.length === 0) return null;
+
+  const sortedRatings = [...validRatings].sort(
+    (left, right) => RATING_ORDER.indexOf(left) - RATING_ORDER.indexOf(right)
+  );
+
+  return sortedRatings[Math.floor((sortedRatings.length - 1) / 2)] ?? null;
+};
+
 const B3_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
   A: { A: "A", B: "B", C: "C", D: "D" },
   B: { A: "A", B: "B", C: "C", D: "D" },
@@ -506,20 +522,44 @@ const calculateB7 = (formData: Partial<IdecicloFormData>): IdecicloRating => {
 
 const calculateC1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   if (normalizeTypology(formData.infra_typology) === "ciclorrota") return null;
+
+  const perIntersectionRatings = Array.isArray(formData.intersection_signaling_by_intersection)
+    ? formData.intersection_signaling_by_intersection.map((value) =>
+        isRating(value) ? value : null
+      )
+    : [];
+
+  if (perIntersectionRatings.length > 0) {
+    return getMedianRating(perIntersectionRatings);
+  }
+
   return isRating(formData.intersection_signaling) ? formData.intersection_signaling : null;
 };
 
 const calculateC2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  const normalizeConnectionAccessibility = (rawValue: string) => {
+    if (rawValue === "NA") return null;
+    if (rawValue === "A") return "A";
+    if (rawValue === "D") return "D";
+
+    if (rawValue === "B" || rawValue === "C") return "D";
+
+    return null;
+  };
+
+  const perIntersectionRatings = Array.isArray(formData.connection_accessibility_by_intersection)
+    ? formData.connection_accessibility_by_intersection.map((value) =>
+        normalizeConnectionAccessibility(String(value ?? ""))
+      )
+    : [];
+
+  if (perIntersectionRatings.length > 0) {
+    return getMedianRating(perIntersectionRatings);
+  }
+
   const rawValue = String(formData.connection_accessibility ?? "");
 
-  if (rawValue === "NA") return null;
-  if (rawValue === "A") return "A";
-  if (rawValue === "D") return "D";
-
-  // Backward compatibility with previous options.
-  if (rawValue === "B" || rawValue === "C") return "D";
-
-  return null;
+  return normalizeConnectionAccessibility(rawValue);
 };
 
 const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
@@ -527,24 +567,82 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   if (!typology) return null;
 
   if (typology === "ciclorrota") {
-    const lanesPerDirection = toNumber(formData.traffic_lanes_per_direction);
-    const laneWidth = toNumber(formData.mixed_lane_width_m);
-    const hasModeration = Boolean(formData.has_intersection_traffic_calming);
+    const calculateCiclorrotaIntersectionRating = (
+      lanesPerDirection: number,
+      laneWidth: number,
+      hasModeration: boolean
+    ): IdecicloRating => {
+      if (lanesPerDirection <= 1 && laneWidth > 0 && laneWidth <= 2.7) return "A";
+      if (lanesPerDirection <= 1 && laneWidth > 2.7) return "B";
+      if (lanesPerDirection > 1 && hasModeration) return "C";
+      return "D";
+    };
 
-    if (lanesPerDirection <= 1 && laneWidth > 0 && laneWidth <= 2.7) return "A";
-    if (lanesPerDirection <= 1 && laneWidth > 2.7) return "B";
-    if (lanesPerDirection > 1 && hasModeration) return "C";
-    return "D";
+    if (
+      Array.isArray(formData.traffic_lanes_per_direction_by_intersection) ||
+      Array.isArray(formData.mixed_lane_width_m_by_intersection) ||
+      Array.isArray(formData.has_intersection_traffic_calming_by_intersection)
+    ) {
+      const maxLength = Math.max(
+        formData.traffic_lanes_per_direction_by_intersection?.length || 0,
+        formData.mixed_lane_width_m_by_intersection?.length || 0,
+        formData.has_intersection_traffic_calming_by_intersection?.length || 0
+      );
+      const perIntersectionRatings = Array.from({ length: maxLength }, (_, index) =>
+        calculateCiclorrotaIntersectionRating(
+          toNumber(formData.traffic_lanes_per_direction_by_intersection?.[index]),
+          toNumber(formData.mixed_lane_width_m_by_intersection?.[index]),
+          Boolean(formData.has_intersection_traffic_calming_by_intersection?.[index])
+        )
+      );
+
+      if (perIntersectionRatings.length > 0) {
+        return getMedianRating(perIntersectionRatings);
+      }
+    }
+
+    return calculateCiclorrotaIntersectionRating(
+      toNumber(formData.traffic_lanes_per_direction),
+      toNumber(formData.mixed_lane_width_m),
+      Boolean(formData.has_intersection_traffic_calming)
+    );
   }
 
-  const conflicts = new Set(Array.isArray(formData.motorized_conflicts) ? formData.motorized_conflicts : []);
-  const flow = getFlowType(formData.infra_flow);
+  const calculateConflictRating = (conflictValues: string[]): IdecicloRating => {
+    const conflicts = new Set(conflictValues);
+    const flow = getFlowType(formData.infra_flow);
 
-  if (conflicts.has("no_conversion") || conflicts.has("exclusive_signal")) return "A";
-  if (flow === "unidirectional" && conflicts.has("conversion") && conflicts.has("protection")) {
+    if (conflicts.has("no_conversion") || conflicts.has("exclusive_signal")) return "A";
+    if (flow === "unidirectional" && conflicts.has("conversion") && conflicts.has("protection")) {
+      return "B";
+    }
+    if (conflicts.has("pedestrian_signal") || conflicts.has("traffic_calming")) return "C";
+    return "D";
+  };
+
+  if (Array.isArray(formData.motorized_conflicts_by_intersection)) {
+    const perIntersectionRatings = formData.motorized_conflicts_by_intersection.map((conflicts) =>
+      calculateConflictRating(Array.isArray(conflicts) ? conflicts : [])
+    );
+
+    if (perIntersectionRatings.length > 0) {
+      return getMedianRating(perIntersectionRatings);
+    }
+  }
+
+  const conflicts = Array.isArray(formData.motorized_conflicts) ? formData.motorized_conflicts : [];
+  const flow = getFlowType(formData.infra_flow);
+  const conflictSet = new Set(conflicts);
+
+  if (conflictSet.has("no_conversion") || conflictSet.has("exclusive_signal")) return "A";
+  if (
+    flow === "unidirectional" &&
+    conflictSet.has("conversion") &&
+    conflictSet.has("protection")
+  ) {
     return "B";
   }
-  if (conflicts.has("pedestrian_signal") || conflicts.has("traffic_calming")) return "C";
+  if (conflictSet.has("pedestrian_signal") || conflictSet.has("traffic_calming")) return "C";
   return "D";
 };
 
