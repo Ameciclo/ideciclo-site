@@ -17,6 +17,7 @@ interface Page6Props {
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"b41" | "b42" | "e41" | "e42" | "b43" | "e43">;
   blockPager?: CriterionPagerConfig;
+  hideBlockPager?: boolean;
 }
 
 const Page6: React.FC<Page6Props> = ({
@@ -26,6 +27,7 @@ const Page6: React.FC<Page6Props> = ({
   command,
   visibleValues,
   blockPager,
+  hideBlockPager = false,
 }) => {
   const handleRadioChange = (name: string, value: string | boolean | number) => {
     onDataChange({ [name]: value });
@@ -123,6 +125,7 @@ const Page6: React.FC<Page6Props> = ({
           }
           helpKey="b41"
           pager={blockPager}
+          showPager={!hideBlockPager}
         >
           <div className="space-y-4">
             <div>
@@ -230,6 +233,7 @@ const Page6: React.FC<Page6Props> = ({
           }
           helpKey="e42"
           pager={blockPager}
+          showPager={!hideBlockPager}
         >
           <div className="space-y-4">
             <div>

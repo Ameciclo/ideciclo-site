@@ -60,6 +60,7 @@ interface Page7Props {
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"b7" | "b5" | "c1" | "e1" | "c2" | "c3">;
   blockPager?: CriterionPagerConfig;
+  hideBlockPager?: boolean;
   intersectionPager?: CriterionPagerConfig;
   currentIntersectionIndex?: number;
 }
@@ -71,6 +72,7 @@ const Page7: React.FC<Page7Props> = ({
   command,
   visibleValues,
   blockPager,
+  hideBlockPager = false,
   intersectionPager,
   currentIntersectionIndex = 0,
 }) => {
@@ -575,6 +577,7 @@ const Page7: React.FC<Page7Props> = ({
             }
             helpKey="B5"
             pager={blockPager}
+            showPager={!hideBlockPager}
           >
             <div className="space-y-4">
               <div>

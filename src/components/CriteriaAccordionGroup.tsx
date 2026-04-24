@@ -3,6 +3,7 @@ import { Accordion } from "@/components/ui/accordion";
 import {
   CriteriaAccordionContext,
   CriterionFilter,
+  useCriteriaAccordionFilter,
 } from "@/components/criteriaAccordionContext";
 
 interface CriteriaAccordionGroupProps {
@@ -25,8 +26,15 @@ const CriteriaAccordionGroup: React.FC<CriteriaAccordionGroupProps> = ({
 }) => {
   const [openValues, setOpenValues] = useState<string[]>(defaultOpenValues || allValues);
   const allValuesRef = useRef(allValues);
+  const parentContext = useCriteriaAccordionFilter();
 
-  const contextValue = useMemo(() => ({ filter }), [filter]);
+  const contextValue = useMemo(
+    () => ({
+      filter,
+      descriptionsVisible: parentContext.descriptionsVisible,
+    }),
+    [filter, parentContext.descriptionsVisible]
+  );
 
   React.useEffect(() => {
     allValuesRef.current = allValues;

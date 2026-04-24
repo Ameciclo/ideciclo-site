@@ -17,6 +17,7 @@ interface Page8Props {
   command?: { type: "expand" | "collapse"; nonce: number } | null;
   visibleValues?: Array<"d1" | "d2" | "d3">;
   blockPager?: CriterionPagerConfig;
+  hideBlockPager?: boolean;
 }
 
 const Page8: React.FC<Page8Props> = ({
@@ -26,6 +27,7 @@ const Page8: React.FC<Page8Props> = ({
   command,
   visibleValues,
   blockPager,
+  hideBlockPager = false,
 }) => {
   const canShow = (value: "d1" | "d2" | "d3") => !visibleValues || visibleValues.includes(value);
   const handleRadioChange = (name: string, value: string | boolean) => {
@@ -179,6 +181,7 @@ const Page8: React.FC<Page8Props> = ({
             inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}
             pager={blockPager}
+            showPager={!hideBlockPager}
             helpKey="D3"
             onClear={() =>
               onDataChange({

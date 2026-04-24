@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronRight, Pin, Save, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Lightbulb, Pin, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -43,6 +43,7 @@ import AssessmentCriterionAccordion from "@/components/AssessmentCriterionAccord
 import { CriterionPagerConfig } from "@/components/AssessmentCriterionAccordion";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import {
+  CriteriaAccordionContext,
   CriterionAnswerFilter,
   CriterionFilter,
   CriterionFilterMode,
@@ -566,6 +567,7 @@ const SegmentForm = () => {
   const [accordionDisplayMode, setAccordionDisplayMode] = useState<"expanded" | "collapsed">(
     "expanded"
   );
+  const [criterionDescriptionsVisible, setCriterionDescriptionsVisible] = useState(true);
   const [accordionCommand, setAccordionCommand] = useState<{
     type: "expand" | "collapse";
     nonce: number;
@@ -647,6 +649,10 @@ const SegmentForm = () => {
       triggerAccordionCommand(next === "expanded" ? "expand" : "collapse");
       return next;
     });
+  };
+
+  const toggleCriterionDescriptionsVisible = () => {
+    setCriterionDescriptionsVisible((current) => !current);
   };
 
   const currentAnswerFilter =
@@ -1362,6 +1368,12 @@ const SegmentForm = () => {
         </Card>
 
         {currentStep === 1 ? (
+          <CriteriaAccordionContext.Provider
+            value={{
+              filter: globalCriterionFilter,
+              descriptionsVisible: criterionDescriptionsVisible,
+            }}
+          >
           <div className="space-y-10 pb-28">
             <section id="section-a" className="space-y-6">
               <AxisRibbon tone="a" title="Caracterizacao do Trecho e Enquadramento Inicial" />
@@ -1500,12 +1512,42 @@ const SegmentForm = () => {
 
             <section id="section-quadras" className="space-y-6">
               <AxisRibbon tone="b" title="Avaliacao das quadras" />
+              {blockCount > 0 ? (
+                <div className="sticky top-24 z-20 -mx-1 px-1">
+                  <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      Quadra em edicao
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: blockCount }, (_, index) => {
+                        const isActive = index === currentBlockIndex;
+
+                        return (
+                          <button
+                            key={`section-quadras-q-${index + 1}`}
+                            type="button"
+                            onClick={() => setCurrentBlockIndex(index)}
+                            className={`h-9 rounded-full border px-3 text-sm font-semibold transition ${
+                              isActive
+                                ? "border-slate-900 bg-slate-900 text-white"
+                                : "border-[#9fd3cb] bg-[#edf8f5] text-[#163b38] hover:bg-[#e2f2ee]"
+                            }`}
+                          >
+                            Q{index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <Page6
                 data={formData}
                 onDataChange={handleDataChange}
                 filter={globalCriterionFilter}
                 command={accordionCommand}
                 blockPager={blockPager}
+                hideBlockPager
                 visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41", "e41"]}
               />
               <Page7
@@ -1514,6 +1556,7 @@ const SegmentForm = () => {
                 filter={globalCriterionFilter}
                 command={accordionCommand}
                 blockPager={blockPager}
+                hideBlockPager
                 currentIntersectionIndex={currentIntersectionIndex}
                 visibleValues={["b5"]}
               />
@@ -1523,6 +1566,7 @@ const SegmentForm = () => {
                 filter={globalCriterionFilter}
                 command={accordionCommand}
                 blockPager={blockPager}
+                hideBlockPager
                 visibleValues={["d3"]}
               />
             </section>
@@ -1700,11 +1744,32 @@ const SegmentForm = () => {
                         <span className="sm:hidden">{currentReviewFilter.shortLabel}</span>
                         <span className="hidden sm:inline">{currentReviewFilter.label}</span>
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title={criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
+                      aria-pressed={criterionDescriptionsVisible}
+                      className={`h-8 w-8 rounded-full ${
+                        criterionDescriptionsVisible
+                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                      }`}
+                      onClick={toggleCriterionDescriptionsVisible}
+                    >
+                      <Lightbulb
+                        className={`h-4 w-4 ${criterionDescriptionsVisible ? "fill-current" : ""}`}
+                      />
+                      <span className="sr-only">
+                        {criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
+                      </span>
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+          </CriteriaAccordionContext.Provider>
         ) : (
           <Card className="mb-6">
             <CardHeader>

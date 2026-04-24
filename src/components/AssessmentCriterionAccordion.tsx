@@ -30,6 +30,7 @@ interface AssessmentCriterionAccordionProps {
   onClear?: () => void;
   helpKey?: string;
   pager?: CriterionPagerConfig;
+  showPager?: boolean;
   extraBadges?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -45,10 +46,11 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   onClear,
   helpKey,
   pager,
+  showPager = true,
   extraBadges,
   children,
 }) => {
-  const { filter } = useCriteriaAccordionFilter();
+  const { filter, descriptionsVisible } = useCriteriaAccordionFilter();
   const ratingBadgeClassName = (rating: string | null | undefined) => {
     if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
     if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
@@ -140,7 +142,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
         <AccordionTrigger className="w-full py-0 text-left hover:no-underline [&>svg]:ml-3">
           <div className="min-w-0 pr-2">
             <div className="text-sm font-semibold text-foreground">{title}</div>
-            {description ? (
+            {description && descriptionsVisible ? (
               <p className="mt-1 text-xs font-normal leading-5 text-muted-foreground">
                 {description}
               </p>
@@ -211,7 +213,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
           {helpKey ? <ManualHelpDialog helpKey={helpKey} compact /> : null}
         </div>
 
-        {pager && pager.count > 0 ? (
+        {showPager && pager && pager.count > 0 ? (
           <div className="mt-3 overflow-x-auto">
             <div className="flex min-w-max items-center gap-2">
               {Array.from({ length: pager.count }, (_, index) => {
