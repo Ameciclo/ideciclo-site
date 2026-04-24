@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronRight, Lightbulb, Pin, Save, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -585,6 +585,8 @@ const SegmentForm = () => {
     "expanded"
   );
   const [criterionDescriptionsVisible, setCriterionDescriptionsVisible] = useState(true);
+  const [criterionMetaVisible, setCriterionMetaVisible] = useState(true);
+  const [navigationRowsVisible, setNavigationRowsVisible] = useState(true);
   const [accordionCommand, setAccordionCommand] = useState<{
     type: "expand" | "collapse";
     nonce: number;
@@ -672,12 +674,26 @@ const SegmentForm = () => {
     setCriterionDescriptionsVisible((current) => !current);
   };
 
+  const toggleCriterionMetaVisible = () => {
+    setCriterionMetaVisible((current) => !current);
+  };
+
+  const toggleNavigationRowsVisible = () => {
+    setNavigationRowsVisible((current) => !current);
+  };
+
   const currentAnswerFilter =
     ANSWER_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.answer) ||
     ANSWER_FILTER_SEQUENCE[0];
   const currentReviewFilter =
     REVIEW_FILTER_SEQUENCE.find((item) => item.value === globalCriterionFilter.review) ||
     REVIEW_FILTER_SEQUENCE[0];
+  const currentAnswerFilterCompactLabel =
+    globalCriterionFilter.answer === "answered"
+      ? "(R)"
+      : globalCriterionFilter.answer === "unanswered"
+        ? "(P)"
+        : "(R:)";
   const shouldShowFilterModeToggle =
     globalCriterionFilter.answer !== "all" && globalCriterionFilter.review !== "all";
   const currentFilterModeLabel = globalCriterionFilter.mode === "or" ? "OU" : "E";
@@ -1391,6 +1407,7 @@ const SegmentForm = () => {
             value={{
               filter: globalCriterionFilter,
               descriptionsVisible: criterionDescriptionsVisible,
+              criterionMetaVisible,
             }}
           >
           <div className="space-y-10 pb-28">
@@ -1667,66 +1684,88 @@ const SegmentForm = () => {
             <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3">
               <div className="w-full max-w-5xl rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur">
                 <div className="flex flex-col gap-3">
-                  <div className="overflow-x-auto">
-                    <div className="flex min-w-max items-center gap-2">
-                      {sectionNavItems.map((section) => (
-                        <button
-                          key={section.id}
-                          type="button"
-                          onClick={() => scrollToSection(section.id)}
-                          className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${
-                            section.id === "section-quadras"
-                              ? "bg-[#f4c4cc]"
-                              : section.id === "section-comentarios"
-                                ? "bg-[#f3df8a]"
-                                : section.tone === "a"
-                              ? "bg-[#f6d26d]"
-                              : section.tone === "b"
-                                ? "bg-[#de6d57]"
-                                : section.tone === "c"
-                                  ? "bg-[#70c3df]"
-                                  : section.tone === "d"
-                                    ? "bg-[#6cab73]"
-                                    : "bg-[#f4c4cc]"
-                          }`}
-                        >
-                          {section.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {navigationRowsVisible ? (
+                    <>
+                      <div className="overflow-x-auto">
+                        <div className="flex min-w-max items-center gap-2">
+                          {sectionNavItems.map((section) => (
+                            <button
+                              key={section.id}
+                              type="button"
+                              onClick={() => scrollToSection(section.id)}
+                              className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${
+                                section.id === "section-quadras"
+                                  ? "bg-[#f4c4cc]"
+                                  : section.id === "section-comentarios"
+                                    ? "bg-[#f3df8a]"
+                                    : section.tone === "a"
+                                  ? "bg-[#f6d26d]"
+                                  : section.tone === "b"
+                                    ? "bg-[#de6d57]"
+                                    : section.tone === "c"
+                                      ? "bg-[#70c3df]"
+                                      : section.tone === "d"
+                                        ? "bg-[#6cab73]"
+                                        : "bg-[#f4c4cc]"
+                              }`}
+                            >
+                              {section.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  <div className="overflow-x-auto">
-                    <div className="flex min-w-max items-center gap-2">
-                    {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
-                      const applicable = isCriterionApplicable(formData, code);
-                      const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
-                      const inAnalysis = criterionPinned(code);
-                      const answered = criterionAnswered(code);
+                      <div className="overflow-x-auto">
+                        <div className="flex min-w-max items-center gap-2">
+                        {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
+                          const applicable = isCriterionApplicable(formData, code);
+                          const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
+                          const inAnalysis = criterionPinned(code);
+                          const answered = criterionAnswered(code);
 
-                      return (
-                        <button
-                          key={code}
-                          type="button"
-                          onClick={() => scrollToCriterion(code)}
-                          className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${
-                            !applicable
-                              ? "border-slate-200 bg-slate-100 text-slate-400 opacity-45"
-                              : inAnalysis
-                                ? "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300"
-                                : answered
-                                  ? "border-emerald-700 bg-emerald-700 text-white"
-                                  : "border-rose-600 bg-rose-600 text-white"
-                          }`}
-                        >
-                          <span>{code}</span>
-                        </button>
-                      );
-                    })}
-                    </div>
-                  </div>
+                          return (
+                            <button
+                              key={code}
+                              type="button"
+                              onClick={() => scrollToCriterion(code)}
+                              className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${
+                                !applicable
+                                  ? "border-slate-200 bg-slate-100 text-slate-400 opacity-45"
+                                  : inAnalysis
+                                    ? "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300"
+                                    : answered
+                                      ? "border-emerald-700 bg-emerald-700 text-white"
+                                      : "border-rose-600 bg-rose-600 text-white"
+                              }`}
+                            >
+                              <span>{code}</span>
+                            </button>
+                          );
+                        })}
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="flex flex-wrap items-center justify-start gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      title={navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
+                      aria-pressed={navigationRowsVisible}
+                      className={`h-8 w-8 rounded-full ${
+                        navigationRowsVisible
+                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                      }`}
+                      onClick={toggleNavigationRowsVisible}
+                    >
+                      <Menu className="h-4 w-4" />
+                      <span className="sr-only">
+                        {navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
+                      </span>
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -1735,11 +1774,14 @@ const SegmentForm = () => {
                       onClick={toggleAccordionDisplayMode}
                     >
                       {accordionDisplayMode === "expanded" ? (
-                        <ChevronDown className="mr-1 h-3.5 w-3.5" />
+                        <ChevronDown className="h-3.5 w-3.5 sm:mr-1" />
                       ) : (
-                        <ChevronRight className="mr-1 h-3.5 w-3.5" />
+                        <ChevronRight className="h-3.5 w-3.5 sm:mr-1" />
                       )}
-                      <span>
+                      <span className="hidden sm:inline">
+                        {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
+                      </span>
+                      <span className="sr-only">
                         {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
                       </span>
                     </Button>
@@ -1755,9 +1797,9 @@ const SegmentForm = () => {
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                       onClick={cycleAnswerFilter}
+                      title={currentAnswerFilter.label}
                     >
-                      <span className="sm:hidden">{currentAnswerFilter.shortLabel}</span>
-                      <span className="hidden sm:inline">{currentAnswerFilter.label}</span>
+                      <span>{currentAnswerFilterCompactLabel}</span>
                     </Button>
                     {shouldShowFilterModeToggle ? (
                       <Button
@@ -1784,22 +1826,41 @@ const SegmentForm = () => {
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       }`}
                       onClick={cycleReviewFilter}
+                      title={currentReviewFilter.label}
                       >
                         <Pin
-                          className={`mr-1 h-3.5 w-3.5 ${
+                          className={`h-3.5 w-3.5 sm:mr-1 ${
                             globalCriterionFilter.review === "analysis" ? "fill-current" : ""
                           }`}
                         />
-                        <span className="sm:hidden">{currentReviewFilter.shortLabel}</span>
                         <span className="hidden sm:inline">{currentReviewFilter.label}</span>
+                        <span className="sr-only sm:hidden">{currentReviewFilter.label}</span>
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
+                      title={criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
+                      aria-pressed={criterionMetaVisible}
+                      className={`h-8 w-8 rounded-full ${
+                        criterionMetaVisible
+                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                      }`}
+                      onClick={toggleCriterionMetaVisible}
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span className="sr-only">
+                        {criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
+                      </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
                       title={criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
                       aria-pressed={criterionDescriptionsVisible}
-                      className={`h-8 w-8 rounded-full ${
+                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
                         criterionDescriptionsVisible
                           ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
                           : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
@@ -1807,8 +1868,11 @@ const SegmentForm = () => {
                       onClick={toggleCriterionDescriptionsVisible}
                     >
                       <Lightbulb
-                        className={`h-4 w-4 ${criterionDescriptionsVisible ? "fill-current" : ""}`}
+                        className={`h-4 w-4 ${criterionDescriptionsVisible ? "fill-current" : ""} sm:mr-1`}
                       />
+                      <span className="hidden sm:inline">
+                        {criterionDescriptionsVisible ? "Ajuda ligada" : "Ajuda desligada"}
+                      </span>
                       <span className="sr-only">
                         {criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
                       </span>

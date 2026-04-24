@@ -13,6 +13,7 @@ export interface CriterionFilter {
 interface CriteriaAccordionContextValue {
   filter: CriterionFilter;
   descriptionsVisible: boolean;
+  criterionMetaVisible: boolean;
 }
 
 export const CriteriaAccordionContext = createContext<CriteriaAccordionContextValue>({
@@ -22,6 +23,7 @@ export const CriteriaAccordionContext = createContext<CriteriaAccordionContextVa
     mode: "or",
   },
   descriptionsVisible: true,
+  criterionMetaVisible: true,
 });
 
 export const useCriteriaAccordionFilter = () => useContext(CriteriaAccordionContext);

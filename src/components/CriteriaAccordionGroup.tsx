@@ -32,8 +32,9 @@ const CriteriaAccordionGroup: React.FC<CriteriaAccordionGroupProps> = ({
     () => ({
       filter,
       descriptionsVisible: parentContext.descriptionsVisible,
+      criterionMetaVisible: parentContext.criterionMetaVisible,
     }),
-    [filter, parentContext.descriptionsVisible]
+    [filter, parentContext.descriptionsVisible, parentContext.criterionMetaVisible]
   );
 
   React.useEffect(() => {
