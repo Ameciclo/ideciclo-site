@@ -9,6 +9,7 @@ import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData, VerticalSignsConditionByBlock } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
+import { getMedianRating, IdecicloRating } from "@/utils/idecicloAssessment";
 
 interface Page6Props {
   data: IdecicloFormData;
@@ -61,8 +62,74 @@ const Page6: React.FC<Page6Props> = ({
       },
     });
   const currentBlockIndex = blockPager?.currentIndex || 0;
+  const currentRegulationSignsPerBlock = Array.isArray(data.regulation_signs_per_block_by_block)
+    ? Number(data.regulation_signs_per_block_by_block[currentBlockIndex] || 0)
+    : Number(data.regulation_signs_per_block || 0);
+  const currentSignsBothDirections = Array.isArray(data.signs_both_directions_by_block)
+    ? data.signs_both_directions_by_block[currentBlockIndex] ?? null
+    : data.signs_both_directions;
   const currentVerticalSignsCondition =
     data.vertical_signs_conservation_by_block?.[currentBlockIndex] || "";
+  const calculateVerticalSignsRatingForBlock = (
+    signsPerBlock: number,
+    bothDirections: boolean | null
+  ): IdecicloRating | null => {
+    if (["ciclovia", "ciclofaixa"].includes(infraType)) {
+      const requiredPerBlock = String(data.infra_flow || "") === "bidirectional" ? 2 : 1;
+
+      if (signsPerBlock === 0) return "D";
+      if (signsPerBlock >= requiredPerBlock && bothDirections === true) return "A";
+      return "C";
+    }
+
+    if (signsPerBlock === 0) return "D";
+    if (signsPerBlock >= 2 && bothDirections === true) return "A";
+    if (signsPerBlock >= 1 && bothDirections === true) return "B";
+    return "C";
+  };
+  const setRegulationSignsByBlock = (
+    nextSignsPerBlock: number,
+    nextBothDirections: boolean | null = currentSignsBothDirections
+  ) => {
+    const blockCount = Math.max(0, Number(data.blocks_count || 0));
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const nextSignsPerBlockByBlock = Array.from({ length: nextLength }, (_, index) =>
+      Number(data.regulation_signs_per_block_by_block?.[index] || 0)
+    );
+    const nextSignsBothDirectionsByBlock = Array.from({ length: nextLength }, (_, index) =>
+      data.signs_both_directions_by_block?.[index] ?? null
+    );
+
+    nextSignsPerBlockByBlock[currentBlockIndex] = nextSignsPerBlock;
+    nextSignsBothDirectionsByBlock[currentBlockIndex] = nextBothDirections;
+
+    const blockRatings = nextSignsPerBlockByBlock.map((value, index) =>
+      calculateVerticalSignsRatingForBlock(
+        value,
+        nextSignsBothDirectionsByBlock[index] ?? null
+      )
+    );
+
+    onDataChange({
+      regulation_signs_per_block_by_block: nextSignsPerBlockByBlock,
+      signs_both_directions_by_block: nextSignsBothDirectionsByBlock,
+      regulation_signs_per_block: nextSignsPerBlockByBlock.reduce(
+        (max, value) => Math.max(max, Number(value || 0)),
+        0
+      ),
+      signs_both_directions: nextSignsBothDirectionsByBlock.some((value) => value === true),
+      touched_fields: {
+        regulation_signs_per_block_by_block: true,
+        signs_both_directions_by_block: true,
+        regulation_signs_per_block: nextSignsPerBlockByBlock.some((value) => Number(value || 0) > 0),
+        signs_both_directions: nextSignsBothDirectionsByBlock.some((value) => value !== null),
+      },
+      criterion_ratings: {
+        ...(data.criterion_ratings || {}),
+        B4: getMedianRating(blockRatings),
+      },
+    });
+  };
   const setVerticalSignsConditionByBlock = (nextValue: VerticalSignsConditionByBlock) => {
     const blockCount = Math.max(0, Number(data.blocks_count || 0));
     const nextLength = Math.max(blockCount, currentBlockIndex + 1);
@@ -110,16 +177,25 @@ const Page6: React.FC<Page6Props> = ({
           title="B.4.1. Sinalização vertical de regulamentação"
           description="Presença de placas de regulamentação ao longo do trecho."
           scorePreview={buildCriterionScorePreview(data, ["B4"])}
-          answered={isTouched(["regulation_signs_per_block", "signs_both_directions"])}
+          answered={isTouched([
+            "regulation_signs_per_block",
+            "regulation_signs_per_block_by_block",
+            "signs_both_directions",
+            "signs_both_directions_by_block",
+          ])}
           inAnalysis={data.criterion_workflow_state?.b41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b41", value ? "analysis" : "default")}
           onClear={() =>
             onDataChange({
               regulation_signs_per_block: 0,
+              regulation_signs_per_block_by_block: [],
               signs_both_directions: null,
+              signs_both_directions_by_block: [],
               touched_fields: {
                 regulation_signs_per_block: false,
+                regulation_signs_per_block_by_block: false,
                 signs_both_directions: false,
+                signs_both_directions_by_block: false,
               },
             })
           }
@@ -135,8 +211,8 @@ const Page6: React.FC<Page6Props> = ({
                   <button
                     key={`signs-${value}`}
                     type="button"
-                    className={chipClassName((data.regulation_signs_per_block || 0) === value)}
-                    onClick={() => handleRadioChange("regulation_signs_per_block", value)}
+                    className={chipClassName(currentRegulationSignsPerBlock === value)}
+                    onClick={() => setRegulationSignsByBlock(value)}
                   >
                     {value === 2 ? "2+" : value}
                   </button>
@@ -154,8 +230,8 @@ const Page6: React.FC<Page6Props> = ({
                   <button
                     key={`directions-${option.label}`}
                     type="button"
-                    className={chipClassName(data.signs_both_directions === option.value)}
-                    onClick={() => handleRadioChange("signs_both_directions", option.value)}
+                    className={chipClassName(currentSignsBothDirections === option.value)}
+                    onClick={() => setRegulationSignsByBlock(currentRegulationSignsPerBlock, option.value)}
                   >
                     {option.label}
                   </button>

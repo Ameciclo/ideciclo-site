@@ -245,8 +245,20 @@ export const getCriterionEvidence = (
         `Identificacao do espaco: ${labelFromMap(data.space_identification, SPACE_IDENTIFICATION_LABELS)}`,
         `Pictogramas por quadra: ${data.pictograms_per_block || 0}`,
         `Pictogramas em todas as quadras: ${asBoolLabel(data.pictograms_cover_all_blocks)}`,
-        `Placas por quadra: ${data.regulation_signs_per_block || 0}`,
-        `Placas nos dois sentidos: ${asBoolLabel(data.signs_both_directions)}`,
+        `Placas por quadra: ${
+          Array.isArray(data.regulation_signs_per_block_by_block) &&
+          data.regulation_signs_per_block_by_block.length > 0
+            ? data.regulation_signs_per_block_by_block.join(", ")
+            : data.regulation_signs_per_block || 0
+        }`,
+        `Placas nos dois sentidos: ${
+          Array.isArray(data.signs_both_directions_by_block) &&
+          data.signs_both_directions_by_block.length > 0
+            ? data.signs_both_directions_by_block
+                .map((value) => asBoolLabel(value))
+                .join(", ")
+            : asBoolLabel(data.signs_both_directions)
+        }`,
       ];
     case "B5":
       const totalCrossings = Array.isArray(data.signalized_crossings_count_by_block) &&

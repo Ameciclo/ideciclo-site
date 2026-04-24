@@ -82,7 +82,9 @@ export interface IdecicloFormData {
   pictograms_cover_all_blocks: boolean;
   pictograms_conservation: IdecicloRating | "";
   regulation_signs_per_block: number;
+  regulation_signs_per_block_by_block: number[];
   signs_both_directions: boolean | null;
+  signs_both_directions_by_block: Array<boolean | null>;
   vertical_signs_conservation: IdecicloRating | "";
   vertical_signs_conservation_by_block: VerticalSignsConditionByBlock[];
   traffic_lanes_count: number;

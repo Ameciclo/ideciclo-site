@@ -177,7 +177,9 @@ export interface SurveyResponses {
 
   // B.4.3 Vertical regulation signaling
   regulation_signs_per_block: number;
+  regulation_signs_per_block_by_block?: number[];
   signs_both_directions: boolean;
+  signs_both_directions_by_block?: Array<boolean | null>;
   vertical_signs_conservation: 'A' | 'B' | 'C' | 'D';
   vertical_signs_conservation_by_block?: Array<'good' | 'damage' | ''>;
 

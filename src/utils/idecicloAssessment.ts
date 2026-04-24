@@ -407,6 +407,32 @@ const calculateB4VerticalSigns = (
   const typology = normalizeTypology(formData.infra_typology);
   if (!typology) return null;
 
+  if (
+    Array.isArray(formData.regulation_signs_per_block_by_block) &&
+    formData.regulation_signs_per_block_by_block.length > 0
+  ) {
+    const flowType = getFlowType(formData.infra_flow);
+    const blockRatings = formData.regulation_signs_per_block_by_block.map((signsValue, index) => {
+      const signsPerBlock = toNumber(signsValue);
+      const bothDirections = formData.signs_both_directions_by_block?.[index] ?? null;
+
+      if (["ciclovia", "ciclofaixa"].includes(typology)) {
+        const requiredPerBlock = flowType === "bidirectional" ? 2 : 1;
+
+        if (signsPerBlock === 0) return "D" as IdecicloRating;
+        if (signsPerBlock >= requiredPerBlock && bothDirections === true) return "A" as IdecicloRating;
+        return "C" as IdecicloRating;
+      }
+
+      if (signsPerBlock === 0) return "D" as IdecicloRating;
+      if (signsPerBlock >= 2 && bothDirections === true) return "A" as IdecicloRating;
+      if (signsPerBlock >= 1 && bothDirections === true) return "B" as IdecicloRating;
+      return "C" as IdecicloRating;
+    });
+
+    return getMedianRating(blockRatings);
+  }
+
   const signsPerBlock = toNumber(formData.regulation_signs_per_block);
   const bothDirections = Boolean(formData.signs_both_directions);
 

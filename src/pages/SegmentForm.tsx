@@ -165,7 +165,9 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   pictograms_cover_all_blocks: false,
   pictograms_conservation: "",
   regulation_signs_per_block: 0,
+  regulation_signs_per_block_by_block: [],
   signs_both_directions: null,
+  signs_both_directions_by_block: [],
   vertical_signs_conservation: "",
   vertical_signs_conservation_by_block: [],
   traffic_lanes_count: 2,
@@ -302,6 +304,19 @@ const mergeWithDefaults = (
     data.vertical_signs_conservation_by_block.length > 0
       ? data.vertical_signs_conservation_by_block
       : [];
+  const fallbackRegulationSignsPerBlock =
+    Array.isArray(data.regulation_signs_per_block_by_block) &&
+    data.regulation_signs_per_block_by_block.length > 0
+      ? data.regulation_signs_per_block_by_block
+      : typeof data.regulation_signs_per_block === "number"
+        ? [data.regulation_signs_per_block]
+        : [];
+  const fallbackSignsBothDirectionsByBlock =
+    Array.isArray(data.signs_both_directions_by_block) && data.signs_both_directions_by_block.length > 0
+      ? data.signs_both_directions_by_block
+      : typeof data.signs_both_directions === "boolean" || data.signs_both_directions === null
+        ? [data.signs_both_directions]
+        : [];
 
   return {
     ...defaults,
@@ -320,6 +335,8 @@ const mergeWithDefaults = (
     traffic_lanes_count_by_block: fallbackTrafficLanesCountByBlock,
     signalized_crossings_count_by_block: fallbackSignalizedCrossingsByBlock,
     vertical_signs_conservation_by_block: fallbackVerticalSignsConservationByBlock,
+    regulation_signs_per_block_by_block: fallbackRegulationSignsPerBlock,
+    signs_both_directions_by_block: fallbackSignsBothDirectionsByBlock,
     signalized_crossings_count:
       data.signalized_crossings_count ?? legacyData.signalized_crossings_per_block ?? 0,
     id: data.id || defaults.id,
@@ -707,7 +724,9 @@ const SegmentForm = () => {
         ? hasTouched(["pictograms_per_block", "pictograms_cover_all_blocks"])
         : hasTouched([
             "regulation_signs_per_block",
+            "regulation_signs_per_block_by_block",
             "signs_both_directions",
+            "signs_both_directions_by_block",
             "space_identification",
           ]);
     }
