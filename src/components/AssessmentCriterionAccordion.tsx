@@ -100,6 +100,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   if (hidden) return null;
 
   const primaryRating = scorePreview.find((item) => item.rating)?.rating;
+  const hasResolvedScorePreview = scorePreview.length > 0;
   const pagerChipClassName = (index: number, isActive: boolean) => {
     const itemRating = pager?.itemRatings?.[index] || primaryRating;
 
@@ -159,24 +160,27 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
                 className={`rounded-full px-3 py-1 text-xs ${ratingBadgeClassName(item.rating)}`}
               >
                 {item.rating ? <span>{item.rating}</span> : null}
-                {item.rating && typeof item.points === "number" ? <span className="mx-1 opacity-70">·</span> : null}
+                {item.rating && typeof item.points === "number" ? (
+                  <span className="mx-1 opacity-70">·</span>
+                ) : null}
                 {typeof item.points === "number" ? (
-                  <span>{item.points}</span>
+                  <span>+ {item.points} pts</span>
                 ) : null}
               </Badge>
             ))}
             {extraBadges}
-            <Badge
-              variant="outline"
-              className={`rounded-full px-3 py-1 text-xs ${
-                answered
-                  ? "border-emerald-700 bg-emerald-700 text-white"
-                  : "border-rose-600 bg-rose-600 text-white"
-              }`}
-            >
-              <span className="sm:hidden">{answered ? "Resp." : "Pend."}</span>
-              <span className="hidden sm:inline">{answered ? "Respondido" : "Pendente"}</span>
-            </Badge>
+            {!hasResolvedScorePreview ? (
+              <Badge
+                variant="outline"
+                className={`rounded-full px-3 py-1 text-xs ${
+                  answered
+                    ? "border-emerald-700 bg-emerald-700 text-white"
+                    : "border-rose-600 bg-rose-600 text-white"
+                }`}
+              >
+                <span>{answered ? "Respondido" : "Pendente"}</span>
+              </Badge>
+            ) : null}
             {onAnalysisChange ? (
               <Button
                 type="button"

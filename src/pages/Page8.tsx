@@ -5,7 +5,8 @@ import AssessmentCriterionAccordion, {
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
-import { IdecicloFormData } from "@/types/idecicloForm";
+import { CyclingFurnitureKey, IdecicloFormData } from "@/types/idecicloForm";
+import { Checkbox } from "@/components/ui/checkbox";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 const CYCLING_FURNITURE_OPTIONS = [
@@ -35,6 +36,8 @@ const CYCLING_FURNITURE_OPTIONS = [
     icon: "/icones/bebedouro.svg",
   },
 ] as const;
+
+const EMPTY_FURNITURE_COUNTS: Partial<Record<CyclingFurnitureKey, number>> = {};
 
 interface Page8Props {
   data: IdecicloFormData;
@@ -68,32 +71,38 @@ const Page8: React.FC<Page8Props> = ({
       ])
     );
 
-  const handleFurnitureCheckboxChange = (item: string, checked: boolean) => {
+  const handleFurnitureCountChange = (item: CyclingFurnitureKey, delta: number) => {
     const currentBlockIndex = blockPager?.currentIndex || 0;
     const blockCount = Math.max(0, Number(data.blocks_count || 0));
-    const currentItems = Array.isArray(data.cycling_furniture_by_block?.[currentBlockIndex])
-      ? [...(data.cycling_furniture_by_block?.[currentBlockIndex] || [])]
-      : [...(data.cycling_furniture || [])];
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const nextCountsByBlock = Array.from({ length: nextLength }, (_, index) =>
+      index < (data.cycling_furniture_counts_by_block?.length || 0)
+        ? { ...(data.cycling_furniture_counts_by_block?.[index] || EMPTY_FURNITURE_COUNTS) }
+        : Object.fromEntries(
+            (data.cycling_furniture_by_block?.[index] || []).map((value) => [value, 1])
+          )
+    );
+    const currentCounts = { ...(nextCountsByBlock[currentBlockIndex] || EMPTY_FURNITURE_COUNTS) };
+    const nextCount = Math.max(0, Number(currentCounts[item] || 0) + delta);
 
-    if (checked) {
-      if (!currentItems.includes(item)) {
-        currentItems.push(item);
-      }
+    if (nextCount > 0) {
+      currentCounts[item] = nextCount;
     } else {
-      const index = currentItems.indexOf(item);
-      if (index !== -1) {
-        currentItems.splice(index, 1);
-      }
+      delete currentCounts[item];
     }
 
-    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
-    const nextByBlock = Array.from({ length: nextLength }, (_, index) =>
-      Array.isArray(data.cycling_furniture_by_block?.[index])
-        ? [...(data.cycling_furniture_by_block?.[index] || [])]
-        : []
-    );
+    nextCountsByBlock[currentBlockIndex] = currentCounts;
 
-    nextByBlock[currentBlockIndex] = currentItems;
+    const nextNoFurnitureByBlock = Array.from({ length: nextLength }, (_, index) =>
+      Boolean(data.no_cycling_furniture_by_block?.[index])
+    );
+    nextNoFurnitureByBlock[currentBlockIndex] = false;
+
+    const nextByBlock = nextCountsByBlock.map((counts) =>
+      Object.entries(counts)
+        .filter(([, count]) => Number(count || 0) > 0)
+        .map(([key]) => key)
+    );
 
     const blocksWithFurniture = nextByBlock.filter((items) => items.length > 0).length;
     const aggregatedFurniture = Array.from(new Set(nextByBlock.flat()));
@@ -102,19 +111,73 @@ const Page8: React.FC<Page8Props> = ({
       blocks_with_cycling_furniture: blocksWithFurniture,
       cycling_furniture: aggregatedFurniture,
       cycling_furniture_by_block: nextByBlock,
+      cycling_furniture_counts_by_block: nextCountsByBlock,
+      no_cycling_furniture_by_block: nextNoFurnitureByBlock,
       touched_fields: {
         blocks_with_cycling_furniture: blocksWithFurniture > 0,
         cycling_furniture: aggregatedFurniture.length > 0,
         cycling_furniture_by_block: true,
+        cycling_furniture_counts_by_block: true,
+        no_cycling_furniture_by_block: nextNoFurnitureByBlock.some(Boolean),
+        [blockTouchKey(currentBlockIndex)]: true,
+      },
+    });
+  };
+
+  const handleNoFurnitureChange = (checked: boolean) => {
+    const currentBlockIndex = blockPager?.currentIndex || 0;
+    const blockCount = Math.max(0, Number(data.blocks_count || 0));
+    const nextLength = Math.max(blockCount, currentBlockIndex + 1);
+    const nextCountsByBlock = Array.from({ length: nextLength }, (_, index) =>
+      index < (data.cycling_furniture_counts_by_block?.length || 0)
+        ? { ...(data.cycling_furniture_counts_by_block?.[index] || EMPTY_FURNITURE_COUNTS) }
+        : Object.fromEntries(
+            (data.cycling_furniture_by_block?.[index] || []).map((value) => [value, 1])
+          )
+    );
+    const nextNoFurnitureByBlock = Array.from({ length: nextLength }, (_, index) =>
+      Boolean(data.no_cycling_furniture_by_block?.[index])
+    );
+
+    nextNoFurnitureByBlock[currentBlockIndex] = checked;
+    if (checked) {
+      nextCountsByBlock[currentBlockIndex] = {};
+    }
+
+    const nextByBlock = nextCountsByBlock.map((counts) =>
+      Object.entries(counts)
+        .filter(([, count]) => Number(count || 0) > 0)
+        .map(([key]) => key)
+    );
+    const blocksWithFurniture = nextByBlock.filter((items) => items.length > 0).length;
+    const aggregatedFurniture = Array.from(new Set(nextByBlock.flat()));
+
+    onDataChange({
+      blocks_with_cycling_furniture: blocksWithFurniture,
+      cycling_furniture: aggregatedFurniture,
+      cycling_furniture_by_block: nextByBlock,
+      cycling_furniture_counts_by_block: nextCountsByBlock,
+      no_cycling_furniture_by_block: nextNoFurnitureByBlock,
+      touched_fields: {
+        blocks_with_cycling_furniture: blocksWithFurniture > 0,
+        cycling_furniture: aggregatedFurniture.length > 0,
+        cycling_furniture_by_block: true,
+        cycling_furniture_counts_by_block: true,
+        no_cycling_furniture_by_block: nextNoFurnitureByBlock.some(Boolean),
         [blockTouchKey(currentBlockIndex)]: true,
       },
     });
   };
 
   const currentBlockIndex = blockPager?.currentIndex || 0;
-  const currentFurnitureItems = Array.isArray(data.cycling_furniture_by_block?.[currentBlockIndex])
-    ? data.cycling_furniture_by_block?.[currentBlockIndex] || []
-    : data.cycling_furniture || [];
+  const currentFurnitureCounts =
+    data.cycling_furniture_counts_by_block?.[currentBlockIndex] ||
+    Object.fromEntries(
+      (data.cycling_furniture_by_block?.[currentBlockIndex] || data.cycling_furniture || []).map(
+        (value) => [value, 1]
+      )
+    );
+  const noFurnitureInCurrentBlock = Boolean(data.no_cycling_furniture_by_block?.[currentBlockIndex]);
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
@@ -217,7 +280,12 @@ const Page8: React.FC<Page8Props> = ({
             title="D.3. Mobiliário cicloviário"
             description="Presença de equipamentos de apoio ao uso da bicicleta."
             scorePreview={buildCriterionScorePreview(data, ["D3"])}
-            answered={isTouched(["cycling_furniture_by_block", "cycling_furniture"])}
+            answered={isTouched([
+              "cycling_furniture_by_block",
+              "cycling_furniture",
+              "cycling_furniture_counts_by_block",
+              "no_cycling_furniture_by_block",
+            ])}
             inAnalysis={data.criterion_workflow_state?.d3 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("d3", value ? "analysis" : "default")}
             pager={blockPager}
@@ -228,18 +296,35 @@ const Page8: React.FC<Page8Props> = ({
                 blocks_with_cycling_furniture: 0,
                 cycling_furniture: [],
                 cycling_furniture_by_block: [],
+                cycling_furniture_counts_by_block: [],
+                no_cycling_furniture_by_block: [],
                 touched_fields: {
                   blocks_with_cycling_furniture: false,
                   cycling_furniture: false,
                   cycling_furniture_by_block: false,
+                  cycling_furniture_counts_by_block: false,
+                  no_cycling_furniture_by_block: false,
                   ...resetBlockTouchKeys(),
                 },
               })
             }
           >
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">Sem mobiliário</div>
+                </div>
+                <Checkbox
+                  id="no_cycling_furniture"
+                  checked={noFurnitureInCurrentBlock}
+                  onCheckedChange={(checked) => handleNoFurnitureChange(Boolean(checked))}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {CYCLING_FURNITURE_OPTIONS.map((option) => {
-                const selected = currentFurnitureItems.includes(option.key);
+                const count = Number(currentFurnitureCounts[option.key] || 0);
+                const selected = count > 0;
 
                 return (
                   <div
@@ -252,7 +337,7 @@ const Page8: React.FC<Page8Props> = ({
                   >
                     <button
                       type="button"
-                      onClick={() => handleFurnitureCheckboxChange(option.key, true)}
+                      onClick={() => handleFurnitureCountChange(option.key, 1)}
                       className="flex flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50/50"
                     >
                       <img
@@ -266,14 +351,14 @@ const Page8: React.FC<Page8Props> = ({
                           {option.label}
                         </span>
                         <span className="block text-xs text-slate-500">
-                          {selected ? "Marcado nesta quadra" : "Toque para marcar"}
+                          {selected ? `Ocorrências: ${count}` : "Toque para marcar"}
                         </span>
                       </div>
                     </button>
                     {selected ? (
                       <button
                         type="button"
-                        onClick={() => handleFurnitureCheckboxChange(option.key, false)}
+                        onClick={() => handleFurnitureCountChange(option.key, -1)}
                         className="flex w-11 shrink-0 items-center justify-center border-l border-emerald-200 bg-white/60 text-slate-500 transition hover:bg-white hover:text-emerald-700"
                         aria-label={`Remover ${option.label}`}
                         title={`Remover ${option.label}`}
@@ -284,6 +369,7 @@ const Page8: React.FC<Page8Props> = ({
                   </div>
                 );
               })}
+              </div>
             </div>
           </AssessmentCriterionAccordion> : null}
         </CriteriaAccordionGroup>

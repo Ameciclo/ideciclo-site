@@ -15,8 +15,17 @@ interface Page5Props {
 }
 
 const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) => {
+  const b3Preview = buildCriterionScorePreview(data, ["B3"])[0];
   const handleRadioChange = (name: string, value: string) => {
     onDataChange({ [name]: value });
+  };
+
+  const ratingChipClassName = (rating: string | null | undefined) => {
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-slate-200 bg-white text-slate-500";
   };
 
   const getInfraType = () => {
@@ -70,6 +79,23 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
             }
             helpKey="b31"
           >
+            {b3Preview ? (
+              <div className="mb-4">
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${ratingChipClassName(
+                    b3Preview.rating
+                  )}`}
+                >
+                  B.3
+                  {b3Preview.rating ? <span className="mx-1 opacity-70">·</span> : null}
+                  {b3Preview.rating ? <span>{b3Preview.rating}</span> : null}
+                  {b3Preview.rating && typeof b3Preview.points === "number" ? (
+                    <span className="mx-1 opacity-70">·</span>
+                  ) : null}
+                  {typeof b3Preview.points === "number" ? <span>{b3Preview.points}</span> : null}
+                </span>
+              </div>
+            ) : null}
             {infraType === "ciclofaixa" && (
               <div>
                 <Label className="mb-2 block">Dispositivos de separação (ciclofaixa):</Label>

@@ -200,7 +200,8 @@ export interface SurveyResponses {
 
   // C.1/E.4 Horizontal cycling signaling at intersections
   intersection_signaling: 'A' | 'B' | 'C' | 'D';
-  intersection_conservation: 'A' | 'B' | 'C';
+  intersection_conservation: 'A' | 'B' | 'C' | 'D';
+  intersection_conservation_by_intersection?: Array<'good' | 'damage' | 'none'>;
 
   // C.2 Accessibility between cycling connections
   connection_accessibility: 'A' | 'B' | 'C';
@@ -223,4 +224,6 @@ export interface SurveyResponses {
   // D.3 Cycling furniture
   cycling_furniture: string[];
   cycling_furniture_by_block?: string[][];
+  cycling_furniture_counts_by_block?: Record<string, number>[];
+  no_cycling_furniture_by_block?: boolean[];
 }

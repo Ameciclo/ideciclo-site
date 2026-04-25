@@ -733,6 +733,23 @@ const calculateD3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 
 const calculateE1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   if (normalizeTypology(formData.infra_typology) === "ciclorrota") return null;
+  if (Array.isArray(formData.intersection_conservation_by_intersection)) {
+    const values = formData.intersection_conservation_by_intersection;
+    const totalIntersections = Math.max(
+      toNumber(formData.intersections_count),
+      formData.intersection_conservation_by_intersection.length
+    );
+
+    if (totalIntersections <= 0 || values.every((value) => value === "")) return null;
+
+    const goodCount = values.filter((value) => value === "good").length;
+    const damagedCount = values.filter((value) => value === "damage").length;
+
+    if (goodCount === totalIntersections) return "A";
+    if (goodCount > totalIntersections / 2) return "B";
+    if (goodCount + damagedCount > 0) return "C";
+    return "D";
+  }
   return isRating(formData.intersection_conservation)
     ? formData.intersection_conservation
     : null;

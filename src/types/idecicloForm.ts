@@ -14,7 +14,14 @@ export type RiskOccurrenceKey =
   | "vertical_obstacles"
   | "side_change_mid_block"
   | "opposite_flow_direction";
+export type CyclingFurnitureKey =
+  | "bicicletarios"
+  | "paraciclos"
+  | "compartilhadas"
+  | "estacoes"
+  | "bebedouros";
 export type VerticalSignsConditionByBlock = "good" | "damage" | "";
+export type IntersectionHorizontalSignsCondition = "good" | "damage" | "none" | "";
 export type CriterionCode =
   | "A1"
   | "A2"
@@ -103,6 +110,7 @@ export interface IdecicloFormData {
   intersection_signaling: IdecicloRating | "";
   intersection_signaling_by_intersection: Array<IdecicloRating | "">;
   intersection_conservation: IdecicloRating | "";
+  intersection_conservation_by_intersection: IntersectionHorizontalSignsCondition[];
   connection_accessibility: "A" | "D" | "NA" | "";
   connection_accessibility_by_intersection: Array<"A" | "D" | "NA" | "">;
   traffic_lanes_per_direction: number;
@@ -125,6 +133,8 @@ export interface IdecicloFormData {
   blocks_with_cycling_furniture: number;
   cycling_furniture: string[];
   cycling_furniture_by_block: string[][];
+  cycling_furniture_counts_by_block: Partial<Record<CyclingFurnitureKey, number>>[];
+  no_cycling_furniture_by_block: boolean[];
   observations: string;
   rating_modes: Partial<Record<CriterionCode, RatingMode>>;
   manual_ratings: Partial<Record<CriterionCode, IdecicloRating>>;

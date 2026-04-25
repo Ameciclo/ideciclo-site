@@ -99,9 +99,10 @@ export const optionMappings = {
 
   // C.1/E.4 Intersection conservation
   intersection_conservation: {
-    A: 'Sinalização em bom estado',
-    B: 'Sinalização danificada',
-    C: 'Não há sinalização'
+    A: 'Sinalização visível em todas as interseções do trecho',
+    B: 'Sinalização em mais da metade das interseções, em bom estado',
+    C: 'Sinalização em menos da metade das interseções ou muito danificada',
+    D: 'Sinalização praticamente apagada'
   },
 
   // C.2 Connection accessibility

@@ -59,6 +59,7 @@ const Page3: React.FC<Page3Props> = ({
   command,
   visibleValues,
 }) => {
+  const b3Preview = buildCriterionScorePreview(data, ["B3"])[0];
   const [widthDraftCm, setWidthDraftCm] = useState("");
   const [bufferDraftCm, setBufferDraftCm] = useState("");
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
@@ -462,6 +463,23 @@ const Page3: React.FC<Page3Props> = ({
           helpKey="b32"
         >
           <div className="space-y-4">
+            {b3Preview ? (
+              <div>
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${ratingChipClassName(
+                    b3Preview.rating
+                  )}`}
+                >
+                  B.3
+                  {b3Preview.rating ? <span className="mx-1 opacity-70">·</span> : null}
+                  {b3Preview.rating ? <span>{b3Preview.rating}</span> : null}
+                  {b3Preview.rating && typeof b3Preview.points === "number" ? (
+                    <span className="mx-1 opacity-70">·</span>
+                  ) : null}
+                  {typeof b3Preview.points === "number" ? <span>{b3Preview.points}</span> : null}
+                </span>
+              </div>
+            ) : null}
             <div className="flex items-center gap-2">
               <Input
                 id="buffer_width_cm"

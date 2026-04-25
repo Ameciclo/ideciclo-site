@@ -2,6 +2,8 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import ManualHelpDialog from "@/components/ManualHelpDialog";
 import {
   CriterionCode,
@@ -12,6 +14,7 @@ import {
 } from "@/utils/idecicloAssessment";
 import { getCriterionEvidence } from "@/utils/idecicloReview";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { cn } from "@/lib/utils";
 
 interface Page9Props {
   data: IdecicloFormData;
@@ -47,7 +50,14 @@ const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
   return "bg-slate-100 text-slate-700";
 };
 
-const ratingChipClassName = (rating: IdecicloRating, selected: boolean) => {
+const ratingChipClassName = (
+  rating: IdecicloRating,
+  {
+    selected,
+    interactive = false,
+    manual = false,
+  }: { selected: boolean; interactive?: boolean; manual?: boolean }
+) => {
   const selectedClass =
     rating === "A"
       ? "border-[#b8e5db] bg-[#b8e5db] text-[#163b38]"
@@ -57,20 +67,34 @@ const ratingChipClassName = (rating: IdecicloRating, selected: boolean) => {
           ? "border-[#8fafad] bg-[#8fafad] text-[#163b38]"
           : "border-[#748987] bg-[#748987] text-white";
 
-  return `inline-flex min-w-[54px] items-center justify-center rounded-md border px-3 py-2 text-sm font-bold transition-all ${
-    selected ? selectedClass : "border-slate-200 bg-slate-100 text-slate-400 opacity-55"
-  }`;
+  return cn(
+    "inline-flex min-w-[54px] items-center justify-center rounded-md border px-3 py-2 text-sm font-bold transition-all",
+    selected ? selectedClass : "border-slate-200 bg-slate-100 text-slate-400 opacity-55",
+    interactive ? "cursor-pointer hover:opacity-85" : "cursor-default",
+    manual && selected ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-background" : null
+  );
 };
 
 const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
   const summary = getScoreBreakdown(data);
 
-  const handleModeChange = (criterion: CriterionCode, mode: "auto" | "manual") => {
+  const handleModeChange = (criterion: CriterionCode, enabled: boolean) => {
+    const autoRating = summary.autoRatings[criterion];
+    const shouldSeedManualRating = enabled && !data.manual_ratings?.[criterion] && autoRating;
+
     onDataChange({
       rating_modes: {
         ...(data.rating_modes || {}),
-        [criterion]: mode,
+        [criterion]: enabled ? "manual" : "auto",
       },
+      ...(shouldSeedManualRating
+        ? {
+            manual_ratings: {
+              ...(data.manual_ratings || {}),
+              [criterion]: autoRating,
+            },
+          }
+        : {}),
     });
   };
 
@@ -120,7 +144,7 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
 
           <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
             Nesta segunda página você confere o conceito automático, vê os parâmetros que levaram a
-            cada nota e pode trocar o critério para `Manual` quando quiser sobrescrever o cálculo.
+            cada nota e pode ligar o ajuste manual quando quiser sobrescrever o cálculo.
           </div>
         </CardContent>
       </Card>
@@ -151,6 +175,7 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                 const autoRating = summary.autoRatings[criterion];
                 const finalRating = summary.resolvedRatings[criterion];
                 const mode = data.rating_modes?.[criterion] === "manual" ? "manual" : "auto";
+                const manualEnabled = mode === "manual";
                 const itemSummary = sectionSummary?.items?.[criterion];
                 const evidence = getCriterionEvidence(criterion, data);
 
@@ -168,9 +193,15 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                           <Badge className={ratingBadgeClassName(autoRating)}>
                             Automático: {autoRating ?? "N/A"}
                           </Badge>
-                          <Badge className={ratingBadgeClassName(finalRating)}>
+                          <Badge
+                            className={cn(
+                              ratingBadgeClassName(finalRating),
+                              manualEnabled ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-background" : null
+                            )}
+                          >
                             Final: {finalRating ?? "N/A"}
                           </Badge>
+                          {manualEnabled ? <Badge variant="outline">Manual ligado</Badge> : null}
                           {typeof itemSummary?.points === "number" ? (
                             <Badge variant="outline">
                               {itemSummary.points > 0 ? `+${itemSummary.points}` : itemSummary.points} pts
@@ -185,21 +216,15 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                       </div>
 
                       {applicable ? (
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant={mode === "auto" ? "default" : "outline"}
-                            onClick={() => handleModeChange(criterion, "auto")}
-                          >
-                            Automático
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={mode === "manual" ? "default" : "outline"}
-                            onClick={() => handleModeChange(criterion, "manual")}
-                          >
-                            Manual
-                          </Button>
+                        <div className="flex items-center gap-3 rounded-full border border-slate-200 px-3 py-2">
+                          <Label htmlFor={`manual-rating-${criterion}`} className="text-sm font-medium">
+                            Ajuste manual
+                          </Label>
+                          <Switch
+                            id={`manual-rating-${criterion}`}
+                            checked={manualEnabled}
+                            onCheckedChange={(checked) => handleModeChange(criterion, checked)}
+                          />
                         </div>
                       ) : null}
                     </div>
@@ -209,11 +234,31 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                         <div className="mb-2 text-sm font-medium text-slate-700">Conceito final</div>
                         <div className="flex flex-wrap gap-2">
                           {RATINGS.map((rating) => (
-                            <span key={rating} className={ratingChipClassName(rating, finalRating === rating)}>
+                            <Button
+                              key={rating}
+                              type="button"
+                              variant="outline"
+                              aria-pressed={finalRating === rating}
+                              aria-disabled={!manualEnabled}
+                              className={ratingChipClassName(rating, {
+                                selected: finalRating === rating,
+                                interactive: manualEnabled,
+                                manual: manualEnabled && data.manual_ratings?.[criterion] === rating,
+                              })}
+                              onClick={() => {
+                                if (!manualEnabled) return;
+                                handleManualRatingChange(criterion, rating);
+                              }}
+                            >
                               {rating}
-                            </span>
+                            </Button>
                           ))}
                         </div>
+                        {manualEnabled ? (
+                          <p className="mt-2 text-xs text-amber-800">
+                            Clique na escala para ajustar manualmente este conceito.
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="border-t border-slate-200 pt-4">
@@ -227,25 +272,6 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
                         </ul>
                       </div>
                     </div>
-
-                    {applicable && mode === "manual" ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {RATINGS.map((rating) => (
-                          <Button
-                            key={rating}
-                            type="button"
-                            variant="outline"
-                            className={ratingChipClassName(
-                              rating,
-                              data.manual_ratings?.[criterion] === rating
-                            )}
-                            onClick={() => handleManualRatingChange(criterion, rating)}
-                          >
-                            {rating}
-                          </Button>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 );
               })}

@@ -11,7 +11,12 @@ import AssessmentCriterionAccordion, {
 import ConceptCriteriaTable from "@/components/ConceptCriteriaTable";
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
-import { IdecicloFormData, IdecicloRating, RiskOccurrenceKey } from "@/types/idecicloForm";
+import {
+  IdecicloFormData,
+  IdecicloRating,
+  IntersectionHorizontalSignsCondition,
+  RiskOccurrenceKey,
+} from "@/types/idecicloForm";
 import { getMedianRating } from "@/utils/idecicloAssessment";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
@@ -142,23 +147,21 @@ const Page7: React.FC<Page7Props> = ({
       ).flat()
     );
 
-  const handleConflictCheckboxChange = (conflict: string, checked: boolean) => {
-    const currentConflicts = [...currentMotorizedConflicts];
-    if (checked) {
-      if (!currentConflicts.includes(conflict)) {
-        currentConflicts.push(conflict);
-      }
-    } else {
-      const index = currentConflicts.indexOf(conflict);
-      if (index !== -1) {
-        currentConflicts.splice(index, 1);
-      }
-    }
+  const setC3ConflictRating = (rating: "A" | "B" | "C" | "D") => {
+    const nextConflicts =
+      rating === "A"
+        ? ["no_conversion"]
+        : rating === "B"
+          ? ["conversion", "protection"]
+          : rating === "C"
+            ? ["pedestrian_signal"]
+            : ["conversion"];
+
     onDataChange({
-      motorized_conflicts: currentConflicts,
+      motorized_conflicts: nextConflicts,
       motorized_conflicts_by_intersection: setIntersectionMatrixValue(
         data.motorized_conflicts_by_intersection,
-        currentConflicts,
+        nextConflicts,
         []
       ),
       touched_fields: {
@@ -229,6 +232,10 @@ const Page7: React.FC<Page7Props> = ({
     data.connection_accessibility_by_intersection,
     data.connection_accessibility || ""
   );
+  const currentIntersectionConservationCondition = getIntersectionArrayValue(
+    data.intersection_conservation_by_intersection,
+    "" as IntersectionHorizontalSignsCondition
+  );
   const currentTrafficLanesPerDirection = getIntersectionArrayValue(
     data.traffic_lanes_per_direction_by_intersection,
     Number(data.traffic_lanes_per_direction || 1)
@@ -241,11 +248,41 @@ const Page7: React.FC<Page7Props> = ({
     data.has_intersection_traffic_calming_by_intersection,
     Boolean(data.has_intersection_traffic_calming)
   );
-  const currentMotorizedConflicts = getIntersectionMatrixValue(
-    data.motorized_conflicts_by_intersection,
-    data.motorized_conflicts || []
-  );
+  const deriveIntersectionConservationRating = (
+    values: IntersectionHorizontalSignsCondition[]
+  ): IdecicloRating | "" => {
+    const totalIntersections = Math.max(
+      intersectionCount,
+      Array.isArray(values) ? values.length : 0
+    );
+    if (totalIntersections <= 0) return "";
 
+    const goodCount = values.filter((value) => value === "good").length;
+    const damagedCount = values.filter((value) => value === "damage").length;
+    const noneCount = values.filter((value) => value === "none").length;
+
+    if (goodCount === totalIntersections) return "A";
+    if (goodCount > totalIntersections / 2) return "B";
+    if (goodCount + damagedCount > 0) return "C";
+    if (noneCount > 0) return "D";
+    return "";
+  };
+  const setIntersectionConservationCondition = (nextValue: IntersectionHorizontalSignsCondition) => {
+    const nextValues = setIntersectionArrayValue(
+      data.intersection_conservation_by_intersection,
+      nextValue,
+      "" as IntersectionHorizontalSignsCondition
+    );
+
+    onDataChange({
+      intersection_conservation_by_intersection: nextValues,
+      intersection_conservation: deriveIntersectionConservationRating(nextValues),
+      touched_fields: {
+        intersection_conservation_by_intersection: true,
+        intersection_conservation: nextValues.some((value) => value !== ""),
+      },
+    });
+  };
   const mapConnectionAccessibilityToRating = (
     value: "A" | "D" | "NA" | "" | string
   ): IdecicloRating | null => {
@@ -302,10 +339,9 @@ const Page7: React.FC<Page7Props> = ({
     calculateC3IntersectionRating(index)
   );
 
-  const renderMedianBadges = (
+  const renderIntersectionBadge = (
     prefix: string,
-    currentRating: IdecicloRating | null | undefined,
-    ratings: Array<IdecicloRating | null | undefined>
+    currentRating: IdecicloRating | null | undefined
   ) => (
     <>
       <Badge
@@ -316,14 +352,6 @@ const Page7: React.FC<Page7Props> = ({
         {currentIntersectionIndex + 1}
         <span className="mx-1 opacity-70">·</span>
         {currentRating ?? "-"}
-      </Badge>
-      <Badge
-        variant="outline"
-        className={`rounded-full px-3 py-1 text-xs ${ratingBadgeClassName(getMedianRating(ratings))}`}
-      >
-        Mediana
-        <span className="mx-1 opacity-70">·</span>
-        {getMedianRating(ratings) ?? "-"}
       </Badge>
     </>
   );
@@ -644,11 +672,7 @@ const Page7: React.FC<Page7Props> = ({
                 })
               }
               helpKey="C1"
-              extraBadges={renderMedianBadges(
-                "I",
-                c1IntersectionRatings[currentIntersectionIndex],
-                c1IntersectionRatings
-              )}
+              extraBadges={renderIntersectionBadge("I", c1IntersectionRatings[currentIntersectionIndex])}
               pager={
                 intersectionPager
                   ? { ...intersectionPager, itemRatings: c1IntersectionRatings }
@@ -701,9 +725,12 @@ const Page7: React.FC<Page7Props> = ({
             <AssessmentCriterionAccordion
               value="e1"
               title="E.1. Estado de conservação da sinalização horizontal nas interseções"
-              description="Avalia a conservação da sinalização horizontal cicloviária nas interseções."
+              description="Informe a condição da sinalização em cada interseção para calcular o conceito do trecho."
               scorePreview={buildCriterionScorePreview(data, ["E1"])}
-              answered={isTouched(["intersection_conservation"])}
+              answered={isTouched([
+                "intersection_conservation",
+                "intersection_conservation_by_intersection",
+              ])}
               inAnalysis={
                 data.criterion_workflow_state?.e1 === "analysis" ||
                 data.criterion_workflow_state?.c1e1 === "analysis"
@@ -712,8 +739,10 @@ const Page7: React.FC<Page7Props> = ({
               onClear={() =>
                 onDataChange({
                   intersection_conservation: "",
+                  intersection_conservation_by_intersection: [],
                   touched_fields: {
                     intersection_conservation: false,
+                    intersection_conservation_by_intersection: false,
                   },
                 })
               }
@@ -721,31 +750,27 @@ const Page7: React.FC<Page7Props> = ({
               pager={intersectionPager}
               showPager={!hideIntersectionPager}
             >
-              <ConceptCriteriaTable
-                value={data.intersection_conservation || ""}
-                onValueChange={(value) => handleRadioChange("intersection_conservation", value)}
-                options={[
-                  {
-                    value: "A",
-                    description:
-                      "Há sinalização em todas as interseções do trecho, visível em toda a extensão.",
-                  },
-                  {
-                    value: "B",
-                    description:
-                      "Há sinalização em mais da metade das interseções e em bom estado.",
-                  },
-                  {
-                    value: "C",
-                    description:
-                      "Há sinalização em menos da metade das interseções ou ela está muito danificada.",
-                  },
-                  {
-                    value: "D",
-                    description: "Praticamente apagada.",
-                  },
-                ]}
-              />
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Condição da sinalização na interseção</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Bom", value: "good" as const },
+                      { label: "Danos", value: "damage" as const },
+                      { label: "Não há", value: "none" as const },
+                    ].map((option) => (
+                      <button
+                        key={`intersection-conservation-${option.value}`}
+                        type="button"
+                        className={chipClassName(currentIntersectionConservationCondition === option.value)}
+                        onClick={() => setIntersectionConservationCondition(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </AssessmentCriterionAccordion>
           ) : null}
 
@@ -769,11 +794,7 @@ const Page7: React.FC<Page7Props> = ({
                 })
               }
             helpKey="C2"
-            extraBadges={renderMedianBadges(
-              "I",
-              c2IntersectionRatings[currentIntersectionIndex],
-              c2IntersectionRatings
-            )}
+            extraBadges={renderIntersectionBadge("I", c2IntersectionRatings[currentIntersectionIndex])}
             pager={
               intersectionPager
                 ? { ...intersectionPager, itemRatings: c2IntersectionRatings }
@@ -855,11 +876,7 @@ const Page7: React.FC<Page7Props> = ({
               })
             }
             helpKey="C3"
-            extraBadges={renderMedianBadges(
-              "I",
-              c3IntersectionRatings[currentIntersectionIndex],
-              c3IntersectionRatings
-            )}
+            extraBadges={renderIntersectionBadge("I", c3IntersectionRatings[currentIntersectionIndex])}
             pager={
               intersectionPager
                 ? { ...intersectionPager, itemRatings: c3IntersectionRatings }
@@ -867,81 +884,38 @@ const Page7: React.FC<Page7Props> = ({
             }
             showPager={!hideIntersectionPager}
           >
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_no_conversion"
-                  checked={currentMotorizedConflicts.includes("no_conversion")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("no_conversion", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_no_conversion">
-                  Não há conversão de modos motorizados sobre a infraestrutura cicloviária.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_conversion"
-                  checked={currentMotorizedConflicts.includes("conversion")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("conversion", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_conversion">
-                  Há conversão de modos motorizados sobre a infraestrutura cicloviária.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_exclusive_signal"
-                  checked={currentMotorizedConflicts.includes("exclusive_signal")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("exclusive_signal", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_exclusive_signal">
-                  Há estágio semafórico com tempo exclusivo para ciclistas.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_protection"
-                  checked={currentMotorizedConflicts.includes("protection")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("protection", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_protection">
-                  Há medidas de proteção para os ciclistas nas esquinas.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_pedestrian_signal"
-                  checked={currentMotorizedConflicts.includes("pedestrian_signal")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("pedestrian_signal", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_pedestrian_signal">
-                  Há estágio semafórico de pedestres, que possibilita a circulação conjunta.
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="conflict_traffic_calming"
-                  checked={currentMotorizedConflicts.includes("traffic_calming")}
-                  onCheckedChange={(checked) =>
-                    handleConflictCheckboxChange("traffic_calming", !!checked)
-                  }
-                />
-                <Label htmlFor="conflict_traffic_calming">
-                  Há medidas de acalmamento de tráfego na via, mas não orientadas para a condição de
-                  travessia de ciclistas.
-                </Label>
-              </div>
-            </div>
+            {!isCiclorrota ? (
+              <ConceptCriteriaTable
+                value={c3IntersectionRatings[currentIntersectionIndex] || ""}
+                onValueChange={(value) => setC3ConflictRating(value as "A" | "B" | "C" | "D")}
+                options={[
+                  {
+                    value: "A",
+                    description:
+                      "Não há conversão veicular sobre a infraestrutura cicloviária OU há conversão, mas há estágio semafórico com tempo exclusivo para ciclistas.",
+                  },
+                  ...(String(data.infra_flow || "") === "unidirectional"
+                    ? [
+                        {
+                          value: "B",
+                          description:
+                            "Há conversão veicular, com medidas físicas de proteção dos ciclistas na esquina.",
+                        },
+                      ]
+                    : []),
+                  {
+                    value: "C",
+                    description:
+                      "Há estágio semafórico de pedestres, que possibilita a circulação conjunta OU há medidas de acalmamento de tráfego na via, mas não orientadas para a condição de travessia de ciclistas.",
+                  },
+                  {
+                    value: "D",
+                    description:
+                      "Há conversão veicular, ou cruzamento sem medidas de acalmamento de tráfego; não há estágio semafórico para ciclistas.",
+                  },
+                ]}
+              />
+            ) : null}
 
             {String(data.infra_typology || "")
               .toLowerCase()

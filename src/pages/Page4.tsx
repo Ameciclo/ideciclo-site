@@ -56,17 +56,18 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange, filter, command }) =>
                 },
                 {
                   value: "B",
-                  description: "Pisos modulares (blocos de concreto e similares).",
+                  description:
+                    "Pisos modulares (blocos de concreto e similares) bem assentados.",
                 },
                 {
                   value: "C",
                   description:
-                    "Pedras irregulares (portuguesas e similares), pisos com espaçamento (vãos).",
+                    "Pisos de pedras irregulares (pedras portuguesas, paralelepípedo e similares), pisos com espaçamento (tampas de bueiros em calçadas, sobre córregos e similares).",
                 },
                 {
                   value: "D",
                   description:
-                    "Pisos de barro; grelhas e chapas metálicas; pisos modulares soltos; pisos derrapantes.",
+                    "Pisos de barro ou similares; grelhas e chapas metálicas; pisos modulares soltos; pisos derrapantes.",
                 },
               ]}
             />

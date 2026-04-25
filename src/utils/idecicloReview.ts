@@ -357,6 +357,23 @@ export const getCriterionEvidence = (
       return [
         `Quadras com mobiliario cicloviario: ${data.blocks_with_cycling_furniture || 0}`,
         `Itens marcados: ${listFromMap(data.cycling_furniture, FURNITURE_LABELS)}`,
+        ...(Array.isArray(data.cycling_furniture_counts_by_block) &&
+        data.cycling_furniture_counts_by_block.length > 0
+          ? data.cycling_furniture_counts_by_block.map((counts, index) => {
+              const items = Object.entries(counts || {})
+                .filter(([, count]) => Number(count || 0) > 0)
+                .map(
+                  ([key, count]) =>
+                    `${FURNITURE_LABELS[key as keyof typeof FURNITURE_LABELS] || key}: ${count}`
+                );
+
+              if (items.length === 0 && data.no_cycling_furniture_by_block?.[index]) {
+                return `Quadra ${index + 1}: sem mobiliario`;
+              }
+
+              return `Quadra ${index + 1}: ${items.join(", ") || "sem mobiliario"}`;
+            })
+          : []),
       ];
     case "E1":
       return [
@@ -364,6 +381,20 @@ export const getCriterionEvidence = (
           data.intersection_conservation,
           INTERSECTION_CONSERVATION_LABELS
         )}`,
+        ...(Array.isArray(data.intersection_conservation_by_intersection) &&
+        data.intersection_conservation_by_intersection.length > 0
+          ? data.intersection_conservation_by_intersection.map((value, index) => {
+              const label =
+                value === "good"
+                  ? "Bom"
+                  : value === "damage"
+                    ? "Danos"
+                    : value === "none"
+                      ? "Nao ha sinalizacao"
+                      : "-";
+              return `Intersecao ${index + 1}: ${label}`;
+            })
+          : []),
       ];
     case "E2":
       return [

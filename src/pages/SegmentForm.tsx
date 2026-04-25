@@ -185,6 +185,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   intersection_signaling: "",
   intersection_signaling_by_intersection: [],
   intersection_conservation: "",
+  intersection_conservation_by_intersection: [],
   connection_accessibility: "",
   connection_accessibility_by_intersection: [],
   traffic_lanes_per_direction: 1,
@@ -207,6 +208,8 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   blocks_with_cycling_furniture: 0,
   cycling_furniture: [],
   cycling_furniture_by_block: [],
+  cycling_furniture_counts_by_block: [],
+  no_cycling_furniture_by_block: [],
   observations: "",
   rating_modes: getInitialRatingModes(),
   manual_ratings: {},
@@ -255,6 +258,11 @@ const mergeWithDefaults = (
       : data.connection_accessibility
         ? [data.connection_accessibility]
         : [];
+  const fallbackIntersectionConservationByIntersection =
+    Array.isArray(data.intersection_conservation_by_intersection) &&
+    data.intersection_conservation_by_intersection.length > 0
+      ? data.intersection_conservation_by_intersection
+      : [];
   const fallbackTrafficLanesPerIntersection =
     Array.isArray(data.traffic_lanes_per_direction_by_intersection) &&
       data.traffic_lanes_per_direction_by_intersection.length > 0
@@ -289,6 +297,18 @@ const mergeWithDefaults = (
       : Array.isArray(data.cycling_furniture) && data.cycling_furniture.length > 0
         ? [data.cycling_furniture]
         : [];
+  const fallbackCyclingFurnitureCountsByBlock =
+    Array.isArray(data.cycling_furniture_counts_by_block) &&
+    data.cycling_furniture_counts_by_block.length > 0
+      ? data.cycling_furniture_counts_by_block
+      : fallbackCyclingFurnitureByBlock.map((items) =>
+          Object.fromEntries(items.map((item) => [item, 1]))
+        );
+  const fallbackNoCyclingFurnitureByBlock =
+    Array.isArray(data.no_cycling_furniture_by_block) &&
+    data.no_cycling_furniture_by_block.length > 0
+      ? data.no_cycling_furniture_by_block
+      : [];
   const fallbackTrafficLanesCountByBlock =
     Array.isArray(data.traffic_lanes_count_by_block) && data.traffic_lanes_count_by_block.length > 0
       ? data.traffic_lanes_count_by_block
@@ -329,12 +349,15 @@ const mergeWithDefaults = (
     traffic_calming_counts: fallbackTrafficCalmingCounts,
     risk_occurrence_counts: fallbackRiskOccurrenceCounts,
     intersection_signaling_by_intersection: fallbackIntersectionSignaling,
+    intersection_conservation_by_intersection: fallbackIntersectionConservationByIntersection,
     connection_accessibility_by_intersection: fallbackConnectionAccessibility,
     traffic_lanes_per_direction_by_intersection: fallbackTrafficLanesPerIntersection,
     mixed_lane_width_m_by_intersection: fallbackMixedLaneWidthPerIntersection,
     has_intersection_traffic_calming_by_intersection: fallbackIntersectionTrafficCalming,
     motorized_conflicts_by_intersection: fallbackMotorizedConflictsByIntersection,
     cycling_furniture_by_block: fallbackCyclingFurnitureByBlock,
+    cycling_furniture_counts_by_block: fallbackCyclingFurnitureCountsByBlock,
+    no_cycling_furniture_by_block: fallbackNoCyclingFurnitureByBlock,
     traffic_lanes_count_by_block: fallbackTrafficLanesCountByBlock,
     signalized_crossings_count_by_block: fallbackSignalizedCrossingsByBlock,
     vertical_signs_conservation_by_block: fallbackVerticalSignsConservationByBlock,
@@ -819,6 +842,12 @@ const SegmentForm = () => {
         "connection_accessibility",
       ]);
     }
+    if (code === "E1") {
+      return hasTouched([
+        "intersection_conservation_by_intersection",
+        "intersection_conservation",
+      ]);
+    }
     if (code === "C3") {
       return typology.includes("ciclorrota")
         ? hasTouched([
@@ -837,6 +866,8 @@ const SegmentForm = () => {
         "blocks_with_cycling_furniture",
         "cycling_furniture",
         "cycling_furniture_by_block",
+        "cycling_furniture_counts_by_block",
+        "no_cycling_furniture_by_block",
       ]);
     }
 
@@ -966,15 +997,13 @@ const SegmentForm = () => {
     [blockCount, isCiclorrota, touchedFields]
   );
 
-  const globalIntersectionConservationAnswered =
-    isCiclorrota ||
-    Boolean(formData.intersection_conservation) ||
-    Boolean(touchedFields.intersection_conservation);
-
   const intersectionCompletionStates = useMemo(
     () =>
       Array.from({ length: intersectionCount }, (_, index) => {
         const hasC1 = isCiclorrota || Boolean(touchedFields[`intersection_c1_${index}`]);
+        const hasE1 =
+          isCiclorrota ||
+          Boolean(formData.intersection_conservation_by_intersection?.[index]);
         const hasC2 = Boolean(touchedFields[`intersection_c2_${index}`]);
         const hasC3 = isCiclorrota
           ? Boolean(touchedFields[`intersection_c3_lanes_${index}`]) &&
@@ -982,9 +1011,9 @@ const SegmentForm = () => {
             Boolean(touchedFields[`intersection_c3_calming_${index}`])
           : Boolean(touchedFields[`intersection_c3_${index}`]);
 
-        return hasC1 && globalIntersectionConservationAnswered && hasC2 && hasC3;
+        return hasC1 && hasE1 && hasC2 && hasC3;
       }),
-    [globalIntersectionConservationAnswered, intersectionCount, isCiclorrota, touchedFields]
+    [formData.intersection_conservation_by_intersection, intersectionCount, isCiclorrota, touchedFields]
   );
 
   const getIndexedPagerClassName = (isActive: boolean, isComplete: boolean) => {
