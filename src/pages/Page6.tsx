@@ -70,6 +70,14 @@ const Page6: React.FC<Page6Props> = ({
     : data.signs_both_directions;
   const currentVerticalSignsCondition =
     data.vertical_signs_conservation_by_block?.[currentBlockIndex] || "";
+  const blockTouchKey = (criterion: "b41_signs" | "b41_directions" | "e41", index: number) =>
+    `block_${criterion}_${index}`;
+  const resetBlockTouchKeys = (criteria: Array<"b41_signs" | "b41_directions" | "e41">) =>
+    Object.fromEntries(
+      Array.from({ length: Math.max(0, Number(data.blocks_count || 0)) }, (_, index) =>
+        criteria.map((criterion) => [blockTouchKey(criterion, index), false] as const)
+      ).flat()
+    );
   const calculateVerticalSignsRatingForBlock = (
     signsPerBlock: number,
     bothDirections: boolean | null
@@ -89,7 +97,8 @@ const Page6: React.FC<Page6Props> = ({
   };
   const setRegulationSignsByBlock = (
     nextSignsPerBlock: number,
-    nextBothDirections: boolean | null = currentSignsBothDirections
+    nextBothDirections: boolean | null = currentSignsBothDirections,
+    touchedPart: "b41_signs" | "b41_directions" = "b41_signs"
   ) => {
     const blockCount = Math.max(0, Number(data.blocks_count || 0));
     const nextLength = Math.max(blockCount, currentBlockIndex + 1);
@@ -123,6 +132,7 @@ const Page6: React.FC<Page6Props> = ({
         signs_both_directions_by_block: true,
         regulation_signs_per_block: nextSignsPerBlockByBlock.some((value) => Number(value || 0) > 0),
         signs_both_directions: nextSignsBothDirectionsByBlock.some((value) => value !== null),
+        [blockTouchKey(touchedPart, currentBlockIndex)]: true,
       },
       criterion_ratings: {
         ...(data.criterion_ratings || {}),
@@ -160,6 +170,7 @@ const Page6: React.FC<Page6Props> = ({
       touched_fields: {
         vertical_signs_conservation_by_block: true,
         vertical_signs_conservation: answeredConditions.length > 0 || !hasAnySigns,
+        [blockTouchKey("e41", currentBlockIndex)]: true,
       },
     });
   };
@@ -185,20 +196,21 @@ const Page6: React.FC<Page6Props> = ({
           ])}
           inAnalysis={data.criterion_workflow_state?.b41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b41", value ? "analysis" : "default")}
-          onClear={() =>
-            onDataChange({
-              regulation_signs_per_block: 0,
-              regulation_signs_per_block_by_block: [],
-              signs_both_directions: null,
+            onClear={() =>
+              onDataChange({
+                regulation_signs_per_block: 0,
+                regulation_signs_per_block_by_block: [],
+                signs_both_directions: null,
               signs_both_directions_by_block: [],
-              touched_fields: {
-                regulation_signs_per_block: false,
-                regulation_signs_per_block_by_block: false,
-                signs_both_directions: false,
-                signs_both_directions_by_block: false,
-              },
-            })
-          }
+                touched_fields: {
+                  regulation_signs_per_block: false,
+                  regulation_signs_per_block_by_block: false,
+                  signs_both_directions: false,
+                  signs_both_directions_by_block: false,
+                  ...resetBlockTouchKeys(["b41_signs", "b41_directions"]),
+                },
+              })
+            }
           helpKey="b41"
           pager={blockPager}
           showPager={!hideBlockPager}
@@ -212,7 +224,7 @@ const Page6: React.FC<Page6Props> = ({
                     key={`signs-${value}`}
                     type="button"
                     className={chipClassName(currentRegulationSignsPerBlock === value)}
-                    onClick={() => setRegulationSignsByBlock(value)}
+                    onClick={() => setRegulationSignsByBlock(value, currentSignsBothDirections, "b41_signs")}
                   >
                     {value === 2 ? "2+" : value}
                   </button>
@@ -231,7 +243,13 @@ const Page6: React.FC<Page6Props> = ({
                     key={`directions-${option.label}`}
                     type="button"
                     className={chipClassName(currentSignsBothDirections === option.value)}
-                    onClick={() => setRegulationSignsByBlock(currentRegulationSignsPerBlock, option.value)}
+                    onClick={() =>
+                      setRegulationSignsByBlock(
+                        currentRegulationSignsPerBlock,
+                        option.value,
+                        "b41_directions"
+                      )
+                    }
                   >
                     {option.label}
                   </button>
@@ -297,16 +315,17 @@ const Page6: React.FC<Page6Props> = ({
           ])}
           inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
-          onClear={() =>
-            onDataChange({
-              vertical_signs_conservation: "",
-              vertical_signs_conservation_by_block: [],
-              touched_fields: {
-                vertical_signs_conservation: false,
-                vertical_signs_conservation_by_block: false,
-              },
-            })
-          }
+            onClear={() =>
+              onDataChange({
+                vertical_signs_conservation: "",
+                vertical_signs_conservation_by_block: [],
+                touched_fields: {
+                  vertical_signs_conservation: false,
+                  vertical_signs_conservation_by_block: false,
+                  ...resetBlockTouchKeys(["e41"]),
+                },
+              })
+            }
           helpKey="e42"
           pager={blockPager}
           showPager={!hideBlockPager}

@@ -299,7 +299,8 @@ export const getCriterionEvidence = (
       return [
         `Ocorrencias marcadas: ${
           [
-            data.bus_school_conflict && "Conflito com ponto de onibus ou escola",
+            data.bus_stop_conflict && "Conflito com ponto de onibus",
+            data.school_conflict && "Conflito com escola",
             data.horizontal_obstacles && "Obstaculos horizontais",
             data.vertical_obstacles && "Obstaculos verticais",
             data.side_change_mid_block && "Mudanca de lado no meio da quadra",

@@ -17,9 +17,15 @@ import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
 
 const RISK_OPTIONS = [
   {
-    key: "bus_school_conflict",
-    label: "Conflito com ponto de ônibus ou escola",
-    icons: ["/icones/onibus.svg", "/icones/escola.svg"],
+    key: "bus_stop_conflict",
+    label: "Conflito com ponto de ônibus",
+    icons: ["/icones/onibus.svg"],
+    ciclorrota: false,
+  },
+  {
+    key: "school_conflict",
+    label: "Conflito com escola",
+    icons: ["/icones/escola.svg"],
     ciclorrota: false,
   },
   {
@@ -92,23 +98,6 @@ const Page7: React.FC<Page7Props> = ({
     onDataChange({ [name]: value });
   };
 
-  const handleCheckboxChange = (name: RiskOccurrenceKey, checked: boolean) => {
-    onDataChange({
-      [name]: checked,
-      no_risk_situations:
-        checked ||
-        Boolean(
-          (name !== "bus_school_conflict" && data.bus_school_conflict) ||
-            (name !== "horizontal_obstacles" && data.horizontal_obstacles) ||
-            (name !== "vertical_obstacles" && data.vertical_obstacles) ||
-            (name !== "side_change_mid_block" && data.side_change_mid_block) ||
-            (name !== "opposite_flow_direction" && data.opposite_flow_direction)
-        )
-          ? false
-          : data.no_risk_situations,
-    });
-  };
-
   const riskOccurrenceCounts = data.risk_occurrence_counts || {};
 
   const handleRiskCountChange = (name: RiskOccurrenceKey, delta: number) => {
@@ -132,12 +121,29 @@ const Page7: React.FC<Page7Props> = ({
   };
 
   const availableRiskOptions = RISK_OPTIONS.filter((option) => option.ciclorrota || !isCiclorrota);
-  const selectedRiskOptions = availableRiskOptions.filter((option) =>
-    Number(riskOccurrenceCounts[option.key] || 0) > 0
-  );
+  const blockTouchKey = (criterion: "b5_crossings" | "b5_lanes", index: number) =>
+    `block_${criterion}_${index}`;
+  const intersectionTouchKey = (
+    criterion: "c1" | "c2" | "c3" | "c3_lanes" | "c3_width" | "c3_calming",
+    index: number
+  ) => `intersection_${criterion}_${index}`;
+  const resetBlockTouchKeys = (criteria: Array<"b5_crossings" | "b5_lanes">) =>
+    Object.fromEntries(
+      Array.from({ length: Math.max(0, Number(data.blocks_count || 0)) }, (_, index) =>
+        criteria.map((criterion) => [blockTouchKey(criterion, index), false] as const)
+      ).flat()
+    );
+  const resetIntersectionTouchKeys = (
+    criteria: Array<"c1" | "c2" | "c3" | "c3_lanes" | "c3_width" | "c3_calming">
+  ) =>
+    Object.fromEntries(
+      Array.from({ length: Math.max(0, Number(data.intersections_count || 0)) }, (_, index) =>
+        criteria.map((criterion) => [intersectionTouchKey(criterion, index), false] as const)
+      ).flat()
+    );
 
   const handleConflictCheckboxChange = (conflict: string, checked: boolean) => {
-    const currentConflicts = [...(data.motorized_conflicts || [])];
+    const currentConflicts = [...currentMotorizedConflicts];
     if (checked) {
       if (!currentConflicts.includes(conflict)) {
         currentConflicts.push(conflict);
@@ -148,7 +154,19 @@ const Page7: React.FC<Page7Props> = ({
         currentConflicts.splice(index, 1);
       }
     }
-    onDataChange({ motorized_conflicts: currentConflicts });
+    onDataChange({
+      motorized_conflicts: currentConflicts,
+      motorized_conflicts_by_intersection: setIntersectionMatrixValue(
+        data.motorized_conflicts_by_intersection,
+        currentConflicts,
+        []
+      ),
+      touched_fields: {
+        motorized_conflicts: true,
+        motorized_conflicts_by_intersection: true,
+        [intersectionTouchKey("c3", currentIntersectionIndex)]: true,
+      },
+    });
   };
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
@@ -358,8 +376,8 @@ const Page7: React.FC<Page7Props> = ({
   const currentBlockTrafficLanes = Array.isArray(data.traffic_lanes_count_by_block)
     ? Number(data.traffic_lanes_count_by_block[currentBlockIndex] || 0)
     : Number(data.traffic_lanes_count || 0);
-  const hasAnyRiskSelected = Boolean(
-    selectedRiskOptions.length > 0
+  const hasAnyRiskSelected = availableRiskOptions.some(
+    (option) => Number(riskOccurrenceCounts[option.key] || 0) > 0
   );
   const chipClassName = (selected: boolean) =>
     `rounded-full border px-3 py-2 text-sm font-medium transition ${
@@ -403,6 +421,10 @@ const Page7: React.FC<Page7Props> = ({
         signalized_crossings_count: nextCrossings.some((value) => Number(value || 0) > 0),
         traffic_lanes_count_by_block: true,
         traffic_lanes_count: nextTrafficLanes.some((value) => Number(value || 0) > 0),
+        [blockTouchKey(
+          field === "signalized_crossings_count_by_block" ? "b5_crossings" : "b5_lanes",
+          currentBlockIndex
+        )]: true,
       },
     });
   };
@@ -426,14 +448,16 @@ const Page7: React.FC<Page7Props> = ({
                 onDataChange({
                   no_risk_situations: false,
                   risk_occurrence_counts: {},
-                  bus_school_conflict: false,
+                  bus_stop_conflict: false,
+                  school_conflict: false,
                   horizontal_obstacles: false,
                   vertical_obstacles: false,
                 side_change_mid_block: false,
                 opposite_flow_direction: false,
                 touched_fields: {
                   no_risk_situations: false,
-                  bus_school_conflict: false,
+                  bus_stop_conflict: false,
+                  school_conflict: false,
                   horizontal_obstacles: false,
                   vertical_obstacles: false,
                   side_change_mid_block: false,
@@ -447,9 +471,6 @@ const Page7: React.FC<Page7Props> = ({
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div>
                   <div className="text-sm font-medium text-slate-800">Sem situações de risco</div>
-                  <p className="text-xs text-muted-foreground">
-                    Ative quando nenhuma das situações abaixo estiver presente.
-                  </p>
                 </div>
                 <Checkbox
                   id="no_risk_situations"
@@ -461,7 +482,8 @@ const Page7: React.FC<Page7Props> = ({
                       ...(active
                         ? {
                             risk_occurrence_counts: {},
-                            bus_school_conflict: false,
+                            bus_stop_conflict: false,
+                            school_conflict: false,
                             horizontal_obstacles: false,
                             vertical_obstacles: false,
                             side_change_mid_block: false,
@@ -478,72 +500,53 @@ const Page7: React.FC<Page7Props> = ({
                   const selected = count > 0;
 
                   return (
-                    <button
+                    <div
                       key={option.key}
-                      type="button"
-                      onClick={() => handleRiskCountChange(option.key, 1)}
-                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                      className={`flex items-stretch overflow-hidden rounded-2xl border transition ${
                         selected
                           ? "border-rose-300 bg-rose-50 shadow-sm"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
+                          : "border-slate-200 bg-white"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        {option.icons.map((icon) => (
-                          <img
-                            key={icon}
-                            src={icon}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-10 w-10 object-contain"
-                          />
-                        ))}
-                      </div>
-                      <div className="space-y-1">
-                        <span className="block text-sm font-semibold text-slate-700">
-                          {option.label}
-                        </span>
-                        <span className="block text-xs text-slate-500">
-                          {selected ? `Toque para somar (${count})` : "Toque para marcar"}
-                        </span>
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRiskCountChange(option.key, 1)}
+                        className="flex flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          {option.icons.map((icon) => (
+                            <img
+                              key={icon}
+                              src={icon}
+                              alt=""
+                              aria-hidden="true"
+                              className="h-10 w-10 object-contain"
+                            />
+                          ))}
+                        </div>
+                        <div className="space-y-1">
+                          <span className="block text-sm font-semibold text-slate-700">
+                            {option.label}
+                          </span>
+                          <span className="block text-xs text-slate-500">
+                            {selected ? `Ocorrencias: ${count}` : "Toque para marcar"}
+                          </span>
+                        </div>
+                      </button>
+                      {selected ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRiskCountChange(option.key, -1)}
+                          className="flex w-11 shrink-0 items-center justify-center border-l border-rose-200 bg-white/60 text-slate-500 transition hover:bg-white hover:text-rose-700"
+                          aria-label={`Reduzir ${option.label}`}
+                          title={`Reduzir ${option.label}`}
+                        >
+                          <span className="text-lg font-semibold leading-none">×</span>
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
-              </div>
-
-              <div>
-                {selectedRiskOptions.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedRiskOptions.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => handleRiskCountChange(option.key, -1)}
-                        className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-                      >
-                        {option.icons.map((icon) => (
-                          <img
-                            key={icon}
-                            src={icon}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-4 w-4 object-contain"
-                          />
-                        ))}
-                        <span>{option.label}</span>
-                        <span className="font-semibold text-slate-500">
-                          x{Number(riskOccurrenceCounts[option.key] || 0)}
-                        </span>
-                        <span>×</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma situação de risco marcada ainda.
-                  </p>
-                )}
               </div>
             </div>
           </AssessmentCriterionAccordion> : null}
@@ -574,6 +577,7 @@ const Page7: React.FC<Page7Props> = ({
                   signalized_crossings_count_by_block: false,
                   traffic_lanes_count: false,
                   traffic_lanes_count_by_block: false,
+                  ...resetBlockTouchKeys(["b5_crossings", "b5_lanes"]),
                 },
               })
             }
@@ -635,6 +639,7 @@ const Page7: React.FC<Page7Props> = ({
                   touched_fields: {
                     intersection_signaling: false,
                     intersection_signaling_by_intersection: false,
+                    ...resetIntersectionTouchKeys(["c1"]),
                   },
                 })
               }
@@ -651,10 +656,6 @@ const Page7: React.FC<Page7Props> = ({
               }
               showPager={!hideIntersectionPager}
             >
-              <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
-                utilizada como nota final.
-              </p>
               <ConceptCriteriaTable
                 value={currentIntersectionSignaling || ""}
                 onValueChange={(value) =>
@@ -668,6 +669,7 @@ const Page7: React.FC<Page7Props> = ({
                     touched_fields: {
                       intersection_signaling: true,
                       intersection_signaling_by_intersection: true,
+                      [intersectionTouchKey("c1", currentIntersectionIndex)]: true,
                     },
                   })
                 }
@@ -758,13 +760,14 @@ const Page7: React.FC<Page7Props> = ({
             onClear={() =>
               onDataChange({
                 connection_accessibility: "",
-                connection_accessibility_by_intersection: [],
-                touched_fields: {
-                  connection_accessibility: false,
-                  connection_accessibility_by_intersection: false,
-                },
-              })
-            }
+                  connection_accessibility_by_intersection: [],
+                  touched_fields: {
+                    connection_accessibility: false,
+                    connection_accessibility_by_intersection: false,
+                    ...resetIntersectionTouchKeys(["c2"]),
+                  },
+                })
+              }
             helpKey="C2"
             extraBadges={renderMedianBadges(
               "I",
@@ -778,10 +781,6 @@ const Page7: React.FC<Page7Props> = ({
             }
             showPager={!hideIntersectionPager}
           >
-            <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
-              utilizada como nota final.
-            </p>
             <ConceptCriteriaTable
               value={currentConnectionAccessibility || ""}
               onValueChange={(value) =>
@@ -795,6 +794,7 @@ const Page7: React.FC<Page7Props> = ({
                   touched_fields: {
                     connection_accessibility: true,
                     connection_accessibility_by_intersection: true,
+                    [intersectionTouchKey("c2", currentIntersectionIndex)]: true,
                   },
                 })
               }
@@ -811,7 +811,7 @@ const Page7: React.FC<Page7Props> = ({
                 },
                 {
                   value: "NA",
-                  label: "N/A",
+                  label: "-",
                   description: "Não se aplica, porque o trecho não possui conexão.",
                 },
               ]}
@@ -850,6 +850,7 @@ const Page7: React.FC<Page7Props> = ({
                   mixed_lane_width_m_by_intersection: false,
                   has_intersection_traffic_calming: false,
                   has_intersection_traffic_calming_by_intersection: false,
+                  ...resetIntersectionTouchKeys(["c3", "c3_lanes", "c3_width", "c3_calming"]),
                 },
               })
             }
@@ -866,10 +867,6 @@ const Page7: React.FC<Page7Props> = ({
             }
             showPager={!hideIntersectionPager}
           >
-            <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Os conceitos de todos os cruzamentos são ordenados alfabeticamente e a mediana é
-              utilizada como nota final.
-            </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -968,6 +965,7 @@ const Page7: React.FC<Page7Props> = ({
                         touched_fields: {
                           traffic_lanes_per_direction: true,
                           traffic_lanes_per_direction_by_intersection: true,
+                          [intersectionTouchKey("c3_lanes", currentIntersectionIndex)]: true,
                         },
                       })
                     }
@@ -992,6 +990,7 @@ const Page7: React.FC<Page7Props> = ({
                         touched_fields: {
                           mixed_lane_width_m: true,
                           mixed_lane_width_m_by_intersection: true,
+                          [intersectionTouchKey("c3_width", currentIntersectionIndex)]: true,
                         },
                       })
                     }
@@ -1014,6 +1013,7 @@ const Page7: React.FC<Page7Props> = ({
                           touched_fields: {
                             has_intersection_traffic_calming: true,
                             has_intersection_traffic_calming_by_intersection: true,
+                            [intersectionTouchKey("c3_calming", currentIntersectionIndex)]: true,
                           },
                         })
                       }

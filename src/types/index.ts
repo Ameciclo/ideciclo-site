@@ -191,7 +191,8 @@ export interface SurveyResponses {
   no_risk_situations: boolean;
 
   // B.6 Risk situations along infrastructure
-  bus_school_conflict: boolean;
+  bus_stop_conflict: boolean;
+  school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;
   side_change_mid_block: boolean;

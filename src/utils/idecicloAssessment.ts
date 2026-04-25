@@ -539,7 +539,8 @@ const calculateB6 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 
 const calculateB7 = (formData: Partial<IdecicloFormData>): IdecicloRating => {
   const riskCount = [
-    formData.bus_school_conflict,
+    formData.bus_stop_conflict,
+    formData.school_conflict,
     formData.horizontal_obstacles,
     formData.vertical_obstacles,
     formData.side_change_mid_block,

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
 import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
@@ -176,7 +176,8 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   signalized_crossings_count_by_block: [],
   no_risk_situations: false,
   risk_occurrence_counts: {},
-  bus_school_conflict: false,
+  bus_stop_conflict: false,
+  school_conflict: false,
   horizontal_obstacles: false,
   vertical_obstacles: false,
   side_change_mid_block: false,
@@ -221,6 +222,7 @@ const mergeWithDefaults = (
   const data = incoming ?? {};
   const legacyData = data as Partial<IdecicloFormData> & {
     signalized_crossings_per_block?: number;
+    bus_school_conflict?: boolean;
   };
   const fallbackTrafficCalmingCounts =
     data.traffic_calming_counts && Object.keys(data.traffic_calming_counts).length > 0
@@ -232,50 +234,51 @@ const mergeWithDefaults = (
     data.risk_occurrence_counts && Object.keys(data.risk_occurrence_counts).length > 0
       ? data.risk_occurrence_counts
       : {
-          ...(data.bus_school_conflict ? { bus_school_conflict: 1 } : {}),
-          ...(data.horizontal_obstacles ? { horizontal_obstacles: 1 } : {}),
-          ...(data.vertical_obstacles ? { vertical_obstacles: 1 } : {}),
-          ...(data.side_change_mid_block ? { side_change_mid_block: 1 } : {}),
-          ...(data.opposite_flow_direction ? { opposite_flow_direction: 1 } : {}),
-        };
+        ...((data.bus_stop_conflict || legacyData.bus_school_conflict) ? { bus_stop_conflict: 1 } : {}),
+        ...(data.school_conflict ? { school_conflict: 1 } : {}),
+        ...(data.horizontal_obstacles ? { horizontal_obstacles: 1 } : {}),
+        ...(data.vertical_obstacles ? { vertical_obstacles: 1 } : {}),
+        ...(data.side_change_mid_block ? { side_change_mid_block: 1 } : {}),
+        ...(data.opposite_flow_direction ? { opposite_flow_direction: 1 } : {}),
+      };
   const fallbackIntersectionSignaling =
     Array.isArray(data.intersection_signaling_by_intersection) &&
-    data.intersection_signaling_by_intersection.length > 0
+      data.intersection_signaling_by_intersection.length > 0
       ? data.intersection_signaling_by_intersection
       : data.intersection_signaling
         ? [data.intersection_signaling]
         : [];
   const fallbackConnectionAccessibility =
     Array.isArray(data.connection_accessibility_by_intersection) &&
-    data.connection_accessibility_by_intersection.length > 0
+      data.connection_accessibility_by_intersection.length > 0
       ? data.connection_accessibility_by_intersection
       : data.connection_accessibility
         ? [data.connection_accessibility]
         : [];
   const fallbackTrafficLanesPerIntersection =
     Array.isArray(data.traffic_lanes_per_direction_by_intersection) &&
-    data.traffic_lanes_per_direction_by_intersection.length > 0
+      data.traffic_lanes_per_direction_by_intersection.length > 0
       ? data.traffic_lanes_per_direction_by_intersection
       : typeof data.traffic_lanes_per_direction === "number"
         ? [data.traffic_lanes_per_direction]
         : [];
   const fallbackMixedLaneWidthPerIntersection =
     Array.isArray(data.mixed_lane_width_m_by_intersection) &&
-    data.mixed_lane_width_m_by_intersection.length > 0
+      data.mixed_lane_width_m_by_intersection.length > 0
       ? data.mixed_lane_width_m_by_intersection
       : typeof data.mixed_lane_width_m === "number"
         ? [data.mixed_lane_width_m]
         : [];
   const fallbackIntersectionTrafficCalming =
     Array.isArray(data.has_intersection_traffic_calming_by_intersection) &&
-    data.has_intersection_traffic_calming_by_intersection.length > 0
+      data.has_intersection_traffic_calming_by_intersection.length > 0
       ? data.has_intersection_traffic_calming_by_intersection
       : typeof data.has_intersection_traffic_calming === "boolean"
         ? [data.has_intersection_traffic_calming]
         : [];
   const fallbackMotorizedConflictsByIntersection =
     Array.isArray(data.motorized_conflicts_by_intersection) &&
-    data.motorized_conflicts_by_intersection.length > 0
+      data.motorized_conflicts_by_intersection.length > 0
       ? data.motorized_conflicts_by_intersection
       : Array.isArray(data.motorized_conflicts) && data.motorized_conflicts.length > 0
         ? [data.motorized_conflicts]
@@ -294,19 +297,19 @@ const mergeWithDefaults = (
         : [];
   const fallbackSignalizedCrossingsByBlock =
     Array.isArray(data.signalized_crossings_count_by_block) &&
-    data.signalized_crossings_count_by_block.length > 0
+      data.signalized_crossings_count_by_block.length > 0
       ? data.signalized_crossings_count_by_block
       : typeof data.signalized_crossings_count === "number"
         ? [data.signalized_crossings_count]
         : [];
   const fallbackVerticalSignsConservationByBlock =
     Array.isArray(data.vertical_signs_conservation_by_block) &&
-    data.vertical_signs_conservation_by_block.length > 0
+      data.vertical_signs_conservation_by_block.length > 0
       ? data.vertical_signs_conservation_by_block
       : [];
   const fallbackRegulationSignsPerBlock =
     Array.isArray(data.regulation_signs_per_block_by_block) &&
-    data.regulation_signs_per_block_by_block.length > 0
+      data.regulation_signs_per_block_by_block.length > 0
       ? data.regulation_signs_per_block_by_block
       : typeof data.regulation_signs_per_block === "number"
         ? [data.regulation_signs_per_block]
@@ -435,51 +438,51 @@ const ANSWER_FILTER_SEQUENCE: Array<{
   label: string;
   shortLabel: string;
 }> = [
-  { value: "all", label: "Todos", shortLabel: "Todos" },
-  { value: "answered", label: "Respondidos", shortLabel: "Resp." },
-  { value: "unanswered", label: "Pendentes", shortLabel: "Pend." },
-];
+    { value: "all", label: "Situação", shortLabel: "Sit." },
+    { value: "answered", label: "Respondidos", shortLabel: "Resp." },
+    { value: "unanswered", label: "Pendentes", shortLabel: "Pend." },
+  ];
 
 const REVIEW_FILTER_SEQUENCE: Array<{
   value: CriterionReviewFilter;
   label: string;
   shortLabel: string;
 }> = [
-  { value: "all", label: "Todos", shortLabel: "Todos" },
-  { value: "analysis", label: "Fixados", shortLabel: "Fix." },
-];
+    { value: "all", label: "Todos", shortLabel: "Todos" },
+    { value: "analysis", label: "Fixados", shortLabel: "Fix." },
+  ];
 
 const CRITERION_NAV_ITEMS: Array<{
   code: CriterionCode;
   anchor: string;
 }> = [
-  { code: "A1", anchor: "section-a" },
-  { code: "A2", anchor: "section-a" },
-  { code: "B2", anchor: "criterion-b2" },
-  { code: "E2", anchor: "criterion-e2" },
-  { code: "D1", anchor: "criterion-d1" },
-  { code: "D2", anchor: "criterion-d2" },
-  { code: "B4", anchor: "criterion-b42" },
-  { code: "E4", anchor: "criterion-e41" },
-  { code: "B3", anchor: "criterion-b31" },
-  { code: "E3", anchor: "criterion-e31" },
-  { code: "B7", anchor: "criterion-b7" },
-  { code: "B1", anchor: "criterion-b11" },
-  { code: "B5", anchor: "criterion-b5" },
-  { code: "D3", anchor: "criterion-d3" },
-  { code: "B6", anchor: "criterion-b12" },
-  { code: "C1", anchor: "criterion-c1" },
-  { code: "E1", anchor: "criterion-e1" },
-  { code: "C2", anchor: "criterion-c2" },
-  { code: "C3", anchor: "criterion-c3" },
-];
+    { code: "A1", anchor: "section-a" },
+    { code: "A2", anchor: "section-a" },
+    { code: "B2", anchor: "criterion-b2" },
+    { code: "E2", anchor: "criterion-e2" },
+    { code: "D1", anchor: "criterion-d1" },
+    { code: "D2", anchor: "criterion-d2" },
+    { code: "B4", anchor: "criterion-b42" },
+    { code: "E4", anchor: "criterion-e41" },
+    { code: "B3", anchor: "criterion-b31" },
+    { code: "E3", anchor: "criterion-e31" },
+    { code: "B7", anchor: "criterion-b7" },
+    { code: "B1", anchor: "criterion-b11" },
+    { code: "B5", anchor: "criterion-b5" },
+    { code: "D3", anchor: "criterion-d3" },
+    { code: "B6", anchor: "criterion-b12" },
+    { code: "C1", anchor: "criterion-c1" },
+    { code: "E1", anchor: "criterion-e1" },
+    { code: "C2", anchor: "criterion-c2" },
+    { code: "C3", anchor: "criterion-c3" },
+  ];
 
 const SECTION_NAV_ITEMS = [
   { id: "section-a", label: "Caracterização", tone: "a" },
   { id: "section-pavimento", label: "Cicloviário", tone: "e" },
   { id: "section-luz", label: "Iluminação", tone: "d" },
   { id: "section-risco", label: "Risco", tone: "b" },
-  { id: "section-medicoes", label: "Medições", tone: "b" },
+  { id: "section-medicoes", label: "Medições", tone: "a" },
   { id: "section-quadras", label: "Quadras", tone: "b" },
   { id: "section-intersecoes", label: "Interseções", tone: "c" },
   { id: "section-comentarios", label: "Comentários", tone: "e" },
@@ -503,9 +506,8 @@ const HeaderField = ({
   <div>
     <label className="mb-1 block text-sm font-medium text-foreground">{label}</label>
     <input
-      className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ${
-        readOnly ? "bg-gray-100 text-muted-foreground" : "bg-background"
-      }`}
+      className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ${readOnly ? "bg-gray-100 text-muted-foreground" : "bg-background"
+        }`}
       type={type}
       name={name}
       value={value}
@@ -515,6 +517,67 @@ const HeaderField = ({
     />
   </div>
 );
+
+const HorizontalScrollIndicators: React.FC<{
+  children: React.ReactNode;
+  viewportClassName?: string;
+}> = ({ children, viewportClassName }) => {
+  const viewportRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+
+    const updateIndicators = () => {
+      const maxScrollLeft = element.scrollWidth - element.clientWidth;
+      setCanScrollLeft(element.scrollLeft > 4);
+      setCanScrollRight(maxScrollLeft - element.scrollLeft > 4);
+    };
+
+    updateIndicators();
+    element.addEventListener("scroll", updateIndicators, { passive: true });
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(updateIndicators)
+      : null;
+    resizeObserver?.observe(element);
+
+    window.addEventListener("resize", updateIndicators);
+
+    return () => {
+      element.removeEventListener("scroll", updateIndicators);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateIndicators);
+    };
+  }, []);
+
+  return (
+    <div className="relative">
+      {canScrollLeft ? (
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-start bg-gradient-to-r from-white/95 via-white/80 to-transparent pl-1">
+          <div className="rounded-full border border-slate-200 bg-white/95 p-1 shadow-sm">
+            <ChevronLeft className="h-3.5 w-3.5 text-slate-500" />
+          </div>
+        </div>
+      ) : null}
+      {canScrollRight ? (
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-10 items-center justify-end bg-gradient-to-l from-white/95 via-white/80 to-transparent pr-1">
+          <div className="rounded-full border border-slate-200 bg-white/95 p-1 shadow-sm">
+            <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+          </div>
+        </div>
+      ) : null}
+      <div
+        ref={viewportRef}
+        className={viewportClassName || "overflow-x-auto scrollbar-none"}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const getPendingSubmissions = (): PendingSubmission[] => {
   try {
@@ -690,10 +753,10 @@ const SegmentForm = () => {
     REVIEW_FILTER_SEQUENCE[0];
   const currentAnswerFilterCompactLabel =
     globalCriterionFilter.answer === "answered"
-      ? "(R)"
+      ? "R.:"
       : globalCriterionFilter.answer === "unanswered"
-        ? "(P)"
-        : "(R:)";
+        ? "P."
+        : "R.:";
   const shouldShowFilterModeToggle =
     globalCriterionFilter.answer !== "all" && globalCriterionFilter.review !== "all";
   const currentFilterModeLabel = globalCriterionFilter.mode === "or" ? "OU" : "E";
@@ -729,7 +792,8 @@ const SegmentForm = () => {
     }
     if (code === "B7") {
       return Boolean(formData.no_risk_situations) ||
-        Boolean(formData.bus_school_conflict) ||
+        Boolean(formData.bus_stop_conflict) ||
+        Boolean(formData.school_conflict) ||
         Boolean(formData.horizontal_obstacles) ||
         Boolean(formData.vertical_obstacles) ||
         Boolean(formData.side_change_mid_block) ||
@@ -739,12 +803,12 @@ const SegmentForm = () => {
       return typology.includes("ciclorrota")
         ? hasTouched(["pictograms_per_block", "pictograms_cover_all_blocks"])
         : hasTouched([
-            "regulation_signs_per_block",
-            "regulation_signs_per_block_by_block",
-            "signs_both_directions",
-            "signs_both_directions_by_block",
-            "space_identification",
-          ]);
+          "regulation_signs_per_block",
+          "regulation_signs_per_block_by_block",
+          "signs_both_directions",
+          "signs_both_directions_by_block",
+          "space_identification",
+        ]);
     }
     if (code === "C1") {
       return hasTouched(["intersection_signaling_by_intersection", "intersection_signaling"]);
@@ -758,13 +822,13 @@ const SegmentForm = () => {
     if (code === "C3") {
       return typology.includes("ciclorrota")
         ? hasTouched([
-            "traffic_lanes_per_direction_by_intersection",
-            "mixed_lane_width_m_by_intersection",
-            "has_intersection_traffic_calming_by_intersection",
-            "traffic_lanes_per_direction",
-            "mixed_lane_width_m",
-            "has_intersection_traffic_calming",
-          ])
+          "traffic_lanes_per_direction_by_intersection",
+          "mixed_lane_width_m_by_intersection",
+          "has_intersection_traffic_calming_by_intersection",
+          "traffic_lanes_per_direction",
+          "mixed_lane_width_m",
+          "has_intersection_traffic_calming",
+        ])
         : hasTouched(["motorized_conflicts_by_intersection", "motorized_conflicts"]);
     }
     if (code === "D1") return hasTouched(["lighting_rating"]);
@@ -878,6 +942,78 @@ const SegmentForm = () => {
   const sectionNavItems = SECTION_NAV_ITEMS;
   const blockCount = Math.max(0, Number(formData.blocks_count || 0));
   const intersectionCount = Math.max(0, Number(formData.intersections_count || 0));
+  const normalizedTypology = String(formData.infra_typology || "").toLowerCase();
+  const touchedFields = formData.touched_fields || {};
+  const isCiclorrota = normalizedTypology.includes("ciclorrota");
+
+  const blockCompletionStates = useMemo(
+    () =>
+      Array.from({ length: blockCount }, (_, index) => {
+        const hasB41 =
+          isCiclorrota || (
+            Boolean(touchedFields[`block_b41_signs_${index}`]) &&
+            Boolean(touchedFields[`block_b41_directions_${index}`])
+          );
+        const hasE41 =
+          isCiclorrota || Boolean(touchedFields[`block_e41_${index}`]);
+        const hasB5 =
+          Boolean(touchedFields[`block_b5_crossings_${index}`]) &&
+          Boolean(touchedFields[`block_b5_lanes_${index}`]);
+        const hasD3 = Boolean(touchedFields[`block_d3_${index}`]);
+
+        return hasB41 && hasE41 && hasB5 && hasD3;
+      }),
+    [blockCount, isCiclorrota, touchedFields]
+  );
+
+  const globalIntersectionConservationAnswered =
+    isCiclorrota ||
+    Boolean(formData.intersection_conservation) ||
+    Boolean(touchedFields.intersection_conservation);
+
+  const intersectionCompletionStates = useMemo(
+    () =>
+      Array.from({ length: intersectionCount }, (_, index) => {
+        const hasC1 = isCiclorrota || Boolean(touchedFields[`intersection_c1_${index}`]);
+        const hasC2 = Boolean(touchedFields[`intersection_c2_${index}`]);
+        const hasC3 = isCiclorrota
+          ? Boolean(touchedFields[`intersection_c3_lanes_${index}`]) &&
+            Boolean(touchedFields[`intersection_c3_width_${index}`]) &&
+            Boolean(touchedFields[`intersection_c3_calming_${index}`])
+          : Boolean(touchedFields[`intersection_c3_${index}`]);
+
+        return hasC1 && globalIntersectionConservationAnswered && hasC2 && hasC3;
+      }),
+    [globalIntersectionConservationAnswered, intersectionCount, isCiclorrota, touchedFields]
+  );
+
+  const getIndexedPagerClassName = (isActive: boolean, isComplete: boolean) => {
+    const baseClassName = isComplete
+      ? isActive
+        ? "border-emerald-700 bg-emerald-700 text-white"
+        : "border-emerald-200 bg-emerald-50/85 text-emerald-800 hover:bg-emerald-100"
+      : isActive
+        ? "border-rose-600 bg-rose-600 text-white"
+        : "border-rose-200 bg-rose-50/85 text-rose-800 hover:bg-rose-100";
+
+    return `${baseClassName} ${isActive ? "ring-2 ring-slate-900 ring-offset-1" : ""}`;
+  };
+
+  const getCriterionNavClassName = (
+    applicable: boolean,
+    inAnalysis: boolean,
+    answered: boolean,
+    rating: string | null | undefined
+  ) => {
+    if (!applicable) return "border-slate-200 bg-slate-100 text-slate-400 opacity-45";
+    if (inAnalysis) return "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300";
+    if (!answered) return "border-rose-600 bg-rose-600 text-white";
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-emerald-700 bg-emerald-700 text-white";
+  };
 
   useEffect(() => {
     setCurrentBlockIndex((prev) => Math.min(prev, Math.max(blockCount - 1, 0)));
@@ -1335,577 +1471,576 @@ const SegmentForm = () => {
         </Card>
       ) : (
         <>
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Cabeçalho da Avaliação</CardTitle>
-            <CardDescription>
-              Identificacao do trecho e dados gerais antes dos blocos do formulario em papel.
-            </CardDescription>
-          </CardHeader>
-          <div className="grid grid-cols-1 gap-4 px-6 pb-6 md:grid-cols-2 lg:grid-cols-3">
-            <HeaderField
-              label="Pesquisador(a):"
-              name="researcher"
-              value={formData.researcher || ""}
-              onChange={handleHeaderInputChange}
-            />
-            <HeaderField
-              label="Data:"
-              name="date"
-              type="date"
-              value={formData.date || ""}
-              onChange={handleHeaderInputChange}
-            />
-            <HeaderField
-              label="Cidade:"
-              name="city"
-              value={formData.city || ""}
-              readOnly
-            />
-            <HeaderField
-              label="Bairro:"
-              name="neighborhood"
-              value={formData.neighborhood || ""}
-              onChange={handleHeaderInputChange}
-            />
-            <HeaderField
-              label="ID:"
-              name="id"
-              value={formData.id || ""}
-              readOnly
-            />
-            <HeaderField
-              label="Nome Trecho:"
-              name="segment_name"
-              value={formData.segment_name || ""}
-              readOnly
-            />
-            <HeaderField
-              label="Extensão (m):"
-              name="extension_m"
-              type="number"
-              value={formData.extension_m || ""}
-              readOnly
-            />
-            <HeaderField
-              label="Início do trecho:"
-              name="start_point"
-              value={formData.start_point || ""}
-              onChange={handleHeaderInputChange}
-            />
-            <HeaderField
-              label="Fim do trecho:"
-              name="end_point"
-              value={formData.end_point || ""}
-              onChange={handleHeaderInputChange}
-            />
-          </div>
-        </Card>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Cabeçalho da Avaliação</CardTitle>
+              <CardDescription>
+                Identificacao do trecho e dados gerais antes dos blocos do formulario em papel.
+              </CardDescription>
+            </CardHeader>
+            <div className="grid grid-cols-1 gap-4 px-6 pb-6 md:grid-cols-2 lg:grid-cols-3">
+              <HeaderField
+                label="Pesquisador(a):"
+                name="researcher"
+                value={formData.researcher || ""}
+                onChange={handleHeaderInputChange}
+              />
+              <HeaderField
+                label="Data:"
+                name="date"
+                type="date"
+                value={formData.date || ""}
+                onChange={handleHeaderInputChange}
+              />
+              <HeaderField
+                label="Cidade:"
+                name="city"
+                value={formData.city || ""}
+                readOnly
+              />
+              <HeaderField
+                label="Bairro:"
+                name="neighborhood"
+                value={formData.neighborhood || ""}
+                onChange={handleHeaderInputChange}
+              />
+              <HeaderField
+                label="ID:"
+                name="id"
+                value={formData.id || ""}
+                readOnly
+              />
+              <HeaderField
+                label="Nome Trecho:"
+                name="segment_name"
+                value={formData.segment_name || ""}
+                readOnly
+              />
+              <HeaderField
+                label="Extensão (m):"
+                name="extension_m"
+                type="number"
+                value={formData.extension_m || ""}
+                readOnly
+              />
+              <HeaderField
+                label="Início do trecho:"
+                name="start_point"
+                value={formData.start_point || ""}
+                onChange={handleHeaderInputChange}
+              />
+              <HeaderField
+                label="Fim do trecho:"
+                name="end_point"
+                value={formData.end_point || ""}
+                onChange={handleHeaderInputChange}
+              />
+            </div>
+          </Card>
 
-        {currentStep === 1 ? (
-          <CriteriaAccordionContext.Provider
-            value={{
-              filter: globalCriterionFilter,
-              descriptionsVisible: criterionDescriptionsVisible,
-              criterionMetaVisible,
-            }}
-          >
-          <div className="space-y-10 pb-28">
-            <section id="section-a" className="space-y-6">
-              <AxisRibbon tone="a" title="Caracterizacao do Trecho e Enquadramento Inicial" />
-              <CriteriaAccordionGroup
-                allValues={["a1"]}
-                defaultOpenValues={["a1"]}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-              >
-                <AssessmentCriterionAccordion
-                  value="a1"
-                  title="A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia"
-                  description="Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada antes de seguir para a conectividade do trecho."
-                  scorePreview={buildCriterionScorePreview(formData, ["A1"])}
-                  answered={Boolean(
-                    formData.infra_typology &&
-                      formData.infra_flow &&
-                      formData.position_on_road &&
-                      formData.velocity_kmh > 0 &&
-                      (formData.road_hierarchy || formData.classification)
-                  )}
-                  inAnalysis={formData.criterion_workflow_state?.a1 === "analysis"}
-                  onAnalysisChange={(value) =>
-                    handleDataChange({
-                      criterion_workflow_state: {
-                        ...(formData.criterion_workflow_state || {}),
-                        a1: value ? "analysis" : "default",
-                      },
-                    })
-                  }
-                  onClear={() => {
-                    setAllowHierarchyEdit(false);
-                    handleDataChange({
-                      road_hierarchy: originalRoadHierarchy || "",
-                      classification: originalRoadHierarchy || undefined,
-                      infra_typology: originalSegmentType || "",
-                      infra_flow: "unidirectional",
-                      position_on_road: "pista_calcada",
-                      velocity_kmh: 0,
-                      pedestrian_flow_per_hour_per_meter: 0,
-                      touched_fields: {
-                        infra_typology: false,
-                        infra_flow: false,
-                        position_on_road: false,
-                        velocity_kmh: false,
-                        road_hierarchy: false,
-                        pedestrian_flow_per_hour_per_meter: false,
-                      },
-                    });
-                  }}
-                  helpKey="A1"
-                >
-                  <Page2
+          {currentStep === 1 ? (
+            <CriteriaAccordionContext.Provider
+              value={{
+                filter: globalCriterionFilter,
+                descriptionsVisible: criterionDescriptionsVisible,
+                criterionMetaVisible,
+              }}
+            >
+              <div className="space-y-10 pb-28">
+                <section id="section-a" className="space-y-6">
+                  <AxisRibbon tone="a" title="Caracterizacao do Trecho e Enquadramento Inicial" />
+                  <CriteriaAccordionGroup
+                    allValues={["a1"]}
+                    defaultOpenValues={["a1"]}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                  >
+                    <AssessmentCriterionAccordion
+                      value="a1"
+                      title="A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia"
+                      description="Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada antes de seguir para a conectividade do trecho."
+                      scorePreview={buildCriterionScorePreview(formData, ["A1"])}
+                      answered={Boolean(
+                        formData.infra_typology &&
+                        formData.infra_flow &&
+                        formData.position_on_road &&
+                        formData.velocity_kmh > 0 &&
+                        (formData.road_hierarchy || formData.classification)
+                      )}
+                      inAnalysis={formData.criterion_workflow_state?.a1 === "analysis"}
+                      onAnalysisChange={(value) =>
+                        handleDataChange({
+                          criterion_workflow_state: {
+                            ...(formData.criterion_workflow_state || {}),
+                            a1: value ? "analysis" : "default",
+                          },
+                        })
+                      }
+                      onClear={() => {
+                        setAllowHierarchyEdit(false);
+                        handleDataChange({
+                          road_hierarchy: originalRoadHierarchy || "",
+                          classification: originalRoadHierarchy || undefined,
+                          infra_typology: originalSegmentType || "",
+                          infra_flow: "unidirectional",
+                          position_on_road: "pista_calcada",
+                          velocity_kmh: 0,
+                          pedestrian_flow_per_hour_per_meter: 0,
+                          touched_fields: {
+                            infra_typology: false,
+                            infra_flow: false,
+                            position_on_road: false,
+                            velocity_kmh: false,
+                            road_hierarchy: false,
+                            pedestrian_flow_per_hour_per_meter: false,
+                          },
+                        });
+                      }}
+                      helpKey="A1"
+                    >
+                      <Page2
+                        data={formData}
+                        onDataChange={handleDataChange}
+                        segmentType={originalSegmentType}
+                        originalRoadHierarchy={originalRoadHierarchy}
+                        allowHierarchyEdit={allowHierarchyEdit}
+                        onHierarchyEditToggle={handleHierarchyEditToggle}
+                        onHierarchySelection={handleHierarchySelection}
+                      />
+                    </AssessmentCriterionAccordion>
+                  </CriteriaAccordionGroup>
+                  <Page1
                     data={formData}
                     onDataChange={handleDataChange}
-                    segmentType={originalSegmentType}
-                    originalRoadHierarchy={originalRoadHierarchy}
-                    allowHierarchyEdit={allowHierarchyEdit}
-                    onHierarchyEditToggle={handleHierarchyEditToggle}
-                    onHierarchySelection={handleHierarchySelection}
+                    originalCounts={originalSegmentCounts}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
                   />
-                </AssessmentCriterionAccordion>
-              </CriteriaAccordionGroup>
-              <Page1
-                data={formData}
-                onDataChange={handleDataChange}
-                originalCounts={originalSegmentCounts}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-              />
-            </section>
+                </section>
 
-            <section id="section-pavimento" className="space-y-6">
-              <AxisRibbon tone="e" title="Pavimento, Identificacao e Separacao do Cicloviario" />
-              <Page4
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-              />
-              <Page6
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                visibleValues={["b42", "e42"]}
-              />
-              <Page5
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-              />
-            </section>
+                <section id="section-pavimento" className="space-y-6">
+                  <AxisRibbon tone="e" title="Pavimento, Identificacao e Separacao do Cicloviario" />
+                  <Page4
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                  />
+                  <Page6
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    visibleValues={["b42", "e42"]}
+                  />
+                  <Page5
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                  />
+                </section>
 
-            <section id="section-luz" className="space-y-6">
-              <AxisRibbon tone="d" title="Iluminacao e conforto termico" />
-              <Page8
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                visibleValues={["d1", "d2"]}
-              />
-            </section>
+                <section id="section-luz" className="space-y-6">
+                  <AxisRibbon tone="d" title="Iluminacao e conforto termico" />
+                  <Page8
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    visibleValues={["d1", "d2"]}
+                  />
+                </section>
 
-            <section id="section-risco" className="space-y-6">
-              <AxisRibbon tone="b" title="Situacoes de risco" />
-              <Page7
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                visibleValues={["b7"]}
-              />
-            </section>
+                <section id="section-risco" className="space-y-6">
+                  <AxisRibbon tone="b" title="Situacoes de risco" />
+                  <Page7
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    visibleValues={["b7"]}
+                  />
+                </section>
 
-            <section id="section-medicoes" className="space-y-6">
-              <AxisRibbon tone="b" title="Medicoes da estrutura" />
-              <Page3
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                blockPager={blockPager}
-                visibleValues={
-                  String(formData.infra_typology || "").toLowerCase().includes("ciclorrota")
-                    ? ["b12"]
-                    : String(formData.infra_typology || "").toLowerCase().includes("compart") ||
-                        String(formData.infra_typology || "").toLowerCase().includes("calçada")
-                      ? ["b11"]
-                      : ["b11", "b32"]
-                }
-              />
-            </section>
-
-            <section id="section-quadras" className="space-y-6">
-              <AxisRibbon tone="b" title="Avaliacao das quadras" />
-              {blockCount > 0 ? (
-                <div className="sticky top-24 z-20 -mx-1 px-1">
-                  <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                      Quadra em edicao
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: blockCount }, (_, index) => {
-                        const isActive = index === currentBlockIndex;
-
-                        return (
-                          <button
-                            key={`section-quadras-q-${index + 1}`}
-                            type="button"
-                            onClick={() => setCurrentBlockIndex(index)}
-                            className={`h-9 rounded-full border px-3 text-sm font-semibold transition ${
-                              isActive
-                                ? "border-slate-900 bg-slate-900 text-white"
-                                : "border-[#9fd3cb] bg-[#edf8f5] text-[#163b38] hover:bg-[#e2f2ee]"
-                            }`}
-                          >
-                            Q{index + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              <Page6
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                blockPager={blockPager}
-                hideBlockPager
-                visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41", "e41"]}
-              />
-              <Page7
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                blockPager={blockPager}
-                hideBlockPager
-                currentIntersectionIndex={currentIntersectionIndex}
-                visibleValues={["b5"]}
-              />
-              <Page8
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                blockPager={blockPager}
-                hideBlockPager
-                visibleValues={["d3"]}
-              />
-            </section>
-
-            <section id="section-intersecoes" className="space-y-6">
-              <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
-              {intersectionCount > 0 ? (
-                <div className="sticky top-24 z-20 -mx-1 px-1">
-                  <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                      Intersecao em edicao
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: intersectionCount }, (_, index) => {
-                        const isActive = index === currentIntersectionIndex;
-
-                        return (
-                          <button
-                            key={`section-intersecoes-i-${index + 1}`}
-                            type="button"
-                            onClick={() => setCurrentIntersectionIndex(index)}
-                            className={`h-9 rounded-full border px-3 text-sm font-semibold transition ${
-                              isActive
-                                ? "border-slate-900 bg-slate-900 text-white"
-                                : "border-[#70c3df] bg-[#edf8fc] text-[#124457] hover:bg-[#e0f1f8]"
-                            }`}
-                          >
-                            I{index + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              <Page7
-                data={formData}
-                onDataChange={handleDataChange}
-                filter={globalCriterionFilter}
-                command={accordionCommand}
-                intersectionPager={intersectionPager}
-                hideIntersectionPager
-                currentIntersectionIndex={currentIntersectionIndex}
-                visibleValues={["c1", "e1", "c2", "c3"]}
-              />
-            </section>
-
-            <section id="section-comentarios" className="space-y-4">
-              <AxisRibbon tone="e" title="Comentarios" />
-              <Card>
-                <CardHeader>
-                  <CardTitle>Observacoes de campo</CardTitle>
-                  <CardDescription>
-                    Registre contexto, justificativas, ressalvas ou qualquer detalhe importante da avaliacao.
-                  </CardDescription>
-                </CardHeader>
-                <div className="px-6 pb-6">
-                  <Textarea
-                    value={formData.observations || ""}
-                    onChange={(event) =>
-                      handleDataChange({
-                        observations: event.target.value,
-                        touched_fields: { observations: event.target.value.trim().length > 0 },
-                      })
+                <section id="section-medicoes" className="space-y-6">
+                  <AxisRibbon tone="a" title="Medicoes da estrutura" />
+                  <Page3
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    blockPager={blockPager}
+                    visibleValues={
+                      String(formData.infra_typology || "").toLowerCase().includes("ciclorrota")
+                        ? ["b12"]
+                        : String(formData.infra_typology || "").toLowerCase().includes("compart") ||
+                          String(formData.infra_typology || "").toLowerCase().includes("calçada")
+                          ? ["b11"]
+                          : ["b11", "b32"]
                     }
-                    placeholder="Ex.: interferencias temporarias, duvidas de classificacao, condicoes do trecho no momento da visita..."
-                    className="min-h-[140px]"
                   />
-                </div>
-              </Card>
-            </section>
+                </section>
 
-            <div className="flex justify-end">
-              <Button type="button" onClick={() => setCurrentStep(2)} size="lg">
-                Ir para a Revisão Final
-              </Button>
-            </div>
+                <section id="section-quadras" className="space-y-6">
+                  <AxisRibbon tone="e" title="Avaliacao das quadras" />
+                  {blockCount > 0 ? (
+                    <div className="sticky top-24 z-20 -mx-1 px-1">
+                      <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+                        {criterionDescriptionsVisible ? (
+                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                            Quadra em edicao
+                          </div>) : null}
+                        <HorizontalScrollIndicators viewportClassName="overflow-x-auto">
+                          <div className="flex min-w-max items-center gap-2 px-8">
+                            {Array.from({ length: blockCount }, (_, index) => {
+                              const isActive = index === currentBlockIndex;
+                              const isComplete = blockCompletionStates[index] ?? false;
 
-            <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3">
-              <div className="w-full max-w-5xl rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur">
-                <div className="flex flex-col gap-3">
-                  {navigationRowsVisible ? (
-                    <>
-                      <div className="overflow-x-auto">
-                        <div className="flex min-w-max items-center gap-2">
-                          {sectionNavItems.map((section) => (
-                            <button
-                              key={section.id}
-                              type="button"
-                              onClick={() => scrollToSection(section.id)}
-                              className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${
-                                section.id === "section-quadras"
-                                  ? "bg-[#f4c4cc]"
-                                  : section.id === "section-comentarios"
-                                    ? "bg-[#f3df8a]"
-                                    : section.tone === "a"
-                                  ? "bg-[#f6d26d]"
-                                  : section.tone === "b"
-                                    ? "bg-[#de6d57]"
-                                    : section.tone === "c"
-                                      ? "bg-[#70c3df]"
-                                      : section.tone === "d"
-                                        ? "bg-[#6cab73]"
-                                        : "bg-[#f4c4cc]"
-                              }`}
-                            >
-                              {section.label}
-                            </button>
-                          ))}
-                        </div>
+                              return (
+                                <button
+                                  key={`section-quadras-q-${index + 1}`}
+                                  type="button"
+                                  onClick={() => setCurrentBlockIndex(index)}
+                                  className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                    isActive,
+                                    isComplete
+                                  )}`}
+                                >
+                                  Q{index + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </HorizontalScrollIndicators>
                       </div>
-
-                      <div className="overflow-x-auto">
-                        <div className="flex min-w-max items-center gap-2">
-                        {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
-                          const applicable = isCriterionApplicable(formData, code);
-                          const points = liveSummary.sections?.[code[0]]?.items?.[code]?.points;
-                          const inAnalysis = criterionPinned(code);
-                          const answered = criterionAnswered(code);
-
-                          return (
-                            <button
-                              key={code}
-                              type="button"
-                              onClick={() => scrollToCriterion(code)}
-                              className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${
-                                !applicable
-                                  ? "border-slate-200 bg-slate-100 text-slate-400 opacity-45"
-                                  : inAnalysis
-                                    ? "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300"
-                                    : answered
-                                      ? "border-emerald-700 bg-emerald-700 text-white"
-                                      : "border-rose-600 bg-rose-600 text-white"
-                              }`}
-                            >
-                              <span>{code}</span>
-                            </button>
-                          );
-                        })}
-                        </div>
-                      </div>
-                    </>
+                    </div>
                   ) : null}
+                  <Page6
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    blockPager={blockPager}
+                    hideBlockPager
+                    visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41", "e41"]}
+                  />
+                  <Page7
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    blockPager={blockPager}
+                    hideBlockPager
+                    currentIntersectionIndex={currentIntersectionIndex}
+                    visibleValues={["b5"]}
+                  />
+                  <Page8
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    blockPager={blockPager}
+                    hideBlockPager
+                    visibleValues={["d3"]}
+                  />
+                </section>
 
-                  <div className="flex flex-wrap items-center justify-start gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      title={navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
-                      aria-pressed={navigationRowsVisible}
-                      className={`h-8 w-8 rounded-full ${
-                        navigationRowsVisible
-                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
-                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                      onClick={toggleNavigationRowsVisible}
-                    >
-                      <Menu className="h-4 w-4" />
-                      <span className="sr-only">
-                        {navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
-                      </span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 rounded-full px-2.5 text-[11px] font-semibold"
-                      onClick={toggleAccordionDisplayMode}
-                    >
-                      {accordionDisplayMode === "expanded" ? (
-                        <ChevronDown className="h-3.5 w-3.5 sm:mr-1" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 sm:mr-1" />
-                      )}
-                      <span className="hidden sm:inline">
-                        {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
-                      </span>
-                      <span className="sr-only">
-                        {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
-                      </span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                        globalCriterionFilter.answer === "answered"
-                          ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
-                          : globalCriterionFilter.answer === "unanswered"
-                            ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                      onClick={cycleAnswerFilter}
-                      title={currentAnswerFilter.label}
-                    >
-                      <span>{currentAnswerFilterCompactLabel}</span>
-                    </Button>
-                    {shouldShowFilterModeToggle ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                          globalCriterionFilter.mode === "or"
-                            ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-600/90"
-                            : "border-violet-600 bg-violet-600 text-white hover:bg-violet-600/90"
-                        }`}
-                        onClick={toggleFilterMode}
-                      >
-                        <span>{currentFilterModeLabel}</span>
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                        globalCriterionFilter.review === "analysis"
-                          ? "border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100/90"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                      onClick={cycleReviewFilter}
-                      title={currentReviewFilter.label}
-                      >
-                        <Pin
-                          className={`h-3.5 w-3.5 sm:mr-1 ${
-                            globalCriterionFilter.review === "analysis" ? "fill-current" : ""
-                          }`}
-                        />
-                        <span className="hidden sm:inline">{currentReviewFilter.label}</span>
-                        <span className="sr-only sm:hidden">{currentReviewFilter.label}</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      title={criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
-                      aria-pressed={criterionMetaVisible}
-                      className={`h-8 w-8 rounded-full ${
-                        criterionMetaVisible
-                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
-                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                      onClick={toggleCriterionMetaVisible}
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span className="sr-only">
-                        {criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
-                      </span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      title={criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
-                      aria-pressed={criterionDescriptionsVisible}
-                      className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
-                        criterionDescriptionsVisible
-                          ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
-                          : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                      }`}
-                      onClick={toggleCriterionDescriptionsVisible}
-                    >
-                      <Lightbulb
-                        className={`h-4 w-4 ${criterionDescriptionsVisible ? "fill-current" : ""} sm:mr-1`}
+                <section id="section-intersecoes" className="space-y-6">
+                  <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
+                  {intersectionCount > 0 ? (
+                    <div className="sticky top-24 z-20 -mx-1 px-1">
+                      <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+                        {criterionDescriptionsVisible ? (
+                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                            Intersecao em edicao
+                          </div>) : null}
+                        <HorizontalScrollIndicators viewportClassName="overflow-x-auto">
+                          <div className="flex min-w-max items-center gap-2 px-8">
+                            {Array.from({ length: intersectionCount }, (_, index) => {
+                              const isActive = index === currentIntersectionIndex;
+                              const isComplete = intersectionCompletionStates[index] ?? false;
+
+                              return (
+                                <button
+                                  key={`section-intersecoes-i-${index + 1}`}
+                                  type="button"
+                                  onClick={() => setCurrentIntersectionIndex(index)}
+                                  className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                    isActive,
+                                    isComplete
+                                  )}`}
+                                >
+                                  I{index + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </HorizontalScrollIndicators>
+                      </div>
+                    </div>
+                  ) : null}
+                  <Page7
+                    data={formData}
+                    onDataChange={handleDataChange}
+                    filter={globalCriterionFilter}
+                    command={accordionCommand}
+                    intersectionPager={intersectionPager}
+                    hideIntersectionPager
+                    currentIntersectionIndex={currentIntersectionIndex}
+                    visibleValues={["c1", "e1", "c2", "c3"]}
+                  />
+                </section>
+
+                <section id="section-comentarios" className="space-y-4">
+                  <AxisRibbon tone="e" title="Comentarios" />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Observacoes de campo</CardTitle>
+                      <CardDescription>
+                        Registre contexto, justificativas, ressalvas ou qualquer detalhe importante da avaliacao.
+                      </CardDescription>
+                    </CardHeader>
+                    <div className="px-6 pb-6">
+                      <Textarea
+                        value={formData.observations || ""}
+                        onChange={(event) =>
+                          handleDataChange({
+                            observations: event.target.value,
+                            touched_fields: { observations: event.target.value.trim().length > 0 },
+                          })
+                        }
+                        placeholder="Ex.: interferencias temporarias, duvidas de classificacao, condicoes do trecho no momento da visita..."
+                        className="min-h-[140px]"
                       />
-                      <span className="hidden sm:inline">
-                        {criterionDescriptionsVisible ? "Ajuda ligada" : "Ajuda desligada"}
-                      </span>
-                      <span className="sr-only">
-                        {criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
-                      </span>
-                    </Button>
+                    </div>
+                  </Card>
+                </section>
+
+                <div className="flex justify-end">
+                  <Button type="button" onClick={() => setCurrentStep(2)} size="lg">
+                    Ir para a Revisão Final
+                  </Button>
+                </div>
+
+                <div className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-3">
+                  <div className="w-full max-w-5xl rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur">
+                    <div className="flex flex-col gap-3">
+                      {navigationRowsVisible ? (
+                        <>
+                          <div className="overflow-x-auto">
+                            <div className="flex min-w-max items-center gap-2">
+                              {sectionNavItems.map((section) => (
+                                <button
+                                  key={section.id}
+                                  type="button"
+                                  onClick={() => scrollToSection(section.id)}
+                                  className={`h-8 rounded-full border border-transparent px-3 text-[11px] font-semibold text-slate-900 transition hover:brightness-[0.98] sm:text-xs ${section.id === "section-quadras"
+                                    ? "bg-[#f4c4cc]"
+                                    : section.id === "section-comentarios"
+                                      ? "bg-[#f3df8a]"
+                                      : section.tone === "a"
+                                        ? "bg-[#f6d26d]"
+                                        : section.tone === "b"
+                                          ? "bg-[#de6d57]"
+                                          : section.tone === "c"
+                                            ? "bg-[#70c3df]"
+                                            : section.tone === "d"
+                                              ? "bg-[#6cab73]"
+                                              : "bg-[#f4c4cc]"
+                                    }`}
+                                >
+                                  {section.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <div className="flex min-w-max items-center gap-2">
+                              {CRITERION_CODES.filter((code) => criterionMatchesCurrentFilters(code)).map((code) => {
+                                const applicable = isCriterionApplicable(formData, code);
+                                const rating = liveSummary.resolvedRatings?.[code];
+                                const inAnalysis = criterionPinned(code);
+                                const answered = criterionAnswered(code);
+
+                                return (
+                                  <button
+                                    key={code}
+                                    type="button"
+                                    onClick={() => scrollToCriterion(code)}
+                                    className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getCriterionNavClassName(
+                                      applicable,
+                                      inAnalysis,
+                                      answered,
+                                      rating
+                                    )}`}
+                                  >
+                                    <span>{code}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
+
+                      <div className="flex flex-wrap items-center justify-start gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title={navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
+                          aria-pressed={navigationRowsVisible}
+                          className={`h-8 w-8 rounded-full ${navigationRowsVisible
+                            ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                          onClick={toggleNavigationRowsVisible}
+                        >
+                          <Menu className="h-4 w-4" />
+                          <span className="sr-only">
+                            {navigationRowsVisible ? "Ocultar navegacao" : "Mostrar navegacao"}
+                          </span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-full px-2.5 text-[11px] font-semibold"
+                          onClick={toggleAccordionDisplayMode}
+                        >
+                          {accordionDisplayMode === "expanded" ? (
+                            <ChevronDown className="h-3.5 w-3.5 sm:mr-1" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 sm:mr-1" />
+                          )}
+                          <span className="hidden sm:inline">
+                            {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
+                          </span>
+                          <span className="sr-only">
+                            {accordionDisplayMode === "expanded" ? "Expandido" : "Colapsado"}
+                          </span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${globalCriterionFilter.answer === "answered"
+                            ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-700/90"
+                            : globalCriterionFilter.answer === "unanswered"
+                              ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-600/90"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}
+                          onClick={cycleAnswerFilter}
+                          title={currentAnswerFilter.label}
+                        >
+                          <span className="sm:hidden">{currentAnswerFilterCompactLabel}</span>
+                          <span className="hidden sm:inline">{currentAnswerFilter.label}</span>
+                        </Button>
+                        {shouldShowFilterModeToggle ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${globalCriterionFilter.mode === "or"
+                              ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-600/90"
+                              : "border-violet-600 bg-violet-600 text-white hover:bg-violet-600/90"
+                              }`}
+                            onClick={toggleFilterMode}
+                          >
+                            <span>{currentFilterModeLabel}</span>
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${globalCriterionFilter.review === "analysis"
+                            ? "border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100/90"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}
+                          onClick={cycleReviewFilter}
+                          title={currentReviewFilter.label}
+                        >
+                          <Pin
+                            className={`h-3.5 w-3.5 sm:mr-1 ${globalCriterionFilter.review === "analysis" ? "fill-current" : ""
+                              }`}
+                          />
+                          <span className="hidden sm:inline">{currentReviewFilter.label}</span>
+                          <span className="sr-only sm:hidden">{currentReviewFilter.label}</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          title={criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
+                          aria-pressed={criterionMetaVisible}
+                          className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${criterionMetaVisible
+                            ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                          onClick={toggleCriterionMetaVisible}
+                        >
+                          <Eye className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">
+                            {criterionMetaVisible ? "Barra de Itens ligada" : "Barra de Itens desligada"}
+                          </span>
+                          <span className="sr-only">
+                            {criterionMetaVisible ? "Ocultar barra de status dos itens" : "Mostrar barra de status dos itens"}
+                          </span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          title={criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
+                          aria-pressed={criterionDescriptionsVisible}
+                          className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${criterionDescriptionsVisible
+                            ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-900/90"
+                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                          onClick={toggleCriterionDescriptionsVisible}
+                        >
+                          <Lightbulb
+                            className={`h-4 w-4 ${criterionDescriptionsVisible ? "fill-current" : ""} sm:mr-1`}
+                          />
+                          <span className="hidden sm:inline">
+                            {criterionDescriptionsVisible ? "Ajuda ligada" : "Ajuda desligada"}
+                          </span>
+                          <span className="sr-only">
+                            {criterionDescriptionsVisible ? "Desligar ajudas" : "Ligar ajudas"}
+                          </span>
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-          </CriteriaAccordionContext.Provider>
-        ) : (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Revisão Final</CardTitle>
-              <CardDescription>
-                Revise as notas, veja o que foi considerado em cada criterio e troque para o
-                modo manual quando precisar ajustar algum conceito.
-              </CardDescription>
-            </CardHeader>
-            <div className="px-6 pb-2">
-              <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
-            </div>
-            <div className="flex flex-col gap-3 px-6 py-6 md:flex-row md:justify-between">
-              <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
-                Voltar para a Coleta
-              </Button>
-              <Button onClick={handleSubmit} size="lg">
-                <Save className="mr-2 h-4 w-4" />
-                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
-              </Button>
-            </div>
-          </Card>
-        )}
+            </CriteriaAccordionContext.Provider>
+          ) : (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Revisão Final</CardTitle>
+                <CardDescription>
+                  Revise as notas, veja o que foi considerado em cada criterio e troque para o
+                  modo manual quando precisar ajustar algum conceito.
+                </CardDescription>
+              </CardHeader>
+              <div className="px-6 pb-2">
+                <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
+              </div>
+              <div className="flex flex-col gap-3 px-6 py-6 md:flex-row md:justify-between">
+                <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
+                  Voltar para a Coleta
+                </Button>
+                <Button onClick={handleSubmit} size="lg">
+                  <Save className="mr-2 h-4 w-4" />
+                  {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+                </Button>
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>

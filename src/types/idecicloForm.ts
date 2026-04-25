@@ -8,7 +8,8 @@ export type TrafficCalmingMeasure =
   | "elevacao_intersecao"
   | "reducao_largura";
 export type RiskOccurrenceKey =
-  | "bus_school_conflict"
+  | "bus_stop_conflict"
+  | "school_conflict"
   | "horizontal_obstacles"
   | "vertical_obstacles"
   | "side_change_mid_block"
@@ -93,7 +94,8 @@ export interface IdecicloFormData {
   signalized_crossings_count_by_block: number[];
   no_risk_situations: boolean;
   risk_occurrence_counts: Partial<Record<RiskOccurrenceKey, number>>;
-  bus_school_conflict: boolean;
+  bus_stop_conflict: boolean;
+  school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;
   side_change_mid_block: boolean;

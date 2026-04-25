@@ -1,6 +1,4 @@
 import React from "react";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentCriterionAccordion, {
   CriterionPagerConfig,
 } from "@/components/AssessmentCriterionAccordion";
@@ -9,6 +7,34 @@ import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
+
+const CYCLING_FURNITURE_OPTIONS = [
+  {
+    key: "bicicletarios",
+    label: "Bicicletários de uso público",
+    icon: "/icones/bicicletario.svg",
+  },
+  {
+    key: "paraciclos",
+    label: "Paraciclos",
+    icon: "/icones/paraciclo.svg",
+  },
+  {
+    key: "compartilhadas",
+    label: "Sistemas de bicicletas compartilhadas",
+    icon: "/icones/bike-sharing.svg",
+  },
+  {
+    key: "estacoes",
+    label: "Estações de autoatendimento",
+    icon: "/icones/autoatendimento.svg",
+  },
+  {
+    key: "bebedouros",
+    label: "Bebedouros públicos",
+    icon: "/icones/bebedouro.svg",
+  },
+] as const;
 
 interface Page8Props {
   data: IdecicloFormData;
@@ -33,6 +59,14 @@ const Page8: React.FC<Page8Props> = ({
   const handleRadioChange = (name: string, value: string | boolean) => {
     onDataChange({ [name]: value });
   };
+  const blockTouchKey = (index: number) => `block_d3_${index}`;
+  const resetBlockTouchKeys = () =>
+    Object.fromEntries(
+      Array.from({ length: Math.max(0, Number(data.blocks_count || 0)) }, (_, index) => [
+        blockTouchKey(index),
+        false,
+      ])
+    );
 
   const handleFurnitureCheckboxChange = (item: string, checked: boolean) => {
     const currentBlockIndex = blockPager?.currentIndex || 0;
@@ -72,9 +106,15 @@ const Page8: React.FC<Page8Props> = ({
         blocks_with_cycling_furniture: blocksWithFurniture > 0,
         cycling_furniture: aggregatedFurniture.length > 0,
         cycling_furniture_by_block: true,
+        [blockTouchKey(currentBlockIndex)]: true,
       },
     });
   };
+
+  const currentBlockIndex = blockPager?.currentIndex || 0;
+  const currentFurnitureItems = Array.isArray(data.cycling_furniture_by_block?.[currentBlockIndex])
+    ? data.cycling_furniture_by_block?.[currentBlockIndex] || []
+    : data.cycling_furniture || [];
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
@@ -192,81 +232,58 @@ const Page8: React.FC<Page8Props> = ({
                   blocks_with_cycling_furniture: false,
                   cycling_furniture: false,
                   cycling_furniture_by_block: false,
+                  ...resetBlockTouchKeys(),
                 },
               })
             }
           >
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="furniture_bicicletarios"
-                  checked={Boolean(
-                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
-                      "bicicletarios"
-                    )
-                  )}
-                  onCheckedChange={(checked) =>
-                    handleFurnitureCheckboxChange("bicicletarios", !!checked)
-                  }
-                />
-                <Label htmlFor="furniture_bicicletarios">Bicicletários de uso público</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="furniture_estacoes"
-                  checked={Boolean(
-                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
-                      "estacoes"
-                    )
-                  )}
-                  onCheckedChange={(checked) => handleFurnitureCheckboxChange("estacoes", !!checked)}
-                />
-                <Label htmlFor="furniture_estacoes">Estações de autoatendimento</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="furniture_paraciclos"
-                  checked={Boolean(
-                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
-                      "paraciclos"
-                    )
-                  )}
-                  onCheckedChange={(checked) =>
-                    handleFurnitureCheckboxChange("paraciclos", !!checked)
-                  }
-                />
-                <Label htmlFor="furniture_paraciclos">Paraciclos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="furniture_bebedouros"
-                  checked={Boolean(
-                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
-                      "bebedouros"
-                    )
-                  )}
-                  onCheckedChange={(checked) =>
-                    handleFurnitureCheckboxChange("bebedouros", !!checked)
-                  }
-                />
-                <Label htmlFor="furniture_bebedouros">Bebedouros públicos</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="furniture_compartilhadas"
-                  checked={Boolean(
-                    data.cycling_furniture_by_block?.[blockPager?.currentIndex || 0]?.includes(
-                      "compartilhadas"
-                    )
-                  )}
-                  onCheckedChange={(checked) =>
-                    handleFurnitureCheckboxChange("compartilhadas", !!checked)
-                  }
-                />
-                <Label htmlFor="furniture_compartilhadas">
-                  Sistemas de bicicletas compartilhadas
-                </Label>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CYCLING_FURNITURE_OPTIONS.map((option) => {
+                const selected = currentFurnitureItems.includes(option.key);
+
+                return (
+                  <div
+                    key={option.key}
+                    className={`flex items-stretch overflow-hidden rounded-2xl border transition ${
+                      selected
+                        ? "border-emerald-300 bg-emerald-50 shadow-sm"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleFurnitureCheckboxChange(option.key, true)}
+                      className="flex flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50/50"
+                    >
+                      <img
+                        src={option.icon}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-10 w-10 shrink-0 object-contain"
+                      />
+                      <div className="space-y-1">
+                        <span className="block text-sm font-semibold text-slate-700">
+                          {option.label}
+                        </span>
+                        <span className="block text-xs text-slate-500">
+                          {selected ? "Marcado nesta quadra" : "Toque para marcar"}
+                        </span>
+                      </div>
+                    </button>
+                    {selected ? (
+                      <button
+                        type="button"
+                        onClick={() => handleFurnitureCheckboxChange(option.key, false)}
+                        className="flex w-11 shrink-0 items-center justify-center border-l border-emerald-200 bg-white/60 text-slate-500 transition hover:bg-white hover:text-emerald-700"
+                        aria-label={`Remover ${option.label}`}
+                        title={`Remover ${option.label}`}
+                      >
+                        <span className="text-lg font-semibold leading-none">×</span>
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </AssessmentCriterionAccordion> : null}
         </CriteriaAccordionGroup>

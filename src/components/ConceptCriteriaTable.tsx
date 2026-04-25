@@ -70,21 +70,21 @@ const ConceptCriteriaTable: React.FC<ConceptCriteriaTableProps> = ({
             role="radio"
             aria-checked={isSelected}
             onClick={() => onValueChange(option.value)}
-            className={`flex w-full overflow-hidden rounded-xl border text-left transition-all ${
+            className={`flex w-full overflow-hidden rounded-lg border text-left transition-all sm:rounded-xl ${
               isSelected
                 ? `${tone.wrapper} shadow-sm`
                 : "border-slate-200 opacity-65 hover:opacity-90"
             }`}
           >
             <div
-              className={`flex min-h-[72px] w-[76px] shrink-0 items-center justify-center px-4 text-2xl font-bold ${
+              className={`flex min-h-[58px] w-[56px] shrink-0 items-center justify-center px-3 text-xl font-bold sm:min-h-[72px] sm:w-[76px] sm:px-4 sm:text-2xl ${
                 isSelected ? tone.left : "bg-slate-200 text-slate-500"
               }`}
             >
               {option.label || option.value}
             </div>
             <div
-              className={`flex min-h-[72px] flex-1 items-center px-5 py-4 text-sm leading-6 md:text-base ${
+              className={`flex min-h-[58px] flex-1 items-center px-3 py-2.5 text-[13px] leading-5 sm:min-h-[72px] sm:px-5 sm:py-4 sm:text-sm sm:leading-6 md:text-base ${
                 isSelected ? tone.right : "bg-slate-50 text-slate-600"
               }`}
             >
