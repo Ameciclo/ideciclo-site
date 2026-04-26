@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 interface Page9Props {
   data: IdecicloFormData;
   onDataChange: (data: Partial<IdecicloFormData>) => void;
-  isOnline: boolean;
 }
 
 const SECTIONS: Array<{
@@ -75,7 +74,7 @@ const ratingChipClassName = (
   );
 };
 
-const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
+const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
   const summary = getScoreBreakdown(data);
 
   const handleModeChange = (criterion: CriterionCode, enabled: boolean) => {
@@ -109,46 +108,6 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange, isOnline }) => {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumo da revisão</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border p-4">
-              <div className="text-sm text-muted-foreground">Nota do trecho</div>
-              <div className="mt-1 text-3xl font-bold">{summary.total.toFixed(1)}/100</div>
-              {summary.eliminated ? (
-                <p className="mt-2 text-sm text-rose-700">
-                  A1 recebeu D e a estrutura foi eliminada pela regra do manual.
-                </p>
-              ) : null}
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="text-sm text-muted-foreground">Tipologia considerada</div>
-              <div className="mt-1 text-lg font-semibold capitalize">
-                {summary.typology ? summary.typology.replaceAll("_", " ") : "Não definida"}
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                O cálculo final utiliza os pesos do `form.json` para a tipologia escolhida.
-              </p>
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="text-sm text-muted-foreground">Estado da conexão</div>
-              <div className="mt-1 text-lg font-semibold">{isOnline ? "Online" : "Offline"}</div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Mesmo offline, o rascunho fica salvo localmente até o envio.
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-            Nesta segunda página você confere o conceito automático, vê os parâmetros que levaram a
-            cada nota e pode ligar o ajuste manual quando quiser sobrescrever o cálculo.
-          </div>
-        </CardContent>
-      </Card>
-
       {SECTIONS.map((section) => {
         const sectionSummary = summary.sections?.[section.key];
 

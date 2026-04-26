@@ -2053,12 +2053,12 @@ const SegmentForm = () => {
               <CardHeader>
                 <CardTitle>Revisão Final</CardTitle>
                 <CardDescription>
-                  Revise as notas, veja o que foi considerado em cada criterio e troque para o
-                  modo manual quando precisar ajustar algum conceito.
+                  Confira o conceito automatico, veja o que foi considerado em cada criterio e
+                  troque para o modo manual quando precisar ajustar algum conceito.
                 </CardDescription>
               </CardHeader>
               <div className="px-6 pb-2">
-                <Page9 data={formData} onDataChange={handleDataChange} isOnline={isOnline} />
+                <Page9 data={formData} onDataChange={handleDataChange} />
               </div>
               <div className="flex flex-col gap-3 px-6 py-6 md:flex-row md:justify-between">
                 <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
