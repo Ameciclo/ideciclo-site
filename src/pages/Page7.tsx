@@ -413,6 +413,12 @@ const Page7: React.FC<Page7Props> = ({
         ? "border-slate-900 bg-slate-900 text-white"
         : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
     }`;
+  const hasTouchedB5Crossings = Boolean(
+    data.touched_fields?.[blockTouchKey("b5_crossings", currentBlockIndex)]
+  );
+  const hasTouchedB5Lanes = Boolean(
+    data.touched_fields?.[blockTouchKey("b5_lanes", currentBlockIndex)]
+  );
 
   const setB5BlockValue = (
     field: "signalized_crossings_count_by_block" | "traffic_lanes_count_by_block",
@@ -621,7 +627,9 @@ const Page7: React.FC<Page7Props> = ({
                     <button
                       key={`crossings-${value}`}
                       type="button"
-                      className={chipClassName(currentBlockCrossings === value)}
+                      className={chipClassName(
+                        hasTouchedB5Crossings && currentBlockCrossings === value
+                      )}
                       onClick={() => setB5BlockValue("signalized_crossings_count_by_block", value)}
                     >
                       {value === 2 ? "2+" : value}
@@ -637,7 +645,9 @@ const Page7: React.FC<Page7Props> = ({
                     <button
                       key={`lanes-${value}`}
                       type="button"
-                      className={chipClassName(currentBlockTrafficLanes === value)}
+                      className={chipClassName(
+                        hasTouchedB5Lanes && currentBlockTrafficLanes === value
+                      )}
                       onClick={() => setB5BlockValue("traffic_lanes_count_by_block", value)}
                     >
                       {value === maxTrafficLanesForB5 ? `${value}+` : value}

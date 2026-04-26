@@ -9,7 +9,10 @@ import AssessmentCriterionAccordion, {
 import CriteriaAccordionGroup from "@/components/CriteriaAccordionGroup";
 import { CriterionFilter } from "@/components/criteriaAccordionContext";
 import { IdecicloFormData, TrafficCalmingMeasure } from "@/types/idecicloForm";
-import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
+import {
+  buildCriterionScorePreview,
+  CriterionScorePreviewItem,
+} from "@/utils/criterionScorePreview";
 
 interface Page3Props {
   data: IdecicloFormData;
@@ -59,7 +62,6 @@ const Page3: React.FC<Page3Props> = ({
   command,
   visibleValues,
 }) => {
-  const b3Preview = buildCriterionScorePreview(data, ["B3"])[0];
   const [widthDraftCm, setWidthDraftCm] = useState("");
   const [bufferDraftCm, setBufferDraftCm] = useState("");
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
@@ -148,26 +150,53 @@ const Page3: React.FC<Page3Props> = ({
     bufferAverage <= 0
       ? null
       : Number(data.velocity_kmh || 0) >= 50
-        ? data.lateral_spacing_type === "linha" || data.lateral_spacing_type === "apagada"
+        ? data.lateral_spacing_type === "apagada"
           ? "D"
           : bufferAverage > 1
             ? "A"
-            : bufferAverage >= 0.4
+            : bufferAverage >= 0.4 && bufferAverage <= 1
               ? "B"
-              : bufferAverage >= 0.2
+              : bufferAverage >= 0.2 && bufferAverage < 0.4
                 ? "C"
                 : "D"
         : data.lateral_spacing_type === "apagada"
           ? "D"
           : bufferAverage > 0.7
             ? "A"
-            : data.lateral_spacing_type === "dispositivos" &&
-                bufferAverage > 0.4 &&
-                bufferAverage <= 0.7
+            : bufferAverage > 0.4 &&
+                bufferAverage <= 0.7 &&
+                (["A", "B", "C"].includes(data.separation_devices_ciclofaixa || "") ||
+                  normalizedTypology.includes("ciclovia") ||
+                  data.has_double_lateral_line)
               ? "B"
-              : data.lateral_spacing_type === "linha"
+              : !["A", "B", "C"].includes(data.separation_devices_ciclofaixa || "") &&
+                  !normalizedTypology.includes("ciclovia") &&
+                  !data.has_double_lateral_line
                 ? "C"
                 : "D";
+  const b32ScorePreview: CriterionScorePreviewItem[] = bufferConcept
+    ? [{ code: "B3", rating: bufferConcept, points: null }]
+    : [];
+  const b3FinalRating = buildCriterionScorePreview(data, ["B3"])[0]?.rating;
+  const b31LocalRating = normalizedTypology.includes("ciclovia")
+    ? data.separation_devices_ciclovia || null
+    : normalizedTypology.includes("ciclofaixa")
+      ? data.separation_devices_ciclofaixa || null
+      : normalizedTypology.includes("compart") || normalizedTypology.includes("calçada")
+        ? data.separation_devices_calcada || null
+        : null;
+  const b3LocalConceptBadge =
+    b31LocalRating || bufferConcept ? (
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${ratingChipClassName(
+          b3FinalRating
+        )}`}
+      >
+        <span>{b31LocalRating || "–"}</span>
+        <span className="mx-1.5 opacity-70">×</span>
+        <span>{bufferConcept || "–"}</span>
+      </span>
+    ) : null;
 
   const addWidthMeasurement = () => {
     const measurementMeters = parseDraftToMeters(widthDraftCm);
@@ -440,7 +469,8 @@ const Page3: React.FC<Page3Props> = ({
           value="b32"
           title="B.3.2. Afastamento lateral"
           description="Adicione as medições observadas em campo para compor o cálculo de B.3."
-          scorePreview={buildCriterionScorePreview(data, ["B3"])}
+          scorePreview={b32ScorePreview}
+          extraBadges={b3LocalConceptBadge}
           answered={
             bufferMeasurements.length > 0 ||
             data.buffer_width_m > 0 ||
@@ -453,33 +483,20 @@ const Page3: React.FC<Page3Props> = ({
               buffer_width_m: 0,
               buffer_measurements_m: [],
               lateral_spacing_width_m: 0,
+              lateral_spacing_type: "",
+              has_double_lateral_line: false,
               touched_fields: {
                 buffer_width_m: false,
                 buffer_measurements_m: false,
                 lateral_spacing_width_m: false,
+                lateral_spacing_type: false,
+                has_double_lateral_line: false,
               },
             })
           }
           helpKey="b32"
         >
           <div className="space-y-4">
-            {b3Preview ? (
-              <div>
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${ratingChipClassName(
-                    b3Preview.rating
-                  )}`}
-                >
-                  B.3
-                  {b3Preview.rating ? <span className="mx-1 opacity-70">·</span> : null}
-                  {b3Preview.rating ? <span>{b3Preview.rating}</span> : null}
-                  {b3Preview.rating && typeof b3Preview.points === "number" ? (
-                    <span className="mx-1 opacity-70">·</span>
-                  ) : null}
-                  {typeof b3Preview.points === "number" ? <span>{b3Preview.points}</span> : null}
-                </span>
-              </div>
-            ) : null}
             <div className="flex items-center gap-2">
               <Input
                 id="buffer_width_cm"
@@ -492,6 +509,26 @@ const Page3: React.FC<Page3Props> = ({
               <Button type="button" className="h-10 px-3" onClick={addBufferMeasurement}>
                 Adicionar
               </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-600">
+                Os dispositivos de separação são lidos do B.3.1. Para ciclovia, a separação é
+                considerada automaticamente.
+              </p>
+              <label className="flex items-center gap-3 text-sm font-medium text-slate-800">
+                <Switch
+                  checked={Boolean(data.has_double_lateral_line)}
+                  onCheckedChange={(checked) =>
+                    onDataChange({
+                      has_double_lateral_line: checked,
+                      touched_fields: {
+                        has_double_lateral_line: true,
+                      },
+                    })
+                  }
+                />
+                <span>Linha dupla</span>
+              </label>
             </div>
             <div>
               {bufferMeasurements.length > 0 ? (

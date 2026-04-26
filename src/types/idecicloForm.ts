@@ -82,6 +82,7 @@ export interface IdecicloFormData {
   separation_devices_calcada: IdecicloRating | "";
   devices_conservation: IdecicloRating | "";
   lateral_spacing_type: string;
+  has_double_lateral_line: boolean;
   lateral_spacing_width_m: number;
   spacing_conservation: IdecicloRating | "";
   space_identification: IdecicloRating | "";

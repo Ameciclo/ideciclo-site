@@ -153,6 +153,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
 
         {criterionMetaVisible ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
+            {extraBadges}
             {scorePreview.map((item) => (
               <Badge
                 key={item.code}
@@ -168,7 +169,6 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
                 ) : null}
               </Badge>
             ))}
-            {extraBadges}
             {!hasResolvedScorePreview ? (
               <Badge
                 variant="outline"

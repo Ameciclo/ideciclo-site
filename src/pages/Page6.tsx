@@ -34,6 +34,13 @@ const Page6: React.FC<Page6Props> = ({
   const handleRadioChange = (name: string, value: string | boolean | number) => {
     onDataChange({ [name]: value });
   };
+  const matrixBadgeClassName = (rating: string | null | undefined) => {
+    if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
+    if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
+    if (rating === "C") return "border-transparent bg-[#8fafad] text-[#163b38]";
+    if (rating === "D") return "border-transparent bg-[#748987] text-white";
+    return "border-slate-200 bg-white text-slate-700";
+  };
 
   const getInfraType = () => {
     const type = data.infra_typology?.toLowerCase() || "";
@@ -71,8 +78,16 @@ const Page6: React.FC<Page6Props> = ({
     : data.signs_both_directions;
   const currentVerticalSignsCondition =
     data.vertical_signs_conservation_by_block?.[currentBlockIndex] || "";
+  const b4FinalRating = buildCriterionScorePreview(data, ["B4"])[0]?.rating;
+  const e4FinalRating = buildCriterionScorePreview(data, ["E4"])[0]?.rating;
   const blockTouchKey = (criterion: "b41_signs" | "b41_directions" | "e41", index: number) =>
     `block_${criterion}_${index}`;
+  const hasTouchedB41Signs = Boolean(
+    data.touched_fields?.[blockTouchKey("b41_signs", currentBlockIndex)]
+  );
+  const hasTouchedB41Directions = Boolean(
+    data.touched_fields?.[blockTouchKey("b41_directions", currentBlockIndex)]
+  );
   const resetBlockTouchKeys = (criteria: Array<"b41_signs" | "b41_directions" | "e41">) =>
     Object.fromEntries(
       Array.from({ length: Math.max(0, Number(data.blocks_count || 0)) }, (_, index) =>
@@ -96,6 +111,46 @@ const Page6: React.FC<Page6Props> = ({
     if (signsPerBlock >= 1 && bothDirections === true) return "B";
     return "C";
   };
+  const currentB41Rating = hasTouchedB41Signs
+    ? calculateVerticalSignsRatingForBlock(
+        currentRegulationSignsPerBlock,
+        hasTouchedB41Directions ? currentSignsBothDirections : null
+      )
+    : null;
+  const currentE41Rating =
+    !hasTouchedB41Signs
+      ? null
+      : currentRegulationSignsPerBlock === 0
+      ? "D"
+      : currentVerticalSignsCondition === "good"
+        ? "A"
+        : currentVerticalSignsCondition === "damage"
+          ? "C"
+          : null;
+  const b4CompositeBadge =
+    !isCiclorrota && (currentB41Rating || data.space_identification) ? (
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${matrixBadgeClassName(
+          b4FinalRating
+        )}`}
+      >
+        <span>{currentB41Rating || "–"}</span>
+        <span className="mx-1.5 opacity-70">×</span>
+        <span>{data.space_identification || "–"}</span>
+      </span>
+    ) : null;
+  const e4CompositeBadge =
+    !isCiclorrota && (currentE41Rating || data.identification_conservation) ? (
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${matrixBadgeClassName(
+          e4FinalRating
+        )}`}
+      >
+        <span>{currentE41Rating || "–"}</span>
+        <span className="mx-1.5 opacity-70">×</span>
+        <span>{data.identification_conservation || "–"}</span>
+      </span>
+    ) : null;
   const setRegulationSignsByBlock = (
     nextSignsPerBlock: number,
     nextBothDirections: boolean | null = currentSignsBothDirections,
@@ -189,6 +244,7 @@ const Page6: React.FC<Page6Props> = ({
           title="B.4.1. Sinalização vertical de regulamentação"
           description="Presença de placas de regulamentação ao longo do trecho."
           scorePreview={buildCriterionScorePreview(data, ["B4"])}
+          extraBadges={b4CompositeBadge}
           answered={isTouched([
             "regulation_signs_per_block",
             "regulation_signs_per_block_by_block",
@@ -224,7 +280,9 @@ const Page6: React.FC<Page6Props> = ({
                   <button
                     key={`signs-${value}`}
                     type="button"
-                    className={chipClassName(currentRegulationSignsPerBlock === value)}
+                    className={chipClassName(
+                      hasTouchedB41Signs && currentRegulationSignsPerBlock === value
+                    )}
                     onClick={() => setRegulationSignsByBlock(value, currentSignsBothDirections, "b41_signs")}
                   >
                     {value === 2 ? "2+" : value}
@@ -267,6 +325,7 @@ const Page6: React.FC<Page6Props> = ({
           title="B.4.2. Identificação do espaço de circulação de bicicletas"
           description="Pintura, contraste e reconhecimento visual do espaço cicloviário."
           scorePreview={buildCriterionScorePreview(data, ["B4"])}
+          extraBadges={b4CompositeBadge}
           answered={isTouched(["space_identification"])}
           inAnalysis={data.criterion_workflow_state?.b42 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b42", value ? "analysis" : "default")}
@@ -310,6 +369,7 @@ const Page6: React.FC<Page6Props> = ({
           title="E.4.1. Estado de conservação da sinalização vertical"
           description="Entrada de conservação da sinalização vertical para avaliação por quadra."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
+          extraBadges={e4CompositeBadge}
           answered={isTouched([
             "vertical_signs_conservation",
             "vertical_signs_conservation_by_block",
@@ -360,6 +420,7 @@ const Page6: React.FC<Page6Props> = ({
           title="E.4.2. Estado de conservação da identificação do espaço cicloviário"
           description="Entrada de conservação da identificação do espaço para o cálculo de E.4."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
+          extraBadges={e4CompositeBadge}
           answered={isTouched(["identification_conservation"])}
           inAnalysis={data.criterion_workflow_state?.e42 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e42", value ? "analysis" : "default")}

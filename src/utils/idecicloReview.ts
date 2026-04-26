@@ -136,6 +136,7 @@ const LATERAL_SPACING_TYPE_LABELS: Record<string, string> = {
   linha: "Somente linha de delimitação",
   dispositivos: "Com dispositivos de separação ou segregação",
   apagada: "Pintura apagada ou impossível de avaliar",
+  "": "Nao informado",
 };
 
 const CYCLE_TRACK_SEPARATION_LABELS: Record<string, string> = {
@@ -238,6 +239,7 @@ export const getCriterionEvidence = (
         `Tipologia da infraestrutura: ${asLabel(data.infra_typology)}`,
         `Delimitacao ou segregacao marcada: ${getB3SelectionLabel(data)}`,
         `Afastamento lateral: ${labelFromMap(data.lateral_spacing_type, LATERAL_SPACING_TYPE_LABELS)}`,
+        `Linha dupla no afastamento: ${asBoolLabel(data.has_double_lateral_line)}`,
         `Largura do afastamento lateral: ${data.lateral_spacing_width_m || 0} m`,
       ];
     case "B4":
@@ -260,8 +262,9 @@ export const getCriterionEvidence = (
             : asBoolLabel(data.signs_both_directions)
         }`,
       ];
-    case "B5":
-      const totalCrossings = Array.isArray(data.signalized_crossings_count_by_block) &&
+    case "B5": {
+      const totalCrossings =
+        Array.isArray(data.signalized_crossings_count_by_block) &&
         data.signalized_crossings_count_by_block.length > 0
           ? data.signalized_crossings_count_by_block.reduce(
               (sum, value) => sum + Number(value || 0),
@@ -272,7 +275,8 @@ export const getCriterionEvidence = (
         `Quadras consideradas: ${data.blocks_count || 0}`,
         `Travessias sinalizadas ao longo do trecho: ${totalCrossings}`,
         `Faixas de rolamento por quadra: ${
-          Array.isArray(data.traffic_lanes_count_by_block) && data.traffic_lanes_count_by_block.length > 0
+          Array.isArray(data.traffic_lanes_count_by_block) &&
+          data.traffic_lanes_count_by_block.length > 0
             ? data.traffic_lanes_count_by_block.join(", ")
             : data.traffic_lanes_count || 0
         }`,
@@ -282,6 +286,7 @@ export const getCriterionEvidence = (
             : "0.00"
         } por quadra`,
       ];
+    }
     case "B6": {
       const calmingCounts = data.traffic_calming_counts || {};
       return [

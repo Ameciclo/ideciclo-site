@@ -372,20 +372,31 @@ const calculateB3LateralSpacing = (
 
   const velocity = toNumber(formData.velocity_kmh);
   const width = toNumber(formData.lateral_spacing_width_m);
-  const spacingType = String(formData.lateral_spacing_type ?? "linha");
+  const spacingType = String(formData.lateral_spacing_type ?? "");
+  const hasDoubleLine = Boolean(formData.has_double_lateral_line);
+  const hasDevices =
+    typology === "ciclovia"
+      ? true
+      : typology === "ciclofaixa"
+        ? ["A", "B", "C"].includes(String(formData.separation_devices_ciclofaixa ?? ""))
+        : false;
+
+  if (width <= 0) return null;
 
   if (velocity >= 50) {
-    if (spacingType === "linha" || spacingType === "apagada") return "D";
+    if (spacingType === "apagada") return "D";
     if (width > 1) return "A";
-    if (width >= 0.4) return "B";
-    if (width >= 0.2) return "C";
+    if (width >= 0.4 && width <= 1) return "B";
+    if (width >= 0.2 && width < 0.4) return "C";
     return "D";
   }
 
   if (spacingType === "apagada") return "D";
   if (width > 0.7) return "A";
-  if (spacingType === "dispositivos" && width > 0.4 && width <= 0.7) return "B";
-  if (spacingType === "linha") return "C";
+  if (width > 0.4 && width <= 0.7 && (hasDevices || hasDoubleLine || spacingType === "dispositivos")) {
+    return "B";
+  }
+  if (!hasDevices && !hasDoubleLine) return "C";
   return "D";
 };
 
