@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardDescription,
@@ -10,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronLeft, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
-import Page1 from "./Page1";
 import Page2 from "./Page2";
 import Page3 from "./Page3";
 import Page4 from "./Page4";
@@ -137,6 +137,8 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   intersections_count: 0,
   relevant_intersections_count: 0,
   connected_intersections_count: 0,
+  intersection_road_type_by_intersection: [],
+  intersection_has_cycling_connection_by_intersection: [],
   pedestrian_flow_per_hour_per_meter: 0,
   infra_typology: "",
   infra_flow: "unidirectional",
@@ -252,6 +254,24 @@ const mergeWithDefaults = (
       : data.intersection_signaling
         ? [data.intersection_signaling]
         : [];
+  const fallbackIntersectionRoadTypeByIntersection =
+    Array.isArray(data.intersection_road_type_by_intersection) &&
+    data.intersection_road_type_by_intersection.length > 0
+      ? data.intersection_road_type_by_intersection
+      : Array.from({ length: Math.max(0, Number(data.intersections_count || 0)) }, (_, index) => {
+          const relevantCount = Number(data.relevant_intersections_count || 0);
+          return index < relevantCount ? "coletora" : "";
+        });
+  const fallbackIntersectionHasCyclingConnectionByIntersection =
+    Array.isArray(data.intersection_has_cycling_connection_by_intersection) &&
+    data.intersection_has_cycling_connection_by_intersection.length > 0
+      ? data.intersection_has_cycling_connection_by_intersection
+      : Array.from({ length: Math.max(0, Number(data.intersections_count || 0)) }, (_, index) => {
+          const connectedCount = Number(data.connected_intersections_count || 0);
+          const relevantCount = Number(data.relevant_intersections_count || 0);
+          if (index >= relevantCount) return null;
+          return index < connectedCount;
+        });
   const fallbackConnectionAccessibility =
     Array.isArray(data.connection_accessibility_by_intersection) &&
       data.connection_accessibility_by_intersection.length > 0
@@ -350,6 +370,9 @@ const mergeWithDefaults = (
     traffic_calming_counts: fallbackTrafficCalmingCounts,
     risk_occurrence_counts: fallbackRiskOccurrenceCounts,
     intersection_signaling_by_intersection: fallbackIntersectionSignaling,
+    intersection_road_type_by_intersection: fallbackIntersectionRoadTypeByIntersection,
+    intersection_has_cycling_connection_by_intersection:
+      fallbackIntersectionHasCyclingConnectionByIntersection,
     intersection_conservation_by_intersection: fallbackIntersectionConservationByIntersection,
     connection_accessibility_by_intersection: fallbackConnectionAccessibility,
     traffic_lanes_per_direction_by_intersection: fallbackTrafficLanesPerIntersection,
@@ -421,19 +444,90 @@ const hydrateHeaderFields = async (
 };
 
 const normalizeEvaluationCounts = (data: IdecicloFormData): IdecicloFormData => {
-  const intersectionsCount = clampNonNegative(data.intersections_count);
+  const blockArraysMaxLength = Math.max(
+    Array.isArray(data.regulation_signs_per_block_by_block)
+      ? data.regulation_signs_per_block_by_block.length
+      : 0,
+    Array.isArray(data.signs_both_directions_by_block)
+      ? data.signs_both_directions_by_block.length
+      : 0,
+    Array.isArray(data.vertical_signs_conservation_by_block)
+      ? data.vertical_signs_conservation_by_block.length
+      : 0,
+    Array.isArray(data.traffic_lanes_count_by_block) ? data.traffic_lanes_count_by_block.length : 0,
+    Array.isArray(data.signalized_crossings_count_by_block)
+      ? data.signalized_crossings_count_by_block.length
+      : 0,
+    Array.isArray(data.cycling_furniture_by_block) ? data.cycling_furniture_by_block.length : 0,
+    Array.isArray(data.cycling_furniture_counts_by_block)
+      ? data.cycling_furniture_counts_by_block.length
+      : 0,
+    Array.isArray(data.no_cycling_furniture_by_block)
+      ? data.no_cycling_furniture_by_block.length
+      : 0
+  );
+  const intersectionArraysMaxLength = Math.max(
+    Array.isArray(data.intersection_road_type_by_intersection)
+      ? data.intersection_road_type_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_has_cycling_connection_by_intersection)
+      ? data.intersection_has_cycling_connection_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_signaling_by_intersection)
+      ? data.intersection_signaling_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_conservation_by_intersection)
+      ? data.intersection_conservation_by_intersection.length
+      : 0,
+    Array.isArray(data.connection_accessibility_by_intersection)
+      ? data.connection_accessibility_by_intersection.length
+      : 0,
+    Array.isArray(data.traffic_lanes_per_direction_by_intersection)
+      ? data.traffic_lanes_per_direction_by_intersection.length
+      : 0,
+    Array.isArray(data.mixed_lane_width_m_by_intersection)
+      ? data.mixed_lane_width_m_by_intersection.length
+      : 0,
+    Array.isArray(data.has_intersection_traffic_calming_by_intersection)
+      ? data.has_intersection_traffic_calming_by_intersection.length
+      : 0,
+    Array.isArray(data.motorized_conflicts_by_intersection)
+      ? data.motorized_conflicts_by_intersection.length
+      : 0
+  );
+  const blocksCount = Math.max(clampMinimumOne(data.blocks_count), blockArraysMaxLength || 1);
+  const intersectionsCount = Math.max(
+    clampNonNegative(data.intersections_count),
+    intersectionArraysMaxLength
+  );
   const relevantIntersectionsCount = Math.min(
-    clampNonNegative(data.relevant_intersections_count),
+    Array.isArray(data.intersection_road_type_by_intersection) &&
+      data.intersection_road_type_by_intersection.length > 0
+      ? data.intersection_road_type_by_intersection.filter((value) =>
+          value === "coletora" || value === "arterial"
+        ).length
+      : clampNonNegative(data.relevant_intersections_count),
     intersectionsCount
   );
   const connectedIntersectionsCount = Math.min(
-    clampNonNegative(data.connected_intersections_count),
+    Array.isArray(data.intersection_road_type_by_intersection) &&
+      Array.isArray(data.intersection_has_cycling_connection_by_intersection) &&
+      (data.intersection_road_type_by_intersection.length > 0 ||
+        data.intersection_has_cycling_connection_by_intersection.length > 0)
+      ? data.intersection_road_type_by_intersection.reduce((sum, roadType, index) => {
+          if ((roadType === "coletora" || roadType === "arterial") &&
+            data.intersection_has_cycling_connection_by_intersection[index] === true) {
+            return sum + 1;
+          }
+          return sum;
+        }, 0)
+      : clampNonNegative(data.connected_intersections_count),
     relevantIntersectionsCount
   );
 
   return {
     ...data,
-    blocks_count: clampMinimumOne(data.blocks_count),
+    blocks_count: blocksCount,
     intersections_count: intersectionsCount,
     relevant_intersections_count: relevantIntersectionsCount,
     connected_intersections_count: connectedIntersectionsCount,
@@ -663,6 +757,8 @@ const SegmentForm = () => {
   });
   const [segmentPreview, setSegmentPreview] = useState<Segment | null>(null);
   const [allowHierarchyEdit, setAllowHierarchyEdit] = useState(false);
+  const [allowBlockPagerEdit, setAllowBlockPagerEdit] = useState(false);
+  const [allowIntersectionPagerEdit, setAllowIntersectionPagerEdit] = useState(false);
   const [globalCriterionFilter, setGlobalCriterionFilter] = useState<CriterionFilter>({
     answer: "all",
     review: "all",
@@ -799,6 +895,15 @@ const SegmentForm = () => {
     const hasTouched = (fields: string[]) => fields.some((field) => Boolean(touched[field]));
     const typology = String(formData.infra_typology || "").toLowerCase();
 
+    if (code === "A2") {
+      return (
+        Array.isArray(formData.intersection_road_type_by_intersection) &&
+        formData.intersection_road_type_by_intersection.some((value) => Boolean(value))
+      ) || (
+        Array.isArray(formData.intersection_has_cycling_connection_by_intersection) &&
+        formData.intersection_has_cycling_connection_by_intersection.some((value) => value !== null)
+      );
+    }
     if (code === "B5") {
       return hasTouched([
         "signalized_crossings_count",
@@ -1001,6 +1106,10 @@ const SegmentForm = () => {
   const intersectionCompletionStates = useMemo(
     () =>
       Array.from({ length: intersectionCount }, (_, index) => {
+        const hasA2 =
+          Boolean(formData.intersection_road_type_by_intersection?.[index]) &&
+          formData.intersection_has_cycling_connection_by_intersection?.[index] !== null &&
+          formData.intersection_has_cycling_connection_by_intersection?.[index] !== undefined;
         const hasC1 = isCiclorrota || Boolean(touchedFields[`intersection_c1_${index}`]);
         const hasE1 =
           isCiclorrota ||
@@ -1012,9 +1121,16 @@ const SegmentForm = () => {
             Boolean(touchedFields[`intersection_c3_calming_${index}`])
           : Boolean(touchedFields[`intersection_c3_${index}`]);
 
-        return hasC1 && hasE1 && hasC2 && hasC3;
+        return hasA2 && hasC1 && hasE1 && hasC2 && hasC3;
       }),
-    [formData.intersection_conservation_by_intersection, intersectionCount, isCiclorrota, touchedFields]
+    [
+      formData.intersection_conservation_by_intersection,
+      formData.intersection_has_cycling_connection_by_intersection,
+      formData.intersection_road_type_by_intersection,
+      intersectionCount,
+      isCiclorrota,
+      touchedFields,
+    ]
   );
 
   const getIndexedPagerClassName = (isActive: boolean, isComplete: boolean) => {
@@ -1053,11 +1169,116 @@ const SegmentForm = () => {
     setCurrentIntersectionIndex((prev) => Math.min(prev, Math.max(intersectionCount - 1, 0)));
   }, [intersectionCount]);
 
+  const handleBlockCountChange = (delta: number) => {
+    const nextCount = Math.max(1, blockCount + delta);
+    if (nextCount === blockCount) return;
+
+    const trimArray = <T,>(values: T[] | undefined, fallback: T) =>
+      Array.from({ length: nextCount }, (_, index) =>
+        Array.isArray(values) && index < values.length ? (values[index] ?? fallback) : fallback
+      );
+
+    handleDataChange({
+      blocks_count: nextCount,
+      regulation_signs_per_block_by_block: trimArray(formData.regulation_signs_per_block_by_block, 0),
+      signs_both_directions_by_block: trimArray(formData.signs_both_directions_by_block, null),
+      vertical_signs_conservation_by_block: trimArray(formData.vertical_signs_conservation_by_block, ""),
+      traffic_lanes_count_by_block: trimArray(formData.traffic_lanes_count_by_block, 0),
+      signalized_crossings_count_by_block: trimArray(formData.signalized_crossings_count_by_block, 0),
+      cycling_furniture_by_block: trimArray(formData.cycling_furniture_by_block, []),
+      cycling_furniture_counts_by_block: trimArray(formData.cycling_furniture_counts_by_block, {}),
+      no_cycling_furniture_by_block: trimArray(formData.no_cycling_furniture_by_block, false),
+      touched_fields: Object.fromEntries(
+        [
+          "block_b41_signs",
+          "block_b41_directions",
+          "block_e41",
+          "block_b5_crossings",
+          "block_b5_lanes",
+          "block_d3",
+        ].flatMap((key) =>
+          Array.from({ length: Math.max(blockCount, nextCount) }, (_, index) => [
+            `${key}_${index}`,
+            index < nextCount ? touchedFields[`${key}_${index}`] ?? false : false,
+          ])
+        )
+      ),
+    });
+    setCurrentBlockIndex((prev) => Math.min(prev, nextCount - 1));
+  };
+
+  const handleIntersectionCountChange = (delta: number) => {
+    const nextCount = Math.max(0, intersectionCount + delta);
+    if (nextCount === intersectionCount) return;
+
+    const trimArray = <T,>(values: T[] | undefined, fallback: T) =>
+      Array.from({ length: nextCount }, (_, index) =>
+        Array.isArray(values) && index < values.length ? (values[index] ?? fallback) : fallback
+      );
+    const trimMatrix = <T,>(values: T[][] | undefined, fallback: T[]) =>
+      Array.from({ length: nextCount }, (_, index) =>
+        Array.isArray(values) && index < values.length ? (values[index] ?? fallback) : fallback
+      );
+
+    handleDataChange({
+      intersections_count: nextCount,
+      intersection_road_type_by_intersection: trimArray(
+        formData.intersection_road_type_by_intersection,
+        ""
+      ),
+      intersection_has_cycling_connection_by_intersection: trimArray(
+        formData.intersection_has_cycling_connection_by_intersection,
+        null
+      ),
+      intersection_signaling_by_intersection: trimArray(formData.intersection_signaling_by_intersection, ""),
+      intersection_conservation_by_intersection: trimArray(
+        formData.intersection_conservation_by_intersection,
+        ""
+      ),
+      connection_accessibility_by_intersection: trimArray(
+        formData.connection_accessibility_by_intersection,
+        ""
+      ),
+      traffic_lanes_per_direction_by_intersection: trimArray(
+        formData.traffic_lanes_per_direction_by_intersection,
+        1
+      ),
+      mixed_lane_width_m_by_intersection: trimArray(formData.mixed_lane_width_m_by_intersection, 2.7),
+      has_intersection_traffic_calming_by_intersection: trimArray(
+        formData.has_intersection_traffic_calming_by_intersection,
+        false
+      ),
+      motorized_conflicts_by_intersection: trimMatrix(formData.motorized_conflicts_by_intersection, []),
+      touched_fields: Object.fromEntries(
+        [
+          "intersection_a2_type",
+          "intersection_a2_connection",
+          "intersection_c1",
+          "intersection_c2",
+          "intersection_c3",
+          "intersection_c3_lanes",
+          "intersection_c3_width",
+          "intersection_c3_calming",
+        ].flatMap((key) =>
+          Array.from({ length: Math.max(intersectionCount, nextCount) }, (_, index) => [
+            `${key}_${index}`,
+            index < nextCount ? touchedFields[`${key}_${index}`] ?? false : false,
+          ])
+        )
+      ),
+    });
+    setCurrentIntersectionIndex((prev) => Math.min(prev, Math.max(nextCount - 1, 0)));
+  };
+
   const blockPager: CriterionPagerConfig = {
     count: blockCount,
     currentIndex: currentBlockIndex,
     prefix: "Q",
     onSelect: setCurrentBlockIndex,
+    label: "Quadra em edição",
+    onAdd: () => handleBlockCountChange(1),
+    onRemove: () => handleBlockCountChange(-1),
+    canRemove: blockCount > 1,
   };
 
   const intersectionPager: CriterionPagerConfig = {
@@ -1065,6 +1286,10 @@ const SegmentForm = () => {
     currentIndex: currentIntersectionIndex,
     prefix: "I",
     onSelect: setCurrentIntersectionIndex,
+    label: "Interseção em edição",
+    onAdd: () => handleIntersectionCountChange(1),
+    onRemove: () => handleIntersectionCountChange(-1),
+    canRemove: intersectionCount > 0,
   };
 
   useEffect(() => {
@@ -1639,13 +1864,6 @@ const SegmentForm = () => {
                       />
                     </AssessmentCriterionAccordion>
                   </CriteriaAccordionGroup>
-                  <Page1
-                    data={formData}
-                    onDataChange={handleDataChange}
-                    originalCounts={originalSegmentCounts}
-                    filter={globalCriterionFilter}
-                    command={accordionCommand}
-                  />
                 </section>
 
                 <section id="section-pavimento" className="space-y-6">
@@ -1714,38 +1932,72 @@ const SegmentForm = () => {
 
                 <section id="section-quadras" className="space-y-6">
                   <AxisRibbon tone="e" title="Avaliacao das quadras" />
-                  {blockCount > 0 ? (
-                    <div className="sticky top-24 z-20 -mx-1 px-1">
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Editar quadras</div>
+                      <p className="text-xs text-slate-500">
+                        Ative para adicionar ou remover quadras pelo navegador.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowBlockPagerEdit}
+                      onCheckedChange={setAllowBlockPagerEdit}
+                    />
+                  </div>
+                  <div className="sticky top-24 z-20 -mx-1 px-1">
                       <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-                        {criterionDescriptionsVisible ? (
-                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                            Quadra em edicao
-                          </div>) : null}
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          {criterionDescriptionsVisible ? (
+                            <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                              Quadra em edição
+                            </div>
+                          ) : <div />}
+                          <div />
+                        </div>
                         <HorizontalScrollIndicators viewportClassName="overflow-x-auto">
-                          <div className="flex min-w-max items-center gap-2 px-8">
+                          <div className="flex min-w-max items-center gap-2">
                             {Array.from({ length: blockCount }, (_, index) => {
                               const isActive = index === currentBlockIndex;
                               const isComplete = blockCompletionStates[index] ?? false;
 
                               return (
-                                <button
-                                  key={`section-quadras-q-${index + 1}`}
-                                  type="button"
-                                  onClick={() => setCurrentBlockIndex(index)}
-                                  className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
-                                    isActive,
-                                    isComplete
-                                  )}`}
-                                >
-                                  Q{index + 1}
-                                </button>
+                                <React.Fragment key={`section-quadras-q-${index + 1}`}>
+                                  {allowBlockPagerEdit && isActive ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBlockCountChange(-1)}
+                                      disabled={blockCount <= 1}
+                                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      −
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => setCurrentBlockIndex(index)}
+                                    className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                      isActive,
+                                      isComplete
+                                    )}`}
+                                  >
+                                    Q{index + 1}
+                                  </button>
+                                  {allowBlockPagerEdit && isActive ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBlockCountChange(1)}
+                                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                      +
+                                    </button>
+                                  ) : null}
+                                </React.Fragment>
                               );
                             })}
                           </div>
                         </HorizontalScrollIndicators>
                       </div>
                     </div>
-                  ) : null}
                   <Page6
                     data={formData}
                     onDataChange={handleDataChange}
@@ -1778,38 +2030,72 @@ const SegmentForm = () => {
 
                 <section id="section-intersecoes" className="space-y-6">
                   <AxisRibbon tone="c" title="Avaliacao das intersecoes" />
-                  {intersectionCount > 0 ? (
-                    <div className="sticky top-24 z-20 -mx-1 px-1">
+                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Editar interseções</div>
+                      <p className="text-xs text-slate-500">
+                        Ative para adicionar ou remover interseções pelo navegador.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={allowIntersectionPagerEdit}
+                      onCheckedChange={setAllowIntersectionPagerEdit}
+                    />
+                  </div>
+                  <div className="sticky top-24 z-20 -mx-1 px-1">
                       <div className="rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
-                        {criterionDescriptionsVisible ? (
-                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                            Intersecao em edicao
-                          </div>) : null}
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          {criterionDescriptionsVisible ? (
+                            <div className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                              Interseção em edição
+                            </div>
+                          ) : <div />}
+                          <div />
+                        </div>
                         <HorizontalScrollIndicators viewportClassName="overflow-x-auto">
-                          <div className="flex min-w-max items-center gap-2 px-8">
+                          <div className="flex min-w-max items-center gap-2">
                             {Array.from({ length: intersectionCount }, (_, index) => {
                               const isActive = index === currentIntersectionIndex;
                               const isComplete = intersectionCompletionStates[index] ?? false;
 
                               return (
-                                <button
-                                  key={`section-intersecoes-i-${index + 1}`}
-                                  type="button"
-                                  onClick={() => setCurrentIntersectionIndex(index)}
-                                  className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
-                                    isActive,
-                                    isComplete
-                                  )}`}
-                                >
-                                  I{index + 1}
-                                </button>
+                                <React.Fragment key={`section-intersecoes-i-${index + 1}`}>
+                                  {allowIntersectionPagerEdit && isActive ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleIntersectionCountChange(-1)}
+                                      disabled={intersectionCount <= 0}
+                                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      −
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => setCurrentIntersectionIndex(index)}
+                                    className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                      isActive,
+                                      isComplete
+                                    )}`}
+                                  >
+                                    I{index + 1}
+                                  </button>
+                                  {allowIntersectionPagerEdit && isActive ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleIntersectionCountChange(1)}
+                                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                      +
+                                    </button>
+                                  ) : null}
+                                </React.Fragment>
                               );
                             })}
                           </div>
                         </HorizontalScrollIndicators>
                       </div>
                     </div>
-                  ) : null}
                   <Page7
                     data={formData}
                     onDataChange={handleDataChange}
@@ -1818,7 +2104,7 @@ const SegmentForm = () => {
                     intersectionPager={intersectionPager}
                     hideIntersectionPager
                     currentIntersectionIndex={currentIntersectionIndex}
-                    visibleValues={["c1", "e1", "c2", "c3"]}
+                    visibleValues={["a2", "c1", "e1", "c2", "c3"]}
                   />
                 </section>
 

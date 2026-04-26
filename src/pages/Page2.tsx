@@ -159,13 +159,31 @@ const Page2: React.FC<Page2Props> = ({
     return normalizedTypology.includes(normalizedValue);
   };
 
+  const selectionCardClassName = (selected: boolean) =>
+    `rounded-2xl border px-4 py-4 text-left transition-all ${
+      selected
+        ? "border-emerald-700 bg-emerald-50 shadow-sm"
+        : "border-slate-200 bg-white hover:bg-slate-50"
+    }`;
+
+  const compactChipClassName = (selected: boolean, muted = false) =>
+    `rounded-full border px-4 py-2 text-sm font-semibold transition ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : muted
+          ? "border-slate-200 bg-white text-slate-400"
+          : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+    }`;
+
   return (
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-lg border p-4">
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <Label htmlFor="road_hierarchy">Hierarquia viária:</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="road_hierarchy" className="text-base font-semibold text-slate-900">
+                Hierarquia viária
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
                 A hierarquia original vem do cadastro do trecho e entra no cálculo de adequação da
                 tipologia.
               </p>
@@ -182,34 +200,32 @@ const Page2: React.FC<Page2Props> = ({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             {HIERARCHY_OPTIONS.map((option) => {
               const isSelected = normalizedHierarchy === option.value;
 
               return (
-                <Button
+                <button
                   key={option.value}
                   type="button"
-                  variant="ghost"
                   aria-disabled={!allowHierarchyEdit}
                   onClick={() => {
                     if (!allowHierarchyEdit) return;
                     onHierarchySelection(option.value);
                   }}
-                  className={`h-auto rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
-                    isSelected
-                      ? "border-amber-300 bg-amber-50 text-amber-900 opacity-100"
-                      : "border-slate-200 bg-white text-slate-500 opacity-45"
-                  } ${allowHierarchyEdit ? "cursor-pointer hover:opacity-85" : "cursor-default"}`}
+                  className={`${compactChipClassName(
+                    isSelected,
+                    !allowHierarchyEdit && !isSelected
+                  )} ${allowHierarchyEdit ? "cursor-pointer" : "cursor-default"}`}
                 >
                   {option.label}
-                </Button>
+                </button>
               );
             })}
           </div>
 
           {!allowHierarchyEdit ? null : (
-            <div className="space-y-3">
+            <div className="mt-4 space-y-3">
               <Alert>
                 <AlertTitle>Atenção ao alterar a hierarquia</AlertTitle>
                 <AlertDescription>
@@ -237,12 +253,13 @@ const Page2: React.FC<Page2Props> = ({
           )}
         </div>
 
-        <div>
-          <div className="flex flex-col gap-3 rounded-lg border p-4">
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <Label htmlFor="infra_typology">Tipologia da infra:</Label>
-                <p className="text-sm text-muted-foreground">
+                <Label htmlFor="infra_typology" className="text-base font-semibold text-slate-900">
+                  Tipologia da infra
+                </Label>
+                <p className="mt-1 text-sm text-muted-foreground">
                   A tipologia vem da etapa anterior, mas pode ser corrigida em campo se houver erro.
                 </p>
               </div>
@@ -258,51 +275,40 @@ const Page2: React.FC<Page2Props> = ({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-              <span className="ideciclo-typology-label">Tipologia</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-3">
                 {TYPOLOGY_OPTIONS.map((option) => {
                   const selected = isTypologySelected(option.value);
                   const clickable = allowTypologyEdit;
 
                   return (
-                    <Button
+                    <button
                       key={option.value}
                       type="button"
-                      variant="ghost"
                       aria-disabled={!clickable}
                       onClick={() => {
                         if (!clickable) return;
                         handleRadioChange("infra_typology", option.value);
                       }}
-                      className={`${option.className} h-auto border border-transparent px-4 py-2 ${
+                      className={`${option.className} min-h-[56px] rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                         selected
-                          ? "ring-2 ring-black/15 opacity-100 saturate-100"
-                          : "opacity-40 saturate-50"
-                      } ${
-                        clickable
-                          ? "cursor-pointer hover:opacity-85"
-                          : "cursor-default"
-                      }`}
+                          ? "border-black/10 ring-2 ring-black/10 opacity-100 saturate-100"
+                          : clickable
+                            ? "border-slate-200 opacity-60 saturate-75 hover:opacity-85"
+                            : "border-slate-200 opacity-45 saturate-50"
+                      } ${clickable ? "cursor-pointer" : "cursor-default"}`}
                     >
                       {option.label}
-                    </Button>
+                    </button>
                   );
                 })}
-              </div>
             </div>
 
             {!allowTypologyEdit ? (
-              <Input
-                id="infra_typology"
-                name="infra_typology"
-                value={resolvedTypology}
-                readOnly
-                disabled
-                className="bg-gray-100"
-              />
+              <p className="mt-3 text-sm text-muted-foreground">
+                Tipologia original do trecho: <strong>{resolvedTypology || "Não informada"}</strong>
+              </p>
             ) : (
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 <Alert>
                   <AlertTitle>Atenção ao alterar a tipologia</AlertTitle>
                   <AlertDescription>
@@ -328,25 +334,19 @@ const Page2: React.FC<Page2Props> = ({
                 ) : null}
               </div>
             )}
-          </div>
         </div>
 
-        <div>
-          <Label className="mb-3 block">Fluxo da infra:</Label>
+        <div className="space-y-3">
+          <Label className="block text-base font-semibold text-slate-900">Fluxo da infra</Label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {FLOW_OPTIONS.map((option) => {
               const isSelected = (data.infra_flow || "unidirectional") === option.value;
 
               return (
-                <Button
+                <button
                   key={option.value}
                   type="button"
-                  variant="ghost"
-                  className={`h-auto justify-start rounded-2xl border px-4 py-4 transition-all ${
-                    isSelected
-                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
-                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
-                  }`}
+                  className={`w-full ${selectionCardClassName(isSelected)}`}
                   onClick={() => handleRadioChange("infra_flow", option.value)}
                 >
                   <div className="flex w-full items-center gap-4">
@@ -359,28 +359,23 @@ const Page2: React.FC<Page2Props> = ({
                       {option.label}
                     </span>
                   </div>
-                </Button>
+                </button>
               );
             })}
           </div>
         </div>
 
-        <div>
-          <Label className="mb-3 block">Posição na via:</Label>
+        <div className="space-y-3">
+          <Label className="block text-base font-semibold text-slate-900">Posição na via</Label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {POSITION_OPTIONS.map((option) => {
               const isSelected = (data.position_on_road || "pista_calcada") === option.value;
 
               return (
-                <Button
+                <button
                   key={option.value}
                   type="button"
-                  variant="ghost"
-                  className={`h-auto justify-start rounded-2xl border px-4 py-4 transition-all ${
-                    isSelected
-                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
-                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
-                  }`}
+                  className={`w-full ${selectionCardClassName(isSelected)}`}
                   onClick={() => handleRadioChange("position_on_road", option.value)}
                 >
                   <div className="flex w-full items-center gap-4">
@@ -393,28 +388,25 @@ const Page2: React.FC<Page2Props> = ({
                       {option.label}
                     </span>
                   </div>
-                </Button>
+                </button>
               );
             })}
           </div>
         </div>
 
-        <div>
-          <Label className="mb-3 block">Velocidade máxima regulamentada:</Label>
+        <div className="space-y-3">
+          <Label className="block text-base font-semibold text-slate-900">
+            Velocidade máxima regulamentada
+          </Label>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
             {SPEED_OPTIONS.map((speed) => {
               const isSelected = data.velocity_kmh === speed;
 
               return (
-                <Button
+                <button
                   key={speed}
                   type="button"
-                  variant="ghost"
-                  className={`h-auto flex-col gap-2 rounded-2xl border px-3 py-3 transition-all ${
-                    isSelected
-                      ? "border-emerald-700 bg-emerald-50 shadow-sm opacity-100"
-                      : "border-slate-200 bg-white opacity-45 hover:opacity-85"
-                  }`}
+                  className={`flex h-auto w-full flex-col gap-2 ${selectionCardClassName(isSelected)} px-3 py-3`}
                   onClick={() => onDataChange({ velocity_kmh: speed })}
                 >
                   <img
@@ -422,8 +414,7 @@ const Page2: React.FC<Page2Props> = ({
                     alt={`${speed} km/h`}
                     className="h-16 w-16 object-contain"
                   />
-                  <span className="text-sm font-semibold text-slate-700">{speed} km/h</span>
-                </Button>
+                </button>
               );
             })}
           </div>
@@ -432,8 +423,11 @@ const Page2: React.FC<Page2Props> = ({
         {String(resolvedTypology || "")
           .toLowerCase()
           .includes("partilh") && (
-          <div>
-            <Label htmlFor="pedestrian_flow_per_hour_per_meter">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+            <Label
+              htmlFor="pedestrian_flow_per_hour_per_meter"
+              className="text-base font-semibold text-slate-900"
+            >
               Fluxo de pedestres por hora por metro:
             </Label>
             <Input
@@ -442,6 +436,7 @@ const Page2: React.FC<Page2Props> = ({
               type="number"
               value={data.pedestrian_flow_per_hour_per_meter || ""}
               onChange={handleChange}
+              className="mt-3"
             />
             <p className="mt-2 text-sm text-muted-foreground">
               Se passar de 200 pedestres/hora/metro, a calçada partilhada fica inadequada pelo manual.

@@ -15,6 +15,7 @@ import {
   IdecicloFormData,
   IdecicloRating,
   IntersectionHorizontalSignsCondition,
+  IntersectionRoadType,
   RiskOccurrenceKey,
 } from "@/types/idecicloForm";
 import { getMedianRating } from "@/utils/idecicloAssessment";
@@ -69,7 +70,7 @@ interface Page7Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   filter?: CriterionFilter;
   command?: { type: "expand" | "collapse"; nonce: number } | null;
-  visibleValues?: Array<"b7" | "b5" | "c1" | "e1" | "c2" | "c3">;
+  visibleValues?: Array<"b7" | "b5" | "a2" | "c1" | "e1" | "c2" | "c3">;
   blockPager?: CriterionPagerConfig;
   hideBlockPager?: boolean;
   intersectionPager?: CriterionPagerConfig;
@@ -91,7 +92,7 @@ const Page7: React.FC<Page7Props> = ({
 }) => {
   const normalizedTypology = (data.infra_typology || "").toLowerCase();
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
-  const canShow = (value: "b7" | "b5" | "c1" | "e1" | "c2" | "c3") =>
+  const canShow = (value: "b7" | "b5" | "a2" | "c1" | "e1" | "c2" | "c3") =>
     !visibleValues || visibleValues.includes(value);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -129,7 +130,15 @@ const Page7: React.FC<Page7Props> = ({
   const blockTouchKey = (criterion: "b5_crossings" | "b5_lanes", index: number) =>
     `block_${criterion}_${index}`;
   const intersectionTouchKey = (
-    criterion: "c1" | "c2" | "c3" | "c3_lanes" | "c3_width" | "c3_calming",
+    criterion:
+      | "a2_type"
+      | "a2_connection"
+      | "c1"
+      | "c2"
+      | "c3"
+      | "c3_lanes"
+      | "c3_width"
+      | "c3_calming",
     index: number
   ) => `intersection_${criterion}_${index}`;
   const resetBlockTouchKeys = (criteria: Array<"b5_crossings" | "b5_lanes">) =>
@@ -139,7 +148,9 @@ const Page7: React.FC<Page7Props> = ({
       ).flat()
     );
   const resetIntersectionTouchKeys = (
-    criteria: Array<"c1" | "c2" | "c3" | "c3_lanes" | "c3_width" | "c3_calming">
+    criteria: Array<
+      "a2_type" | "a2_connection" | "c1" | "c2" | "c3" | "c3_lanes" | "c3_width" | "c3_calming"
+    >
   ) =>
     Object.fromEntries(
       Array.from({ length: Math.max(0, Number(data.intersections_count || 0)) }, (_, index) =>
@@ -227,6 +238,14 @@ const Page7: React.FC<Page7Props> = ({
   const currentIntersectionSignaling = getIntersectionArrayValue(
     data.intersection_signaling_by_intersection,
     data.intersection_signaling || ""
+  );
+  const currentIntersectionRoadType = getIntersectionArrayValue(
+    data.intersection_road_type_by_intersection,
+    "" as IntersectionRoadType
+  );
+  const currentIntersectionHasCyclingConnection = getIntersectionArrayValue(
+    data.intersection_has_cycling_connection_by_intersection,
+    null as boolean | null
   );
   const currentConnectionAccessibility = getIntersectionArrayValue(
     data.connection_accessibility_by_intersection,
@@ -355,6 +374,36 @@ const Page7: React.FC<Page7Props> = ({
       </Badge>
     </>
   );
+  const setA2IntersectionRoadType = (nextValue: IntersectionRoadType) => {
+    const nextRoadTypes = setIntersectionArrayValue(
+      data.intersection_road_type_by_intersection,
+      nextValue,
+      "" as IntersectionRoadType
+    );
+
+    onDataChange({
+      intersection_road_type_by_intersection: nextRoadTypes,
+      touched_fields: {
+        intersection_road_type_by_intersection: true,
+        [intersectionTouchKey("a2_type", currentIntersectionIndex)]: true,
+      },
+    });
+  };
+  const setA2IntersectionCyclingConnection = (nextValue: boolean) => {
+    const nextConnections = setIntersectionArrayValue(
+      data.intersection_has_cycling_connection_by_intersection,
+      nextValue,
+      null as boolean | null
+    );
+
+    onDataChange({
+      intersection_has_cycling_connection_by_intersection: nextConnections,
+      touched_fields: {
+        intersection_has_cycling_connection_by_intersection: true,
+        [intersectionTouchKey("a2_connection", currentIntersectionIndex)]: true,
+      },
+    });
+  };
 
   const renderCounter = ({
     label,
@@ -465,8 +514,8 @@ const Page7: React.FC<Page7Props> = ({
 
   return (
     <CriteriaAccordionGroup
-          allValues={["b7", "b5", "c1", "e1", "c2", "c3"].filter(canShow)}
-          defaultOpenValues={["b7", "b5", "c1"].filter(canShow)}
+          allValues={["b7", "b5", "a2", "c1", "e1", "c2", "c3"].filter(canShow)}
+          defaultOpenValues={["b7", "b5", "a2", "c1"].filter(canShow)}
           filter={filter}
           command={command}
         >
@@ -584,6 +633,85 @@ const Page7: React.FC<Page7Props> = ({
               </div>
             </div>
           </AssessmentCriterionAccordion> : null}
+
+          {canShow("a2") ? (
+            <AssessmentCriterionAccordion
+              value="a2"
+              title="A.2. Conectividade da rede cicloviária"
+              description="Classifique a via da interseção e informe se há continuidade ou conexão com outra infraestrutura cicloviária."
+              scorePreview={buildCriterionScorePreview(data, ["A2"])}
+              answered={
+                Array.isArray(data.intersection_road_type_by_intersection) &&
+                data.intersection_road_type_by_intersection.some((value) => Boolean(value))
+              }
+              inAnalysis={data.criterion_workflow_state?.a2 === "analysis"}
+              onAnalysisChange={(value) => updateWorkflow("a2", value ? "analysis" : "default")}
+              onClear={() =>
+                onDataChange({
+                  intersection_road_type_by_intersection: Array.from(
+                    { length: intersectionCount },
+                    () => "" as IntersectionRoadType
+                  ),
+                  intersection_has_cycling_connection_by_intersection: Array.from(
+                    { length: intersectionCount },
+                    () => null as boolean | null
+                  ),
+                  relevant_intersections_count: 0,
+                  connected_intersections_count: 0,
+                  touched_fields: {
+                    intersection_road_type_by_intersection: false,
+                    intersection_has_cycling_connection_by_intersection: false,
+                    ...resetIntersectionTouchKeys(["a2_type", "a2_connection"]),
+                  },
+                })
+              }
+              helpKey="A2"
+              pager={intersectionPager}
+              showPager={!hideIntersectionPager}
+              extraBadges={renderIntersectionBadge("I", undefined)}
+            >
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Tipo da via na interseção</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Local", value: "local" as const },
+                      { label: "Coletora", value: "coletora" as const },
+                      { label: "Arterial", value: "arterial" as const },
+                    ].map((option) => (
+                      <button
+                        key={`a2-road-${option.value}`}
+                        type="button"
+                        className={chipClassName(currentIntersectionRoadType === option.value)}
+                        onClick={() => setA2IntersectionRoadType(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="mb-2 block">Há infraestrutura cicloviária conectada?</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: "Sim", value: true },
+                      { label: "Não", value: false },
+                    ].map((option) => (
+                      <button
+                        key={`a2-connection-${String(option.value)}`}
+                        type="button"
+                        className={chipClassName(currentIntersectionHasCyclingConnection === option.value)}
+                        onClick={() => setA2IntersectionCyclingConnection(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </AssessmentCriterionAccordion>
+          ) : null}
 
           {canShow("b5") ? <AssessmentCriterionAccordion
             value="b5"

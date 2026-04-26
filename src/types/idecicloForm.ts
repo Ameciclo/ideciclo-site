@@ -22,6 +22,7 @@ export type CyclingFurnitureKey =
   | "bebedouros";
 export type VerticalSignsConditionByBlock = "good" | "damage" | "";
 export type IntersectionHorizontalSignsCondition = "good" | "damage" | "none" | "";
+export type IntersectionRoadType = "local" | "coletora" | "arterial" | "";
 export type CriterionCode =
   | "A1"
   | "A2"
@@ -62,6 +63,8 @@ export interface IdecicloFormData {
   intersections_count: number;
   relevant_intersections_count: number;
   connected_intersections_count: number;
+  intersection_road_type_by_intersection: IntersectionRoadType[];
+  intersection_has_cycling_connection_by_intersection: Array<boolean | null>;
   pedestrian_flow_per_hour_per_meter: number;
   infra_typology: string;
   infra_flow: string;

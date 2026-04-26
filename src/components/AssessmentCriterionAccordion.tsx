@@ -17,6 +17,10 @@ export interface CriterionPagerConfig {
   prefix: string;
   onSelect: (index: number) => void;
   itemRatings?: Array<string | null | undefined>;
+  label?: string;
+  onAdd?: () => void;
+  onRemove?: () => void;
+  canRemove?: boolean;
 }
 
 interface AssessmentCriterionAccordionProps {
@@ -222,6 +226,34 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
         {showPager && pager && pager.count > 0 ? (
           <div className="mt-3 overflow-x-auto">
             <div className="flex min-w-max items-center gap-2">
+              {pager.label ? (
+                <span className="text-xs font-medium text-slate-500">{pager.label}</span>
+              ) : null}
+              {pager.onRemove ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    pager.onRemove?.();
+                  }}
+                  disabled={pager.canRemove === false}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  −
+                </button>
+              ) : null}
+              {pager.onAdd ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    pager.onAdd?.();
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  +
+                </button>
+              ) : null}
               {Array.from({ length: pager.count }, (_, index) => {
                 const isActive = index === pager.currentIndex;
 
