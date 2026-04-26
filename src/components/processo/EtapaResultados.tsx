@@ -70,6 +70,15 @@ type CalculationFilter =
   | "incompativeis"
   | "sem-hierarquia"
   | "sem-nota";
+type SortField =
+  | "displayName"
+  | "typeLabel"
+  | "hierarchyLabel"
+  | "status"
+  | "lengthKm"
+  | "score"
+  | "contribution";
+type SortDirection = "asc" | "desc";
 
 const NETWORK_KEYS = Object.keys(NETWORK_CONFIG) as NetworkKey[];
 
@@ -239,6 +248,7 @@ const ResultsMap = ({
 }: ResultsMapProps) => {
   const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
   const mapRef = useRef<MapRef | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const mapFeatures = useMemo(
     () => ({
@@ -261,7 +271,7 @@ const ResultsMap = ({
 
   const bounds = useMemo(() => getBounds(segments), [segments]);
 
-  useEffect(() => {
+  const fitMapToBounds = () => {
     if (!mapRef.current || !bounds) return;
 
     mapRef.current.fitBounds(bounds, {
@@ -269,7 +279,26 @@ const ResultsMap = ({
       duration: 700,
       maxZoom: 15,
     });
-  }, [bounds]);
+  };
+
+  useEffect(() => {
+    if (!mapLoaded || !bounds) return;
+
+    fitMapToBounds();
+
+    const firstPass = window.setTimeout(() => {
+      fitMapToBounds();
+    }, 120);
+
+    const secondPass = window.setTimeout(() => {
+      fitMapToBounds();
+    }, 420);
+
+    return () => {
+      window.clearTimeout(firstPass);
+      window.clearTimeout(secondPass);
+    };
+  }, [bounds, mapLoaded, segments.length]);
 
   const pendingLayer = {
     id: "results-segments-pending",
@@ -352,6 +381,10 @@ const ResultsMap = ({
         mapboxAccessToken={token}
         mapStyle="mapbox://styles/mapbox/light-v11"
         style={{ width: "100%", height: 420 }}
+        onLoad={() => {
+          setMapLoaded(true);
+          fitMapToBounds();
+        }}
         interactiveLayerIds={[
           pendingLayer.id,
           evaluatedLayer.id,
@@ -398,6 +431,8 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
   const [calculationFilter, setCalculationFilter] =
     useState<CalculationFilter>("todos");
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>("displayName");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   useEffect(() => {
     let isActive = true;
@@ -466,7 +501,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
 
     const normalizedSearch = normalizeText(searchTerm);
 
-    return results.segments.filter((segment) => {
+    const filtered = results.segments.filter((segment) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         normalizeText(
@@ -507,7 +542,42 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
         matchesCalculation
       );
     });
-  }, [calculationFilter, hierarchyFilter, results, scoreBandFilter, searchTerm, statusFilter, typeFilter]);
+
+    const getSortableValue = (segment: SegmentResultEntry) => {
+      if (sortField === "displayName") return segment.displayName;
+      if (sortField === "typeLabel") return segment.typeLabel;
+      if (sortField === "hierarchyLabel") return segment.hierarchyLabel;
+      if (sortField === "status") return getStatusLabel(segment);
+      if (sortField === "lengthKm") return segment.lengthKm;
+      if (sortField === "score") return segment.score ?? -1;
+      return segment.contribution;
+    };
+
+    return [...filtered].sort((first, second) => {
+      const left = getSortableValue(first);
+      const right = getSortableValue(second);
+
+      let comparison = 0;
+
+      if (typeof left === "number" && typeof right === "number") {
+        comparison = left - right;
+      } else {
+        comparison = String(left).localeCompare(String(right), "pt-BR");
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [
+    calculationFilter,
+    hierarchyFilter,
+    results,
+    scoreBandFilter,
+    searchTerm,
+    sortDirection,
+    sortField,
+    statusFilter,
+    typeFilter,
+  ]);
 
   useEffect(() => {
     if (filteredSegments.length === 0) {
@@ -547,6 +617,8 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
     setTypeFilter("todos");
     setHierarchyFilter("todos");
     setCalculationFilter("todos");
+    setSortField("displayName");
+    setSortDirection("asc");
   };
 
   const handleStartOver = () => {
@@ -1099,12 +1171,63 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
 
           <div className="rounded-[28px] border border-slate-200">
             <div className="border-b border-slate-200 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-4">
                 <div>
                   <h4 className="font-semibold text-slate-950">Tabela das estruturas</h4>
                   <p className="text-sm text-slate-600">
                     {formatCount(filteredSegments.length)} trecho(s) visível(is) com os filtros atuais.
                   </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    Entram no cálculo
+                  </Badge>
+                  <Badge className="border-rose-200 bg-rose-50 text-rose-700">
+                    A1 = D / incompatíveis
+                  </Badge>
+                  <Badge className="border-slate-200 bg-slate-100 text-slate-700">
+                    Pendente ou sem nota
+                  </Badge>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <Select
+                    value={sortField}
+                    onValueChange={(value) => setSortField(value as SortField)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Ordenar por" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="displayName">Ordenar: trecho</SelectItem>
+                      <SelectItem value="typeLabel">Tipologia</SelectItem>
+                      <SelectItem value="hierarchyLabel">Hierarquia</SelectItem>
+                      <SelectItem value="status">Status</SelectItem>
+                      <SelectItem value="lengthKm">Extensão</SelectItem>
+                      <SelectItem value="score">Nota</SelectItem>
+                      <SelectItem value="contribution">Contribuição</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={sortDirection}
+                    onValueChange={(value) => setSortDirection(value as SortDirection)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Direção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="asc">Crescente</SelectItem>
+                      <SelectItem value="desc">Decrescente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    Estrutural: peso {formatPercent(NETWORK_CONFIG.estrutural.weight * 100)}
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    Alimentadora: peso {formatPercent(NETWORK_CONFIG.alimentadora.weight * 100)}
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    Local: peso {formatPercent(NETWORK_CONFIG.local.weight * 100)}
+                  </div>
                 </div>
               </div>
             </div>

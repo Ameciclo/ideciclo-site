@@ -9,17 +9,17 @@ import { getScoreBreakdown } from "@/utils/idecicloAssessment";
 export const NETWORK_CONFIG = {
   estrutural: {
     label: "Estrutural",
-    weight: 0.59,
+    weight: 0.6,
     cityField: "vias_estruturais_km",
   },
   alimentadora: {
     label: "Alimentadora",
-    weight: 0.262,
+    weight: 0.25,
     cityField: "vias_alimentadoras_km",
   },
   local: {
     label: "Local",
-    weight: 0.148,
+    weight: 0.15,
     cityField: "vias_locais_km",
   },
 } as const;
