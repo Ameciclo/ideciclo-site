@@ -18,12 +18,20 @@ export const getPersistedCityData = () => {
 };
 
 export const setPersistedCityData = (value: string) => {
-  if (typeof sessionStorage !== "undefined") {
-    sessionStorage.setItem(CITY_DATA_KEY, value);
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(CITY_DATA_KEY, value);
+    }
+  } catch (error) {
+    console.warn("Falha ao salvar snapshot da cidade em sessionStorage:", error);
   }
 
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem(CITY_DATA_KEY, value);
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(CITY_DATA_KEY, value);
+    }
+  } catch (error) {
+    console.warn("Falha ao salvar snapshot da cidade em localStorage:", error);
   }
 };
 

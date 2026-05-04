@@ -12,6 +12,48 @@ export enum RatingType {
   D = "D"
 }
 
+export type OsmConfidence = "high" | "medium" | "low" | "unknown";
+
+export type IdecicloPrefill = {
+  nome?: string;
+  trechoInicio?: string;
+  trechoFim?: string;
+  tipologia?: string;
+  posicaoNaVia?: string;
+  hierarquia?: string;
+  velocidade?: string;
+  sentido?: string;
+  numeroFaixas?: number;
+  pavimento?: string;
+  largura?: number;
+  bufferSeparacao?: string;
+  pendenciasCampo: string[];
+};
+
+export type OsmImprovementSuggestion = {
+  field: string;
+  reason: string;
+  suggestedTags: string[];
+  priority: "high" | "medium" | "low";
+};
+
+export type SegmentIntersectionPreview = {
+  pointKey: string;
+  roadId: string;
+  roadName?: string;
+  highway?: string;
+  hierarchy?: string;
+};
+
+export type OsmAdvancedInfo = {
+  osmId: string;
+  osmType: string;
+  rawTags: Record<string, string>;
+  interpreted: IdecicloPrefill;
+  confidenceByField: Record<string, OsmConfidence>;
+  suggestions: OsmImprovementSuggestion[];
+};
+
 export interface City {
   id: string;
   name: string;
@@ -40,6 +82,21 @@ export interface Segment {
   parent_segment_id?: string;
   merged_segments?: any[];
   classification?: string; // 'estrutural', 'alimentadora', or 'local'
+  blocks_count?: number;
+  intersections_count?: number;
+  relevant_intersections_count?: number;
+  connected_intersections_count?: number;
+  osm_id?: string;
+  osm_type?: string;
+  osm_tags?: Record<string, string>;
+  osm_raw?: OverpassElement | Record<string, unknown>;
+  osm_confidence?: Record<string, OsmConfidence>;
+  ideciclo_prefill?: IdecicloPrefill;
+  osm_improvement_suggestions?: OsmImprovementSuggestion[];
+  estimated_blocks_count?: number;
+  estimated_intersections_count?: number;
+  intersections_preview?: SegmentIntersectionPreview[];
+  osm_advanced?: OsmAdvancedInfo;
 }
 
 export interface Form {

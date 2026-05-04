@@ -20,6 +20,10 @@ interface RefinementTableSortableWrapperProps {
   selectedSegments: Segment[];
   onMergeSelected: () => Promise<void>;
   onUpdateSegmentName: (segmentId: string, newName: string) => Promise<void>;
+  onUpdateSegmentTechnical?: (
+    segmentId: string,
+    updates: Partial<Segment>
+  ) => Promise<void>;
   onDeleteSegment: (segmentId: string) => Promise<void>;
   onUnmergeSegments: (
     parentSegmentId: string,
@@ -36,6 +40,7 @@ export const RefinementTableSortableWrapper = ({
   selectedSegments,
   onMergeSelected,
   onUpdateSegmentName,
+  onUpdateSegmentTechnical,
   onDeleteSegment,
   onUnmergeSegments,
   onUpdateSegmentClassification,
@@ -330,6 +335,7 @@ export const RefinementTableSortableWrapper = ({
               onSelectAllSegments={onSelectAllSegments}
               selectedSegments={selectedSegments}
               onUpdateSegmentName={onUpdateSegmentName}
+              onUpdateSegmentTechnical={onUpdateSegmentTechnical}
               onDeleteSegment={onDeleteSegment}
               onUnmergeSegments={onUnmergeSegments}
               onUpdateSegmentClassification={onUpdateSegmentClassification}
@@ -353,6 +359,7 @@ export const RefinementTableSortableWrapper = ({
               onSelectAllSegments={onSelectAllSegments}
               selectedSegments={selectedSegments}
               onUpdateSegmentName={onUpdateSegmentName}
+              onUpdateSegmentTechnical={onUpdateSegmentTechnical}
               onDeleteSegment={onDeleteSegment}
               onUnmergeSegments={onUnmergeSegments}
               onUpdateSegmentClassification={onUpdateSegmentClassification}
@@ -375,6 +382,7 @@ export const RefinementTableSortableWrapper = ({
             onSelectAllSegments={onSelectAllSegments}
             selectedSegments={selectedSegments}
             onUpdateSegmentName={onUpdateSegmentName}
+            onUpdateSegmentTechnical={onUpdateSegmentTechnical}
             onDeleteSegment={onDeleteSegment}
             onUnmergeSegments={onUnmergeSegments}
             onUpdateSegmentClassification={onUpdateSegmentClassification}

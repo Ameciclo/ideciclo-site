@@ -50,6 +50,7 @@ import {
   CriterionReviewFilter,
 } from "@/components/criteriaAccordionContext";
 import { buildCriterionScorePreview } from "@/utils/criterionScorePreview";
+import { getPersistedCityData } from "@/utils/persistedCityData";
 
 const DRAFT_PREFIX = "ideciclo-draft";
 const PENDING_SUBMISSIONS_KEY = "ideciclo-pending-submissions";
@@ -79,6 +80,171 @@ const getSessionSelectedCityId = () => {
   return sessionStorage.getItem("selectedCityId");
 };
 
+const findSegmentInPersistedCityData = (segmentId: string | null | undefined): Partial<Segment> | null => {
+  if (!segmentId) return null;
+  const serialized = getPersistedCityData();
+  if (!serialized) return null;
+
+  try {
+    const parsed = JSON.parse(serialized);
+    const segments = Array.isArray(parsed?.segments) ? parsed.segments : [];
+    const matched = segments.find((segment: Partial<Segment> & { id?: string }) => {
+      if (!segment?.id) return false;
+      if (segment.id === segmentId) return true;
+      if (segment.id.includes("_")) {
+        return segment.id.split("_").slice(1).join("_") === segmentId;
+      }
+      return false;
+    });
+
+    return matched || null;
+  } catch (error) {
+    console.warn("Falha ao ler cityData persistido:", error);
+    return null;
+  }
+};
+
+const mapDirectionPrefillToInfraFlow = (
+  direction?: string
+): "unidirectional" | "bidirectional" | undefined => {
+  if (!direction) return undefined;
+  const normalized = direction.toLowerCase();
+  if (normalized.includes("bi")) return "bidirectional";
+  if (normalized.includes("uni") || normalized.includes("contra")) return "unidirectional";
+  return undefined;
+};
+
+const mapPositionPrefillToForm = (position?: string): string | undefined => {
+  if (!position) return undefined;
+  const normalized = position.toLowerCase();
+  if (normalized.includes("esquerdo") || normalized.includes("direito")) return "pista_calcada";
+  if (normalized.includes("ambos")) return "pista_calcada";
+  if (normalized.includes("calçada") || normalized.includes("calcada")) return "calcada";
+  if (normalized.includes("canteiro")) return "canteiro";
+  if (normalized.includes("dedicada") || normalized.includes("segregada")) return "isolada";
+  return undefined;
+};
+
+const applyOsmPrefillToFormData = (
+  data: IdecicloFormData,
+  segmentData: Partial<Segment> | null | undefined
+): IdecicloFormData => {
+  if (!segmentData?.ideciclo_prefill) return data;
+
+  const prefill = segmentData.ideciclo_prefill;
+  const inferredFlow = mapDirectionPrefillToInfraFlow(prefill.sentido);
+  const inferredPosition = mapPositionPrefillToForm(prefill.posicaoNaVia);
+  const inferredSpeed = prefill.velocidade ? Number(prefill.velocidade) : undefined;
+
+  return {
+    ...data,
+    start_point: data.start_point || prefill.trechoInicio || data.start_point,
+    end_point: data.end_point || prefill.trechoFim || data.end_point,
+    infra_typology: data.infra_typology || prefill.tipologia || data.infra_typology,
+    road_hierarchy: data.road_hierarchy || prefill.hierarquia || data.road_hierarchy,
+    classification: data.classification || prefill.hierarquia || data.classification,
+    infra_flow: data.infra_flow !== "unidirectional" ? data.infra_flow : inferredFlow || data.infra_flow,
+    position_on_road: data.position_on_road !== "pista_calcada"
+      ? data.position_on_road
+      : inferredPosition || data.position_on_road,
+    velocity_kmh:
+      data.velocity_kmh > 0
+        ? data.velocity_kmh
+        : Number.isFinite(inferredSpeed)
+          ? Number(inferredSpeed)
+          : data.velocity_kmh,
+    traffic_lanes_count:
+      data.traffic_lanes_count !== 2
+        ? data.traffic_lanes_count
+        : prefill.numeroFaixas ?? data.traffic_lanes_count,
+    width_meters:
+      data.width_meters > 0 ? data.width_meters : prefill.largura ?? data.width_meters,
+    blocks_count:
+      data.blocks_count !== 1
+        ? data.blocks_count
+        : clampMinimumOne(
+            segmentData.blocks_count ??
+              segmentData.estimated_blocks_count ??
+              data.blocks_count
+          ),
+    intersections_count:
+      data.intersections_count !== 0
+        ? data.intersections_count
+        : clampNonNegative(
+            segmentData.intersections_count ??
+              segmentData.estimated_intersections_count ??
+              data.intersections_count
+          ),
+    relevant_intersections_count:
+      data.relevant_intersections_count !== 0
+        ? data.relevant_intersections_count
+        : clampNonNegative(
+            segmentData.relevant_intersections_count ?? data.relevant_intersections_count
+          ),
+    connected_intersections_count:
+      data.connected_intersections_count !== 0
+        ? data.connected_intersections_count
+        : clampNonNegative(
+            segmentData.connected_intersections_count ?? data.connected_intersections_count
+          ),
+  };
+};
+
+const buildOsmFieldDifferences = (
+  data: IdecicloFormData,
+  segmentData: Partial<Segment> | null
+) => {
+  const prefill = segmentData?.ideciclo_prefill;
+  if (!prefill) return [];
+
+  const differences: Array<{
+    field: string;
+    osmValue: string | number;
+    observedValue: string | number;
+  }> = [];
+
+  const compare = (field: string, osmValue: string | number | undefined, observedValue: string | number) => {
+    if (osmValue === undefined || osmValue === null || osmValue === "") return;
+    if (String(osmValue).trim() === String(observedValue).trim()) return;
+    differences.push({ field, osmValue, observedValue });
+  };
+
+  compare("tipologia", prefill.tipologia, data.infra_typology);
+  compare("hierarquia", prefill.hierarquia, data.road_hierarchy);
+  compare("velocidade", prefill.velocidade, data.velocity_kmh);
+  compare("numeroFaixas", prefill.numeroFaixas, data.traffic_lanes_count);
+  compare("largura", prefill.largura, data.width_meters);
+  compare("trechoInicio", prefill.trechoInicio, data.start_point);
+  compare("trechoFim", prefill.trechoFim, data.end_point);
+  compare("sentido", mapDirectionPrefillToInfraFlow(prefill.sentido), data.infra_flow);
+  compare("posicaoNaVia", mapPositionPrefillToForm(prefill.posicaoNaVia), data.position_on_road);
+
+  return differences;
+};
+
+const fetchSegmentContextById = async (
+  segmentId: string | null | undefined
+): Promise<Partial<Segment> | null> => {
+  if (!segmentId) return null;
+  const dbSegment = await fetchSegmentById(segmentId);
+  const persistedSegment = findSegmentInPersistedCityData(segmentId);
+  return {
+    ...(persistedSegment || {}),
+    ...(dbSegment || {}),
+    ideciclo_prefill: dbSegment?.ideciclo_prefill || persistedSegment?.ideciclo_prefill,
+    osm_confidence: dbSegment?.osm_confidence || persistedSegment?.osm_confidence,
+    osm_improvement_suggestions:
+      dbSegment?.osm_improvement_suggestions || persistedSegment?.osm_improvement_suggestions,
+    intersections_preview: dbSegment?.intersections_preview || persistedSegment?.intersections_preview,
+    estimated_blocks_count:
+      dbSegment?.estimated_blocks_count ?? persistedSegment?.estimated_blocks_count,
+    estimated_intersections_count:
+      dbSegment?.estimated_intersections_count ??
+      persistedSegment?.estimated_intersections_count,
+    osm_advanced: dbSegment?.osm_advanced || persistedSegment?.osm_advanced,
+  };
+};
+
 const toSegmentPreview = (
   segmentData: {
     id?: string;
@@ -95,6 +261,21 @@ const toSegmentPreview = (
     parent_segment_id?: string | null;
     merged_segments?: unknown;
     classification?: string | null;
+    blocks_count?: number | null;
+    intersections_count?: number | null;
+    relevant_intersections_count?: number | null;
+    connected_intersections_count?: number | null;
+    osm_id?: string | null;
+    osm_type?: string | null;
+    osm_tags?: Record<string, string> | null;
+    osm_raw?: unknown;
+    osm_confidence?: Record<string, string> | null;
+    ideciclo_prefill?: Segment["ideciclo_prefill"];
+    osm_improvement_suggestions?: Segment["osm_improvement_suggestions"];
+    estimated_blocks_count?: number | null;
+    estimated_intersections_count?: number | null;
+    intersections_preview?: Segment["intersections_preview"];
+    osm_advanced?: Segment["osm_advanced"];
   } | null
 ): Segment | null => {
   if (!segmentData) return null;
@@ -116,6 +297,23 @@ const toSegmentPreview = (
       ? segmentData.merged_segments
       : undefined,
     classification: segmentData.classification || undefined,
+    blocks_count: segmentData.blocks_count ?? undefined,
+    intersections_count: segmentData.intersections_count ?? undefined,
+    relevant_intersections_count: segmentData.relevant_intersections_count ?? undefined,
+    connected_intersections_count: segmentData.connected_intersections_count ?? undefined,
+    osm_id: segmentData.osm_id || undefined,
+    osm_type: segmentData.osm_type || undefined,
+    osm_tags: segmentData.osm_tags || undefined,
+    osm_raw:
+      (segmentData.osm_raw as Segment["osm_raw"]) || undefined,
+    osm_confidence:
+      (segmentData.osm_confidence as Segment["osm_confidence"]) || undefined,
+    ideciclo_prefill: segmentData.ideciclo_prefill || undefined,
+    osm_improvement_suggestions: segmentData.osm_improvement_suggestions || undefined,
+    estimated_blocks_count: segmentData.estimated_blocks_count ?? undefined,
+    estimated_intersections_count: segmentData.estimated_intersections_count ?? undefined,
+    intersections_preview: segmentData.intersections_preview || undefined,
+    osm_advanced: segmentData.osm_advanced || undefined,
   };
 };
 
@@ -404,12 +602,13 @@ const mergeWithDefaults = (
 
 const hydrateHeaderFields = async (
   segmentId: string | null | undefined,
-  data: IdecicloFormData
+  data: IdecicloFormData,
+  options?: { enableOsmPrefill?: boolean }
 ): Promise<IdecicloFormData> => {
   const currentSegmentId = segmentId || data.segment_id || data.id;
   if (!currentSegmentId) return data;
 
-  const segmentData = await fetchSegmentById(currentSegmentId);
+  const segmentData = await fetchSegmentContextById(currentSegmentId);
   if (!segmentData) return data;
 
   let cityName = data.city || "";
@@ -420,7 +619,7 @@ const hydrateHeaderFields = async (
     cityName = cityData?.name || "";
   }
 
-  return {
+  const hydratedData = {
     ...data,
     id: data.id || currentSegmentId,
     segment_id: data.segment_id || currentSegmentId,
@@ -441,6 +640,12 @@ const hydrateHeaderFields = async (
         ? data.intersections_count
         : clampNonNegative(segmentData.intersections_count),
   };
+
+  if (options?.enableOsmPrefill) {
+    return applyOsmPrefillToFormData(hydratedData, segmentData);
+  }
+
+  return hydratedData;
 };
 
 const normalizeEvaluationCounts = (data: IdecicloFormData): IdecicloFormData => {
@@ -1308,7 +1513,7 @@ const SegmentForm = () => {
       const currentSegmentId = effectiveSegmentId || formData.segment_id || formData.id;
       if (!currentSegmentId) return;
 
-      const segmentData = await fetchSegmentById(currentSegmentId);
+      const segmentData = await fetchSegmentContextById(currentSegmentId);
       setSegmentPreview(toSegmentPreview(segmentData));
       setOriginalSegmentType(segmentData?.type || "");
       setOriginalRoadHierarchy(segmentData?.classification || "");
@@ -1368,7 +1573,7 @@ const SegmentForm = () => {
             });
             nextFormData = await hydrateHeaderFields(effectiveSegmentId, nextFormData);
           } else {
-            const segmentData = await fetchSegmentById(effectiveSegmentId);
+            const segmentData = await fetchSegmentContextById(effectiveSegmentId);
             if (!segmentData) throw new Error("Trecho não encontrado");
 
             let cityName = "";
@@ -1404,6 +1609,7 @@ const SegmentForm = () => {
                   ? segmentData.connected_intersections_count
                   : 0,
             });
+            nextFormData = applyOsmPrefillToFormData(nextFormData, segmentData);
           }
         }
 
@@ -1531,6 +1737,8 @@ const SegmentForm = () => {
       total_score: liveSummary.total,
       saved_offline: !isOnline,
       last_local_save_at: lastLocalSaveAt,
+      osm_prefill_snapshot: segmentPreview?.ideciclo_prefill || null,
+      osm_field_differences: buildOsmFieldDifferences(formData, segmentPreview),
     };
 
     const formToSave = {

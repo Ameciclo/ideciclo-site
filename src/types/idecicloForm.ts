@@ -1,3 +1,5 @@
+import type { IdecicloPrefill } from "./index";
+
 export type IdecicloRating = "A" | "B" | "C" | "D";
 export type RatingMode = "auto" | "manual";
 export type CriterionWorkflowState = "default" | "analysis";
@@ -150,4 +152,10 @@ export interface IdecicloFormData {
   total_score?: number;
   saved_offline?: boolean;
   last_local_save_at?: string | null;
+  osm_prefill_snapshot?: IdecicloPrefill | null;
+  osm_field_differences?: Array<{
+    field: string;
+    osmValue: string | number;
+    observedValue: string | number;
+  }>;
 }

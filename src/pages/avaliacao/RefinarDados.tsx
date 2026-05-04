@@ -331,6 +331,48 @@ const RefinarDados = () => {
     }
   };
 
+  const handleUpdateSegmentTechnical = async (
+    segmentId: string,
+    updates: Partial<Segment>
+  ) => {
+    try {
+      const payload: Partial<Segment> = {
+        id: segmentId,
+        id_cidade: cityId,
+        ideciclo_prefill: updates.ideciclo_prefill,
+        osm_confidence: updates.osm_confidence,
+        osm_tags: updates.osm_tags,
+        osm_raw: updates.osm_raw,
+        osm_improvement_suggestions: updates.osm_improvement_suggestions,
+        intersections_preview: updates.intersections_preview,
+        estimated_blocks_count: updates.estimated_blocks_count,
+        estimated_intersections_count: updates.estimated_intersections_count,
+        blocks_count: updates.blocks_count,
+        intersections_count: updates.intersections_count,
+      };
+
+      await updateSegmentInDB(payload as Segment);
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
+          seg.id === segmentId ? { ...seg, ...updates } : seg
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
+      toast({
+        title: "Complemento técnico salvo",
+        description: "Os dados técnicos manuais e OSM foram salvos no trecho.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar complemento técnico do segmento:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao salvar complemento técnico do segmento.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteSegment = async (segmentId: string) => {
     try {
       await removeSegments([segmentId]);
@@ -711,6 +753,7 @@ const RefinarDados = () => {
                     selectedSegments={selectedSegments}
                     onMergeSelected={handleMergeButtonClick}
                     onUpdateSegmentName={handleUpdateSegmentName}
+                    onUpdateSegmentTechnical={handleUpdateSegmentTechnical}
                     onDeleteSegment={handleDeleteSegment}
                     onUnmergeSegments={handleUnmergeSegments}
                     onUpdateSegmentClassification={

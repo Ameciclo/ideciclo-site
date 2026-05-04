@@ -1,6 +1,15 @@
 
-import { City, IBGECity, IBGEState, OverpassResponse, Segment, SegmentType } from "@/types";
+import {
+  City,
+  IBGECity,
+  IBGEState,
+  OverpassElement,
+  OverpassResponse,
+  Segment,
+  SegmentType,
+} from "@/types";
 import * as turf from '@turf/turf';
+import { ParsedOsmAdvancedSegment, parseOsmAdvancedSegment } from "./osmAdvancedParser";
 import { 
   fetchCityFromDB, 
   saveCityToDB, 
@@ -387,7 +396,7 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
       way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
       
       // Local roads
-      way["highway"~"^(residential|unclassified)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
+      way["highway"~"^(residential|unclassified|living_street|service)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
     );
     out geom;
     `;
@@ -523,8 +532,8 @@ export const determineSegmentClassification = (tags: Record<string, string>): st
   else if (['secondary', 'secondary_link', 'tertiary', 'tertiary_link'].includes(highway)) {
     return "alimentadora";
   } 
-  // Locais: residential, unclassified
-  else if (['residential', 'unclassified'].includes(highway)) {
+  // Locais: residential, unclassified, living_street, service
+  else if (['residential', 'unclassified', 'living_street', 'service'].includes(highway)) {
     return "local";
   }
   
@@ -815,7 +824,7 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
               coordinates: [coordinates]
             },
             selected: false,
-            evaluated: false
+            evaluated: false,
           };
         } catch (error) {
           console.error(`Error processing segment ${element.id}:`, error);
@@ -826,6 +835,103 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
   } catch (error) {
     console.error("Error in convertToSegments:", error);
     return [];
+  }
+};
+
+const buildRoadsAroundBboxQuery = (
+  minLat: number,
+  minLon: number,
+  maxLat: number,
+  maxLon: number
+) => `
+  [out:json][timeout:90];
+  (
+    way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+    way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+    way["highway"~"^(residential|unclassified|living_street|service)$"](${minLat},${minLon},${maxLat},${maxLon});
+  );
+  out geom;
+`;
+
+export const fetchSegmentOsmAdvancedData = async (
+  osmIds: string[]
+): Promise<ParsedOsmAdvancedSegment[]> => {
+  const numericIds = Array.from(
+    new Set(
+      osmIds
+        .map((value) => value.trim())
+        .filter((value) => /^\d+$/.test(value))
+    )
+  );
+
+  if (numericIds.length === 0) {
+    return [];
+  }
+
+  try {
+    const waysQuery = `
+      [out:json][timeout:90];
+      way(id:${numericIds.join(",")});
+      out geom;
+    `;
+
+    const waysResponse = await postOverpassWithFallback(waysQuery, 2, 1500);
+    const waysData: OverpassResponse = await waysResponse.json();
+    const ways = (waysData.elements || []).filter(
+      (element): element is OverpassElement =>
+        element.type === "way" &&
+        Boolean(element.geometry) &&
+        Array.isArray(element.geometry) &&
+        element.geometry.length >= 2
+    );
+
+    if (ways.length === 0) {
+      return [];
+    }
+
+    const allCoords = ways.flatMap((way) => way.geometry || []);
+    let roads: OverpassElement[] = [];
+
+    if (allCoords.length > 0) {
+      const lats = allCoords.map((coord) => coord.lat);
+      const lons = allCoords.map((coord) => coord.lon);
+      const minLat = Math.min(...lats) - 0.002;
+      const maxLat = Math.max(...lats) + 0.002;
+      const minLon = Math.min(...lons) - 0.002;
+      const maxLon = Math.max(...lons) + 0.002;
+
+      const roadsQuery = buildRoadsAroundBboxQuery(minLat, minLon, maxLat, maxLon);
+      const roadsResponse = await postOverpassWithFallback(roadsQuery, 2, 1500);
+      const roadsData: OverpassResponse = await roadsResponse.json();
+      roads = (roadsData.elements || []).filter(
+        (element): element is OverpassElement =>
+          element.type === "way" &&
+          Boolean(element.tags?.highway) &&
+          Boolean(element.geometry) &&
+          Array.isArray(element.geometry) &&
+          element.geometry.length >= 2
+      );
+    }
+
+    return ways.map((way) => {
+      const inferredType = determineSegmentType(way.tags);
+      let inferredHierarchy = determineSegmentClassification(way.tags);
+
+      if (way.tags.highway === "cycleway") {
+        const nearbyRoad = findNearbyRoad(way, roads);
+        if (nearbyRoad) {
+          inferredHierarchy =
+            determineSegmentClassification(nearbyRoad.tags) || inferredHierarchy;
+        }
+      }
+
+      return parseOsmAdvancedSegment(way, roads, inferredType, inferredHierarchy);
+    });
+  } catch (error) {
+    console.error("Error fetching advanced OSM data by segment IDs:", error);
+    throw new Error(
+      "Falha ao buscar complemento técnico no OSM. Tente novamente em instantes."
+    );
   }
 };
 
@@ -889,7 +995,22 @@ export const createMergedSegment = async (
     type: segment.type,
     classification: segment.classification,
     length: segment.length,
-    originalGeometry: segment.geometry
+    originalGeometry: segment.geometry,
+    blocks_count: segment.blocks_count,
+    intersections_count: segment.intersections_count,
+    relevant_intersections_count: segment.relevant_intersections_count,
+    connected_intersections_count: segment.connected_intersections_count,
+    osm_id: segment.osm_id,
+    osm_type: segment.osm_type,
+    osm_tags: segment.osm_tags,
+    osm_raw: segment.osm_raw,
+    osm_confidence: segment.osm_confidence,
+    ideciclo_prefill: segment.ideciclo_prefill,
+    osm_improvement_suggestions: segment.osm_improvement_suggestions,
+    estimated_blocks_count: segment.estimated_blocks_count,
+    estimated_intersections_count: segment.estimated_intersections_count,
+    intersections_preview: segment.intersections_preview,
+    osm_advanced: segment.osm_advanced,
   }));
 
   // Create the parent merged segment
@@ -934,6 +1055,21 @@ const flattenSegmentsForMerge = (segments: Segment[]): Segment[] => {
             classification: mergedInfo.classification,
             length: mergedInfo.length,
             geometry: mergedInfo.originalGeometry,
+            blocks_count: mergedInfo.blocks_count,
+            intersections_count: mergedInfo.intersections_count,
+            relevant_intersections_count: mergedInfo.relevant_intersections_count,
+            connected_intersections_count: mergedInfo.connected_intersections_count,
+            osm_id: mergedInfo.osm_id,
+            osm_type: mergedInfo.osm_type,
+            osm_tags: mergedInfo.osm_tags,
+            osm_raw: mergedInfo.osm_raw,
+            osm_confidence: mergedInfo.osm_confidence,
+            ideciclo_prefill: mergedInfo.ideciclo_prefill,
+            osm_improvement_suggestions: mergedInfo.osm_improvement_suggestions,
+            estimated_blocks_count: mergedInfo.estimated_blocks_count,
+            estimated_intersections_count: mergedInfo.estimated_intersections_count,
+            intersections_preview: mergedInfo.intersections_preview,
+            osm_advanced: mergedInfo.osm_advanced,
             neighborhood: segment.neighborhood,
             selected: false,
             evaluated: false,

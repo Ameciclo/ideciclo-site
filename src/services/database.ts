@@ -215,6 +215,21 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => ({
   parent_segment_id: row.parent_segment_id || undefined,
   merged_segments: row.merged_segments as any[] || [],
   classification: row.classification || undefined,
+  blocks_count: (row as any).blocks_count ?? undefined,
+  intersections_count: (row as any).intersections_count ?? undefined,
+  relevant_intersections_count: (row as any).relevant_intersections_count ?? undefined,
+  connected_intersections_count: (row as any).connected_intersections_count ?? undefined,
+  osm_id: (row as any).osm_id ?? undefined,
+  osm_type: (row as any).osm_type ?? undefined,
+  osm_tags: (row as any).osm_tags ?? undefined,
+  osm_raw: (row as any).osm_raw ?? undefined,
+  osm_confidence: (row as any).osm_confidence ?? undefined,
+  ideciclo_prefill: (row as any).ideciclo_prefill ?? undefined,
+  osm_improvement_suggestions: (row as any).osm_improvement_suggestions ?? undefined,
+  estimated_blocks_count: (row as any).estimated_blocks_count ?? undefined,
+  estimated_intersections_count: (row as any).estimated_intersections_count ?? undefined,
+  intersections_preview: (row as any).intersections_preview ?? undefined,
+  osm_advanced: (row as any).osm_advanced ?? undefined,
 });
 
 /**
@@ -399,7 +414,22 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
       is_merged: segment.is_merged || false,
       parent_segment_id: parentSegmentId,
       merged_segments: segment.merged_segments || [],
-      classification: segment.classification
+      classification: segment.classification,
+      blocks_count: segment.blocks_count ?? null,
+      intersections_count: segment.intersections_count ?? null,
+      relevant_intersections_count: segment.relevant_intersections_count ?? null,
+      connected_intersections_count: segment.connected_intersections_count ?? null,
+      osm_id: segment.osm_id ?? null,
+      osm_type: segment.osm_type ?? null,
+      osm_tags: segment.osm_tags ?? null,
+      osm_raw: segment.osm_raw ?? null,
+      osm_confidence: segment.osm_confidence ?? null,
+      ideciclo_prefill: segment.ideciclo_prefill ?? null,
+      osm_improvement_suggestions: segment.osm_improvement_suggestions ?? null,
+      estimated_blocks_count: segment.estimated_blocks_count ?? null,
+      estimated_intersections_count: segment.estimated_intersections_count ?? null,
+      intersections_preview: segment.intersections_preview ?? null,
+      osm_advanced: segment.osm_advanced ?? null,
     };
 
     const { error } = await insertSegmentsWithCompatibility([segmentPayload]);
@@ -590,7 +620,22 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
       is_merged: segment.is_merged || false,
       parent_segment_id: segment.parent_segment_id ? `${cityId}_${segment.parent_segment_id}` : null, // Update parent reference too
       merged_segments: segment.merged_segments || [],
-      classification: segment.classification || null // Ensure null instead of undefined
+      classification: segment.classification || null, // Ensure null instead of undefined
+      blocks_count: segment.blocks_count ?? null,
+      intersections_count: segment.intersections_count ?? null,
+      relevant_intersections_count: segment.relevant_intersections_count ?? null,
+      connected_intersections_count: segment.connected_intersections_count ?? null,
+      osm_id: segment.osm_id ?? null,
+      osm_type: segment.osm_type ?? null,
+      osm_tags: segment.osm_tags ?? null,
+      osm_raw: segment.osm_raw ?? null,
+      osm_confidence: segment.osm_confidence ?? null,
+      ideciclo_prefill: segment.ideciclo_prefill ?? null,
+      osm_improvement_suggestions: segment.osm_improvement_suggestions ?? null,
+      estimated_blocks_count: segment.estimated_blocks_count ?? null,
+      estimated_intersections_count: segment.estimated_intersections_count ?? null,
+      intersections_preview: segment.intersections_preview ?? null,
+      osm_advanced: segment.osm_advanced ?? null,
     }));
 
     // Split segments into batches of 50 to avoid timeouts or payload size limits
@@ -701,7 +746,22 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     is_merged: segment.is_merged,
     parent_segment_id: parentSegmentId,
     merged_segments: segment.merged_segments,
-    classification: segment.classification
+    classification: segment.classification,
+    blocks_count: segment.blocks_count,
+    intersections_count: segment.intersections_count,
+    relevant_intersections_count: segment.relevant_intersections_count,
+    connected_intersections_count: segment.connected_intersections_count,
+    osm_id: segment.osm_id,
+    osm_type: segment.osm_type,
+    osm_tags: segment.osm_tags,
+    osm_raw: segment.osm_raw,
+    osm_confidence: segment.osm_confidence,
+    ideciclo_prefill: segment.ideciclo_prefill,
+    osm_improvement_suggestions: segment.osm_improvement_suggestions,
+    estimated_blocks_count: segment.estimated_blocks_count,
+    estimated_intersections_count: segment.estimated_intersections_count,
+    intersections_preview: segment.intersections_preview,
+    osm_advanced: segment.osm_advanced,
   };
 
   let { data, error } = await updateSegmentWithCompatibility(updateId, updatePayload);
