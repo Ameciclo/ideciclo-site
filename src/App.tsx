@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Refine from "./pages/Refine";
 import Avaliacao from "./pages/Avaliacao";
-import SegmentForm from "./pages/SegmentForm";
+import IdecicloSegmentForm from "./pages/avaliacao/form/IdecicloSegmentForm";
 import ViewEvaluation from "./pages/ViewEvaluation";
 import About from "./pages/About";
 import Ranking from "./pages/Ranking";
@@ -19,7 +19,7 @@ import RefinarDados from "./pages/avaliacao/RefinarDados";
 import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
 import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
 import Resultados from "./pages/avaliacao/Resultados";
-import IdecicloForm from "./pages/IdecicloForm";
+import IdecicloFormPage from "./pages/avaliacao/form/IdecicloFormPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
@@ -46,7 +46,7 @@ const App = () => (
               <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
               <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
               <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
-              <Route path="/avaliacao/formulario-ideciclo/:segmentId" element={<IdecicloForm />} />
+              <Route path="/avaliacao/formulario-ideciclo/:segmentId" element={<IdecicloFormPage />} />
               <Route path="/avaliacao/resultados" element={<Resultados />} />
               <Route path="/ranking" element={<Ranking />} />
               <Route path="/city-details/:cityId" element={<CityDetails />} />
@@ -54,7 +54,7 @@ const App = () => (
               <Route path="/apoiadores" element={<Apoiadores />} />
               <Route
                 path="/refinar/formulario/:segmentId"
-                element={<SegmentForm />}
+                element={<IdecicloSegmentForm />}
               />
               <Route
                 path="/view-evaluation/:formId"
@@ -62,7 +62,7 @@ const App = () => (
               />
               <Route
                 path="/edit-evaluation/:segmentId/:formId"
-                element={<SegmentForm />}
+                element={<IdecicloSegmentForm />}
               />
               <Route path="*" element={<NotFound />} />
             </Routes>

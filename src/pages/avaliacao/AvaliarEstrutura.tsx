@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import IdecicloForm from "@/pages/IdecicloForm";
+import IdecicloFormPage from "@/pages/avaliacao/form/IdecicloFormPage";
 
 const AvaliarEstrutura = () => {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ const AvaliarEstrutura = () => {
     }
   }, [navigate]);
 
-  return <IdecicloForm />;
+  return <IdecicloFormPage />;
 };
 
 export default AvaliarEstrutura;

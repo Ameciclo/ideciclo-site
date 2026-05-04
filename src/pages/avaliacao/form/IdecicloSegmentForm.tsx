@@ -11,14 +11,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronLeft, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
-import Page2 from "./Page2";
-import Page3 from "./Page3";
-import Page4 from "./Page4";
-import Page5 from "./Page5";
-import Page6 from "./Page6";
-import Page7 from "./Page7";
-import Page8 from "./Page8";
-import Page9 from "./Page9";
+import DesignQualityStep from "./DesignQualityStep";
+import TrafficConflictsStep from "./TrafficConflictsStep";
+import PavementStep from "./PavementStep";
+import DelimitationStep from "./DelimitationStep";
+import SignageStep from "./SignageStep";
+import SafetyAndComfortStep from "./SafetyAndComfortStep";
+import UrbanityStep from "./UrbanityStep";
+import ReviewAndSubmitStep from "./ReviewAndSubmitStep";
 import { useToast } from "@/hooks/use-toast";
 import {
   createFormInDB,
@@ -1864,7 +1864,7 @@ const SegmentForm = () => {
                       }}
                       helpKey="A1"
                     >
-                      <Page2
+                      <DesignQualityStep
                         data={formData}
                         onDataChange={handleDataChange}
                         segmentType={originalSegmentType}
@@ -1879,20 +1879,20 @@ const SegmentForm = () => {
 
                 <section id="section-pavimento" className="space-y-6">
                   <AxisRibbon tone="e" title="Pavimento, Identificacao e Separacao do Cicloviario" />
-                  <Page4
+                  <PavementStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
                     command={accordionCommand}
                   />
-                  <Page6
+                  <SignageStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
                     command={accordionCommand}
                     visibleValues={["b42", "e42"]}
                   />
-                  <Page5
+                  <DelimitationStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -1902,7 +1902,7 @@ const SegmentForm = () => {
 
                 <section id="section-luz" className="space-y-6">
                   <AxisRibbon tone="d" title="Iluminacao e conforto termico" />
-                  <Page8
+                  <UrbanityStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -1913,7 +1913,7 @@ const SegmentForm = () => {
 
                 <section id="section-risco" className="space-y-6">
                   <AxisRibbon tone="b" title="Situacoes de risco" />
-                  <Page7
+                  <SafetyAndComfortStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -1924,7 +1924,7 @@ const SegmentForm = () => {
 
                 <section id="section-medicoes" className="space-y-6">
                   <AxisRibbon tone="a" title="Medicoes da estrutura" />
-                  <Page3
+                  <TrafficConflictsStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -2009,7 +2009,7 @@ const SegmentForm = () => {
                         </HorizontalScrollIndicators>
                       </div>
                     </div>
-                  <Page6
+                  <SignageStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -2018,7 +2018,7 @@ const SegmentForm = () => {
                     hideBlockPager
                     visibleValues={String(formData.infra_typology || "").toLowerCase().includes("ciclorrota") ? ["b43", "e43"] : ["b41", "e41"]}
                   />
-                  <Page7
+                  <SafetyAndComfortStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -2028,7 +2028,7 @@ const SegmentForm = () => {
                     currentIntersectionIndex={currentIntersectionIndex}
                     visibleValues={["b5"]}
                   />
-                  <Page8
+                  <UrbanityStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -2117,7 +2117,7 @@ const SegmentForm = () => {
                         </HorizontalScrollIndicators>
                       </div>
                     </div>
-                  <Page7
+                  <SafetyAndComfortStep
                     data={formData}
                     onDataChange={handleDataChange}
                     filter={globalCriterionFilter}
@@ -2365,7 +2365,7 @@ const SegmentForm = () => {
                 </CardDescription>
               </CardHeader>
               <div className="px-6 pb-2">
-                <Page9 data={formData} onDataChange={handleDataChange} />
+                <ReviewAndSubmitStep data={formData} onDataChange={handleDataChange} />
               </div>
               <div className="flex flex-col gap-3 px-6 py-6 md:flex-row md:justify-between">
                 <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
