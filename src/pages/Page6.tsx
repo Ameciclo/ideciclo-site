@@ -71,14 +71,26 @@ const Page6: React.FC<Page6Props> = ({
       },
     });
   const currentBlockIndex = blockPager?.currentIndex || 0;
-  const currentRegulationSignsPerBlock = Array.isArray(data.regulation_signs_per_block_by_block)
-    ? Number(data.regulation_signs_per_block_by_block[currentBlockIndex] || 0)
-    : Number(data.regulation_signs_per_block || 0);
-  const currentSignsBothDirections = Array.isArray(data.signs_both_directions_by_block)
-    ? data.signs_both_directions_by_block[currentBlockIndex] ?? null
-    : data.signs_both_directions;
-  const currentVerticalSignsCondition =
-    data.vertical_signs_conservation_by_block?.[currentBlockIndex] || "";
+  const getBlockValue = <T,>(values: T[] | undefined, firstBlockFallback: T, emptyFallback: T) => {
+    if (Array.isArray(values) && currentBlockIndex < values.length) {
+      return values[currentBlockIndex] ?? emptyFallback;
+    }
+
+    return currentBlockIndex === 0 ? firstBlockFallback : emptyFallback;
+  };
+  const currentRegulationSignsPerBlock = Number(
+    getBlockValue(data.regulation_signs_per_block_by_block, Number(data.regulation_signs_per_block || 0), 0)
+  );
+  const currentSignsBothDirections = getBlockValue(
+    data.signs_both_directions_by_block,
+    data.signs_both_directions ?? null,
+    null
+  );
+  const currentVerticalSignsCondition = getBlockValue(
+    data.vertical_signs_conservation_by_block,
+    "" as VerticalSignsConditionByBlock,
+    "" as VerticalSignsConditionByBlock
+  );
   const b4FinalRating = buildCriterionScorePreview(data, ["B4"])[0]?.rating;
   const e4FinalRating = buildCriterionScorePreview(data, ["E4"])[0]?.rating;
   const blockTouchKey = (criterion: "b41_signs" | "b41_directions" | "e41", index: number) =>

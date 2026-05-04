@@ -2054,6 +2054,16 @@ const SegmentForm = () => {
                         </div>
                         <HorizontalScrollIndicators viewportClassName="overflow-x-auto">
                           <div className="flex min-w-max items-center gap-2">
+                            {allowIntersectionPagerEdit && intersectionCount === 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => handleIntersectionCountChange(1)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                title="Adicionar interseção"
+                              >
+                                +
+                              </button>
+                            ) : null}
                             {Array.from({ length: intersectionCount }, (_, index) => {
                               const isActive = index === currentIntersectionIndex;
                               const isComplete = intersectionCompletionStates[index] ?? false;

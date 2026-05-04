@@ -171,10 +171,19 @@ const Page8: React.FC<Page8Props> = ({
   };
 
   const currentBlockIndex = blockPager?.currentIndex || 0;
+  const currentBlockFurniture =
+    Array.isArray(data.cycling_furniture_by_block) && currentBlockIndex < data.cycling_furniture_by_block.length
+      ? data.cycling_furniture_by_block[currentBlockIndex] || []
+      : currentBlockIndex === 0
+        ? data.cycling_furniture || []
+        : [];
   const currentFurnitureCounts =
-    data.cycling_furniture_counts_by_block?.[currentBlockIndex] ||
+    (Array.isArray(data.cycling_furniture_counts_by_block) &&
+    currentBlockIndex < data.cycling_furniture_counts_by_block.length
+      ? data.cycling_furniture_counts_by_block[currentBlockIndex]
+      : undefined) ||
     Object.fromEntries(
-      (data.cycling_furniture_by_block?.[currentBlockIndex] || data.cycling_furniture || []).map(
+      currentBlockFurniture.map(
         (value) => [value, 1]
       )
     );

@@ -199,10 +199,16 @@ const Page7: React.FC<Page7Props> = ({
     return "border-slate-200 bg-white text-slate-500";
   };
 
-  const getIntersectionArrayValue = <T,>(values: T[] | undefined, fallback: T) =>
+  const getIntersectionArrayValue = <T,>(
+    values: T[] | undefined,
+    firstIntersectionFallback: T,
+    emptyFallback: T = firstIntersectionFallback
+  ) =>
     Array.isArray(values) && currentIntersectionIndex < values.length
-      ? (values[currentIntersectionIndex] ?? fallback)
-      : fallback;
+      ? (values[currentIntersectionIndex] ?? emptyFallback)
+      : currentIntersectionIndex === 0
+        ? firstIntersectionFallback
+        : emptyFallback;
 
   const setIntersectionArrayValue = <T,>(
     values: T[] | undefined,
@@ -237,35 +243,43 @@ const Page7: React.FC<Page7Props> = ({
 
   const currentIntersectionSignaling = getIntersectionArrayValue(
     data.intersection_signaling_by_intersection,
-    data.intersection_signaling || ""
+    data.intersection_signaling || "",
+    ""
   );
   const currentIntersectionRoadType = getIntersectionArrayValue(
     data.intersection_road_type_by_intersection,
+    "" as IntersectionRoadType,
     "" as IntersectionRoadType
   );
   const currentIntersectionHasCyclingConnection = getIntersectionArrayValue(
     data.intersection_has_cycling_connection_by_intersection,
+    null as boolean | null,
     null as boolean | null
   );
   const currentConnectionAccessibility = getIntersectionArrayValue(
     data.connection_accessibility_by_intersection,
-    data.connection_accessibility || ""
+    data.connection_accessibility || "",
+    ""
   );
   const currentIntersectionConservationCondition = getIntersectionArrayValue(
     data.intersection_conservation_by_intersection,
+    "" as IntersectionHorizontalSignsCondition,
     "" as IntersectionHorizontalSignsCondition
   );
   const currentTrafficLanesPerDirection = getIntersectionArrayValue(
     data.traffic_lanes_per_direction_by_intersection,
-    Number(data.traffic_lanes_per_direction || 1)
+    Number(data.traffic_lanes_per_direction || 1),
+    1
   );
   const currentMixedLaneWidth = getIntersectionArrayValue(
     data.mixed_lane_width_m_by_intersection,
-    Number(data.mixed_lane_width_m || 2.7)
+    Number(data.mixed_lane_width_m || 2.7),
+    2.7
   );
   const currentHasIntersectionTrafficCalming = getIntersectionArrayValue(
     data.has_intersection_traffic_calming_by_intersection,
-    Boolean(data.has_intersection_traffic_calming)
+    Boolean(data.has_intersection_traffic_calming),
+    false
   );
   const deriveIntersectionConservationRating = (
     values: IntersectionHorizontalSignsCondition[]
@@ -447,12 +461,20 @@ const Page7: React.FC<Page7Props> = ({
   const currentBlockIndex = blockPager?.currentIndex || 0;
   const normalizedTypologyForB5 = (data.infra_typology || "").toLowerCase();
   const maxTrafficLanesForB5 = normalizedTypologyForB5.includes("ciclorrota") ? 4 : 6;
-  const currentBlockCrossings = Array.isArray(data.signalized_crossings_count_by_block)
-    ? Number(data.signalized_crossings_count_by_block[currentBlockIndex] || 0)
-    : signalizedCrossingsCount;
-  const currentBlockTrafficLanes = Array.isArray(data.traffic_lanes_count_by_block)
-    ? Number(data.traffic_lanes_count_by_block[currentBlockIndex] || 0)
-    : Number(data.traffic_lanes_count || 0);
+  const currentBlockCrossings =
+    Array.isArray(data.signalized_crossings_count_by_block) &&
+    currentBlockIndex < data.signalized_crossings_count_by_block.length
+      ? Number(data.signalized_crossings_count_by_block[currentBlockIndex] || 0)
+      : currentBlockIndex === 0
+        ? signalizedCrossingsCount
+        : 0;
+  const currentBlockTrafficLanes =
+    Array.isArray(data.traffic_lanes_count_by_block) &&
+    currentBlockIndex < data.traffic_lanes_count_by_block.length
+      ? Number(data.traffic_lanes_count_by_block[currentBlockIndex] || 0)
+      : currentBlockIndex === 0
+        ? Number(data.traffic_lanes_count || 0)
+        : 0;
   const hasAnyRiskSelected = availableRiskOptions.some(
     (option) => Number(riskOccurrenceCounts[option.key] || 0) > 0
   );
