@@ -176,12 +176,44 @@ Este projeto é uma ferramenta aberta e replicável, desenvolvida para fortalece
 
 ### Configuração do Ambiente
 
-O projeto utiliza Supabase como backend. Configure as variáveis de ambiente necessárias:
+O projeto agora pode rodar localmente com `Postgres + PostgREST` em Docker, sem depender do Supabase.
+
+1. Suba o banco e a API:
+
+```bash
+npm run db:up
+```
+
+2. Use as variáveis locais:
 
 ```bash
 # .env.local
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_DATABASE_API_URL=/api
+DATABASE_API_PROXY_TARGET=http://127.0.0.1:3000
+POSTGRES_DB=ideciclo
+POSTGRES_USER=ideciclo
+POSTGRES_PASSWORD=change_me_local_password
+POSTGRES_PORT=54322
+POSTGREST_PORT=3000
+POSTGREST_DB_ANON_ROLE=web_anon
+POSTGREST_DB_AUTHENTICATOR_USER=authenticator
+POSTGREST_DB_AUTHENTICATOR_PASSWORD=change_me_local_password
+VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
+```
+
+3. Inicie o frontend:
+
+```bash
+npm run dev
+```
+
+O Postgres ficará disponível em `localhost:54322` e a API PostgREST em `localhost:3000` por padrão.
+
+Comandos úteis:
+
+```bash
+npm run db:logs
+npm run db:down
 ```
 
 ### Deploy

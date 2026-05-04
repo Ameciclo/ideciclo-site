@@ -1,6 +1,6 @@
-import { supabase } from "@/integrations/supabase/client";
+import { authClient, databaseClient as supabase } from "@/integrations/database/client";
 import { City, Segment, Form, Review, SegmentType, RatingType } from "@/types";
-import { Database } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/database/types";
 
 // Type aliases for database row types
 type CityRow = Database['public']['Tables']['cities']['Row'];
@@ -282,7 +282,7 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
   const { data, error } = await operation.select().single();
 
   if (error) {
-    const message = formatDatabaseError("Erro ao salvar a cidade no Supabase", error);
+    const message = formatDatabaseError("Erro ao salvar a cidade no banco de dados", error);
     console.error(message, error);
     throw new Error(message);
   }
@@ -1354,22 +1354,21 @@ export const clearLocalStorage = (): void => {
   }
 };
 
-// Function to clear all caches (localStorage and Supabase)
+// Function to clear all caches (localStorage and database API)
 export const clearAllCaches = async (): Promise<void> => {
   try {
     // 1. Clear localStorage
     clearLocalStorage();
     
-    // 2. Clear Supabase cache by refreshing the client
-    // This will clear any cached queries in the Supabase client
-    await supabase.auth.refreshSession();
+    // 2. Clear client-side session/cache placeholders
+    await authClient.refreshSession();
     
     // 3. Clear browser cache for Supabase API requests
     try {
       const cachesToClear = await caches.keys();
       for (const cacheName of cachesToClear) {
         // Only clear caches related to our app or Supabase
-        if (cacheName.includes('supabase') || cacheName.includes('ideciclo')) {
+        if (cacheName.includes('postgrest') || cacheName.includes('ideciclo')) {
           await caches.delete(cacheName);
         }
       }

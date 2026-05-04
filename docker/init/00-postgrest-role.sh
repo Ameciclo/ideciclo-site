@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" <<-SQL
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${POSTGREST_DB_ANON_ROLE}') THEN
+    EXECUTE format('CREATE ROLE %I NOLOGIN', '${POSTGREST_DB_ANON_ROLE}');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_roles WHERE rolname = '${POSTGREST_DB_AUTHENTICATOR_USER}'
+  ) THEN
+    EXECUTE format(
+      'CREATE ROLE %I LOGIN PASSWORD %L NOINHERIT',
+      '${POSTGREST_DB_AUTHENTICATOR_USER}',
+      '${POSTGREST_DB_AUTHENTICATOR_PASSWORD}'
+    );
+  END IF;
+END
+\$\$;
+
+SELECT format(
+  'GRANT %I TO %I',
+  '${POSTGREST_DB_ANON_ROLE}',
+  '${POSTGREST_DB_AUTHENTICATOR_USER}'
+) \gexec
+SQL

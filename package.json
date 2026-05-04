@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres postgrest",
+    "db:up": "docker compose up -d",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

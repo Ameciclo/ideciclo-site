@@ -9,7 +9,7 @@ import {
   getIdecicloDescription,
 } from "@/utils/idecicloCalculator";
 import { City, Segment } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
+import { databaseClient as supabase } from "@/integrations/database/client";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { downloadCsvFile, downloadElementAsPdf } from "@/utils/reportDownloads";

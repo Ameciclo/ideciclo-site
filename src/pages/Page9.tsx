@@ -12,6 +12,7 @@ import {
   getScoreBreakdown,
   isCriterionApplicable,
 } from "@/utils/idecicloAssessment";
+import { getCriterionRatingScale } from "@/utils/criterionRatingDescriptions";
 import { getCriterionEvidence } from "@/utils/idecicloReview";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { cn } from "@/lib/utils";
@@ -137,6 +138,10 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                 const manualEnabled = mode === "manual";
                 const itemSummary = sectionSummary?.items?.[criterion];
                 const evidence = getCriterionEvidence(criterion, data);
+                const ratingScale = getCriterionRatingScale(criterion, data);
+                const finalRatingDescription = finalRating
+                  ? ratingScale.find((item) => item.rating === finalRating)
+                  : null;
 
                 return (
                   <div key={criterion} className="rounded-xl border p-4">
@@ -219,6 +224,49 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                           </p>
                         ) : null}
                       </div>
+
+                      {finalRatingDescription ? (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="mb-2 text-sm font-medium text-slate-700">
+                            Texto da nota final
+                          </div>
+                          <div className="flex items-start gap-3">
+                            <Badge className={ratingBadgeClassName(finalRatingDescription.rating)}>
+                              {finalRatingDescription.rating}
+                            </Badge>
+                            <p className="text-sm leading-6 text-slate-700">
+                              {finalRatingDescription.description}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <details className="rounded-xl border border-slate-200 bg-white p-4">
+                        <summary className="cursor-pointer list-none text-sm font-medium text-slate-700">
+                          Ver escala completa A-D
+                        </summary>
+                        <div className="mt-4 space-y-2">
+                          {ratingScale.map((item) => (
+                            <div
+                              key={`${criterion}-${item.rating}`}
+                              className={cn(
+                                "flex items-start gap-3 rounded-lg border p-3",
+                                item.rating === finalRating
+                                  ? "border-slate-900 bg-slate-50"
+                                  : "border-slate-200 bg-white",
+                                item.unavailable ? "opacity-70" : null
+                              )}
+                            >
+                              <Badge className={ratingBadgeClassName(item.rating)}>
+                                {item.rating}
+                              </Badge>
+                              <p className="text-sm leading-6 text-slate-700">
+                                {item.description}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
 
                       <div className="border-t border-slate-200 pt-4">
                         <div className="mb-2 text-sm font-medium text-slate-700">
