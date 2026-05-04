@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Filter, MapPin, Search } from "lucide-react";
+import { ArrowRight, CheckCircle2, Filter, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,11 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { fetchSegmentsByCity } from "@/services/database";
 import type { Segment } from "@/types";
+import {
+  getEvaluatedBadgeClassName,
+  getHierarchyBadgeClassName,
+  getSegmentTypeBadgeClassName,
+} from "@/utils/segmentBadgeStyles";
 
 interface PersistedCityData {
   cityId: string;
@@ -396,18 +401,15 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge
-                          variant={segment.evaluated ? "default" : "secondary"}
-                          className={
-                            segment.evaluated
-                              ? "bg-amber-500 text-white"
-                              : "bg-emerald-100 text-emerald-700"
-                          }
+                          className={getEvaluatedBadgeClassName(segment.evaluated)}
                         >
                           {segment.evaluated ? "Avaliado" : "Pendente"}
                         </Badge>
-                        <Badge variant="outline">{segment.type}</Badge>
+                        <Badge className={getSegmentTypeBadgeClassName(segment.type)}>
+                          {segment.type}
+                        </Badge>
                         {segment.classification ? (
-                          <Badge variant="secondary">
+                          <Badge className={getHierarchyBadgeClassName(segment.classification)}>
                             {classificationLabels[segment.classification] || segment.classification}
                           </Badge>
                         ) : null}
@@ -424,13 +426,20 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                         {segment.neighborhood ? <span>Bairro: {segment.neighborhood}</span> : null}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-5 w-5" />
-                      <span className="text-sm">
-                        {segment.classification
-                          ? classificationLabels[segment.classification] || segment.classification
-                          : "Sem classificação"}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>
+                        Interseções:{" "}
+                        {segment.intersections_count ??
+                          segment.estimated_intersections_count ??
+                          "-"}
                       </span>
+                      <span>•</span>
+                      <span>
+                        Quadras:{" "}
+                        {segment.blocks_count ?? segment.estimated_blocks_count ?? "-"}
+                      </span>
+                      <span>•</span>
+                      <span>OSM: {segment.osm_id || "-"}</span>
                     </div>
                   </div>
                 </button>
@@ -451,11 +460,11 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                     {getReadableSegmentName(selectedSegment, cityData.cityId)}
                   </h4>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge variant="outline" className="border-emerald-300 bg-white">
+                    <Badge className={cn("border", getSegmentTypeBadgeClassName(selectedSegment.type))}>
                       {selectedSegment.type}
                     </Badge>
                     {selectedSegment.classification ? (
-                      <Badge variant="outline" className="border-emerald-300 bg-white">
+                      <Badge className={cn("border", getHierarchyBadgeClassName(selectedSegment.classification))}>
                         {classificationLabels[selectedSegment.classification] || selectedSegment.classification}
                       </Badge>
                     ) : null}

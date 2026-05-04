@@ -44,6 +44,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  getHierarchyBadgeClassName,
+  getSegmentTypeBadgeClassName,
+} from "@/utils/segmentBadgeStyles";
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
@@ -112,18 +116,11 @@ const RefinementSegmentsTable = ({
   const classificationOptions = ["estrutural", "alimentadora", "local"];
 
   const getSegmentTypeBadge = (type: SegmentType) => {
-    switch (type) {
-      case SegmentType.CICLOFAIXA:
-        return <Badge variant="default">Ciclofaixa</Badge>;
-      case SegmentType.CICLOVIA:
-        return <Badge variant="secondary">Ciclovia</Badge>;
-      case SegmentType.CICLORROTA:
-        return <Badge variant="outline">Ciclorrota</Badge>;
-      case SegmentType.COMPARTILHADA:
-        return <Badge variant="destructive">Compartilhada</Badge>;
-      default:
-        return <Badge>{type}</Badge>;
-    }
+    return (
+      <Badge className={getSegmentTypeBadgeClassName(type)}>
+        {type || "Sem tipologia"}
+      </Badge>
+    );
   };
 
   const extractNumericOsmId = (value?: string): string | undefined => {
@@ -181,32 +178,16 @@ const RefinementSegmentsTable = ({
   };
 
   const getClassificationBadge = (classification: string | undefined) => {
-    switch (classification) {
-      case "estrutural":
-        return (
-          <Badge variant="default" className="bg-blue-500">
-            Estrutural
-          </Badge>
-        );
-      case "alimentadora":
-        return (
-          <Badge variant="secondary" className="bg-green-500">
-            Alimentadora
-          </Badge>
-        );
-      case "local":
-        return (
-          <Badge variant="outline" className="border-amber-500 text-amber-500">
-            Local
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="border-gray-400 text-gray-500">
-            Não classificada
-          </Badge>
-        );
-    }
+    const label =
+      classification === "estrutural"
+        ? "Estrutural"
+        : classification === "alimentadora"
+          ? "Alimentadora"
+          : classification === "local"
+            ? "Local"
+            : "Não classificada";
+
+    return <Badge className={getHierarchyBadgeClassName(classification)}>{label}</Badge>;
   };
 
   const handleEditStart = (segment: Segment) => {

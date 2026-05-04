@@ -37,6 +37,11 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
+  getHierarchyBadgeClassName,
+  getSegmentTypeBadgeClassName,
+  SEGMENT_TYPE_COLORS,
+} from "@/utils/segmentBadgeStyles";
+import {
   fetchCityFromDB,
   fetchFormsByCityId,
   fetchSegmentsFromDB,
@@ -83,16 +88,9 @@ type SortDirection = "asc" | "desc";
 const NETWORK_KEYS = Object.keys(NETWORK_CONFIG) as NetworkKey[];
 
 const hierarchyBadgeClassName: Record<NetworkKey, string> = {
-  estrutural: "border-rose-200 bg-rose-50 text-rose-700",
-  alimentadora: "border-amber-200 bg-amber-50 text-amber-700",
-  local: "border-emerald-200 bg-emerald-50 text-emerald-700",
-};
-
-const typeColors: Record<string, string> = {
-  Ciclovia: "#2563eb",
-  Ciclofaixa: "#0f766e",
-  Ciclorrota: "#ca8a04",
-  Compartilhada: "#7c3aed",
+  estrutural: getHierarchyBadgeClassName("estrutural"),
+  alimentadora: getHierarchyBadgeClassName("alimentadora"),
+  local: getHierarchyBadgeClassName("local"),
 };
 
 const scoreBandLabels: Record<ScoreBandKey, string> = {
@@ -157,7 +155,7 @@ const getStatusLabel = (segment: SegmentResultEntry) => {
 };
 
 const getMapColor = (segment: SegmentResultEntry) =>
-  typeColors[segment.typeLabel] || "#475569";
+  SEGMENT_TYPE_COLORS[segment.typeLabel] || "#475569";
 
 const getScoreBandBadgeClassName = (band: ScoreBandKey) => {
   if (band === "score-75-plus") return "border-emerald-200 bg-emerald-50 text-emerald-700";
@@ -1103,7 +1101,9 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
                     <Badge className={cn("border", getStatusBadgeClassName(selectedSegment))}>
                       {getStatusLabel(selectedSegment)}
                     </Badge>
-                    <Badge variant="outline">{selectedSegment.typeLabel}</Badge>
+                    <Badge className={cn("border", getSegmentTypeBadgeClassName(selectedSegment.typeLabel))}>
+                      {selectedSegment.typeLabel}
+                    </Badge>
                     {selectedSegment.hierarchy ? (
                       <Badge className={cn("border", hierarchyBadgeClassName[selectedSegment.hierarchy])}>
                         {selectedSegment.hierarchyLabel}
@@ -1256,7 +1256,11 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
                         <div className="font-medium text-slate-950">{segment.displayName}</div>
                         <div className="text-xs text-slate-500">{segment.id}</div>
                       </TableCell>
-                      <TableCell>{segment.typeLabel}</TableCell>
+                      <TableCell>
+                        <Badge className={cn("border", getSegmentTypeBadgeClassName(segment.typeLabel))}>
+                          {segment.typeLabel}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         {segment.hierarchy ? (
                           <Badge className={cn("border", hierarchyBadgeClassName[segment.hierarchy])}>
