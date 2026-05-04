@@ -84,6 +84,14 @@ export const getMedianRating = (
   return sortedRatings[Math.floor((sortedRatings.length - 1) / 2)] ?? null;
 };
 
+const hasTouchedField = (
+  formData: Partial<IdecicloFormData>,
+  keys: string[]
+) => {
+  const touchedFields = formData.touched_fields ?? {};
+  return keys.some((key) => Boolean(touchedFields[key]));
+};
+
 const B3_MATRIX: Record<IdecicloRating, Record<IdecicloRating, IdecicloRating>> = {
   A: { A: "A", B: "B", C: "C", D: "D" },
   B: { A: "A", B: "B", C: "C", D: "D" },
@@ -609,6 +617,7 @@ const calculateC2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   const typology = normalizeTypology(formData.infra_typology);
   if (!typology) return null;
+  const touchedFields = formData.touched_fields ?? {};
 
   if (typology === "ciclorrota") {
     const calculateCiclorrotaIntersectionRating = (
@@ -622,27 +631,39 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
       return "D";
     };
 
-    if (
-      Array.isArray(formData.traffic_lanes_per_direction_by_intersection) ||
-      Array.isArray(formData.mixed_lane_width_m_by_intersection) ||
-      Array.isArray(formData.has_intersection_traffic_calming_by_intersection)
-    ) {
-      const maxLength = Math.max(
-        formData.traffic_lanes_per_direction_by_intersection?.length || 0,
-        formData.mixed_lane_width_m_by_intersection?.length || 0,
-        formData.has_intersection_traffic_calming_by_intersection?.length || 0
-      );
-      const perIntersectionRatings = Array.from({ length: maxLength }, (_, index) =>
-        calculateCiclorrotaIntersectionRating(
+    const maxLength = Math.max(
+      formData.traffic_lanes_per_direction_by_intersection?.length || 0,
+      formData.mixed_lane_width_m_by_intersection?.length || 0,
+      formData.has_intersection_traffic_calming_by_intersection?.length || 0
+    );
+    if (maxLength > 0) {
+      const perIntersectionRatings = Array.from({ length: maxLength }, (_, index) => {
+        const hasIntersectionAnswer =
+          Boolean(touchedFields[`intersection_c3_lanes_${index}`]) &&
+          Boolean(touchedFields[`intersection_c3_width_${index}`]) &&
+          Boolean(touchedFields[`intersection_c3_calming_${index}`]);
+
+        if (!hasIntersectionAnswer) return null;
+
+        return calculateCiclorrotaIntersectionRating(
           toNumber(formData.traffic_lanes_per_direction_by_intersection?.[index]),
           toNumber(formData.mixed_lane_width_m_by_intersection?.[index]),
           Boolean(formData.has_intersection_traffic_calming_by_intersection?.[index])
-        )
-      );
+        );
+      });
 
-      if (perIntersectionRatings.length > 0) {
-        return getMedianRating(perIntersectionRatings);
-      }
+      const resolvedRating = getMedianRating(perIntersectionRatings);
+      if (resolvedRating) return resolvedRating;
+    }
+
+    if (
+      !hasTouchedField(formData, [
+        "traffic_lanes_per_direction",
+        "mixed_lane_width_m",
+        "has_intersection_traffic_calming",
+      ])
+    ) {
+      return null;
     }
 
     return calculateCiclorrotaIntersectionRating(
@@ -665,14 +686,18 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   };
 
   if (Array.isArray(formData.motorized_conflicts_by_intersection)) {
-    const perIntersectionRatings = formData.motorized_conflicts_by_intersection.map((conflicts) =>
-      calculateConflictRating(Array.isArray(conflicts) ? conflicts : [])
+    const perIntersectionRatings = formData.motorized_conflicts_by_intersection.map(
+      (conflicts, index) =>
+        Boolean(touchedFields[`intersection_c3_${index}`])
+          ? calculateConflictRating(Array.isArray(conflicts) ? conflicts : [])
+          : null
     );
 
-    if (perIntersectionRatings.length > 0) {
-      return getMedianRating(perIntersectionRatings);
-    }
+    const resolvedRating = getMedianRating(perIntersectionRatings);
+    if (resolvedRating) return resolvedRating;
   }
+
+  if (!hasTouchedField(formData, ["motorized_conflicts"])) return null;
 
   const conflicts = Array.isArray(formData.motorized_conflicts) ? formData.motorized_conflicts : [];
   const flow = getFlowType(formData.infra_flow);
@@ -693,7 +718,22 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 const calculateD1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   if (isRating(formData.lighting_rating)) return formData.lighting_rating;
 
-  if (!formData.has_lighting_posts) return "D";
+  if (
+    !hasTouchedField(formData, [
+      "lighting_rating",
+      "has_lighting_posts",
+      "lighting_post_type",
+      "lighting_distance_m",
+      "lighting_directed",
+      "lighting_barriers",
+      "lighting_distance_to_infra",
+    ])
+  ) {
+    return null;
+  }
+
+  if (formData.has_lighting_posts === false) return "D";
+  if (formData.has_lighting_posts !== true) return null;
 
   const distanceBetweenPosts = toNumber(formData.lighting_distance_m);
   const directed = Boolean(formData.lighting_directed);
@@ -730,6 +770,23 @@ const calculateD2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
 
 const calculateD3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
   const totalBlocks = toNumber(formData.blocks_count);
+  const hasBlockTouches = Array.from({ length: Math.max(0, totalBlocks) }, (_, index) =>
+    Boolean(formData.touched_fields?.[`block_d3_${index}`])
+  ).some(Boolean);
+
+  if (
+    !hasTouchedField(formData, [
+      "blocks_with_cycling_furniture",
+      "cycling_furniture",
+      "cycling_furniture_by_block",
+      "cycling_furniture_counts_by_block",
+      "no_cycling_furniture_by_block",
+    ]) &&
+    !hasBlockTouches
+  ) {
+    return null;
+  }
+
   const blocksWithFurniture = toNumber(formData.blocks_with_cycling_furniture);
 
   if (totalBlocks <= 0) return null;

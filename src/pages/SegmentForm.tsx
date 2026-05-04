@@ -782,6 +782,17 @@ const SegmentForm = () => {
   const draftKey = buildDraftKey(effectiveSegmentId || formData.segment_id || formData.id);
   const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
 
+  useEffect(() => {
+    if (!formId && !effectiveSegmentId) {
+      toast({
+        title: "Selecione um trecho primeiro",
+        description: "O formulário é liberado a partir da etapa de seleção do trecho.",
+        variant: "destructive",
+      });
+      navigate("/avaliacao/escolher-estrutura", { replace: true });
+    }
+  }, [effectiveSegmentId, formId, navigate, toast]);
+
   const getWorkflowStateKey = (code: CriterionCode) => {
     const typology = String(formData.infra_typology || "").toLowerCase();
 

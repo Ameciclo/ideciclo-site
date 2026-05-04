@@ -94,6 +94,7 @@ const Page7: React.FC<Page7Props> = ({
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
   const canShow = (value: "b7" | "b5" | "a2" | "c1" | "e1" | "c2" | "c3") =>
     !visibleValues || visibleValues.includes(value);
+  const visibleAccordionValues = ["b7", "b5", "a2", "c1", "e1", "c2", "c3"].filter(canShow);
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -536,8 +537,8 @@ const Page7: React.FC<Page7Props> = ({
 
   return (
     <CriteriaAccordionGroup
-          allValues={["b7", "b5", "a2", "c1", "e1", "c2", "c3"].filter(canShow)}
-          defaultOpenValues={["b7", "b5", "a2", "c1"].filter(canShow)}
+          allValues={visibleAccordionValues}
+          defaultOpenValues={visibleAccordionValues}
           filter={filter}
           command={command}
         >

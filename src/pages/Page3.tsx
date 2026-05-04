@@ -70,6 +70,9 @@ const Page3: React.FC<Page3Props> = ({
     normalizedTypology.includes("compart") || normalizedTypology.includes("calçada");
   const canShow = (value: "b11" | "b32" | "b12") =>
     !visibleValues || visibleValues.includes(value);
+  const visibleAccordionValues = (
+    isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32", "b12"]
+  ).filter(canShow);
 
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
@@ -373,8 +376,8 @@ const Page3: React.FC<Page3Props> = ({
 
   return (
     <CriteriaAccordionGroup
-      allValues={(isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32", "b12"]).filter(canShow)}
-      defaultOpenValues={(isCiclorrota ? ["b12"] : isCalcada ? ["b11"] : ["b11", "b32"]).filter(canShow)}
+      allValues={visibleAccordionValues}
+      defaultOpenValues={visibleAccordionValues}
       filter={filter}
       command={command}
     >

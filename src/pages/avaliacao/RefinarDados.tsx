@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { City, Segment, SegmentType, IBGEState, IBGECity } from "@/types";
+import { City, Segment, SegmentType } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
-  fetchStates,
-  fetchCities,
   fetchCityHighwayStats,
   fetchCityWays,
   calculateCityStats,
@@ -27,32 +25,16 @@ import {
 } from "lucide-react";
 import {
   deleteCityFromDB,
-  fetchAllStoredCities,
   updateSegmentInDB,
 } from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   clearPersistedCityData,
   getPersistedCityData,
   setPersistedCityData,
 } from "@/utils/persistedCityData";
-
-interface SelectedCityActionState {
-  cityId: string;
-  cityName: string;
-  stateId: string;
-  stateName: string;
-  storedCity: City | null;
-}
 
 const RefinarDados = () => {
   const [cityId, setCityId] = useState<string>("");
@@ -63,40 +45,9 @@ const RefinarDados = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
-  const [states, setStates] = useState<IBGEState[]>([]);
-  const [cities, setCities] = useState<IBGECity[]>([]);
-  const [selectedStateId, setSelectedStateId] = useState<string>("");
-  const [selectedStateCode, setSelectedStateCode] = useState<string>("");
-  const [selectedCityOption, setSelectedCityOption] = useState<string>("");
-  const [storedCitiesById, setStoredCitiesById] = useState<Record<string, City>>(
-    {}
-  );
-  const [selectedCityAction, setSelectedCityAction] =
-    useState<SelectedCityActionState | null>(null);
-  const [isSelectionLoading, setIsSelectionLoading] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const refreshStoredCitiesCache = async () => {
-    const storedCities = await fetchAllStoredCities();
-    const nextMap = storedCities.reduce<Record<string, City>>((acc, storedCity) => {
-      acc[storedCity.id] = storedCity;
-      return acc;
-    }, {});
-    setStoredCitiesById(nextMap);
-    return nextMap;
-  };
-
-  const formatLastDownload = (storedCity?: City | null) => {
-    const rawDate = storedCity?.updated_at || storedCity?.created_at;
-    if (!rawDate) return "Ainda não baixada";
-
-    return new Intl.DateTimeFormat("pt-BR", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(new Date(rawDate));
-  };
 
   const persistCitySnapshot = (
     nextCityId: string,
@@ -117,80 +68,6 @@ const RefinarDados = () => {
       })
     );
   };
-
-  const handleSelectionStateChange = async (stateId: string) => {
-    setSelectedStateId(stateId);
-    setSelectedCityOption("");
-    setSelectedCityAction(null);
-    setCities([]);
-
-    const state = states.find((item) => item.id.toString() === stateId);
-    setSelectedStateCode(state?.sigla || "");
-
-    if (!stateId) return;
-
-    try {
-      setIsSelectionLoading(true);
-      const citiesData = await fetchCities(stateId);
-      setCities(citiesData);
-    } catch (error) {
-      console.error("Erro ao carregar cidades:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as cidades deste estado.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSelectionLoading(false);
-    }
-  };
-
-  const handleSelectionCityChange = (cityIdValue: string) => {
-    setSelectedCityOption(cityIdValue);
-
-    const selectedCityData = cities.find(
-      (item) => item.id.toString() === cityIdValue
-    );
-
-    if (!selectedCityData || !selectedStateId || !selectedStateCode) {
-      setSelectedCityAction(null);
-      return;
-    }
-
-    setSelectedCityAction({
-      cityId: cityIdValue,
-      cityName: selectedCityData.nome,
-      stateId: selectedStateId,
-      stateName: selectedStateCode,
-      storedCity: storedCitiesById[cityIdValue] || null,
-    });
-  };
-
-  useEffect(() => {
-    const loadSelectionOptions = async () => {
-      try {
-        setIsSelectionLoading(true);
-        const [statesData, storedCities] = await Promise.all([
-          fetchStates(),
-          fetchAllStoredCities(),
-        ]);
-
-        setStates(statesData);
-        setStoredCitiesById(
-          storedCities.reduce<Record<string, City>>((acc, storedCity) => {
-            acc[storedCity.id] = storedCity;
-            return acc;
-          }, {})
-        );
-      } catch (error) {
-        console.error("Erro ao carregar opções de cidade:", error);
-      } finally {
-        setIsSelectionLoading(false);
-      }
-    };
-
-    loadSelectionOptions();
-  }, []);
 
   useEffect(() => {
     const storedData = getPersistedCityData();
@@ -245,106 +122,6 @@ const RefinarDados = () => {
     setSegments(enhancedSegments);
 
     return { city: newCity, segments: enhancedSegments };
-  };
-
-  const openCityForRefinement = async (
-    selectedCityId: string,
-    selectedCityName: string,
-    selectedStateName: string,
-    options?: { forceRefresh?: boolean }
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    setCityId(selectedCityId);
-    setCityName(selectedCityName);
-    setStateName(selectedStateName);
-
-    try {
-      if (!options?.forceRefresh) {
-        const storedData = await getStoredCityData(selectedCityId);
-        if (storedData) {
-          setCity(storedData.city);
-          setSegments([...storedData.segments]);
-          setPersistedCityData(
-            JSON.stringify({
-              cityId: selectedCityId,
-              cityName: selectedCityName,
-              stateName: selectedStateName,
-              city: storedData.city,
-              segments: storedData.segments,
-            })
-          );
-          toast({
-            title: "Dados carregados",
-            description: `Dados de ${selectedCityName}/${selectedStateName} carregados!`,
-          });
-          return;
-        }
-      }
-
-      if (options?.forceRefresh) {
-        await deleteCityFromDB(selectedCityId);
-      }
-
-      const downloadedData = await downloadAndStoreCityData(
-        selectedCityId,
-        selectedCityName,
-        selectedStateName
-      );
-
-      setPersistedCityData(
-        JSON.stringify({
-          cityId: selectedCityId,
-          cityName: selectedCityName,
-          stateName: selectedStateName,
-          ...downloadedData,
-        })
-      );
-
-      const nextStoredCities = await refreshStoredCitiesCache();
-      setSelectedCityAction((current) =>
-        current && current.cityId === selectedCityId
-          ? {
-              ...current,
-              storedCity: nextStoredCities[selectedCityId] || null,
-            }
-          : current
-      );
-
-      toast({
-        title: options?.forceRefresh ? "Dados atualizados" : "Dados baixados",
-        description: options?.forceRefresh
-          ? `Dados de ${selectedCityName}/${selectedStateName} atualizados com sucesso!`
-          : `Dados de ${selectedCityName}/${selectedStateName} baixados com sucesso!`,
-      });
-    } catch (error) {
-      console.error("Erro ao processar cidade:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Falha ao processar os dados da cidade";
-      setError(errorMessage);
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCitySelected = async (
-    stateId: string,
-    selectedCityId: string,
-    selectedCityName: string,
-    selectedStateName: string
-  ) => {
-    await openCityForRefinement(
-      selectedCityId,
-      selectedCityName,
-      selectedStateName
-    );
   };
 
   const loadStoredCityData = async (
@@ -447,16 +224,6 @@ const RefinarDados = () => {
         city: updatedCity,
         segments: enhancedSegments,
       });
-
-      const nextStoredCities = await refreshStoredCitiesCache();
-      setSelectedCityAction((current) =>
-        current && current.cityId === cityId
-          ? {
-              ...current,
-              storedCity: nextStoredCities[cityId] || null,
-            }
-          : current
-      );
 
       toast({
         title: "Dados recarregados",
@@ -739,7 +506,7 @@ const RefinarDados = () => {
         <a href="/avaliacao" className="hover:underline">
           Avaliação
         </a>{" "}
-        &gt; <span>Baixar e Aprimorar os Dados</span>
+        &gt; <span>Aprimorar Dados</span>
       </nav>
 
       {/* Título com Design Customizado */}
@@ -767,7 +534,7 @@ const RefinarDados = () => {
                 className="text-4xl md:text-5xl font-bold text-text-grey pb-8 bg-ideciclo-pink 
                          mx-auto px-7 py-6 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)]"
               >
-                Baixar e Aprimorar os Dados
+                Aprimorar Dados
               </h1>
             </div>
 
@@ -849,22 +616,27 @@ const RefinarDados = () => {
         <div className="flex justify-between items-center mb-8">
           <div className="max-w-3xl text-gray-600 text-lg space-y-2">
             <p>
-              Ajude a manter as informações atualizadas e mais precisas sobre a infraestrutura cicloviária das cidades, a partir dos dados disponibilizados na plataforma OpenStreetMap.
+              Revise os dados da cidade selecionada, ajuste nomes e tipologias e confirme os
+              trechos antes de seguir para a avaliação em campo.
             </p>
             <p className="text-base">
-              Atenção: é necessário validar os dados da sua cidade nesta etapa antes de preencher a avaliação do IDECICLO.
+              Se a cidade ainda não estiver no banco, o download é feito automaticamente ao abrir
+              esta etapa.
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
               clearPersistedCityData();
+              sessionStorage.removeItem("selectedSegmentId");
+              sessionStorage.removeItem("selectedCityId");
               setCityId("");
               setCityName("");
               setStateName("");
               setCity(null);
               setSegments([]);
+              navigate("/avaliacao");
             }}>
-              Nova Cidade
+              Trocar Cidade
             </Button>
             <Button variant="outline" onClick={() => navigate("/avaliacao")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -982,7 +754,7 @@ const RefinarDados = () => {
                   className="text-2xl md:text-3xl font-bold text-text-grey bg-ideciclo-blue 
                            mx-auto px-6 py-4 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] text-white"
                 >
-                  Baixar e Aprimorar
+                  Aprimorar Dados
                 </h2>
               </div>
             </div>
@@ -991,134 +763,22 @@ const RefinarDados = () => {
               <div className="rounded bg-white shadow-2xl p-8">
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-semibold mb-2">
-                    Escolha a cidade que deseja revisar
+                    Selecione uma cidade na página de avaliação
                   </h3>
                   <p className="text-gray-600 text-sm">
-                    Se a cidade já existir no banco, você poderá continuar ou atualizar os dados. Se ainda não existir, a página oferecerá o download.
+                    Esta etapa agora é dedicada apenas ao aprimoramento. Volte para
+                    <strong> Avaliação</strong>, escolha a cidade e então retorne para revisar os
+                    trechos.
                   </p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="estado-refinar-unificado" className="text-sm font-medium">
-                      Estado
-                    </label>
-                    <Select
-                      value={selectedStateId}
-                      onValueChange={handleSelectionStateChange}
-                      disabled={isSelectionLoading}
-                    >
-                      <SelectTrigger id="estado-refinar-unificado">
-                        <SelectValue placeholder="Selecione um estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {states.map((state) => (
-                          <SelectItem
-                            key={state.id}
-                            value={state.id.toString()}
-                          >
-                            {state.nome} - {state.sigla}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="cidade-refinar-unificado" className="text-sm font-medium">
-                      Cidade
-                    </label>
-                    <Select
-                      value={selectedCityOption}
-                      onValueChange={handleSelectionCityChange}
-                      disabled={
-                        isSelectionLoading ||
-                        !selectedStateId ||
-                        cities.length === 0
-                      }
-                    >
-                      <SelectTrigger id="cidade-refinar-unificado">
-                        <SelectValue placeholder="Selecione uma cidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cities.map((cityOption) => (
-                          <SelectItem
-                            key={cityOption.id}
-                            value={cityOption.id.toString()}
-                          >
-                            {cityOption.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => navigate("/avaliacao")}
+                    className="bg-ideciclo-blue hover:bg-blue-600"
+                  >
+                    Voltar para Avaliação
+                  </Button>
                 </div>
-
-                {selectedCityAction && (
-                  <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-6">
-                    <div className="flex flex-col gap-2 mb-4">
-                      <h4 className="text-lg font-semibold">
-                        {selectedCityAction.cityName}, {selectedCityAction.stateName}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Último download: {formatLastDownload(selectedCityAction.storedCity)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Status:{" "}
-                        {selectedCityAction.storedCity
-                          ? "dados já disponíveis no banco"
-                          : "cidade ainda não baixada"}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {selectedCityAction.storedCity ? (
-                        <>
-                          <Button
-                            onClick={() =>
-                              handleCitySelected(
-                                selectedCityAction.stateId,
-                                selectedCityAction.cityId,
-                                selectedCityAction.cityName,
-                                selectedCityAction.stateName
-                              )
-                            }
-                            className="bg-ideciclo-blue hover:bg-blue-600"
-                          >
-                            Continuar com dados salvos
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() =>
-                              openCityForRefinement(
-                                selectedCityAction.cityId,
-                                selectedCityAction.cityName,
-                                selectedCityAction.stateName,
-                                { forceRefresh: true }
-                              )
-                            }
-                          >
-                            Atualizar dados
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          onClick={() =>
-                            handleCitySelected(
-                              selectedCityAction.stateId,
-                              selectedCityAction.cityId,
-                              selectedCityAction.cityName,
-                              selectedCityAction.stateName
-                            )
-                          }
-                          className="bg-ideciclo-yellow hover:bg-yellow-500 text-black"
-                        >
-                          Baixar dados da cidade
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </section>
