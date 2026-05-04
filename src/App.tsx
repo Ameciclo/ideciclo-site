@@ -4,17 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Refine from "./pages/Refine";
 import Avaliacao from "./pages/Avaliacao";
-import IdecicloSegmentForm from "./pages/avaliacao/form/IdecicloSegmentForm";
-import ViewEvaluation from "./pages/ViewEvaluation";
 import About from "./pages/About";
 import Ranking from "./pages/Ranking";
 import CityDetails from "./pages/CityDetails";
 import Apoiadores from "./pages/Apoiadores";
 import NotFound from "./pages/NotFound";
-import ProcessoAvaliacao from "./pages/ProcessoAvaliacao";
-import BaixarDados from "./pages/avaliacao/BaixarDados";
 import RefinarDados from "./pages/avaliacao/RefinarDados";
 import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
 import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
@@ -39,10 +34,7 @@ const App = () => (
             <ErrorBoundary>
               <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/processo-avaliacao" element={<ProcessoAvaliacao />} />
-              <Route path="/refinar" element={<Refine />} />
               <Route path="/avaliacao" element={<Avaliacao />} />
-              <Route path="/avaliacao/baixar-dados" element={<BaixarDados />} />
               <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
               <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
               <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
@@ -52,18 +44,6 @@ const App = () => (
               <Route path="/city-details/:cityId" element={<CityDetails />} />
               <Route path="/sobre" element={<About />} />
               <Route path="/apoiadores" element={<Apoiadores />} />
-              <Route
-                path="/refinar/formulario/:segmentId"
-                element={<IdecicloSegmentForm />}
-              />
-              <Route
-                path="/view-evaluation/:formId"
-                element={<ViewEvaluation />}
-              />
-              <Route
-                path="/edit-evaluation/:segmentId/:formId"
-                element={<IdecicloSegmentForm />}
-              />
               <Route path="*" element={<NotFound />} />
             </Routes>
             </ErrorBoundary>

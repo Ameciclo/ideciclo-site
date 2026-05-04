@@ -56,9 +56,7 @@ export const RefinementTableSortableWrapper = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split">(
-    "split"
-  );
+  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split" | "table-only">("stacked");
 
   // Splitter state
   const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
@@ -250,7 +248,7 @@ export const RefinementTableSortableWrapper = ({
       />
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="hidden lg:flex items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
             <span>Layout</span>
             <Button
               variant={desktopLayout === "split" ? "default" : "outline"}
@@ -266,10 +264,33 @@ export const RefinementTableSortableWrapper = ({
             >
               Empilhado
             </Button>
+            <Button
+              variant={desktopLayout === "table-only" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDesktopLayout("table-only")}
+            >
+              Sem mapa
+            </Button>
           </div>
 
           <div className="flex justify-end">
-            <div className="flex items-center gap-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span>Visualização</span>
+              <Select
+                value={desktopLayout}
+                onValueChange={(value) =>
+                  setDesktopLayout(value as "split" | "stacked" | "table-only")
+                }
+              >
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="split">Lado a lado</SelectItem>
+                  <SelectItem value="stacked">Empilhado</SelectItem>
+                  <SelectItem value="table-only">Sem mapa</SelectItem>
+                </SelectContent>
+              </Select>
               <span>Segmentos por página</span>
               <Select
                 value={itemsPerPage.toString()}
@@ -289,12 +310,62 @@ export const RefinementTableSortableWrapper = ({
             </div>
           </div>
         </div>
+        <p className="text-sm text-gray-600">
+          Modo atual:{" "}
+          {desktopLayout === "split"
+            ? "Lado a lado"
+            : desktopLayout === "stacked"
+              ? "Empilhado"
+              : "Sem mapa"}
+        </p>
 
-        <div
-          className={`grid gap-4 ${
-            desktopLayout === "split" ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]" : "grid-cols-1"
-          }`}
-        >
+        {desktopLayout === "split" && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+            <RefinementSegmentsTable
+              segments={currentItems}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortChange={handleSortChange}
+              onSelectSegment={onSelectSegment}
+              onSelectAllSegments={onSelectAllSegments}
+              selectedSegments={selectedSegments}
+              onUpdateSegmentName={onUpdateSegmentName}
+              onDeleteSegment={onDeleteSegment}
+              onUnmergeSegments={onUnmergeSegments}
+              onUpdateSegmentClassification={onUpdateSegmentClassification}
+              onUpdateSegmentType={onUpdateSegmentType}
+            />
+            <MapboxMap
+              segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
+              className="w-full lg:sticky lg:top-6"
+            />
+          </div>
+        )}
+
+        {desktopLayout === "stacked" && (
+          <div className="space-y-4">
+            <RefinementSegmentsTable
+              segments={currentItems}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortChange={handleSortChange}
+              onSelectSegment={onSelectSegment}
+              onSelectAllSegments={onSelectAllSegments}
+              selectedSegments={selectedSegments}
+              onUpdateSegmentName={onUpdateSegmentName}
+              onDeleteSegment={onDeleteSegment}
+              onUnmergeSegments={onUnmergeSegments}
+              onUpdateSegmentClassification={onUpdateSegmentClassification}
+              onUpdateSegmentType={onUpdateSegmentType}
+            />
+            <MapboxMap
+              segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
+              className="w-full"
+            />
+          </div>
+        )}
+
+        {desktopLayout === "table-only" && (
           <RefinementSegmentsTable
             segments={currentItems}
             sortField={sortField}
@@ -309,11 +380,7 @@ export const RefinementTableSortableWrapper = ({
             onUpdateSegmentClassification={onUpdateSegmentClassification}
             onUpdateSegmentType={onUpdateSegmentType}
           />
-          <MapboxMap
-            segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
-            className={`w-full ${desktopLayout === "split" ? "lg:sticky lg:top-6" : ""}`}
-          />
-        </div>
+        )}
       </div>
 
       <SegmentsPagination

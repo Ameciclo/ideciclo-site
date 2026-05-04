@@ -101,15 +101,9 @@ const OriginalSegmentsTable = ({
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" asChild>
                       <a
-                        href={
-                          segment.evaluated && segment.id_form
-                            ? `/view-evaluation/${segment.id_form}`
-                            : `/refinar/formulario/${segment.id}`
-                        }
+                        href={`/avaliacao/formulario-ideciclo/${segment.id}`}
                       >
-                        {segment.evaluated && segment.id_form
-                          ? "Ver Avaliação"
-                          : "Avaliar"}
+                        {segment.evaluated && segment.id_form ? "Ver Avaliação" : "Avaliar"}
                       </a>
                     </Button>
                   </TableCell>

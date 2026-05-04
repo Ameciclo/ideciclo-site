@@ -624,7 +624,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
   const handleStartOver = () => {
     clearPersistedCityData();
     sessionStorage.clear();
-    navigate("/processo-avaliacao");
+    navigate("/avaliacao");
   };
 
   const handleContinueEvaluating = () => {
@@ -637,11 +637,6 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
 
   const handleSelectedSegmentAction = () => {
     if (!selectedSegment) return;
-
-    if (selectedSegment.formId) {
-      navigate(`/view-evaluation/${selectedSegment.formId}`);
-      return;
-    }
 
     sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
     if (cityData?.cityId) {
@@ -657,7 +652,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
           <CardTitle>Selecione uma cidade para ver o cálculo</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <Button onClick={() => navigate("/avaliacao/baixar-dados")}>
+          <Button onClick={() => navigate("/avaliacao")}>
             Escolher cidade
           </Button>
         </CardContent>
