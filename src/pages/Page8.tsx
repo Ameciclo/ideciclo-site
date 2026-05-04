@@ -59,6 +59,7 @@ const Page8: React.FC<Page8Props> = ({
   hideBlockPager = false,
 }) => {
   const canShow = (value: "d1" | "d2" | "d3") => !visibleValues || visibleValues.includes(value);
+  const visibleAccordionValues = ["d1", "d2", "d3"].filter(canShow);
   const handleRadioChange = (name: string, value: string | boolean) => {
     onDataChange({ [name]: value });
   };
@@ -188,7 +189,12 @@ const Page8: React.FC<Page8Props> = ({
     });
 
   return (
-    <CriteriaAccordionGroup allValues={["d1", "d2", "d3"].filter(canShow)} defaultOpenValues={["d1", "d2"].filter(canShow)} filter={filter} command={command}>
+    <CriteriaAccordionGroup
+      allValues={visibleAccordionValues}
+      defaultOpenValues={visibleAccordionValues}
+      filter={filter}
+      command={command}
+    >
           {canShow("d1") ? <AssessmentCriterionAccordion
             value="d1"
             title="D.1. Iluminação pública"

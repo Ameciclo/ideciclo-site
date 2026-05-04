@@ -55,6 +55,7 @@ const Page6: React.FC<Page6Props> = ({
   const isCiclorrota = infraType === "ciclorrota";
   const canShow = (value: "b41" | "b42" | "e41" | "e42" | "b43" | "e43") =>
     !visibleValues || visibleValues.includes(value);
+  const visibleAccordionValues = ["b41", "b42", "e41", "e42", "b43", "e43"].filter(canShow);
   const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const chipClassName = (selected: boolean) =>
     `rounded-full border px-3 py-2 text-sm font-medium transition ${
@@ -233,8 +234,8 @@ const Page6: React.FC<Page6Props> = ({
 
   return (
     <CriteriaAccordionGroup
-      allValues={["b41", "b42", "e41", "e42", "b43", "e43"].filter(canShow)}
-      defaultOpenValues={(isCiclorrota ? ["b43"] : ["b41"]).filter(canShow)}
+      allValues={visibleAccordionValues}
+      defaultOpenValues={visibleAccordionValues}
       filter={filter}
       command={command}
     >

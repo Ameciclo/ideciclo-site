@@ -29,7 +29,12 @@ const Page4: React.FC<Page4Props> = ({ data, onDataChange, filter, command }) =>
     });
 
   return (
-    <CriteriaAccordionGroup allValues={["b2", "e2"]} defaultOpenValues={["b2"]} filter={filter} command={command}>
+    <CriteriaAccordionGroup
+      allValues={["b2", "e2"]}
+      defaultOpenValues={["b2", "e2"]}
+      filter={filter}
+      command={command}
+    >
           <AssessmentCriterionAccordion
             value="b2"
             title="B.2. Tipo de pavimento da infraestrutura cicloviária"

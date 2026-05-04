@@ -39,6 +39,7 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
   const isCiclorrota = infraType === "ciclorrota";
   const isCalcada = infraType === "calcada";
   const showE3 = !isCiclorrota && !isCalcada;
+  const visibleAccordionValues = ["b31", ...(showE3 ? ["e31", "e32"] : [])];
   const b3FinalRating = buildCriterionScorePreview(data, ["B3"])[0]?.rating;
   const b31LocalRating =
     infraType === "ciclofaixa"
@@ -113,7 +114,12 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
     });
 
   return (
-    <CriteriaAccordionGroup allValues={["b31", "e31", "e32"]} defaultOpenValues={isCiclorrota ? [] : ["b31"]} filter={filter} command={command}>
+    <CriteriaAccordionGroup
+      allValues={["b31", "e31", "e32"]}
+      defaultOpenValues={isCiclorrota ? [] : visibleAccordionValues}
+      filter={filter}
+      command={command}
+    >
           {!isCiclorrota ? (
           <AssessmentCriterionAccordion
             value="b31"
