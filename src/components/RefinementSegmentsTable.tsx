@@ -164,7 +164,6 @@ const RefinementSegmentsTable = ({
     | "posicaoNaVia"
     | "pavimento"
   >("velocidade");
-  const [fetchScope, setFetchScope] = useState<"all" | "selected">("all");
   const [techDraft, setTechDraft] = useState({
     trechoInicio: "",
     trechoFim: "",
@@ -607,12 +606,7 @@ const RefinementSegmentsTable = ({
   const handleFetchOsmComplement = async () => {
     if (!editingSegment) return;
 
-    const targetParts =
-      fetchScope === "selected" && selectedPartId
-        ? segmentParts.filter((part) => part.partId === selectedPartId)
-        : segmentParts;
-
-    const partsWithIds = targetParts.filter((part) => Boolean(part.osmId));
+    const partsWithIds = segmentParts.filter((part) => Boolean(part.osmId));
     if (partsWithIds.length === 0) {
       setOsmComplementError(
         "Não há OSM ID válido para este trecho. Preencha manualmente no formulário."
@@ -648,17 +642,25 @@ const RefinementSegmentsTable = ({
         );
       }
 
-      setAdvancedByPartId((prev) =>
-        fetchScope === "selected" ? { ...prev, ...byPart } : byPart
-      );
+      setAdvancedByPartId(byPart);
 
       if (editingSegment) {
-        const mergedData = fetchScope === "selected" ? { ...advancedByPartId, ...byPart } : byPart;
-        const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, mergedData);
+        const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, byPart);
+        const totalBlocks = Object.values(byPart).reduce(
+          (sum, item) => sum + clampMinimumOne(item.estimated_blocks_count ?? 1),
+          0
+        );
+        const totalIntersections = Object.values(byPart).reduce(
+          (sum, item) => sum + clampNonNegative(item.estimated_intersections_count ?? 0),
+          0
+        );
         setTechDraft((prev) => ({
           ...prev,
           trechoInicio: endpoints.trechoInicio || prev.trechoInicio,
           trechoFim: endpoints.trechoFim || prev.trechoFim,
+          quadrasEstimadas: totalBlocks > 0 ? totalBlocks : prev.quadrasEstimadas,
+          intersecoesEstimadas:
+            totalIntersections >= 0 ? totalIntersections : prev.intersecoesEstimadas,
         }));
       }
 
@@ -821,6 +823,20 @@ const RefinementSegmentsTable = ({
     }
   };
 
+  const getCombinedIntersectionsPreview = () => {
+    if (Object.keys(advancedByPartId).length > 0) {
+      const byKey = new Map<string, any>();
+      Object.values(advancedByPartId).forEach((part) => {
+        (part.intersections_preview || []).forEach((item) => {
+          const key = `${item.pointKey}-${item.roadId}`;
+          if (!byKey.has(key)) byKey.set(key, item as any);
+        });
+      });
+      return Array.from(byKey.values());
+    }
+    return editingSegment?.intersections_preview || [];
+  };
+
   const applySelectedPartToDraft = (partId: string) => {
     setSelectedPartId(partId);
     const selectedPart = segmentParts.find((part) => part.partId === partId);
@@ -844,13 +860,27 @@ const RefinementSegmentsTable = ({
       pavimento: prefill.pavimento || prev.pavimento,
       largura: prefill.largura !== undefined ? String(prefill.largura) : prev.largura,
       bufferSeparacao: prefill.bufferSeparacao || prev.bufferSeparacao,
-      quadrasEstimadas: clampMinimumOne(
-        selected.estimated_blocks_count ?? prev.quadrasEstimadas
-      ),
-      intersecoesEstimadas: clampNonNegative(
-        selected.estimated_intersections_count ?? prev.intersecoesEstimadas
-      ),
     }));
+  };
+
+  const getCombinedEstimatedCounts = () => {
+    if (Object.keys(advancedByPartId).length === 0) {
+      return {
+        blocks: techDraft.quadrasEstimadas,
+        intersections: techDraft.intersecoesEstimadas,
+      };
+    }
+
+    const blocks = Object.values(advancedByPartId).reduce(
+      (sum, item) => sum + clampMinimumOne(item.estimated_blocks_count ?? 1),
+      0
+    );
+    const intersections = Object.values(advancedByPartId).reduce(
+      (sum, item) => sum + clampNonNegative(item.estimated_intersections_count ?? 0),
+      0
+    );
+
+    return { blocks, intersections };
   };
 
   const handleDeleteSegment = async (segmentId: string) => {
@@ -949,6 +979,26 @@ const RefinementSegmentsTable = ({
   const osmLinkId =
     selectedPartAdvanced?.osm_id || selectedPartMeta?.osmId || extractNumericOsmId(editingSegment?.osm_id);
   const osmLink = osmLinkId ? `https://www.openstreetmap.org/${osmLinkType}/${osmLinkId}` : "";
+  const pendingFromDraft = [
+    !typeDraft ? "Tipologia sem preenchimento" : null,
+    !classificationDraft ? "Hierarquia viária sem preenchimento" : null,
+    !techDraft.trechoInicio?.trim() ? "Trecho início sem preenchimento" : null,
+    !techDraft.trechoFim?.trim() ? "Trecho fim sem preenchimento" : null,
+    !techDraft.sentido ? "Sentido sem preenchimento" : null,
+    !techDraft.posicaoNaVia ? "Posição na via sem preenchimento" : null,
+    !techDraft.velocidade?.trim() ? "Velocidade regulamentada sem preenchimento" : null,
+    techDraft.numeroFaixas === "" ? "Número de faixas sem preenchimento" : null,
+    !techDraft.pavimento?.trim() ? "Pavimento sem preenchimento" : null,
+    !techDraft.largura?.trim() ? "Largura sem preenchimento" : null,
+    !techDraft.bufferSeparacao?.trim() ? "Buffer/separação sem preenchimento" : null,
+  ].filter((item): item is string => Boolean(item));
+
+  const pendingFromOsm =
+    selectedPartAdvanced?.ideciclo_prefill.pendenciasCampo ||
+    editingSegment?.ideciclo_prefill?.pendenciasCampo ||
+    [];
+
+  const pendingItems = Array.from(new Set([...pendingFromOsm, ...pendingFromDraft]));
 
   return (
     <div className="rounded-md border">
@@ -1165,33 +1215,12 @@ const RefinementSegmentsTable = ({
                     <Button
                       variant="secondary"
                       onClick={() => void handleFetchOsmComplement()}
-                      disabled={
-                        isLoadingOsmComplement ||
-                        (fetchScope === "selected" && !selectedPartId)
-                      }
+                      disabled={isLoadingOsmComplement}
                     >
                       {isLoadingOsmComplement
                         ? "Baixando..."
-                        : fetchScope === "selected"
-                          ? "Baixar OSM do trecho selecionado"
-                          : "Baixar OSM de todos os trechos"}
+                        : "Baixar OSM de todos os trechos"}
                     </Button>
-                    <Select
-                      value={fetchScope}
-                      onValueChange={(value) =>
-                        setFetchScope(value as "all" | "selected")
-                      }
-                    >
-                      <SelectTrigger className="w-[230px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Baixar todos os trechos</SelectItem>
-                        <SelectItem value="selected">
-                          Baixar trecho selecionado
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
                     <Select
                       value={selectedCharacteristic}
                       onValueChange={(value) =>
@@ -1338,15 +1367,6 @@ const RefinementSegmentsTable = ({
                     </div>
                   </div>
                 </div>
-              </section>
-
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  Complemento técnico
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Use a tabela de trechos acima para escolher a base e baixar dados do OSM.
-                </p>
               </section>
 
               <section className="space-y-3">
@@ -1587,49 +1607,11 @@ const RefinementSegmentsTable = ({
 
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  Tags de referência
-                </h3>
-                {(selectedPartAdvanced?.osm_tags &&
-                  Object.keys(selectedPartAdvanced.osm_tags).length > 0) ||
-                (editingSegment.osm_tags && Object.keys(editingSegment.osm_tags).length > 0) ? (
-                  <div className="max-h-40 overflow-auto rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-left">
-                        <tr>
-                          <th className="px-3 py-2">Tag</th>
-                          <th className="px-3 py-2">Valor</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(
-                          selectedPartAdvanced?.osm_tags || editingSegment.osm_tags || {}
-                        ).map(([key, value]) => (
-                          <tr key={key} className="border-t align-top">
-                            <td className="px-3 py-2 font-mono text-xs">{key}</td>
-                            <td className="px-3 py-2">{value}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma tag OSM disponível neste trecho.
-                  </p>
-                )}
-              </section>
-
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Pendências para campo
                 </h3>
-                {(selectedPartAdvanced?.ideciclo_prefill.pendenciasCampo?.length ||
-                  editingSegment.ideciclo_prefill?.pendenciasCampo?.length) ? (
+                {pendingItems.length > 0 ? (
                   <ul className="list-disc space-y-1 pl-5 text-sm">
-                    {(selectedPartAdvanced?.ideciclo_prefill.pendenciasCampo ||
-                      editingSegment.ideciclo_prefill?.pendenciasCampo ||
-                      []
-                    ).map((pending) => (
+                    {pendingItems.map((pending) => (
                       <li key={pending}>{pending}</li>
                     ))}
                   </ul>
@@ -1644,6 +1626,15 @@ const RefinementSegmentsTable = ({
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Interseções e quadras estimadas
                 </h3>
+                {(() => {
+                  const totals = getCombinedEstimatedCounts();
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Total estimado no conjunto selecionado: {totals.blocks} quadras e{" "}
+                      {totals.intersections} interseções.
+                    </p>
+                  );
+                })()}
                 <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
                   {renderStepper({
                     label: "N° quadras",
@@ -1676,8 +1667,7 @@ const RefinementSegmentsTable = ({
                       })),
                   })}
                 </div>
-                {(selectedPartAdvanced?.intersections_preview?.length ||
-                  editingSegment.intersections_preview?.length) ? (
+                {getCombinedIntersectionsPreview().length > 0 ? (
                   <div className="max-h-48 overflow-auto rounded-md border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-left">
@@ -1688,10 +1678,7 @@ const RefinementSegmentsTable = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {(selectedPartAdvanced?.intersections_preview ||
-                          editingSegment.intersections_preview ||
-                          []
-                        )
+                        {getCombinedIntersectionsPreview()
                           .slice(0, 40)
                           .map((item) => (
                             <tr key={`${item.pointKey}-${item.roadId}`} className="border-t">
@@ -1712,6 +1699,78 @@ const RefinementSegmentsTable = ({
                     Não foi possível estimar interseções com os dados disponíveis.
                   </p>
                 )}
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                  Tags de referência
+                </h3>
+                <div className="space-y-3">
+                  {segmentParts.map((part) => {
+                    const advanced = advancedByPartId[part.partId];
+                    const tagMap =
+                      advanced?.osm_tags ||
+                      (part.partId === editingSegment?.id ? editingSegment?.osm_tags : undefined) ||
+                      {};
+                    const osmTypeRaw = (advanced?.osm_type || part.osmType || "way").toLowerCase();
+                    const osmType =
+                      osmTypeRaw === "relation" ? "relation" : osmTypeRaw === "node" ? "node" : "way";
+                    const osmId = advanced?.osm_id || part.osmId;
+                    const perPartOsmLink = osmId
+                      ? `https://www.openstreetmap.org/${osmType}/${osmId}`
+                      : "";
+                    const isSelectedPart = selectedPartId === part.partId;
+
+                    return (
+                      <div
+                        key={`tags-${part.partId}`}
+                        className={`rounded-md border p-3 ${
+                          isSelectedPart ? "border-slate-900 bg-slate-50 ring-1 ring-slate-300" : ""
+                        }`}
+                      >
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">{part.label}</p>
+                          {perPartOsmLink ? (
+                            <a
+                              href={perPartOsmLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-700 underline underline-offset-2 hover:text-blue-900"
+                            >
+                              Abrir este trecho no OSM
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Sem link OSM</span>
+                          )}
+                        </div>
+                        {Object.keys(tagMap).length > 0 ? (
+                          <div className="max-h-44 overflow-auto rounded-md border">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50 text-left">
+                                <tr>
+                                  <th className="px-3 py-2">Tag</th>
+                                  <th className="px-3 py-2">Valor</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(tagMap).map(([key, value]) => (
+                                  <tr key={`${part.partId}-${key}`} className="border-t align-top">
+                                    <td className="px-3 py-2 font-mono text-xs">{key}</td>
+                                    <td className="px-3 py-2">{value}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Sem tags carregadas para este trecho. Clique em "Baixar OSM de todos os trechos".
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
 
               <section className="space-y-2">

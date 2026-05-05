@@ -231,23 +231,6 @@ export const RefinementTableSortableWrapper = ({
 
   return (
     <div>
-      <SegmentsFilters
-        nameFilter={nameFilter}
-        onNameFilterChange={setNameFilter}
-        selectedRating="all"
-        onRatingChange={() => {}} // Not used in refinement
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
-        selectedClassification={selectedClassification}
-        onClassificationChange={setSelectedClassification}
-        minLength={minLength}
-        onMinLengthChange={setMinLength}
-        maxLength={maxLength}
-        onMaxLengthChange={setMaxLength}
-        onResetFilters={resetFilters}
-        showRatingFilter={false}
-        showClassificationFilter={true}
-      />
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2">
@@ -325,6 +308,23 @@ export const RefinementTableSortableWrapper = ({
             </div>
           </div>
         </div>
+        <SegmentsFilters
+          nameFilter={nameFilter}
+          onNameFilterChange={setNameFilter}
+          selectedRating="all"
+          onRatingChange={() => {}} // Not used in refinement
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          selectedClassification={selectedClassification}
+          onClassificationChange={setSelectedClassification}
+          minLength={minLength}
+          onMinLengthChange={setMinLength}
+          maxLength={maxLength}
+          onMaxLengthChange={setMaxLength}
+          onResetFilters={resetFilters}
+          showRatingFilter={false}
+          showClassificationFilter={true}
+        />
         <p className="text-sm text-gray-600">
           Modo atual:{" "}
           {desktopLayout === "split"
