@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   fetchCityHighwayStats,
   fetchCityWays,
@@ -50,9 +51,29 @@ const RefinarDados = () => {
   const [isLoadingTrash, setIsLoadingTrash] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
+  const [autoMergeSuggestions, setAutoMergeSuggestions] = useState<
+    Array<{
+      id: string;
+      mergedName: string;
+      mergedType: SegmentType;
+      mergedClassification?: string;
+      candidateSegmentIds: string[];
+      selectedSegmentIds: string[];
+      enabled: boolean;
+    }>
+  >([]);
+  const [isApplyingAutoMerge, setIsApplyingAutoMerge] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const normalizeForMergeKey = (value?: string) =>
+    (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
 
   const persistCitySnapshot = (
     nextCityId: string,
@@ -633,6 +654,167 @@ const RefinarDados = () => {
   const selectedSegmentsCount = segments.filter((s) => s.selected).length;
   const selectedSegments = segments.filter((s) => s.selected);
 
+  const generateAutoMergeSuggestions = () => {
+    const candidates = segments.filter(
+      (segment) => !segment.parent_segment_id && !segment.is_merged
+    );
+
+    const grouped = new Map<string, Segment[]>();
+    candidates.forEach((segment) => {
+      const key = [
+        normalizeForMergeKey(segment.name),
+        segment.type || "",
+        segment.classification || "",
+      ].join("|");
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(segment);
+    });
+
+    const suggestions = Array.from(grouped.entries())
+      .filter(([, items]) => items.length >= 2)
+      .map(([key, items], index) => {
+        const baseName = items[0]?.name || `Sugestão ${index + 1}`;
+        const mergedType = items[0]?.type || SegmentType.CICLOFAIXA;
+        const mergedClassification = items[0]?.classification;
+        const uniqueNames = Array.from(new Set(items.map((item) => item.name))).join(" / ");
+
+        return {
+          id: `${key}-${index}`,
+          mergedName: uniqueNames || baseName,
+          mergedType,
+          mergedClassification,
+          candidateSegmentIds: items.map((item) => item.id),
+          selectedSegmentIds: items.map((item) => item.id),
+          enabled: true,
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.selectedSegmentIds.length - left.selectedSegmentIds.length
+      );
+
+    setAutoMergeSuggestions(suggestions);
+
+    if (suggestions.length === 0) {
+      toast({
+        title: "Sem sugestões automáticas",
+        description:
+          "Nenhum grupo com nome, tipologia e hierarquia compatíveis foi encontrado.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Sugestões geradas",
+      description: `${suggestions.length} grupos sugeridos para revisão.`,
+    });
+  };
+
+  const toggleAutoMergeSuggestion = (suggestionId: string, enabled: boolean) => {
+    setAutoMergeSuggestions((prev) =>
+      prev.map((item) =>
+        item.id === suggestionId
+          ? { ...item, enabled }
+          : item
+      )
+    );
+  };
+
+  const toggleSegmentInSuggestion = (
+    suggestionId: string,
+    segmentId: string,
+    include: boolean
+  ) => {
+    setAutoMergeSuggestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== suggestionId) return item;
+        const hasSegment = item.selectedSegmentIds.includes(segmentId);
+        if (include && !hasSegment) {
+          return {
+            ...item,
+            selectedSegmentIds: [...item.selectedSegmentIds, segmentId],
+          };
+        }
+        if (!include && hasSegment) {
+          return {
+            ...item,
+            selectedSegmentIds: item.selectedSegmentIds.filter(
+              (id) => id !== segmentId
+            ),
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const applyAutoMergeSuggestions = async () => {
+    const approved = autoMergeSuggestions.filter(
+      (suggestion) =>
+        suggestion.enabled && suggestion.selectedSegmentIds.length >= 2
+    );
+
+    if (approved.length === 0) {
+      toast({
+        title: "Nada para aplicar",
+        description: "Selecione ao menos uma sugestão válida com 2+ trechos.",
+      });
+      return;
+    }
+
+    setIsApplyingAutoMerge(true);
+    try {
+      let appliedCount = 0;
+
+      for (const suggestion of approved) {
+        const groupSegments = segments.filter((segment) =>
+          suggestion.selectedSegmentIds.includes(segment.id)
+        );
+        if (groupSegments.length < 2) continue;
+
+        const merged = await mergeSegmentsInDB(
+          groupSegments,
+          suggestion.mergedName,
+          suggestion.mergedType,
+          suggestion.mergedClassification
+        );
+        if (merged) appliedCount += 1;
+      }
+
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        const updatedSegments = storedData.segments.map((segment) => ({
+          ...segment,
+          selected: false,
+        }));
+        setCity(storedData.city);
+        setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
+      }
+
+      toast({
+        title: "Mesclagem automática aplicada",
+        description: `${appliedCount} sugest${appliedCount === 1 ? "ão aplicada" : "ões aplicadas"}.`,
+      });
+      setAutoMergeSuggestions([]);
+    } catch (autoMergeError) {
+      console.error("Erro ao aplicar mesclagens automáticas:", autoMergeError);
+      toast({
+        title: "Erro",
+        description: "Falha ao aplicar as mesclagens sugeridas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsApplyingAutoMerge(false);
+    }
+  };
+
   return (
     <>
       {/* Header com Imagem de Capa */}
@@ -832,6 +1014,100 @@ const RefinarDados = () => {
                   selectedSegments={selectedSegments}
                   onConfirm={handleMergeSegments}
                 />
+                <div className="mb-6 rounded-md border bg-muted/20 p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                      Mesclagem automática sugerida
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={generateAutoMergeSuggestions}>
+                        Gerar sugestões
+                      </Button>
+                      {autoMergeSuggestions.length > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={applyAutoMergeSuggestions}
+                          disabled={isApplyingAutoMerge}
+                        >
+                          {isApplyingAutoMerge
+                            ? "Aplicando..."
+                            : "Aplicar sugestões selecionadas"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {autoMergeSuggestions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Gere sugestões para revisar agrupamentos por nome, tipologia e hierarquia.
+                    </p>
+                  ) : (
+                    <div className="max-h-80 space-y-3 overflow-auto">
+                      {autoMergeSuggestions.map((suggestion) => {
+                        const suggestionSegments = segments.filter((segment) =>
+                          suggestion.candidateSegmentIds.includes(segment.id)
+                        );
+                        return (
+                          <div key={suggestion.id} className="rounded-md border bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={suggestion.enabled}
+                                  onCheckedChange={(checked) =>
+                                    toggleAutoMergeSuggestion(
+                                      suggestion.id,
+                                      Boolean(checked)
+                                    )
+                                  }
+                                />
+                                <p className="text-sm font-semibold">{suggestion.mergedName}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {suggestion.mergedType}
+                                {" · "}
+                                {suggestion.mergedClassification || "não classificada"}
+                              </p>
+                            </div>
+                            <p className="mb-2 text-xs text-muted-foreground">
+                              Revise os trechos sugeridos e desmarque os que não devem entrar.
+                            </p>
+                            <div className="space-y-1">
+                              {suggestionSegments.map((segment) => (
+                                <label
+                                  key={`${suggestion.id}-${segment.id}`}
+                                  className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/40"
+                                >
+                                  <span className="flex items-center gap-2 text-sm">
+                                    <Checkbox
+                                      checked={suggestion.selectedSegmentIds.includes(
+                                        segment.id
+                                      )}
+                                      onCheckedChange={(checked) =>
+                                        toggleSegmentInSuggestion(
+                                          suggestion.id,
+                                          segment.id,
+                                          Boolean(checked)
+                                        )
+                                      }
+                                    />
+                                    {segment.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {segment.length.toFixed(4)} km
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                            {suggestion.selectedSegmentIds.length < 2 && (
+                              <p className="mt-2 text-xs text-destructive">
+                                Esta sugestão precisa de pelo menos 2 trechos para ser aplicada.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 {segments && segments.length > 0 ? (
                   <RefinementTableSortableWrapper
                     segments={segments}
