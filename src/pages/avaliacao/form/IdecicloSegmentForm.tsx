@@ -962,8 +962,8 @@ const SaveStatusSummary: React.FC<{
     </Badge>
     <span>
       {incompleteCount > 0
-        ? `O salvamento ${isOnline ? "da avaliação" : "do rascunho"} pode ficar incompleto.`
-        : `Pronto para ${isOnline ? "salvar a avaliação" : "guardar o rascunho"}.`}
+        ? `O ${isOnline ? "envio da avaliação" : "salvamento do rascunho"} pode ficar incompleto.`
+        : `Pronto para ${isOnline ? "enviar a avaliação" : "guardar o rascunho"}.`}
     </span>
   </div>
 );
@@ -2176,7 +2176,7 @@ const SegmentForm = () => {
               </Button>
               <Button onClick={handleSubmit} variant="outline">
                 <Save className="mr-2 h-4 w-4" />
-                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+                {isOnline ? "Enviar Avaliação" : "Guardar Rascunho Offline"}
               </Button>
             </div>
             <SaveStatusSummary
@@ -2856,7 +2856,7 @@ const SegmentForm = () => {
                   />
                   <Button onClick={handleSubmit} size="lg">
                     <Save className="mr-2 h-4 w-4" />
-                    {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+                    {isOnline ? "Enviar Avaliação" : "Guardar Rascunho Offline"}
                   </Button>
                 </div>
               </div>
@@ -2867,9 +2867,11 @@ const SegmentForm = () => {
             <Card className="mb-6">
               <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="text-sm font-medium text-muted-foreground">Salvar avaliação</div>
+                  <div className="text-sm font-medium text-muted-foreground">
+                    {isOnline ? "Enviar avaliação" : "Salvar rascunho"}
+                  </div>
                   <div className="mt-1 text-lg font-semibold">
-                    {isOnline ? "Persistir avaliação atual" : "Guardar rascunho offline"}
+                    {isOnline ? "Enviar avaliação atual" : "Guardar rascunho offline"}
                   </div>
                   <div className="mt-2">
                     <SaveStatusSummary
@@ -2881,7 +2883,7 @@ const SegmentForm = () => {
                 </div>
                 <Button onClick={handleSubmit} size="lg">
                   <Save className="mr-2 h-4 w-4" />
-                  {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+                    {isOnline ? "Enviar Avaliação" : "Guardar Rascunho Offline"}
                 </Button>
               </div>
             </Card>

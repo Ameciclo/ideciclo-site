@@ -60,32 +60,6 @@ const getCriterionPointsTag = (
   return `${formatWholeNumber(points)}/${formatWholeNumber(maxPoints)} pts`;
 };
 
-const getCriterionPointsPanel = (
-  criterion: CriterionCode,
-  points?: number | null,
-  maxPoints?: number | null
-) => {
-  if (criterion === "A1") {
-    return {
-      primary: "0",
-      secondary: "/-100",
-    };
-  }
-
-  if (criterion === "B7") {
-    return {
-      primary: "0",
-      secondary: "/-36",
-    };
-  }
-
-  if (typeof points !== "number") return null;
-  return {
-    primary: formatWholeNumber(points),
-    secondary: `/${formatWholeNumber(maxPoints)}`,
-  };
-};
-
 const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
   if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
   if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
@@ -191,12 +165,6 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                   itemSummary?.points,
                   itemSummary?.maxPoints
                 );
-                const pointsPanel = getCriterionPointsPanel(
-                  criterion,
-                  itemSummary?.points,
-                  itemSummary?.maxPoints
-                );
-
                 return (
                   <div key={criterion} className="rounded-xl border p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -251,19 +219,6 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                       <div>
                         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                           <div className="text-sm font-medium text-slate-700">Conceito final</div>
-                          {pointsPanel ? (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-right">
-                              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                                Pontuação
-                              </div>
-                              <div className="text-2xl font-black text-slate-900">
-                                {pointsPanel.primary}
-                                <span className="text-base font-semibold text-slate-500">
-                                  {pointsPanel.secondary}
-                                </span>
-                              </div>
-                            </div>
-                          ) : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {RATINGS.map((rating) => (
