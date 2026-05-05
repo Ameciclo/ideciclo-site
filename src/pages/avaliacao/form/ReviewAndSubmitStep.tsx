@@ -42,6 +42,11 @@ const SECTIONS: Array<{
 
 const RATINGS: IdecicloRating[] = ["A", "B", "C", "D"];
 
+const formatWholeNumber = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return "0";
+  return String(Math.round(value));
+};
+
 const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
   if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
   if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
@@ -121,8 +126,8 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                     {section.title}
                   </span>
                   {sectionSummary ? (
-                    <Badge variant="secondary">
-                      {sectionSummary.score.toFixed(1)}/{sectionSummary.max}
+                    <Badge variant="secondary" className="px-3 py-2 text-lg font-black">
+                      {formatWholeNumber(sectionSummary.score)}/{formatWholeNumber(sectionSummary.max)}
                     </Badge>
                   ) : null}
                 </div>
@@ -167,8 +172,8 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                           </Badge>
                           {manualEnabled ? <Badge variant="outline">Manual ligado</Badge> : null}
                           {typeof itemSummary?.points === "number" ? (
-                            <Badge variant="outline">
-                              {itemSummary.points > 0 ? `+${itemSummary.points}` : itemSummary.points} pts
+                            <Badge variant="outline" className="text-sm font-bold">
+                              {formatWholeNumber(itemSummary.points)}/{formatWholeNumber(itemSummary.maxPoints)} pts
                             </Badge>
                           ) : null}
                         </div>
@@ -195,7 +200,22 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
 
                     <div className="mt-4 space-y-3">
                       <div>
-                        <div className="mb-2 text-sm font-medium text-slate-700">Conceito final</div>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm font-medium text-slate-700">Conceito final</div>
+                          {itemSummary ? (
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-right">
+                              <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                                Pontuação
+                              </div>
+                              <div className="text-2xl font-black text-slate-900">
+                                {formatWholeNumber(itemSummary.points)}
+                                <span className="text-base font-semibold text-slate-500">
+                                  /{formatWholeNumber(itemSummary.maxPoints)}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {RATINGS.map((rating) => (
                             <Button

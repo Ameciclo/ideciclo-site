@@ -54,6 +54,7 @@ interface ScoreItem {
   label: string;
   rating: IdecicloRating | null | undefined;
   points: number | null;
+  maxPoints: number;
 }
 
 interface ScoreSection {
@@ -955,11 +956,18 @@ const buildScoreDetails = (
     (sectionConfig.itens ?? []).forEach((item) => {
       const rating = resolvedRatings[item.codigo as CriterionCode];
       const points = rating ? item.avaliacao?.[rating] : null;
+      const maxPoints = Math.max(
+        0,
+        ...Object.values(item.avaliacao || {}).filter(
+          (value): value is number => typeof value === "number"
+        )
+      );
 
       items[item.codigo] = {
         label: item.nome,
         rating,
         points,
+        maxPoints,
       };
 
       if (typeof points === "number") {
