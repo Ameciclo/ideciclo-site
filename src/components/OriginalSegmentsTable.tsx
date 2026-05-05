@@ -11,6 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { getPersistedCityData } from "@/utils/persistedCityData";
+import { useToast } from "@/hooks/use-toast";
 
 interface SegmentsTableProps {
   segments: Segment[];
@@ -23,6 +27,54 @@ const OriginalSegmentsTable = ({
   sortDirection,
   onToggleSortDirection,
 }: SegmentsTableProps) => {
+  const navigate = useNavigate();
+  const { isAuthenticated, openLoginModal, canAccess } = useAuth();
+  const { toast } = useToast();
+
+  const handleOpenAssessment = (segmentId: string) => {
+    const cityDataRaw = getPersistedCityData();
+
+    let cityName: string | null = null;
+    let stateName: string | null = null;
+
+    if (cityDataRaw) {
+      try {
+        const parsed = JSON.parse(cityDataRaw) as { cityName?: string; stateName?: string };
+        cityName = parsed.cityName || null;
+        stateName = parsed.stateName || null;
+      } catch (error) {
+        console.error("Erro ao recuperar escopo da cidade ativa:", error);
+      }
+    }
+
+    const route = `/avaliacao/formulario-ideciclo/${segmentId}`;
+
+    if (!isAuthenticated) {
+      openLoginModal({
+        redirectTo: route,
+        title: "Entrar para abrir a avaliação",
+      });
+      return;
+    }
+
+    const allowed = canAccess({
+      module: "avaliacao_estrutura_cicloviaria",
+      state: stateName,
+      city: cityName,
+    });
+
+    if (!allowed) {
+      toast({
+        title: "Acesso não autorizado",
+        description: "Sua conta não tem permissão para avaliar a cidade ativa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    navigate(route);
+  };
+
   const getSegmentTypeBadge = (type: SegmentType) => {
     switch (type) {
       case SegmentType.CICLOFAIXA:
@@ -99,12 +151,12 @@ const OriginalSegmentsTable = ({
                   </TableCell>
 
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" asChild>
-                      <a
-                        href={`/avaliacao/formulario-ideciclo/${segment.id}`}
-                      >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenAssessment(segment.id)}
+                    >
                         {segment.evaluated && segment.id_form ? "Ver Avaliação" : "Avaliar"}
-                      </a>
                     </Button>
                   </TableCell>
                 </TableRow>

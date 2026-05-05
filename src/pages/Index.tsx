@@ -8,9 +8,27 @@ import consultantsData from "@/data/consultants.json";
 import sponsorsData from "@/data/sponsors.json";
 import { Button } from "@/components/ui/button";
 import { Calculator, ClipboardList, FileDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, openLoginModal } = useAuth();
+
+  const handleProtectedAccess = (route: string) => {
+    if (!isAuthenticated) {
+      openLoginModal({
+        redirectTo: route,
+        title: "Entrar para continuar",
+        description:
+          "O acesso às áreas de refinamento, seleção de trechos e resultados exige login.",
+      });
+      return;
+    }
+
+    navigate(route);
+  };
+
   const resourceCards = [
     {
       title: "Manual",
@@ -99,8 +117,11 @@ const Index = () => {
             </div>
 
             <div className="mt-8 flex flex-col gap-4 md:flex-row">
-              <Button asChild className="bg-ideciclo-blue hover:bg-ideciclo-blue/90 text-white">
-                <Link to="/avaliacao/refinar-dados">Aprimorar os dados</Link>
+              <Button
+                className="bg-ideciclo-blue hover:bg-ideciclo-blue/90 text-white"
+                onClick={() => handleProtectedAccess("/avaliacao/refinar-dados")}
+              >
+                Aprimorar os dados
               </Button>
               <Button asChild variant="outline" className="border-ideciclo-red text-ideciclo-red hover:bg-ideciclo-red hover:text-white">
                 <Link to="/avaliacao">Avaliar infraestrutura</Link>

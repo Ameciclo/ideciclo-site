@@ -1,13 +1,15 @@
 import { manualDownloadUrl } from "@/constants/siteLinks";
 import { Link, useLocation } from "react-router-dom";
-import { Download, Menu } from "lucide-react";
+import { Download, LogOut, Menu, ShieldCheck } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { isAuthenticated, user, canManageAdminPanel, openLoginModal } = useAuth();
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -46,6 +48,44 @@ const Navbar = () => {
     ));
   };
 
+  const renderAuthActions = (mobile = false) => {
+    if (!isAuthenticated) {
+      return (
+        <Button
+          variant={mobile ? "default" : "outline"}
+          onClick={() =>
+            openLoginModal({
+              redirectTo: "/admin",
+              title: "Entrar no IDECICLO",
+            })
+          }
+          className={mobile ? "w-full bg-ideciclo-red text-white hover:bg-ideciclo-red/90" : ""}
+        >
+          Entrar
+        </Button>
+      );
+    }
+
+    return (
+      <div className={mobile ? "space-y-3" : "flex items-center gap-2"}>
+        {canManageAdminPanel ? (
+          <Button asChild variant="outline" className={mobile ? "w-full" : ""}>
+            <Link to="/admin">
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Admin
+            </Link>
+          </Button>
+        ) : null}
+        <Button asChild variant={mobile ? "secondary" : "ghost"} className={mobile ? "w-full" : ""}>
+          <Link to="/auth/logout">
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </Link>
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <nav className="bg-white shadow-lg fixed top-0 left-0 right-0 z-50 border-b-2 border-ideciclo-teal">
       <div className="container mx-auto px-4">
@@ -62,8 +102,12 @@ const Navbar = () => {
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden items-center gap-3 sm:ml-6 sm:flex sm:space-x-4">
               {renderNavLinks()}
+              {isAuthenticated ? (
+                <span className="text-sm text-gray-500">{user?.name || user?.email}</span>
+              ) : null}
+              {renderAuthActions()}
             </div>
 
             {/* Mobile Hamburger Menu */}
@@ -96,6 +140,7 @@ const Navbar = () => {
                       </a>
                     </Button>
                   </div>
+                  <div className="mt-4">{renderAuthActions(true)}</div>
                 </SheetContent>
               </Sheet>
             )}

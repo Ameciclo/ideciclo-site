@@ -7,6 +7,10 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const proxy = {
+    "/api/auth": {
+      target: env.AUTH_API_PROXY_TARGET || "http://127.0.0.1:3001",
+      changeOrigin: true,
+    },
     "/api": {
       target: env.DATABASE_API_PROXY_TARGET || "http://127.0.0.1:3000",
       changeOrigin: true,

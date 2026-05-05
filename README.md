@@ -52,6 +52,7 @@ npm run dev
 ```bash
 # Desenvolvimento
 npm run dev
+npm run auth:dev
 
 # Build para produção
 npm run build
@@ -190,6 +191,17 @@ npm run db:up
 # .env.local
 VITE_DATABASE_API_URL=/api
 DATABASE_API_PROXY_TARGET=http://127.0.0.1:3000
+AUTH_API_PROXY_TARGET=http://127.0.0.1:3001
+DATABASE_URL=postgresql://ideciclo:change_me_local_password@127.0.0.1:54322/ideciclo
+APP_URL=http://127.0.0.1:8080
+EMAIL_FROM=no-reply@ideciclo.local
+MAGIC_LINK_SECRET=change_me_magic_link_secret
+AUTH_COOKIE_SECURE=false
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_SECURE=false
 POSTGRES_DB=ideciclo
 POSTGRES_USER=ideciclo
 POSTGRES_PASSWORD=change_me_local_password
@@ -207,7 +219,14 @@ VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
 npm run dev
 ```
 
+4. Inicie o servidor de autenticação:
+
+```bash
+npm run auth:dev
+```
+
 O Postgres ficará disponível em `localhost:54322` e a API PostgREST em `localhost:3000` por padrão.
+O servidor de autenticação ficará disponível em `localhost:3001` e será acessado pelo frontend via proxy em `/api/auth`.
 
 Comandos úteis:
 

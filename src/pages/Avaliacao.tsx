@@ -26,6 +26,7 @@ import {
   setPersistedCityData,
 } from "@/utils/persistedCityData";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PersistedCityData {
   cityId: string;
@@ -41,6 +42,7 @@ interface SelectedCityActionState extends PersistedCityData {
 const Avaliacao = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAuthenticated, openLoginModal, canAccess } = useAuth();
   const [states, setStates] = useState<IBGEState[]>([]);
   const [cities, setCities] = useState<IBGECity[]>([]);
   const [storedCitiesById, setStoredCitiesById] = useState<Record<string, City>>({});
@@ -216,6 +218,41 @@ const Avaliacao = () => {
       toast({
         title: "Selecione uma cidade primeiro",
         description: "Defina a cidade desta avaliação antes de seguir para as etapas.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const routeAccess =
+      route === "/avaliacao/refinar-dados"
+        ? { module: "refinamento_dados_cidade" as const, allowViewer: false }
+        : route === "/avaliacao/escolher-estrutura" ||
+            route === "/avaliacao/avaliar-estrutura"
+          ? { module: "avaliacao_estrutura_cicloviaria" as const, allowViewer: false }
+          : { module: undefined, allowViewer: true };
+
+    if (!isAuthenticated) {
+      openLoginModal({
+        redirectTo: route,
+        title: "Entrar para acessar esta etapa",
+        description:
+          "Depois do login, você volta direto para a etapa selecionada da avaliação.",
+      });
+      return;
+    }
+
+    const allowed = canAccess({
+      module: routeAccess.module,
+      allowViewer: routeAccess.allowViewer,
+      state: activeCity.stateName,
+      city: activeCity.cityName,
+    });
+
+    if (!allowed) {
+      toast({
+        title: "Acesso não autorizado",
+        description:
+          "Sua conta está ativa, mas sem a permissão necessária para esta etapa e cidade.",
         variant: "destructive",
       });
       return;
