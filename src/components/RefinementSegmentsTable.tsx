@@ -22,6 +22,7 @@ import {
   Trash2,
   X,
   ChevronDown,
+  CircleHelp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import MergedSegmentDropdown from "./MergedSegmentDropdown";
@@ -43,6 +44,14 @@ import {
   getHierarchyBadgeClassName,
   getSegmentTypeBadgeClassName,
 } from "@/utils/segmentBadgeStyles";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
 
@@ -163,7 +172,7 @@ const RefinementSegmentsTable = ({
     | "sentido"
     | "posicaoNaVia"
     | "pavimento"
-  >("velocidade");
+  >("tipologia");
   const [techDraft, setTechDraft] = useState({
     trechoInicio: "",
     trechoFim: "",
@@ -682,19 +691,6 @@ const RefinementSegmentsTable = ({
     }
   };
 
-  const getConfidenceBadge = (confidence: string | undefined) => {
-    switch (confidence) {
-      case "high":
-        return <Badge className="bg-emerald-600 text-white">alta</Badge>;
-      case "medium":
-        return <Badge className="bg-amber-500 text-white">média</Badge>;
-      case "low":
-        return <Badge variant="secondary">baixa</Badge>;
-      default:
-        return <Badge variant="outline">desconhecida</Badge>;
-    }
-  };
-
   const selectionCardClassName = (selected: boolean) =>
     `rounded-xl border px-3 py-3 text-left transition-all ${
       selected
@@ -967,18 +963,6 @@ const RefinementSegmentsTable = ({
     </div>
   );
 
-  const selectedPartMeta = segmentParts.find((part) => part.partId === selectedPartId);
-  const osmLinkType =
-    (selectedPartAdvanced?.osm_type || selectedPartMeta?.osmType || editingSegment?.osm_type || "way")
-      .toLowerCase() === "relation"
-      ? "relation"
-      : (selectedPartAdvanced?.osm_type || selectedPartMeta?.osmType || editingSegment?.osm_type || "way")
-          .toLowerCase() === "node"
-        ? "node"
-        : "way";
-  const osmLinkId =
-    selectedPartAdvanced?.osm_id || selectedPartMeta?.osmId || extractNumericOsmId(editingSegment?.osm_id);
-  const osmLink = osmLinkId ? `https://www.openstreetmap.org/${osmLinkType}/${osmLinkId}` : "";
   const pendingFromDraft = [
     !typeDraft ? "Tipologia sem preenchimento" : null,
     !classificationDraft ? "Hierarquia viária sem preenchimento" : null,
@@ -1200,7 +1184,42 @@ const RefinementSegmentsTable = ({
           <div className="border-t bg-muted/10 p-4">
           <div className="mx-auto max-w-5xl space-y-6">
             <div>
-              <h3 className="text-lg font-semibold">Editar trecho e conteúdo técnico</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Editar trecho e conteúdo técnico</h3>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                      title="Entender informações técnicas"
+                    >
+                      <CircleHelp size={15} />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                      <DialogTitle>Como ler os dados técnicos</DialogTitle>
+                      <DialogDescription>
+                        Este painel combina dados do OSM e ajustes manuais para apoiar o refinamento.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 text-sm text-slate-700">
+                      <p>
+                        `Tags de referência`: tags originais do OSM, separadas por trecho, para consulta.
+                      </p>
+                      <p>
+                        `Pendências para campo`: itens ainda sem preenchimento e pontos que exigem validação em campo.
+                      </p>
+                      <p>
+                        `Interseções e quadras estimadas`: visão consolidada do conjunto da estrutura (incluindo mesclagens).
+                      </p>
+                      <p>
+                        `Sugestões para OSM` e níveis de confiança não aparecem mais na tela principal para reduzir ruído.
+                      </p>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Ajuste nome, tipologia, hierarquia e complemento técnico com o mapa disponível na página.
               </p>
@@ -1434,10 +1453,6 @@ const RefinementSegmentsTable = ({
                         );
                       })}
                     </div>
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.sentido ||
-                        editingSegment.osm_confidence?.sentido
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1482,10 +1497,6 @@ const RefinementSegmentsTable = ({
                         );
                       })}
                     </div>
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.posicaoNaVia ||
-                        editingSegment.osm_confidence?.posicaoNaVia
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1522,10 +1533,6 @@ const RefinementSegmentsTable = ({
                         );
                       })}
                     </div>
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.velocidade ||
-                        editingSegment.osm_confidence?.velocidade
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -1553,10 +1560,6 @@ const RefinementSegmentsTable = ({
                         </button>
                       ))}
                     </div>
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.numeroFaixas ||
-                        editingSegment.osm_confidence?.numeroFaixas
-                    )}
                   </div>
 
                   <div>
@@ -1567,10 +1570,6 @@ const RefinementSegmentsTable = ({
                         setTechDraft((prev) => ({ ...prev, pavimento: event.target.value }))
                       }
                     />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.pavimento ||
-                        editingSegment.osm_confidence?.pavimento
-                    )}
                   </div>
                   <div className="sm:max-w-[220px]">
                     <p className="text-xs text-muted-foreground">Largura</p>
@@ -1581,10 +1580,6 @@ const RefinementSegmentsTable = ({
                       }
                       placeholder="Ex.: 2.4"
                     />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.largura ||
-                        editingSegment.osm_confidence?.largura
-                    )}
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Buffer/separação</p>
@@ -1597,10 +1592,6 @@ const RefinementSegmentsTable = ({
                         }))
                       }
                     />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.bufferSeparacao ||
-                        editingSegment.osm_confidence?.bufferSeparacao
-                    )}
                   </div>
                 </div>
               </section>
@@ -1773,49 +1764,6 @@ const RefinementSegmentsTable = ({
                 </div>
               </section>
 
-              <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  Sugestões para o OSM
-                </h3>
-                {osmLink && (
-                  <p className="text-sm">
-                    <a
-                      href={osmLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-700 underline underline-offset-2 hover:text-blue-900"
-                    >
-                      Abrir estrutura no OpenStreetMap
-                    </a>
-                  </p>
-                )}
-                {(selectedPartAdvanced?.osm_improvement_suggestions?.length ||
-                  editingSegment.osm_improvement_suggestions?.length) ? (
-                  <div className="space-y-2">
-                    {(selectedPartAdvanced?.osm_improvement_suggestions ||
-                      editingSegment.osm_improvement_suggestions ||
-                      []
-                    ).map((suggestion, index) => (
-                      <div key={`${suggestion.field}-${index}`} className="rounded-md border p-3">
-                        <p className="text-sm font-semibold">
-                          {suggestion.field}{" "}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            ({suggestion.priority})
-                          </span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">{suggestion.reason}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Tags sugeridas: {suggestion.suggestedTags.join(", ")}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Sem sugestões automáticas de melhoria para este trecho.
-                  </p>
-                )}
-              </section>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleEditCancel}>

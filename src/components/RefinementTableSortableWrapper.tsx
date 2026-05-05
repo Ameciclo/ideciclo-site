@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Segment } from "@/types";
 import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
@@ -75,11 +75,9 @@ export const RefinementTableSortableWrapper = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
-  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split" | "table-only">("stacked");
+  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split" | "table-only">("split");
   const [focusGeometry, setFocusGeometry] = useState<any | null>(null);
   const [mapSticky, setMapSticky] = useState<boolean>(true);
-  const [technicalPortalTarget, setTechnicalPortalTarget] = useState<HTMLElement | null>(null);
-  const technicalPortalRef = useRef<HTMLDivElement | null>(null);
 
   const handleSortChange = (
     field: "name" | "type" | "classification" | "length"
@@ -219,10 +217,6 @@ export const RefinementTableSortableWrapper = ({
     }
   }, [selectedSegments.length, onFocusGeometryChange]);
 
-  useEffect(() => {
-    setTechnicalPortalTarget(technicalPortalRef.current);
-  }, []);
-
   // Safety check
   if (!initialSegments) {
     // No segments provided
@@ -357,7 +351,6 @@ export const RefinementTableSortableWrapper = ({
                   setFocusGeometry(geometry);
                   onFocusGeometryChange?.(geometry);
                 }}
-                technicalPanelContainer={technicalPortalTarget}
               />
               <MapboxMap
                 segments={mapSegments}
@@ -367,7 +360,6 @@ export const RefinementTableSortableWrapper = ({
                 focusGeometry={focusGeometry}
               />
             </div>
-            <div ref={technicalPortalRef} />
           </div>
         )}
 
