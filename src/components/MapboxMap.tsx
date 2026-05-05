@@ -135,9 +135,9 @@ const MapboxMap = ({ segments, className, focusGeometry }: MapboxMapProps) => {
     id: "focus-outline",
     type: "line",
     paint: {
-      "line-color": "#ffffff",
-      "line-width": 10,
-      "line-opacity": 0.95,
+      "line-color": "#f8fafc",
+      "line-width": 11,
+      "line-opacity": 0.98,
     },
   };
 
@@ -145,9 +145,9 @@ const MapboxMap = ({ segments, className, focusGeometry }: MapboxMapProps) => {
     id: "focus-highlight",
     type: "line",
     paint: {
-      "line-color": "#f59e0b",
-      "line-width": 6,
-      "line-opacity": 0.98,
+      "line-color": "#000000",
+      "line-width": 7,
+      "line-opacity": 1,
     },
   };
 

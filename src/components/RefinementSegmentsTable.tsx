@@ -824,8 +824,15 @@ const RefinementSegmentsTable = ({
   const applySelectedPartToDraft = (partId: string) => {
     setSelectedPartId(partId);
     const selectedPart = segmentParts.find((part) => part.partId === partId);
-    onFocusGeometryChange?.(selectedPart?.geometry || null);
     const selected = advancedByPartId[partId];
+    const fallbackGeometryFromOsm =
+      Array.isArray(selected?.osm_raw?.geometry) && selected.osm_raw.geometry.length >= 2
+        ? {
+            type: "LineString",
+            coordinates: selected.osm_raw.geometry.map((point) => [point.lon, point.lat]),
+          }
+        : null;
+    onFocusGeometryChange?.(selectedPart?.geometry || fallbackGeometryFromOsm || null);
     if (!selected) return;
     const prefill = selected.ideciclo_prefill;
     setTechDraft((prev) => ({
