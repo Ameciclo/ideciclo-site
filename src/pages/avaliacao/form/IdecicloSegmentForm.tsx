@@ -117,6 +117,12 @@ const mapDirectionPrefillToInfraFlow = (
 const mapPositionPrefillToForm = (position?: string): string | undefined => {
   if (!position) return undefined;
   const normalized = position.toLowerCase();
+  if (normalized === "canteiro") return "canteiro";
+  if (normalized === "pista_canteiro") return "pista_canteiro";
+  if (normalized === "pista_calcada") return "pista_calcada";
+  if (normalized === "calcada") return "calcada";
+  if (normalized === "centro_pista") return "centro_pista";
+  if (normalized === "isolada") return "isolada";
   if (normalized.includes("esquerdo") || normalized.includes("direito")) return "pista_calcada";
   if (normalized.includes("ambos")) return "pista_calcada";
   if (normalized.includes("calçada") || normalized.includes("calcada")) return "calcada";

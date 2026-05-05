@@ -49,6 +49,57 @@ import {
   getSegmentTypeBadgeClassName,
 } from "@/utils/segmentBadgeStyles";
 
+const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+
+const FLOW_OPTIONS = [
+  {
+    value: "unidirectional",
+    label: "Unidirecional",
+    icon: "/icones/one-way-cycle.svg",
+  },
+  {
+    value: "bidirectional",
+    label: "Bidirecional",
+    icon: "/icones/two-way-cycle.svg",
+  },
+] as const;
+
+const POSITION_OPTIONS = [
+  {
+    value: "canteiro",
+    label: "Sobre o canteiro",
+    icon: "/icones/sobre-canteiro.svg",
+  },
+  {
+    value: "pista_canteiro",
+    label: "Pista, junto ao canteiro",
+    icon: "/icones/proximo-canteiro.svg",
+  },
+  {
+    value: "pista_calcada",
+    label: "Pista, junto à calçada",
+    icon: "/icones/pista-junto-calcada.svg",
+  },
+  {
+    value: "calcada",
+    label: "Sobre a calçada",
+    icon: "/icones/na-calcada.svg",
+  },
+  {
+    value: "centro_pista",
+    label: "Centro da pista",
+    icon: "/icones/centro-pista.svg",
+  },
+  {
+    value: "isolada",
+    label: "Isolada",
+    icon: "/icones/isolada.svg",
+  },
+] as const;
+
+type FlowValue = (typeof FLOW_OPTIONS)[number]["value"];
+type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
+
 interface RefinementSegmentsTableProps {
   segments: Segment[];
   sortField?: "name" | "type" | "classification" | "length";
@@ -103,13 +154,15 @@ const RefinementSegmentsTable = ({
   const [techDraft, setTechDraft] = useState({
     trechoInicio: "",
     trechoFim: "",
-    posicaoNaVia: "",
+    posicaoNaVia: "pista_calcada" as PositionValue,
     velocidade: "",
-    numeroFaixas: "",
-    sentido: "",
+    numeroFaixas: 2,
+    sentido: "unidirectional" as FlowValue,
     pavimento: "",
     largura: "",
     bufferSeparacao: "",
+    quadrasEstimadas: 1,
+    intersecoesEstimadas: 0,
   });
 
   // Available classification options
@@ -129,6 +182,104 @@ const RefinementSegmentsTable = ({
     const candidate = value.includes("_") ? value.split("_").pop() : value;
     if (candidate && /^\d+$/.test(candidate)) return candidate;
     return undefined;
+  };
+
+  const clampMinimumOne = (value: number) => Math.max(1, Math.round(value));
+  const clampNonNegative = (value: number) => Math.max(0, Math.round(value));
+
+  const inferFlowValue = (raw?: string): FlowValue => {
+    const normalized = (raw || "").toLowerCase();
+    if (normalized.includes("bi")) return "bidirectional";
+    return "unidirectional";
+  };
+
+  const inferPositionValue = (raw?: string): PositionValue => {
+    const normalized = (raw || "").toLowerCase();
+    if (normalized === "canteiro") return "canteiro";
+    if (normalized === "pista_canteiro") return "pista_canteiro";
+    if (normalized === "pista_calcada") return "pista_calcada";
+    if (normalized === "calcada") return "calcada";
+    if (normalized === "centro_pista") return "centro_pista";
+    if (normalized === "isolada") return "isolada";
+    if (normalized.includes("canteiro")) return "pista_canteiro";
+    if (normalized.includes("calçada") || normalized.includes("calcada")) return "calcada";
+    if (normalized.includes("centro")) return "centro_pista";
+    if (normalized.includes("isolada") || normalized.includes("dedicada")) return "isolada";
+    return "pista_calcada";
+  };
+
+  const parseIntersectionPoint = (pointKey: string) => {
+    const [latText, lonText] = pointKey.split(",");
+    const lat = Number(latText);
+    const lon = Number(lonText);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  };
+
+  const inferEndpointRoadNamesFromAdvanced = (data: ParsedOsmAdvancedSegment) => {
+    const geometry = data.osm_raw?.geometry || [];
+    if (!Array.isArray(geometry) || geometry.length < 2) {
+      return { trechoInicio: "", trechoFim: "" };
+    }
+
+    const preview = data.intersections_preview || [];
+    if (preview.length === 0) {
+      return { trechoInicio: "", trechoFim: "" };
+    }
+
+    const groupedByPoint = new Map<
+      string,
+      { lat: number; lon: number; roadNames: string[] }
+    >();
+
+    preview.forEach((item) => {
+      const parsed = parseIntersectionPoint(item.pointKey);
+      if (!parsed) return;
+      const current = groupedByPoint.get(item.pointKey) || {
+        lat: parsed.lat,
+        lon: parsed.lon,
+        roadNames: [],
+      };
+      if (item.roadName) {
+        current.roadNames.push(item.roadName);
+      }
+      groupedByPoint.set(item.pointKey, current);
+    });
+
+    const candidates = Array.from(groupedByPoint.values());
+    if (candidates.length === 0) {
+      return { trechoInicio: "", trechoFim: "" };
+    }
+
+    const start = geometry[0];
+    const end = geometry[geometry.length - 1];
+
+    const distance2 = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+      (a.lat - b.lat) ** 2 + (a.lon - b.lon) ** 2;
+
+    const pickClosest = (target: { lat: number; lon: number }) => {
+      const sorted = candidates
+        .map((candidate) => ({
+          candidate,
+          d: distance2(candidate, target),
+        }))
+        .sort((left, right) => left.d - right.d);
+
+      const closest = sorted[0]?.candidate;
+      if (!closest) return "";
+
+      const preferredName =
+        closest.roadNames.find(
+          (name) => name && !name.trim().toLowerCase().startsWith("via ")
+        ) || closest.roadNames[0];
+
+      return preferredName || "";
+    };
+
+    return {
+      trechoInicio: pickClosest(start),
+      trechoFim: pickClosest(end),
+    };
   };
 
   const getSegmentParts = (segment: Segment | null) => {
@@ -166,14 +317,19 @@ const RefinementSegmentsTable = ({
     setTechDraft({
       trechoInicio: prefill?.trechoInicio || "",
       trechoFim: prefill?.trechoFim || "",
-      posicaoNaVia: prefill?.posicaoNaVia || "",
+      posicaoNaVia: inferPositionValue(prefill?.posicaoNaVia),
       velocidade: prefill?.velocidade || "",
-      numeroFaixas:
-        prefill?.numeroFaixas !== undefined ? String(prefill.numeroFaixas) : "",
-      sentido: prefill?.sentido || "",
+      numeroFaixas: prefill?.numeroFaixas ?? 2,
+      sentido: inferFlowValue(prefill?.sentido),
       pavimento: prefill?.pavimento || "",
       largura: prefill?.largura !== undefined ? String(prefill.largura) : "",
       bufferSeparacao: prefill?.bufferSeparacao || "",
+      quadrasEstimadas: clampMinimumOne(
+        segment.blocks_count ?? segment.estimated_blocks_count ?? 1
+      ),
+      intersecoesEstimadas: clampNonNegative(
+        segment.intersections_count ?? segment.estimated_intersections_count ?? 0
+      ),
     });
   };
 
@@ -207,10 +363,7 @@ const RefinementSegmentsTable = ({
         await onUpdateSegmentName(editingSegment.id, editName.trim());
       }
       if (onUpdateSegmentTechnical) {
-        const parsedNumeroFaixas =
-          techDraft.numeroFaixas.trim() === ""
-            ? undefined
-            : Number(techDraft.numeroFaixas);
+        const parsedNumeroFaixas = Number(techDraft.numeroFaixas);
         const parsedLargura =
           techDraft.largura.trim() === "" ? undefined : Number(techDraft.largura);
 
@@ -224,12 +377,12 @@ const RefinementSegmentsTable = ({
             ...(prefillFromSelection || {}),
             trechoInicio: techDraft.trechoInicio.trim(),
             trechoFim: techDraft.trechoFim.trim(),
-            posicaoNaVia: techDraft.posicaoNaVia.trim(),
+            posicaoNaVia: techDraft.posicaoNaVia,
             velocidade: techDraft.velocidade.trim(),
             numeroFaixas: Number.isFinite(parsedNumeroFaixas)
               ? parsedNumeroFaixas
               : undefined,
-            sentido: techDraft.sentido.trim(),
+            sentido: techDraft.sentido,
             pavimento: techDraft.pavimento.trim(),
             largura: Number.isFinite(parsedLargura) ? parsedLargura : undefined,
             bufferSeparacao: techDraft.bufferSeparacao.trim(),
@@ -247,16 +400,11 @@ const RefinementSegmentsTable = ({
           intersections_preview:
             selectedData?.intersections_preview || editingSegment.intersections_preview,
           estimated_blocks_count:
-            selectedData?.estimated_blocks_count ??
-            editingSegment.estimated_blocks_count,
+            techDraft.quadrasEstimadas,
           estimated_intersections_count:
-            selectedData?.estimated_intersections_count ??
-            editingSegment.estimated_intersections_count,
-          blocks_count:
-            selectedData?.estimated_blocks_count ?? editingSegment.blocks_count,
-          intersections_count:
-            selectedData?.estimated_intersections_count ??
-            editingSegment.intersections_count,
+            techDraft.intersecoesEstimadas,
+          blocks_count: techDraft.quadrasEstimadas,
+          intersections_count: techDraft.intersecoesEstimadas,
         });
       }
       setEditingSegment(null);
@@ -319,7 +467,7 @@ const RefinementSegmentsTable = ({
       if (!selectedPartId) {
         const firstKey = Object.keys(byPart)[0];
         if (firstKey) {
-          setSelectedPartId(firstKey);
+          applySelectedPartToDraft(firstKey);
         }
       }
     } catch (error) {
@@ -347,11 +495,74 @@ const RefinementSegmentsTable = ({
     }
   };
 
+  const selectionCardClassName = (selected: boolean) =>
+    `rounded-xl border px-3 py-3 text-left transition-all ${
+      selected
+        ? "border-emerald-700 bg-emerald-50 shadow-sm"
+        : "border-slate-200 bg-white hover:bg-slate-50"
+    }`;
+
+  const chipClassName = (selected: boolean) =>
+    `rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+    }`;
+
+  const renderStepper = ({
+    label,
+    value,
+    min = 0,
+    onDecrease,
+    onIncrease,
+  }: {
+    label: string;
+    value: number;
+    min?: number;
+    onDecrease: () => void;
+    onIncrease: () => void;
+  }) => (
+    <div className="rounded-xl border p-3">
+      <p className="mb-2 text-xs text-muted-foreground">{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8 w-8 rounded-full p-0 text-base"
+          onClick={onDecrease}
+          disabled={value <= min}
+        >
+          -
+        </Button>
+        <div className="flex min-h-[36px] min-w-[60px] items-center justify-center rounded-lg border px-2 text-base font-bold">
+          {value}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8 w-8 rounded-full p-0 text-base"
+          onClick={onIncrease}
+        >
+          +
+        </Button>
+      </div>
+    </div>
+  );
+
   const getCharacteristicValue = (
     data: ParsedOsmAdvancedSegment,
     characteristic: "velocidade" | "numeroFaixas" | "largura" | "sentido" | "posicaoNaVia" | "pavimento"
   ) => {
     const p = data.ideciclo_prefill;
+    const flowLabel =
+      p.sentido === "bidirectional"
+        ? "Bidirecional"
+        : p.sentido === "unidirectional"
+          ? "Unidirecional"
+          : p.sentido;
+    const positionLabel =
+      POSITION_OPTIONS.find((option) => option.value === (p.posicaoNaVia as PositionValue))
+        ?.label || p.posicaoNaVia;
     switch (characteristic) {
       case "velocidade":
         return p.velocidade ? `${p.velocidade} km/h` : "sem dado";
@@ -360,9 +571,9 @@ const RefinementSegmentsTable = ({
       case "largura":
         return p.largura !== undefined ? `${p.largura} m` : "sem dado";
       case "sentido":
-        return p.sentido || "sem dado";
+        return flowLabel || "sem dado";
       case "posicaoNaVia":
-        return p.posicaoNaVia || "sem dado";
+        return positionLabel || "sem dado";
       case "pavimento":
         return p.pavimento || "sem dado";
       default:
@@ -375,16 +586,24 @@ const RefinementSegmentsTable = ({
     const selected = advancedByPartId[partId];
     if (!selected) return;
     const prefill = selected.ideciclo_prefill;
+    const endpoints = inferEndpointRoadNamesFromAdvanced(selected);
     setTechDraft((prev) => ({
       ...prev,
-      posicaoNaVia: prefill.posicaoNaVia || prev.posicaoNaVia,
+      trechoInicio: endpoints.trechoInicio || prev.trechoInicio,
+      trechoFim: endpoints.trechoFim || prev.trechoFim,
+      posicaoNaVia: inferPositionValue(prefill.posicaoNaVia),
       velocidade: prefill.velocidade || prev.velocidade,
-      numeroFaixas:
-        prefill.numeroFaixas !== undefined ? String(prefill.numeroFaixas) : prev.numeroFaixas,
-      sentido: prefill.sentido || prev.sentido,
+      numeroFaixas: prefill.numeroFaixas ?? prev.numeroFaixas,
+      sentido: inferFlowValue(prefill.sentido),
       pavimento: prefill.pavimento || prev.pavimento,
       largura: prefill.largura !== undefined ? String(prefill.largura) : prev.largura,
       bufferSeparacao: prefill.bufferSeparacao || prev.bufferSeparacao,
+      quadrasEstimadas: clampMinimumOne(
+        selected.estimated_blocks_count ?? prev.quadrasEstimadas
+      ),
+      intersecoesEstimadas: clampNonNegative(
+        selected.estimated_intersections_count ?? prev.intersecoesEstimadas
+      ),
     }));
   };
 
@@ -754,7 +973,7 @@ const RefinementSegmentsTable = ({
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Resumo técnico editável
                 </h3>
-                <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                <div className="space-y-4 rounded-md border p-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Trecho início</p>
                     <Input
@@ -776,60 +995,128 @@ const RefinementSegmentsTable = ({
                       }
                     />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Posição na via</p>
-                    <Input
-                      value={techDraft.posicaoNaVia}
-                      onChange={(event) =>
-                        setTechDraft((prev) => ({ ...prev, posicaoNaVia: event.target.value }))
-                      }
-                    />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.posicaoNaVia ||
-                        editingSegment.osm_confidence?.posicaoNaVia
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Velocidade</p>
-                    <Input
-                      value={techDraft.velocidade}
-                      onChange={(event) =>
-                        setTechDraft((prev) => ({ ...prev, velocidade: event.target.value }))
-                      }
-                      placeholder="Ex.: 30"
-                    />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.velocidade ||
-                        editingSegment.osm_confidence?.velocidade
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Faixas</p>
-                    <Input
-                      value={techDraft.numeroFaixas}
-                      onChange={(event) =>
-                        setTechDraft((prev) => ({ ...prev, numeroFaixas: event.target.value }))
-                      }
-                      placeholder="Ex.: 2"
-                    />
-                    {getConfidenceBadge(
-                      selectedPartAdvanced?.osm_confidence.numeroFaixas ||
-                        editingSegment.osm_confidence?.numeroFaixas
-                    )}
-                  </div>
-                  <div>
+                  <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Sentido</p>
-                    <Input
-                      value={techDraft.sentido}
-                      onChange={(event) =>
-                        setTechDraft((prev) => ({ ...prev, sentido: event.target.value }))
-                      }
-                    />
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {FLOW_OPTIONS.map((option) => {
+                        const selected = techDraft.sentido === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={selectionCardClassName(selected)}
+                            onClick={() =>
+                              setTechDraft((prev) => ({ ...prev, sentido: option.value }))
+                            }
+                          >
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={option.icon}
+                                alt={option.label}
+                                className="h-10 w-10 shrink-0 object-contain"
+                              />
+                              <span className="text-sm font-semibold text-slate-700">
+                                {option.label}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                     {getConfidenceBadge(
                       selectedPartAdvanced?.osm_confidence.sentido ||
                         editingSegment.osm_confidence?.sentido
                     )}
                   </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Posição na via</p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {POSITION_OPTIONS.map((option) => {
+                        const selected = techDraft.posicaoNaVia === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={selectionCardClassName(selected)}
+                            onClick={() =>
+                              setTechDraft((prev) => ({
+                                ...prev,
+                                posicaoNaVia: option.value,
+                              }))
+                            }
+                          >
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={option.icon}
+                                alt={option.label}
+                                className="h-10 w-10 shrink-0 object-contain"
+                              />
+                              <span className="text-sm font-semibold text-slate-700">
+                                {option.label}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {getConfidenceBadge(
+                      selectedPartAdvanced?.osm_confidence.posicaoNaVia ||
+                        editingSegment.osm_confidence?.posicaoNaVia
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Velocidade máxima regulamentada</p>
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+                      {SPEED_OPTIONS.map((speed) => {
+                        const selected = Number(techDraft.velocidade) === speed;
+                        return (
+                          <button
+                            key={speed}
+                            type="button"
+                            className={`flex w-full justify-center ${selectionCardClassName(selected)}`}
+                            onClick={() =>
+                              setTechDraft((prev) => ({ ...prev, velocidade: String(speed) }))
+                            }
+                          >
+                            <img
+                              src={`/icones/${speed}-speed.svg`}
+                              alt={`${speed} km/h`}
+                              className="h-12 w-12 object-contain"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {getConfidenceBadge(
+                      selectedPartAdvanced?.osm_confidence.velocidade ||
+                        editingSegment.osm_confidence?.velocidade
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Número de faixas</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: 9 }, (_, value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={chipClassName(techDraft.numeroFaixas === value)}
+                          onClick={() =>
+                            setTechDraft((prev) => ({ ...prev, numeroFaixas: value }))
+                          }
+                        >
+                          {value === 8 ? "8+" : value}
+                        </button>
+                      ))}
+                    </div>
+                    {getConfidenceBadge(
+                      selectedPartAdvanced?.osm_confidence.numeroFaixas ||
+                        editingSegment.osm_confidence?.numeroFaixas
+                    )}
+                  </div>
+
                   <div>
                     <p className="text-xs text-muted-foreground">Pavimento</p>
                     <Input
@@ -843,7 +1130,7 @@ const RefinementSegmentsTable = ({
                         editingSegment.osm_confidence?.pavimento
                     )}
                   </div>
-                  <div>
+                  <div className="sm:max-w-[220px]">
                     <p className="text-xs text-muted-foreground">Largura</p>
                     <Input
                       value={techDraft.largura}
@@ -857,7 +1144,7 @@ const RefinementSegmentsTable = ({
                         editingSegment.osm_confidence?.largura
                     )}
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <p className="text-xs text-muted-foreground">Buffer/separação</p>
                     <Input
                       value={techDraft.bufferSeparacao}
@@ -935,23 +1222,37 @@ const RefinementSegmentsTable = ({
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Interseções e quadras estimadas
                 </h3>
-                <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Interseções estimadas</p>
-                    <p className="text-lg font-semibold">
-                      {selectedPartAdvanced?.estimated_intersections_count ??
-                        editingSegment.estimated_intersections_count ??
-                        0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Quadras estimadas</p>
-                    <p className="text-lg font-semibold">
-                      {selectedPartAdvanced?.estimated_blocks_count ??
-                        editingSegment.estimated_blocks_count ??
-                        1}
-                    </p>
-                  </div>
+                <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                  {renderStepper({
+                    label: "N° quadras",
+                    value: techDraft.quadrasEstimadas,
+                    min: 1,
+                    onDecrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        quadrasEstimadas: clampMinimumOne(prev.quadrasEstimadas - 1),
+                      })),
+                    onIncrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        quadrasEstimadas: clampMinimumOne(prev.quadrasEstimadas + 1),
+                      })),
+                  })}
+                  {renderStepper({
+                    label: "N° interseções",
+                    value: techDraft.intersecoesEstimadas,
+                    min: 0,
+                    onDecrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas - 1),
+                      })),
+                    onIncrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas + 1),
+                      })),
+                  })}
                 </div>
                 {(selectedPartAdvanced?.intersections_preview?.length ||
                   editingSegment.intersections_preview?.length) ? (

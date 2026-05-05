@@ -200,37 +200,60 @@ const convertFormRowToForm = (row: FormRow): Form => ({
   intersections_count: row.intersections_count || undefined,
 });
 
-const convertSegmentRowToSegment = (row: SegmentRow): Segment => ({
-  id: row.id,
-  id_form: row.id_form || undefined,
-  id_cidade: row.id_cidade,
-  name: row.name,
-  type: row.type as SegmentType,
-  length: row.length,
-  neighborhood: row.neighborhood || undefined,
-  geometry: row.geometry,
-  selected: row.selected || false,
-  evaluated: row.evaluated || false,
-  is_merged: row.is_merged || false,
-  parent_segment_id: row.parent_segment_id || undefined,
-  merged_segments: row.merged_segments as any[] || [],
-  classification: row.classification || undefined,
-  blocks_count: (row as any).blocks_count ?? undefined,
-  intersections_count: (row as any).intersections_count ?? undefined,
-  relevant_intersections_count: (row as any).relevant_intersections_count ?? undefined,
-  connected_intersections_count: (row as any).connected_intersections_count ?? undefined,
-  osm_id: (row as any).osm_id ?? undefined,
-  osm_type: (row as any).osm_type ?? undefined,
-  osm_tags: (row as any).osm_tags ?? undefined,
-  osm_raw: (row as any).osm_raw ?? undefined,
-  osm_confidence: (row as any).osm_confidence ?? undefined,
-  ideciclo_prefill: (row as any).ideciclo_prefill ?? undefined,
-  osm_improvement_suggestions: (row as any).osm_improvement_suggestions ?? undefined,
-  estimated_blocks_count: (row as any).estimated_blocks_count ?? undefined,
-  estimated_intersections_count: (row as any).estimated_intersections_count ?? undefined,
-  intersections_preview: (row as any).intersections_preview ?? undefined,
-  osm_advanced: (row as any).osm_advanced ?? undefined,
-});
+const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
+  const advanced = (row as any).osm_advanced as Record<string, any> | undefined;
+
+  return {
+    id: row.id,
+    id_form: row.id_form || undefined,
+    id_cidade: row.id_cidade,
+    name: row.name,
+    type: row.type as SegmentType,
+    length: row.length,
+    neighborhood: row.neighborhood || undefined,
+    geometry: row.geometry,
+    selected: row.selected || false,
+    evaluated: row.evaluated || false,
+    is_merged: row.is_merged || false,
+    parent_segment_id: row.parent_segment_id || undefined,
+    merged_segments: (row.merged_segments as any[]) || [],
+    classification: row.classification || undefined,
+    blocks_count:
+      (row as any).blocks_count ?? advanced?.blocks_count ?? advanced?.estimated_blocks_count ?? undefined,
+    intersections_count:
+      (row as any).intersections_count ??
+      advanced?.intersections_count ??
+      advanced?.estimated_intersections_count ??
+      undefined,
+    relevant_intersections_count:
+      (row as any).relevant_intersections_count ?? advanced?.relevant_intersections_count ?? undefined,
+    connected_intersections_count:
+      (row as any).connected_intersections_count ?? advanced?.connected_intersections_count ?? undefined,
+    osm_id: (row as any).osm_id ?? advanced?.osm_id ?? advanced?.osmId ?? undefined,
+    osm_type: (row as any).osm_type ?? advanced?.osm_type ?? advanced?.osmType ?? undefined,
+    osm_tags: (row as any).osm_tags ?? advanced?.osm_tags ?? advanced?.rawTags ?? undefined,
+    osm_raw: (row as any).osm_raw ?? advanced?.osm_raw ?? undefined,
+    osm_confidence:
+      (row as any).osm_confidence ??
+      advanced?.osm_confidence ??
+      advanced?.confidenceByField ??
+      undefined,
+    ideciclo_prefill:
+      (row as any).ideciclo_prefill ?? advanced?.ideciclo_prefill ?? advanced?.interpreted ?? undefined,
+    osm_improvement_suggestions:
+      (row as any).osm_improvement_suggestions ??
+      advanced?.osm_improvement_suggestions ??
+      advanced?.suggestions ??
+      undefined,
+    estimated_blocks_count:
+      (row as any).estimated_blocks_count ?? advanced?.estimated_blocks_count ?? undefined,
+    estimated_intersections_count:
+      (row as any).estimated_intersections_count ?? advanced?.estimated_intersections_count ?? undefined,
+    intersections_preview:
+      (row as any).intersections_preview ?? advanced?.intersections_preview ?? undefined,
+    osm_advanced: advanced ?? undefined,
+  };
+};
 
 /**
  * City CRUD operations
@@ -784,6 +807,79 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
   return result;
 };
 
+export const updateSegmentTechnicalInDB = async (
+  segmentId: string,
+  cityId: string,
+  updates: Partial<Segment>
+): Promise<Segment | null> => {
+  const resolvedSegment = await resolveDatabaseSegmentId(segmentId, cityId);
+
+  if (!resolvedSegment) {
+    console.error(
+      "Could not resolve database segment ID for technical update:",
+      segmentId
+    );
+    return null;
+  }
+
+  const updateId = resolvedSegment.dbId;
+  const resolvedCityId = resolvedSegment.cityId || cityId;
+  const technicalEnvelope = {
+    version: 1,
+    updated_at: new Date().toISOString(),
+    ideciclo_prefill: updates.ideciclo_prefill ?? null,
+    osm_confidence: updates.osm_confidence ?? null,
+    osm_tags: updates.osm_tags ?? null,
+    osm_raw: updates.osm_raw ?? null,
+    osm_improvement_suggestions: updates.osm_improvement_suggestions ?? null,
+    intersections_preview: updates.intersections_preview ?? null,
+    estimated_blocks_count:
+      updates.estimated_blocks_count ?? updates.blocks_count ?? null,
+    estimated_intersections_count:
+      updates.estimated_intersections_count ?? updates.intersections_count ?? null,
+    blocks_count: updates.blocks_count ?? updates.estimated_blocks_count ?? null,
+    intersections_count:
+      updates.intersections_count ?? updates.estimated_intersections_count ?? null,
+    relevant_intersections_count: updates.relevant_intersections_count ?? null,
+    connected_intersections_count: updates.connected_intersections_count ?? null,
+    osm_id: updates.osm_id ?? null,
+    osm_type: updates.osm_type ?? null,
+  };
+
+  const updatePayload = {
+    osm_advanced: updates.osm_advanced ?? technicalEnvelope,
+  };
+
+  const { data, error } = await updateSegmentWithCompatibility(
+    updateId,
+    updatePayload
+  );
+
+  if (error) {
+    console.error("Error updating segment technical data:", error);
+    return null;
+  }
+
+  const result = convertSegmentRowToSegment(data);
+  if (!result.osm_advanced) {
+    console.error(
+      "segments.osm_advanced is unavailable in database response; technical data was not persisted."
+    );
+    return null;
+  }
+  if (result.id.includes("_") && resolvedCityId) {
+    result.id = result.id.substring(result.id.indexOf("_") + 1);
+  }
+
+  if (result.parent_segment_id && result.parent_segment_id.includes("_")) {
+    result.parent_segment_id = result.parent_segment_id.substring(
+      result.parent_segment_id.indexOf("_") + 1
+    );
+  }
+
+  return result;
+};
+
 // New function to unmerge segments
 export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsToUnmerge: string[]): Promise<boolean> => {
   try {
@@ -1188,12 +1284,29 @@ export const fetchSegmentById = async (segmentId: string): Promise<any | null> =
       error = result.error;
     }
 
+    if (!data && !segmentId.includes("_")) {
+      const wildcardResult = await supabase
+        .from("segments")
+        .select("*")
+        .like("id", `%_${segmentId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (wildcardResult.data) {
+        data = wildcardResult.data;
+        error = null;
+      } else {
+        error = wildcardResult.error;
+      }
+    }
+
     if (!data && error) {
       console.error("Error fetching segment by ID:", error);
       return null;
     }
 
-    return data;
+    if (!data) return null;
+    return convertSegmentRowToSegment(data as SegmentRow);
   } catch (error) {
     console.error("Error fetching segment by ID:", error);
     return null;

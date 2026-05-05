@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import {
   deleteCityFromDB,
+  updateSegmentTechnicalInDB,
   updateSegmentInDB,
 } from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
@@ -336,25 +337,20 @@ const RefinarDados = () => {
     updates: Partial<Segment>
   ) => {
     try {
-      const payload: Partial<Segment> = {
-        id: segmentId,
-        id_cidade: cityId,
-        ideciclo_prefill: updates.ideciclo_prefill,
-        osm_confidence: updates.osm_confidence,
-        osm_tags: updates.osm_tags,
-        osm_raw: updates.osm_raw,
-        osm_improvement_suggestions: updates.osm_improvement_suggestions,
-        intersections_preview: updates.intersections_preview,
-        estimated_blocks_count: updates.estimated_blocks_count,
-        estimated_intersections_count: updates.estimated_intersections_count,
-        blocks_count: updates.blocks_count,
-        intersections_count: updates.intersections_count,
-      };
+      const persistedSegment = await updateSegmentTechnicalInDB(
+        segmentId,
+        cityId,
+        updates
+      );
+      if (!persistedSegment) {
+        throw new Error(
+          "Banco não confirmou a atualização do trecho. A API pode estar sem a coluna segments.osm_advanced ou com cache de schema desatualizado."
+        );
+      }
 
-      await updateSegmentInDB(payload as Segment);
       setSegments((prevSegments) => {
         const nextSegments = prevSegments.map((seg) =>
-          seg.id === segmentId ? { ...seg, ...updates } : seg
+          seg.id === segmentId ? { ...seg, ...persistedSegment } : seg
         );
         persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
         return nextSegments;
@@ -365,11 +361,16 @@ const RefinarDados = () => {
       });
     } catch (error) {
       console.error("Erro ao atualizar complemento técnico do segmento:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Falha ao salvar complemento técnico do segmento.";
       toast({
         title: "Erro",
-        description: "Falha ao salvar complemento técnico do segmento.",
+        description: message,
         variant: "destructive",
       });
+      throw error;
     }
   };
 
