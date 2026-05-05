@@ -1548,17 +1548,7 @@ export const fetchAllStoredCities = async (): Promise<City[]> => {
 
 export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> => {
   try {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id_cidade", cityId);
-
-    if (error) {
-      console.error("Error fetching segments:", error);
-      return [];
-    }
-
-    return data as Segment[];
+    return await fetchSegmentsFromDB(cityId);
   } catch (error) {
     console.error("Error fetching segments:", error);
     return [];

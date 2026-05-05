@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -1052,6 +1052,7 @@ const SegmentForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { segmentId, formId } = useParams();
+  const [searchParams] = useSearchParams();
   const sessionSegmentId = getSessionSelectedSegmentId();
   const effectiveSegmentId = segmentId || sessionSegmentId;
   const sessionCityId = getSessionSelectedCityId();
@@ -1060,7 +1061,9 @@ const SegmentForm = () => {
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(
+    searchParams.get("step") === "review" ? 2 : 1
+  );
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState<string | null>(null);
   const [originalSegmentType, setOriginalSegmentType] = useState("");
   const [originalRoadHierarchy, setOriginalRoadHierarchy] = useState("");

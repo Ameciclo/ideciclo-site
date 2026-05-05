@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Filter, Search } from "lucide-react";
+import { ArrowRight, Filter, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,96 @@ const classificationLabels: Record<string, string> = {
   estrutural: "Estrutural",
   alimentadora: "Alimentadora",
   local: "Local",
+};
+
+const positionLabels: Record<string, string> = {
+  canteiro: "Sobre o canteiro",
+  pista_canteiro: "Pista, junto ao canteiro",
+  pista_calcada: "Pista, junto à calçada",
+  calcada: "Sobre a calçada",
+  centro_pista: "Centro da pista",
+  isolada: "Isolada",
+};
+
+const directionLabels: Record<string, string> = {
+  unidirectional: "Unidirecional",
+  bidirectional: "Bidirecional",
+};
+
+const getReadableValue = (value?: string | number | null, suffix = "") => {
+  if (value === undefined || value === null || value === "") {
+    return "Não obtido ainda";
+  }
+
+  return `${value}${suffix}`;
+};
+
+const getSegmentTechnicalSummary = (segment: Segment) => {
+  const prefill = segment.ideciclo_prefill || { pendenciasCampo: [] };
+
+  return [
+    {
+      label: "Tipologia",
+      value: getReadableValue(prefill.tipologia || segment.type || ""),
+    },
+    {
+      label: "Hierarquia viária",
+      value: getReadableValue(
+        prefill.hierarquia ||
+          (segment.classification ? classificationLabels[segment.classification] : "")
+      ),
+    },
+    {
+      label: "Trecho início",
+      value: getReadableValue(prefill.trechoInicio),
+    },
+    {
+      label: "Trecho fim",
+      value: getReadableValue(prefill.trechoFim),
+    },
+    {
+      label: "Sentido",
+      value: getReadableValue(
+        directionLabels[prefill.sentido || ""] || prefill.sentido
+      ),
+    },
+    {
+      label: "Posição na via",
+      value: getReadableValue(
+        positionLabels[prefill.posicaoNaVia || ""] || prefill.posicaoNaVia
+      ),
+    },
+    {
+      label: "Velocidade",
+      value: getReadableValue(prefill.velocidade, prefill.velocidade ? " km/h" : ""),
+    },
+    {
+      label: "Número de faixas",
+      value: getReadableValue(prefill.numeroFaixas),
+    },
+    {
+      label: "Pavimento",
+      value: getReadableValue(prefill.pavimento),
+    },
+    {
+      label: "Largura",
+      value: getReadableValue(prefill.largura, prefill.largura ? " m" : ""),
+    },
+    {
+      label: "Buffer / separação",
+      value: getReadableValue(prefill.bufferSeparacao),
+    },
+    {
+      label: "Quadras",
+      value: getReadableValue(segment.blocks_count ?? segment.estimated_blocks_count),
+    },
+    {
+      label: "Interseções",
+      value: getReadableValue(
+        segment.intersections_count ?? segment.estimated_intersections_count
+      ),
+    },
+  ];
 };
 
 const formatLength = (length?: number | null) => {
@@ -225,6 +315,13 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
 
     sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
     navigate("/avaliacao/avaliar-estrutura");
+  };
+
+  const handleGoToReview = () => {
+    if (!selectedSegment) return;
+
+    sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
+    navigate(`/avaliacao/formulario-ideciclo/${selectedSegment.id}?step=review`);
   };
 
   if (!cityData) {
@@ -441,8 +538,6 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                           Quadras:{" "}
                           {segment.blocks_count ?? segment.estimated_blocks_count ?? "-"}
                         </span>
-                        <span>•</span>
-                        <span>OSM: {segment.osm_id || "-"}</span>
                       </div>
                     </div>
                   </button>
@@ -450,32 +545,43 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                   {selectedSegment?.id === segment.id ? (
                     <div className="mt-5 border-t border-emerald-200 pt-5">
                       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
-                        <div className="flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 text-emerald-700">
-                              <CheckCircle2 className="h-5 w-5" />
-                            </div>
-                            <h4 className="mt-3 text-xl font-bold text-slate-900">
-                              {getReadableSegmentName(segment, cityData.cityId)}
-                            </h4>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <Badge className={cn("border", getSegmentTypeBadgeClassName(segment.type))}>
-                                {segment.type}
-                              </Badge>
-                              {segment.classification ? (
-                                <Badge className={cn("border", getHierarchyBadgeClassName(segment.classification))}>
-                                  {classificationLabels[segment.classification] || segment.classification}
-                                </Badge>
-                              ) : null}
-                              <Badge variant="outline" className="border-emerald-300 bg-white">
-                                {formatLength(segment.length)}
-                              </Badge>
-                            </div>
+                        <div className="space-y-5">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {getSegmentTechnicalSummary(segment).map((item) => {
+                              const missing = item.value === "Não obtido ainda";
+
+                              return (
+                                <div
+                                  key={item.label}
+                                  className={cn(
+                                    "rounded-2xl border px-4 py-3",
+                                    missing
+                                      ? "border-amber-200 bg-amber-50"
+                                      : "border-emerald-200 bg-white"
+                                  )}
+                                >
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "mt-2 text-sm font-semibold",
+                                      missing ? "text-amber-800" : "text-slate-900"
+                                    )}
+                                  >
+                                    {item.value}
+                                  </p>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="mt-5">
+                          <div className="flex flex-wrap gap-3">
                             <Button onClick={handleGoToEvaluation} className="gap-2">
                               {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
                               <ArrowRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" onClick={handleGoToReview}>
+                              Revisão da Estrutura
                             </Button>
                           </div>
                         </div>
