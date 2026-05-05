@@ -1566,6 +1566,10 @@ const SegmentForm = () => {
             dbForm.segment_id || effectiveSegmentId,
             nextFormData
           );
+          const segmentData = await fetchSegmentContextById(
+            dbForm.segment_id || effectiveSegmentId
+          );
+          nextFormData = applyOsmPrefillToFormData(nextFormData, segmentData);
         } else if (effectiveSegmentId) {
           const existingForm = await getFormBySegmentId(effectiveSegmentId);
 
@@ -1578,6 +1582,8 @@ const SegmentForm = () => {
               city_id: existingForm.city_id || sessionCityId || "",
             });
             nextFormData = await hydrateHeaderFields(effectiveSegmentId, nextFormData);
+            const segmentData = await fetchSegmentContextById(effectiveSegmentId);
+            nextFormData = applyOsmPrefillToFormData(nextFormData, segmentData);
           } else {
             const segmentData = await fetchSegmentContextById(effectiveSegmentId);
             if (!segmentData) throw new Error("Trecho não encontrado");
@@ -1629,6 +1635,11 @@ const SegmentForm = () => {
         } catch (draftError) {
           console.error("Erro ao recuperar rascunho local:", draftError);
         }
+
+        const segmentForFinalPrefill = await fetchSegmentContextById(
+          effectiveSegmentId || nextFormData.segment_id || nextFormData.id
+        );
+        nextFormData = applyOsmPrefillToFormData(nextFormData, segmentForFinalPrefill);
 
         setFormData(normalizeEvaluationCounts(nextFormData));
       } catch (error) {
