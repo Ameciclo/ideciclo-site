@@ -43,6 +43,7 @@ export type SegmentIntersectionPreview = {
   roadName?: string;
   highway?: string;
   hierarchy?: string;
+  hasCyclingInfrastructure?: boolean | null;
 };
 
 export type SegmentIntersectionSelection = {
@@ -53,6 +54,7 @@ export type SegmentIntersectionSelection = {
   highway?: string;
   hierarchyOsm?: string;
   hierarchyIdeciclo?: string;
+  hasCyclingInfrastructure?: boolean | null;
   selected: boolean;
 };
 

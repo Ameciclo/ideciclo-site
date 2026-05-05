@@ -158,6 +158,28 @@ const inferBufferSeparation = (tags: Record<string, string>): string | undefined
   return values.join(" | ");
 };
 
+const inferCyclingInfrastructureOnRoad = (
+  tags: Record<string, string>
+): boolean | null => {
+  if (!tags || Object.keys(tags).length === 0) return null;
+
+  if (tags.highway === "cycleway") return true;
+  if (tags.cycleway || tags["cycleway:left"] || tags["cycleway:right"] || tags["cycleway:both"]) {
+    return true;
+  }
+  if (tags.bicycle === "designated" || tags.bicycle === "yes") return true;
+  if (
+    tags.highway === "footway" ||
+    tags.highway === "pedestrian" ||
+    tags.sidewalk === "both" ||
+    tags.sidewalk === "left" ||
+    tags.sidewalk === "right"
+  ) {
+    return tags.bicycle === "designated" || tags.bicycle === "yes";
+  }
+  return false;
+};
+
 const buildIntersectionPreview = (
   segment: OverpassElement,
   roads: OverpassElement[]
@@ -205,6 +227,7 @@ const buildIntersectionPreview = (
           roadName: road.tags.name || road.tags.ref || `Via ${road.id}`,
           highway: road.tags.highway,
           hierarchy,
+          hasCyclingInfrastructure: inferCyclingInfrastructureOnRoad(road.tags),
         });
       });
     } catch (error) {

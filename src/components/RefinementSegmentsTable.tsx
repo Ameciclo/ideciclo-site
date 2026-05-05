@@ -636,6 +636,7 @@ const RefinementSegmentsTable = ({
           roadName: item.roadName,
           highway: item.highway,
           hierarchy: item.hierarchyIdeciclo,
+          hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
         }));
 
         const currentPending = [
@@ -805,6 +806,7 @@ const RefinementSegmentsTable = ({
                 highway: item.highway,
                 hierarchyOsm: item.highway || undefined,
                 hierarchyIdeciclo: item.hierarchy || undefined,
+                hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
                 selected: true,
               });
             }
@@ -1012,6 +1014,7 @@ const RefinementSegmentsTable = ({
               highway: item.highway,
               hierarchyOsm: item.highway || undefined,
               hierarchyIdeciclo: item.hierarchy || undefined,
+              hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
               selected: true,
             });
           }
@@ -1027,6 +1030,7 @@ const RefinementSegmentsTable = ({
       highway: item.highway,
       hierarchyOsm: item.highway || undefined,
       hierarchyIdeciclo: item.hierarchy || undefined,
+      hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
       selected: true,
     }));
   };
@@ -1986,6 +1990,7 @@ const RefinementSegmentsTable = ({
                           <th className="px-3 py-2">Via</th>
                           <th className="px-3 py-2">Highway</th>
                           <th className="px-3 py-2">Hierarquia IDECICLO</th>
+                          <th className="px-3 py-2">Estrutura cicloviária</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2013,6 +2018,13 @@ const RefinementSegmentsTable = ({
                               <td className="px-3 py-2">{item.highway || "-"}</td>
                               <td className="px-3 py-2">
                                 {item.hierarchyIdeciclo || "não classificada"}
+                              </td>
+                              <td className="px-3 py-2">
+                                {item.hasCyclingInfrastructure === true
+                                  ? "Sim"
+                                  : item.hasCyclingInfrastructure === false
+                                    ? "Não"
+                                    : "Indef."}
                               </td>
                             </tr>
                           ))}
