@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +10,9 @@ interface Page2Props {
   onDataChange: (data: Partial<IdecicloFormData>) => void;
   segmentType: string;
   originalRoadHierarchy: string;
+  originalInfraFlow?: string;
+  originalPositionOnRoad?: string;
+  originalVelocityKmh?: number;
   allowHierarchyEdit: boolean;
   onHierarchyEditToggle: (checked: boolean) => void;
   onHierarchySelection: (value: string) => void;
@@ -105,17 +107,34 @@ const Page2: React.FC<Page2Props> = ({
   onDataChange,
   segmentType,
   originalRoadHierarchy,
+  originalInfraFlow,
+  originalPositionOnRoad,
+  originalVelocityKmh,
   allowHierarchyEdit,
   onHierarchyEditToggle,
   onHierarchySelection,
 }) => {
   const [allowTypologyEdit, setAllowTypologyEdit] = useState(false);
+  const [allowFlowEdit, setAllowFlowEdit] = useState(false);
+  const [allowPositionEdit, setAllowPositionEdit] = useState(false);
 
   useEffect(() => {
     if (!segmentType) {
       setAllowTypologyEdit(true);
     }
   }, [segmentType]);
+
+  useEffect(() => {
+    if (!originalInfraFlow) {
+      setAllowFlowEdit(true);
+    }
+  }, [originalInfraFlow]);
+
+  useEffect(() => {
+    if (!originalPositionOnRoad) {
+      setAllowPositionEdit(true);
+    }
+  }, [originalPositionOnRoad]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -131,6 +150,22 @@ const Page2: React.FC<Page2Props> = ({
 
     if (!checked && segmentType) {
       onDataChange({ infra_typology: segmentType });
+    }
+  };
+
+  const handleFlowEditToggle = (checked: boolean) => {
+    setAllowFlowEdit(checked);
+
+    if (!checked) {
+      onDataChange({ infra_flow: originalInfraFlow || "unidirectional" });
+    }
+  };
+
+  const handlePositionEditToggle = (checked: boolean) => {
+    setAllowPositionEdit(checked);
+
+    if (!checked) {
+      onDataChange({ position_on_road: originalPositionOnRoad || "pista_calcada" });
     }
   };
 
@@ -174,6 +209,42 @@ const Page2: React.FC<Page2Props> = ({
           ? "border-slate-200 bg-white text-slate-400"
           : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
     }`;
+
+  const selectedSpeedChoices = Array.isArray(data.regulated_speed_choices)
+    ? data.regulated_speed_choices
+    : [];
+  const resolvedSpeedChoices =
+    selectedSpeedChoices.length > 0
+      ? selectedSpeedChoices
+      : data.velocity_kmh > 0
+        ? [data.velocity_kmh]
+        : originalVelocityKmh
+          ? [originalVelocityKmh]
+          : [];
+  const getSpeedCount = (speed: number) =>
+    resolvedSpeedChoices.filter((value) => value === speed).length;
+  const handleSpeedCountChange = (speed: number, delta: 1 | -1) => {
+    const nextChoices =
+      delta > 0
+        ? [...resolvedSpeedChoices, speed]
+        : (() => {
+            const next = [...resolvedSpeedChoices];
+            const removeIndex = next.lastIndexOf(speed);
+            if (removeIndex >= 0) {
+              next.splice(removeIndex, 1);
+            }
+            return next;
+          })();
+    const normalizedChoices = [...nextChoices].sort((a, b) => a - b);
+
+    onDataChange({
+      regulated_speed_choices: normalizedChoices,
+      velocity_kmh:
+        normalizedChoices.length > 0
+          ? normalizedChoices[normalizedChoices.length - 1]
+          : 0,
+    });
+  };
 
   return (
       <div className="space-y-5">
@@ -336,8 +407,20 @@ const Page2: React.FC<Page2Props> = ({
             )}
         </div>
 
-        <div className="space-y-3">
-          <Label className="block text-base font-semibold text-slate-900">Fluxo da infra</Label>
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <Label className="block text-base font-semibold text-slate-900">Fluxo da infra</Label>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="allow_flow_edit" className="text-sm">
+                Corrigir fluxo em campo
+              </Label>
+              <Switch
+                id="allow_flow_edit"
+                checked={allowFlowEdit}
+                onCheckedChange={handleFlowEditToggle}
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {FLOW_OPTIONS.map((option) => {
               const isSelected = (data.infra_flow || "unidirectional") === option.value;
@@ -346,8 +429,14 @@ const Page2: React.FC<Page2Props> = ({
                 <button
                   key={option.value}
                   type="button"
-                  className={`w-full ${selectionCardClassName(isSelected)}`}
-                  onClick={() => handleRadioChange("infra_flow", option.value)}
+                  aria-disabled={!allowFlowEdit}
+                  className={`w-full ${selectionCardClassName(isSelected)} ${
+                    allowFlowEdit ? "cursor-pointer" : "cursor-default opacity-60"
+                  }`}
+                  onClick={() => {
+                    if (!allowFlowEdit) return;
+                    handleRadioChange("infra_flow", option.value);
+                  }}
                 >
                   <div className="flex w-full items-center gap-4">
                     <img
@@ -363,10 +452,28 @@ const Page2: React.FC<Page2Props> = ({
               );
             })}
           </div>
+          {!allowFlowEdit && originalInfraFlow ? (
+            <p className="text-sm text-muted-foreground">
+              Fluxo original do trecho:{" "}
+              <strong>{originalInfraFlow === "bidirectional" ? "Bidirecional" : "Unidirecional"}</strong>
+            </p>
+          ) : null}
         </div>
 
-        <div className="space-y-3">
-          <Label className="block text-base font-semibold text-slate-900">Posição na via</Label>
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <Label className="block text-base font-semibold text-slate-900">Posição na via</Label>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="allow_position_edit" className="text-sm">
+                Corrigir posição em campo
+              </Label>
+              <Switch
+                id="allow_position_edit"
+                checked={allowPositionEdit}
+                onCheckedChange={handlePositionEditToggle}
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {POSITION_OPTIONS.map((option) => {
               const isSelected = (data.position_on_road || "pista_calcada") === option.value;
@@ -375,8 +482,14 @@ const Page2: React.FC<Page2Props> = ({
                 <button
                   key={option.value}
                   type="button"
-                  className={`w-full ${selectionCardClassName(isSelected)}`}
-                  onClick={() => handleRadioChange("position_on_road", option.value)}
+                  aria-disabled={!allowPositionEdit}
+                  className={`w-full ${selectionCardClassName(isSelected)} ${
+                    allowPositionEdit ? "cursor-pointer" : "cursor-default opacity-60"
+                  }`}
+                  onClick={() => {
+                    if (!allowPositionEdit) return;
+                    handleRadioChange("position_on_road", option.value);
+                  }}
                 >
                   <div className="flex w-full items-center gap-4">
                     <img
@@ -392,32 +505,72 @@ const Page2: React.FC<Page2Props> = ({
               );
             })}
           </div>
+          {!allowPositionEdit && originalPositionOnRoad ? (
+            <p className="text-sm text-muted-foreground">
+              Posição original do trecho:{" "}
+              <strong>
+                {POSITION_OPTIONS.find((option) => option.value === originalPositionOnRoad)?.label ||
+                  originalPositionOnRoad}
+              </strong>
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-3">
           <Label className="block text-base font-semibold text-slate-900">
             Velocidade máxima regulamentada
           </Label>
+          <p className="text-sm text-muted-foreground">
+            Marque um ou mais valores. A avaliação considera a maior velocidade selecionada.
+          </p>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
             {SPEED_OPTIONS.map((speed) => {
-              const isSelected = data.velocity_kmh === speed;
+              const count = getSpeedCount(speed);
+              const isSelected = count > 0;
 
               return (
-                <button
+                <div
                   key={speed}
-                  type="button"
-                  className={`flex h-auto w-full flex-col gap-2 ${selectionCardClassName(isSelected)} px-3 py-3`}
-                  onClick={() => onDataChange({ velocity_kmh: speed })}
+                  className={`flex items-stretch overflow-hidden rounded-2xl border transition ${
+                    isSelected
+                      ? "border-emerald-700 bg-emerald-50 shadow-sm"
+                      : "border-slate-200 bg-white"
+                  }`}
                 >
-                  <img
-                    src={`/icones/${speed}-speed.svg`}
-                    alt={`${speed} km/h`}
-                    className="h-16 w-16 object-contain"
-                  />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSpeedCountChange(speed, 1)}
+                    className="flex flex-1 flex-col items-center gap-2 px-3 py-3 transition hover:bg-slate-50/50"
+                  >
+                    <img
+                      src={`/icones/${speed}-speed.svg`}
+                      alt={`${speed} km/h`}
+                      className="h-16 w-16 object-contain"
+                    />
+                    <span className="text-xs font-medium text-slate-600">
+                      {isSelected ? `${count} placa${count > 1 ? "s" : ""}` : "Toque para somar"}
+                    </span>
+                  </button>
+                  {isSelected ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSpeedCountChange(speed, -1)}
+                      className="flex w-11 shrink-0 items-center justify-center border-l border-emerald-200 bg-white/60 text-slate-500 transition hover:bg-white hover:text-emerald-700"
+                      aria-label={`Reduzir ${speed} km/h`}
+                      title={`Reduzir ${speed} km/h`}
+                    >
+                      <span className="text-lg font-semibold leading-none">×</span>
+                    </button>
+                  ) : null}
+                </div>
               );
             })}
           </div>
+          {resolvedSpeedChoices.length > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Valores registrados: <strong>{resolvedSpeedChoices.join(", ")} km/h</strong>
+            </p>
+          ) : null}
         </div>
 
         {String(resolvedTypology || "")

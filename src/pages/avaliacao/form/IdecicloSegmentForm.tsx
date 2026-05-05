@@ -131,6 +131,69 @@ const mapPositionPrefillToForm = (position?: string): string | undefined => {
   return undefined;
 };
 
+const OSM_SURFACE_TO_PAVEMENT_TYPE: Record<string, "A" | "B" | "C" | "D"> = {
+  paved: "A",
+  asphalt: "A",
+  chipseal: "A",
+  concrete: "A",
+  "concrete:lanes": "A",
+  "concrete:plates": "A",
+  paving_stones: "B",
+  "paving_stones:lanes": "B",
+  bricks: "B",
+  brick: "B",
+  tiles: "B",
+  sett: "C",
+  unhewn_cobblestone: "C",
+  cobblestone: "C",
+  stepping_stones: "C",
+  grass_paver: "C",
+  stone: "C",
+  unpaved: "D",
+  compacted: "D",
+  fine_gravel: "D",
+  gravel: "D",
+  pebblestone: "D",
+  rock: "D",
+  ground: "D",
+  dirt: "D",
+  earth: "D",
+  grass: "D",
+  mud: "D",
+  sand: "D",
+  woodchips: "D",
+  metal: "D",
+  metal_grid: "D",
+  wood: "D",
+  snow: "D",
+  ice: "D",
+  salt: "D",
+};
+
+const PREFILL_PAVEMENT_TO_TYPE: Record<string, "A" | "B" | "C" | "D"> = {
+  "asfalto/concreto (melhor)": "A",
+  "blocos (razoável)": "B",
+  "paralelepípedo/pedra (regular)": "C",
+  "inadequado/revisar": "D",
+};
+
+const mapOsmSurfaceToPavementType = (
+  surface?: string,
+  prefillPavement?: string
+): "A" | "B" | "C" | "D" | undefined => {
+  const normalizedSurface = surface?.trim().toLowerCase();
+  if (normalizedSurface && normalizedSurface in OSM_SURFACE_TO_PAVEMENT_TYPE) {
+    return OSM_SURFACE_TO_PAVEMENT_TYPE[normalizedSurface];
+  }
+
+  const normalizedPrefill = prefillPavement?.trim().toLowerCase();
+  if (normalizedPrefill && normalizedPrefill in PREFILL_PAVEMENT_TO_TYPE) {
+    return PREFILL_PAVEMENT_TO_TYPE[normalizedPrefill];
+  }
+
+  return undefined;
+};
+
 const mapIdecicloHierarchyToIntersectionRoadType = (
   hierarchy?: string
 ): "local" | "coletora" | "arterial" | "" => {
@@ -151,6 +214,10 @@ const applyOsmPrefillToFormData = (
   const inferredFlow = mapDirectionPrefillToInfraFlow(prefill.sentido);
   const inferredPosition = mapPositionPrefillToForm(prefill.posicaoNaVia);
   const inferredSpeed = prefill.velocidade ? Number(prefill.velocidade) : undefined;
+  const inferredPavementType = mapOsmSurfaceToPavementType(
+    segmentData.osm_tags?.surface,
+    prefill.pavimento
+  );
   const selectedIntersections = Array.isArray(segmentData.selected_intersections)
     ? segmentData.selected_intersections.filter((item) => item.selected !== false)
     : [];
@@ -189,6 +256,15 @@ const applyOsmPrefillToFormData = (
         : Number.isFinite(inferredSpeed)
           ? Number(inferredSpeed)
           : data.velocity_kmh,
+    regulated_speed_choices:
+      Array.isArray(data.regulated_speed_choices) && data.regulated_speed_choices.length > 0
+        ? data.regulated_speed_choices
+        : data.velocity_kmh > 0
+          ? [data.velocity_kmh]
+          : Number.isFinite(inferredSpeed)
+            ? [Number(inferredSpeed)]
+            : data.regulated_speed_choices,
+    pavement_type: data.pavement_type || inferredPavementType || data.pavement_type,
     traffic_lanes_count:
       data.traffic_lanes_count !== 2
         ? data.traffic_lanes_count
@@ -404,6 +480,7 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   segment_name: "",
   extension_m: 0,
   velocity_kmh: 0,
+  regulated_speed_choices: [],
   start_point: "",
   end_point: "",
   road_hierarchy: "",
@@ -868,6 +945,26 @@ interface AxisRibbonProps {
 const AxisRibbon: React.FC<AxisRibbonProps> = ({ tone, title }) => (
   <div className={`ideciclo-axis-ribbon ideciclo-axis-ribbon-${tone}`}>
     <h3 className="text-xl font-bold tracking-tight text-black md:text-2xl">{title}</h3>
+  </div>
+);
+
+const SaveStatusSummary: React.FC<{
+  incompleteCount: number;
+  pinnedCount: number;
+  isOnline: boolean;
+}> = ({ incompleteCount, pinnedCount, isOnline }) => (
+  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    <Badge variant={incompleteCount > 0 ? "secondary" : "outline"}>
+      {incompleteCount} critério{incompleteCount === 1 ? "" : "s"} pendente{incompleteCount === 1 ? "" : "s"}
+    </Badge>
+    <Badge variant={pinnedCount > 0 ? "secondary" : "outline"}>
+      {pinnedCount} fixado{pinnedCount === 1 ? "" : "s"}
+    </Badge>
+    <span>
+      {incompleteCount > 0
+        ? `O salvamento ${isOnline ? "da avaliação" : "do rascunho"} pode ficar incompleto.`
+        : `Pronto para ${isOnline ? "salvar a avaliação" : "guardar o rascunho"}.`}
+    </span>
   </div>
 );
 
@@ -1383,6 +1480,10 @@ const SegmentForm = () => {
 
     return reviewMatches;
   };
+
+  const applicableCriteria = CRITERION_CODES.filter((code) => isCriterionApplicable(formData, code));
+  const incompleteCriteriaCount = applicableCriteria.filter((code) => !criterionAnswered(code)).length;
+  const pinnedCriteriaCount = applicableCriteria.filter((code) => criterionPinned(code)).length;
 
   const scrollToCriterion = (code: CriterionCode) => {
     const targetId = getCriterionAnchor(code);
@@ -2065,21 +2166,32 @@ const SegmentForm = () => {
               {currentStep === 1 ? "Página 1 de 2 · Coleta em Campo" : "Página 2 de 2 · Revisão Final"}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant={currentStep === 1 ? "default" : "outline"}
-              onClick={() => setCurrentStep(1)}
-            >
-              Coleta
-            </Button>
-            <Button
-              type="button"
-              variant={currentStep === 2 ? "default" : "outline"}
-              onClick={() => setCurrentStep(2)}
-            >
-              Revisão Final
-            </Button>
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={currentStep === 1 ? "default" : "outline"}
+                onClick={() => setCurrentStep(1)}
+              >
+                Coleta
+              </Button>
+              <Button
+                type="button"
+                variant={currentStep === 2 ? "default" : "outline"}
+                onClick={() => setCurrentStep(2)}
+              >
+                Revisão Final
+              </Button>
+              <Button onClick={handleSubmit} variant="outline">
+                <Save className="mr-2 h-4 w-4" />
+                {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+              </Button>
+            </div>
+            <SaveStatusSummary
+              incompleteCount={incompleteCriteriaCount}
+              pinnedCount={pinnedCriteriaCount}
+              isOnline={isOnline}
+            />
           </div>
         </div>
       </Card>
@@ -2204,12 +2316,14 @@ const SegmentForm = () => {
                           infra_flow: "unidirectional",
                           position_on_road: "pista_calcada",
                           velocity_kmh: 0,
+                          regulated_speed_choices: [],
                           pedestrian_flow_per_hour_per_meter: 0,
                           touched_fields: {
                             infra_typology: false,
                             infra_flow: false,
                             position_on_road: false,
                             velocity_kmh: false,
+                            regulated_speed_choices: false,
                             road_hierarchy: false,
                             pedestrian_flow_per_hour_per_meter: false,
                           },
@@ -2222,6 +2336,17 @@ const SegmentForm = () => {
                         onDataChange={handleDataChange}
                         segmentType={originalSegmentType}
                         originalRoadHierarchy={originalRoadHierarchy}
+                        originalInfraFlow={mapDirectionPrefillToInfraFlow(
+                          segmentPreview?.ideciclo_prefill?.sentido
+                        )}
+                        originalPositionOnRoad={mapPositionPrefillToForm(
+                          segmentPreview?.ideciclo_prefill?.posicaoNaVia
+                        )}
+                        originalVelocityKmh={
+                          segmentPreview?.ideciclo_prefill?.velocidade
+                            ? Number(segmentPreview.ideciclo_prefill.velocidade)
+                            : undefined
+                        }
                         allowHierarchyEdit={allowHierarchyEdit}
                         onHierarchyEditToggle={handleHierarchyEditToggle}
                         onHierarchySelection={handleHierarchySelection}
@@ -2235,6 +2360,13 @@ const SegmentForm = () => {
                   <PavementStep
                     data={formData}
                     onDataChange={handleDataChange}
+                    originalPavementType={mapOsmSurfaceToPavementType(
+                      segmentPreview?.osm_tags?.surface,
+                      segmentPreview?.ideciclo_prefill?.pavimento
+                    )}
+                    originalPavementSource={
+                      segmentPreview?.osm_tags?.surface || segmentPreview?.ideciclo_prefill?.pavimento
+                    }
                     filter={globalCriterionFilter}
                     command={accordionCommand}
                   />
@@ -2724,13 +2856,44 @@ const SegmentForm = () => {
                 <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
                   Voltar para a Coleta
                 </Button>
+                <div className="flex flex-col items-start gap-3 md:items-end">
+                  <SaveStatusSummary
+                    incompleteCount={incompleteCriteriaCount}
+                    pinnedCount={pinnedCriteriaCount}
+                    isOnline={isOnline}
+                  />
+                  <Button onClick={handleSubmit} size="lg">
+                    <Save className="mr-2 h-4 w-4" />
+                    {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {currentStep === 1 ? (
+            <Card className="mb-6">
+              <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Salvar avaliação</div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {isOnline ? "Persistir avaliação atual" : "Guardar rascunho offline"}
+                  </div>
+                  <div className="mt-2">
+                    <SaveStatusSummary
+                      incompleteCount={incompleteCriteriaCount}
+                      pinnedCount={pinnedCriteriaCount}
+                      isOnline={isOnline}
+                    />
+                  </div>
+                </div>
                 <Button onClick={handleSubmit} size="lg">
                   <Save className="mr-2 h-4 w-4" />
                   {isOnline ? "Salvar Avaliação" : "Guardar Rascunho Offline"}
                 </Button>
               </div>
             </Card>
-          )}
+          ) : null}
         </>
       )}
     </div>

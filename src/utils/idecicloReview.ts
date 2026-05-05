@@ -211,13 +211,29 @@ export const getCriterionEvidence = (
   data: IdecicloFormData
 ): string[] => {
   switch (criterion) {
-    case "A1":
+    case "A1": {
+      const speedCounts = Array.isArray(data.regulated_speed_choices)
+        ? data.regulated_speed_choices.reduce<Record<number, number>>((acc, speed) => {
+            acc[speed] = (acc[speed] || 0) + 1;
+            return acc;
+          }, {})
+        : {};
+      const countedSpeedEvidence = Object.entries(speedCounts)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([speed, count]) => `${speed} km/h (${count})`)
+        .join(", ");
+      const speedEvidence =
+        countedSpeedEvidence
+          ? `${countedSpeedEvidence} (maior valor considerado: ${data.velocity_kmh || 0} km/h)`
+          : `${data.velocity_kmh || 0} km/h`;
+
       return [
         `Tipologia considerada: ${asLabel(data.infra_typology)}`,
         `Hierarquia viaria: ${asLabel(data.road_hierarchy || data.classification)}`,
-        `Velocidade regulamentada: ${data.velocity_kmh || 0} km/h`,
+        `Velocidade regulamentada: ${speedEvidence}`,
         `Largura da zona de amortecimento: ${data.buffer_width_m || 0} m`,
       ];
+    }
     case "A2":
       return [
         `Intersecoes com arteriais/coletoras: ${data.relevant_intersections_count || 0}`,
