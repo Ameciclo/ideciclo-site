@@ -1015,7 +1015,7 @@ const CRITERION_NAV_ITEMS: Array<{
 const SECTION_NAV_ITEMS = [
   { id: "section-a", label: "Caracterização", tone: "a" },
   { id: "section-pavimento", label: "Cicloviário", tone: "e" },
-  { id: "section-luz", label: "Iluminação", tone: "d" },
+  { id: "section-luz", label: "Urbanidade", tone: "d" },
   { id: "section-risco", label: "Risco", tone: "b" },
   { id: "section-medicoes", label: "Medições", tone: "a" },
   { id: "section-quadras", label: "Quadras", tone: "b" },
@@ -2061,7 +2061,7 @@ const SegmentForm = () => {
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold">
-            {existingFormId ? "Editar Avaliação" : "Nova Avaliação"} de Estrutura
+            {formData.segment_name || "Não informado"} ({formData.city || "Não informada"})
           </h2>
           <p className="text-muted-foreground">
             Formulario hibrido do IDECICLO em duas telas: coleta em campo e revisao final com
@@ -2137,14 +2137,6 @@ const SegmentForm = () => {
           </CardDescription>
         </CardHeader>
         <div className="px-6 pb-6">
-          <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <span>
-              <strong className="text-foreground">Trecho:</strong> {formData.segment_name || "Nao informado"}
-            </span>
-            <span>
-              <strong className="text-foreground">Cidade:</strong> {formData.city || "Nao informada"}
-            </span>
-          </div>
           {segmentPreview ? (
             <SegmentPreviewMap
               segment={segmentPreview}
