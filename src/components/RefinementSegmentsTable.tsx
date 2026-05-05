@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Segment, SegmentType } from "@/types";
 import { ParsedOsmAdvancedSegment } from "@/services/osmAdvancedParser";
 import { fetchSegmentOsmAdvancedData } from "@/services/api";
@@ -17,7 +18,9 @@ import {
   ArrowDown,
   ArrowUp,
   Edit,
+  Check,
   Trash2,
+  X,
   ChevronDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -28,14 +31,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -99,6 +94,8 @@ const POSITION_OPTIONS = [
 
 type FlowValue = (typeof FLOW_OPTIONS)[number]["value"];
 type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
+type OptionalFlowValue = FlowValue | "";
+type OptionalPositionValue = PositionValue | "";
 
 interface RefinementSegmentsTableProps {
   segments: Segment[];
@@ -123,6 +120,10 @@ interface RefinementSegmentsTableProps {
     classification: string
   ) => Promise<void>;
   onUpdateSegmentType?: (segmentId: string, type: SegmentType) => Promise<void>;
+  technicalOpen?: boolean;
+  technicalSegment?: Segment | null;
+  onFocusGeometryChange?: (geometry: any | null) => void;
+  technicalPanelContainer?: HTMLElement | null;
 }
 
 const RefinementSegmentsTable = ({
@@ -139,7 +140,12 @@ const RefinementSegmentsTable = ({
   onUnmergeSegments,
   onUpdateSegmentClassification,
   onUpdateSegmentType,
+  technicalOpen = false,
+  technicalSegment = null,
+  onFocusGeometryChange,
+  technicalPanelContainer = null,
 }: RefinementSegmentsTableProps) => {
+  const [editingNameSegmentId, setEditingNameSegmentId] = useState<string | null>(null);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [isLoadingOsmComplement, setIsLoadingOsmComplement] = useState(false);
@@ -154,16 +160,18 @@ const RefinementSegmentsTable = ({
   const [techDraft, setTechDraft] = useState({
     trechoInicio: "",
     trechoFim: "",
-    posicaoNaVia: "pista_calcada" as PositionValue,
+    posicaoNaVia: "" as OptionalPositionValue,
     velocidade: "",
-    numeroFaixas: 2,
-    sentido: "unidirectional" as FlowValue,
+    numeroFaixas: "" as number | "",
+    sentido: "" as OptionalFlowValue,
     pavimento: "",
     largura: "",
     bufferSeparacao: "",
     quadrasEstimadas: 1,
     intersecoesEstimadas: 0,
   });
+  const [typeDraft, setTypeDraft] = useState<SegmentType | "">("");
+  const [classificationDraft, setClassificationDraft] = useState<string>("");
 
   // Available classification options
   const classificationOptions = ["estrutural", "alimentadora", "local"];
@@ -187,14 +195,16 @@ const RefinementSegmentsTable = ({
   const clampMinimumOne = (value: number) => Math.max(1, Math.round(value));
   const clampNonNegative = (value: number) => Math.max(0, Math.round(value));
 
-  const inferFlowValue = (raw?: string): FlowValue => {
+  const inferFlowValue = (raw?: string): OptionalFlowValue => {
     const normalized = (raw || "").toLowerCase();
+    if (!normalized.trim()) return "";
     if (normalized.includes("bi")) return "bidirectional";
     return "unidirectional";
   };
 
-  const inferPositionValue = (raw?: string): PositionValue => {
+  const inferPositionValue = (raw?: string): OptionalPositionValue => {
     const normalized = (raw || "").toLowerCase();
+    if (!normalized.trim()) return "";
     if (normalized === "canteiro") return "canteiro";
     if (normalized === "pista_canteiro") return "pista_canteiro";
     if (normalized === "pista_calcada") return "pista_calcada";
@@ -205,7 +215,7 @@ const RefinementSegmentsTable = ({
     if (normalized.includes("calçada") || normalized.includes("calcada")) return "calcada";
     if (normalized.includes("centro")) return "centro_pista";
     if (normalized.includes("isolada") || normalized.includes("dedicada")) return "isolada";
-    return "pista_calcada";
+    return "";
   };
 
   const parseIntersectionPoint = (pointKey: string) => {
@@ -282,6 +292,121 @@ const RefinementSegmentsTable = ({
     };
   };
 
+  const inferEndpointRoadNamesFromGroup = (
+    segment: Segment,
+    partsData: Record<string, ParsedOsmAdvancedSegment>
+  ) => {
+    const groupedByPoint = new Map<
+      string,
+      { key: string; lat: number; lon: number; roadNames: string[] }
+    >();
+
+    Object.values(partsData).forEach((item) => {
+      (item.intersections_preview || []).forEach((preview) => {
+        const parsed = parseIntersectionPoint(preview.pointKey);
+        if (!parsed) return;
+        const current = groupedByPoint.get(preview.pointKey) || {
+          key: preview.pointKey,
+          lat: parsed.lat,
+          lon: parsed.lon,
+          roadNames: [],
+        };
+        if (preview.roadName) current.roadNames.push(preview.roadName);
+        groupedByPoint.set(preview.pointKey, current);
+      });
+    });
+
+    const candidates = Array.from(groupedByPoint.values());
+    if (candidates.length === 0) {
+      return { trechoInicio: "", trechoFim: "" };
+    }
+
+    const fallbackCoordinates = Array.isArray(segment.geometry?.coordinates)
+      ? segment.geometry.coordinates
+      : [];
+
+    const fallbackStart =
+      fallbackCoordinates.length > 0
+        ? { lon: fallbackCoordinates[0][0], lat: fallbackCoordinates[0][1] }
+        : null;
+    const fallbackEnd =
+      fallbackCoordinates.length > 0
+        ? {
+            lon: fallbackCoordinates[fallbackCoordinates.length - 1][0],
+            lat: fallbackCoordinates[fallbackCoordinates.length - 1][1],
+          }
+        : null;
+
+    const firstMergedId = segment.merged_segments?.[0]?.id
+      ? String(segment.merged_segments[0].id)
+      : null;
+    const lastMergedId =
+      segment.merged_segments && segment.merged_segments.length > 0
+        ? String(segment.merged_segments[segment.merged_segments.length - 1].id)
+        : null;
+
+    const firstGeometry = firstMergedId
+      ? partsData[firstMergedId]?.osm_raw?.geometry
+      : null;
+    const lastGeometry = lastMergedId
+      ? partsData[lastMergedId]?.osm_raw?.geometry
+      : null;
+
+    const startTarget =
+      Array.isArray(firstGeometry) && firstGeometry.length > 0
+        ? { lat: firstGeometry[0].lat, lon: firstGeometry[0].lon }
+        : fallbackStart;
+
+    const endTarget =
+      Array.isArray(lastGeometry) && lastGeometry.length > 0
+        ? {
+            lat: lastGeometry[lastGeometry.length - 1].lat,
+            lon: lastGeometry[lastGeometry.length - 1].lon,
+          }
+        : fallbackEnd;
+
+    if (!startTarget || !endTarget) {
+      return { trechoInicio: "", trechoFim: "" };
+    }
+
+    const distance2 = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+      (a.lat - b.lat) ** 2 + (a.lon - b.lon) ** 2;
+
+    const pickClosestCandidate = (
+      target: { lat: number; lon: number },
+      excludedKey?: string
+    ) =>
+      candidates
+        .filter((candidate) => candidate.key !== excludedKey)
+        .map((candidate) => ({ candidate, d: distance2(candidate, target) }))
+        .sort((left, right) => left.d - right.d)[0]?.candidate;
+
+    const formatRoadName = (candidate?: { roadNames: string[] }) => {
+      if (!candidate) return "";
+      return (
+        candidate.roadNames.find(
+          (name) => name && !name.toLowerCase().startsWith("via ")
+        ) ||
+        candidate.roadNames[0] ||
+        ""
+      );
+    };
+
+    const startCandidate = pickClosestCandidate(startTarget);
+    let endCandidate = pickClosestCandidate(endTarget, startCandidate?.key);
+
+    if (!endCandidate && startCandidate) {
+      endCandidate = candidates
+        .map((candidate) => ({ candidate, d: distance2(candidate, startCandidate) }))
+        .sort((left, right) => right.d - left.d)[0]?.candidate;
+    }
+
+    return {
+      trechoInicio: formatRoadName(startCandidate),
+      trechoFim: formatRoadName(endCandidate),
+    };
+  };
+
   const getSegmentParts = (segment: Segment | null) => {
     if (!segment) return [];
 
@@ -296,6 +421,8 @@ const RefinementSegmentsTable = ({
           partId,
           label: merged.name || `Trecho ${partId}`,
           osmId: extractNumericOsmId(merged.osm_id || merged.id),
+          osmType: merged.osm_type || "way",
+          geometry: merged.geometry || null,
         };
       });
     }
@@ -305,6 +432,8 @@ const RefinementSegmentsTable = ({
         partId: segment.id,
         label: segment.name,
         osmId: extractNumericOsmId(segment.osm_id || segment.id),
+        osmType: segment.osm_type || "way",
+        geometry: segment.geometry || null,
       },
     ];
   };
@@ -319,7 +448,7 @@ const RefinementSegmentsTable = ({
       trechoFim: prefill?.trechoFim || "",
       posicaoNaVia: inferPositionValue(prefill?.posicaoNaVia),
       velocidade: prefill?.velocidade || "",
-      numeroFaixas: prefill?.numeroFaixas ?? 2,
+      numeroFaixas: prefill?.numeroFaixas ?? "",
       sentido: inferFlowValue(prefill?.sentido),
       pavimento: prefill?.pavimento || "",
       largura: prefill?.largura !== undefined ? String(prefill.largura) : "",
@@ -349,11 +478,36 @@ const RefinementSegmentsTable = ({
   const handleEditStart = (segment: Segment) => {
     setEditingSegment(segment);
     setEditName(segment.name);
+    setTypeDraft(segment.type);
+    setClassificationDraft(segment.classification || "");
     initDraft(segment);
     setOsmComplementError(null);
     setIsLoadingOsmComplement(false);
     setAdvancedByPartId({});
     setSelectedPartId("");
+  };
+
+  const handleNameEditStart = (segment: Segment) => {
+    setEditingNameSegmentId(segment.id);
+    setEditName(segment.name);
+  };
+
+  const handleNameEditCancel = () => {
+    setEditingNameSegmentId(null);
+    setEditName("");
+  };
+
+  const handleNameEditSave = async (segment: Segment) => {
+    try {
+      const nextName = editName.trim();
+      if (nextName && nextName !== segment.name.trim()) {
+        await onUpdateSegmentName(segment.id, nextName);
+      }
+      setEditingNameSegmentId(null);
+      setEditName("");
+    } catch (error) {
+      console.error("Failed to update segment name:", error);
+    }
   };
 
   const handleEditSave = async () => {
@@ -362,8 +516,18 @@ const RefinementSegmentsTable = ({
       if (editName.trim() && editName.trim() !== editingSegment.name.trim()) {
         await onUpdateSegmentName(editingSegment.id, editName.trim());
       }
+      if (onUpdateSegmentType && typeDraft && typeDraft !== editingSegment.type) {
+        await onUpdateSegmentType(editingSegment.id, typeDraft);
+      }
+      if (
+        onUpdateSegmentClassification &&
+        (classificationDraft || "") !== (editingSegment.classification || "")
+      ) {
+        await onUpdateSegmentClassification(editingSegment.id, classificationDraft);
+      }
       if (onUpdateSegmentTechnical) {
-        const parsedNumeroFaixas = Number(techDraft.numeroFaixas);
+        const parsedNumeroFaixas =
+          techDraft.numeroFaixas === "" ? NaN : Number(techDraft.numeroFaixas);
         const parsedLargura =
           techDraft.largura.trim() === "" ? undefined : Number(techDraft.largura);
 
@@ -377,12 +541,12 @@ const RefinementSegmentsTable = ({
             ...(prefillFromSelection || {}),
             trechoInicio: techDraft.trechoInicio.trim(),
             trechoFim: techDraft.trechoFim.trim(),
-            posicaoNaVia: techDraft.posicaoNaVia,
+            posicaoNaVia: techDraft.posicaoNaVia || undefined,
             velocidade: techDraft.velocidade.trim(),
             numeroFaixas: Number.isFinite(parsedNumeroFaixas)
               ? parsedNumeroFaixas
               : undefined,
-            sentido: techDraft.sentido,
+            sentido: techDraft.sentido || undefined,
             pavimento: techDraft.pavimento.trim(),
             largura: Number.isFinite(parsedLargura) ? parsedLargura : undefined,
             bufferSeparacao: techDraft.bufferSeparacao.trim(),
@@ -422,6 +586,15 @@ const RefinementSegmentsTable = ({
     setAdvancedByPartId({});
     setSelectedPartId("");
   };
+
+  useEffect(() => {
+    if (technicalOpen && technicalSegment) {
+      handleEditStart(technicalSegment);
+    }
+    if (!technicalOpen) {
+      setEditingSegment(null);
+    }
+  }, [technicalOpen, technicalSegment]);
 
   const handleFetchOsmComplement = async () => {
     if (!editingSegment) return;
@@ -463,6 +636,15 @@ const RefinementSegmentsTable = ({
       }
 
       setAdvancedByPartId(byPart);
+
+      if (editingSegment) {
+        const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, byPart);
+        setTechDraft((prev) => ({
+          ...prev,
+          trechoInicio: endpoints.trechoInicio || prev.trechoInicio,
+          trechoFim: endpoints.trechoFim || prev.trechoFim,
+        }));
+      }
 
       if (!selectedPartId) {
         const firstKey = Object.keys(byPart)[0];
@@ -508,6 +690,36 @@ const RefinementSegmentsTable = ({
         ? "border-slate-900 bg-slate-900 text-white"
         : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
     }`;
+
+  const compactChipClassName = (selected: boolean) =>
+    `rounded-full border px-4 py-2 text-sm font-semibold transition ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+    }`;
+
+  const TYPOLOGY_OPTIONS = [
+    {
+      value: SegmentType.CICLOVIA,
+      label: "Ciclovia",
+      className: "ideciclo-typology-chip ideciclo-typology-chip-ciclovia",
+    },
+    {
+      value: SegmentType.CICLOFAIXA,
+      label: "Ciclofaixa",
+      className: "ideciclo-typology-chip ideciclo-typology-chip-ciclofaixa",
+    },
+    {
+      value: SegmentType.COMPARTILHADA,
+      label: "Calçada Partilhada",
+      className: "ideciclo-typology-chip ideciclo-typology-chip-calcada",
+    },
+    {
+      value: SegmentType.CICLORROTA,
+      label: "Ciclorrota",
+      className: "ideciclo-typology-chip ideciclo-typology-chip-ciclorrota",
+    },
+  ] as const;
 
   const renderStepper = ({
     label,
@@ -583,14 +795,13 @@ const RefinementSegmentsTable = ({
 
   const applySelectedPartToDraft = (partId: string) => {
     setSelectedPartId(partId);
+    const selectedPart = segmentParts.find((part) => part.partId === partId);
+    onFocusGeometryChange?.(selectedPart?.geometry || null);
     const selected = advancedByPartId[partId];
     if (!selected) return;
     const prefill = selected.ideciclo_prefill;
-    const endpoints = inferEndpointRoadNamesFromAdvanced(selected);
     setTechDraft((prev) => ({
       ...prev,
-      trechoInicio: endpoints.trechoInicio || prev.trechoInicio,
-      trechoFim: endpoints.trechoFim || prev.trechoFim,
       posicaoNaVia: inferPositionValue(prefill.posicaoNaVia),
       velocidade: prefill.velocidade || prev.velocidade,
       numeroFaixas: prefill.numeroFaixas ?? prev.numeroFaixas,
@@ -691,6 +902,19 @@ const RefinementSegmentsTable = ({
     </div>
   );
 
+  const selectedPartMeta = segmentParts.find((part) => part.partId === selectedPartId);
+  const osmLinkType =
+    (selectedPartAdvanced?.osm_type || selectedPartMeta?.osmType || editingSegment?.osm_type || "way")
+      .toLowerCase() === "relation"
+      ? "relation"
+      : (selectedPartAdvanced?.osm_type || selectedPartMeta?.osmType || editingSegment?.osm_type || "way")
+          .toLowerCase() === "node"
+        ? "node"
+        : "way";
+  const osmLinkId =
+    selectedPartAdvanced?.osm_id || selectedPartMeta?.osmId || extractNumericOsmId(editingSegment?.osm_id);
+  const osmLink = osmLinkId ? `https://www.openstreetmap.org/${osmLinkType}/${osmLinkId}` : "";
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -743,7 +967,42 @@ const RefinementSegmentsTable = ({
                 <TableCell>
                   <div className="space-y-1">
                     <div className="flex items-center gap-1">
-                      <span className="font-medium">{segment.name}</span>
+                      {editingNameSegmentId === segment.id ? (
+                        <>
+                          <Input
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            className="h-8 w-[260px]"
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                void handleNameEditSave(segment);
+                              } else if (event.key === "Escape") {
+                                handleNameEditCancel();
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void handleNameEditSave(segment)}
+                            className="h-8 w-8 p-0"
+                            title="Salvar nome"
+                          >
+                            <Check size={14} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleNameEditCancel}
+                            className="h-8 w-8 p-0"
+                            title="Cancelar edição"
+                          >
+                            <X size={14} />
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="font-medium">{segment.name}</span>
+                      )}
                       {segment.is_merged && (
                         <Badge variant="secondary" className="text-xs">
                           Mesclado
@@ -752,9 +1011,9 @@ const RefinementSegmentsTable = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleEditStart(segment)}
+                        onClick={() => handleNameEditStart(segment)}
                         className="h-8 w-8 p-0"
-                        title="Editar trecho e complemento técnico"
+                        title="Editar nome do trecho"
                       >
                         <Edit size={14} />
                       </Button>
@@ -850,22 +1109,18 @@ const RefinementSegmentsTable = ({
         </TableBody>
       </Table>
 
-      <Sheet
-        open={Boolean(editingSegment)}
-        onOpenChange={(open) => {
-          if (!open) handleEditCancel();
-        }}
-      >
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
-          <SheetHeader>
-            <SheetTitle>Editar trecho e complemento técnico</SheetTitle>
-            <SheetDescription>
-              Ajuste o nome do trecho e revise os dados técnicos extraídos do OSM.
-            </SheetDescription>
-          </SheetHeader>
-
-          {editingSegment && (
-            <div className="space-y-6 py-4">
+      {(() => {
+        if (!(editingSegment && technicalOpen)) return null;
+        const panel = (
+          <div className="border-t bg-muted/10 p-4">
+          <div className="mx-auto max-w-5xl space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold">Editar trecho e conteúdo técnico</h3>
+              <p className="text-sm text-muted-foreground">
+                Ajuste nome, tipologia, hierarquia e complemento técnico com o mapa disponível na página.
+              </p>
+            </div>
+            <div className="space-y-6">
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Nome do trecho
@@ -879,6 +1134,65 @@ const RefinementSegmentsTable = ({
                     }
                   }}
                 />
+              </section>
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                  Tipologia e hierarquia
+                </h3>
+                <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs text-muted-foreground">Tipologia</p>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        className={`min-h-[52px] rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                          !typeDraft
+                            ? "border-black/10 bg-slate-900 text-white ring-2 ring-black/10"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        }`}
+                        onClick={() => setTypeDraft("" as SegmentType)}
+                      >
+                        Sem preenchimento
+                      </button>
+                      {TYPOLOGY_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`${option.className} min-h-[52px] rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                            typeDraft === option.value
+                              ? "border-black/10 ring-2 ring-black/10 opacity-100 saturate-100"
+                              : "border-slate-200 opacity-60 saturate-75 hover:opacity-85"
+                          }`}
+                          onClick={() => setTypeDraft(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs text-muted-foreground">Hierarquia</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={compactChipClassName(classificationDraft === "")}
+                        onClick={() => setClassificationDraft("")}
+                      >
+                        Sem preenchimento
+                      </button>
+                      {classificationOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className={compactChipClassName(classificationDraft === option)}
+                          onClick={() => setClassificationDraft(option)}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </section>
 
               <section className="space-y-3">
@@ -997,6 +1311,17 @@ const RefinementSegmentsTable = ({
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Sentido</p>
+                    <div>
+                      <button
+                        type="button"
+                        className={chipClassName(techDraft.sentido === "")}
+                        onClick={() =>
+                          setTechDraft((prev) => ({ ...prev, sentido: "" }))
+                        }
+                      >
+                        Sem preenchimento
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {FLOW_OPTIONS.map((option) => {
                         const selected = techDraft.sentido === option.value;
@@ -1031,6 +1356,17 @@ const RefinementSegmentsTable = ({
 
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Posição na via</p>
+                    <div>
+                      <button
+                        type="button"
+                        className={chipClassName(techDraft.posicaoNaVia === "")}
+                        onClick={() =>
+                          setTechDraft((prev) => ({ ...prev, posicaoNaVia: "" }))
+                        }
+                      >
+                        Sem preenchimento
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {POSITION_OPTIONS.map((option) => {
                         const selected = techDraft.posicaoNaVia === option.value;
@@ -1068,6 +1404,17 @@ const RefinementSegmentsTable = ({
 
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Velocidade máxima regulamentada</p>
+                    <div>
+                      <button
+                        type="button"
+                        className={chipClassName(techDraft.velocidade === "")}
+                        onClick={() =>
+                          setTechDraft((prev) => ({ ...prev, velocidade: "" }))
+                        }
+                      >
+                        Sem preenchimento
+                      </button>
+                    </div>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                       {SPEED_OPTIONS.map((speed) => {
                         const selected = Number(techDraft.velocidade) === speed;
@@ -1098,6 +1445,15 @@ const RefinementSegmentsTable = ({
                   <div className="space-y-2">
                     <p className="text-xs text-muted-foreground">Número de faixas</p>
                     <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className={chipClassName(techDraft.numeroFaixas === "")}
+                        onClick={() =>
+                          setTechDraft((prev) => ({ ...prev, numeroFaixas: "" }))
+                        }
+                      >
+                        Sem preenchimento
+                      </button>
                       {Array.from({ length: 9 }, (_, value) => (
                         <button
                           key={value}
@@ -1296,6 +1652,18 @@ const RefinementSegmentsTable = ({
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Sugestões para o OSM
                 </h3>
+                {osmLink && (
+                  <p className="text-sm">
+                    <a
+                      href={osmLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-700 underline underline-offset-2 hover:text-blue-900"
+                    >
+                      Abrir estrutura no OpenStreetMap
+                    </a>
+                  </p>
+                )}
                 {(selectedPartAdvanced?.osm_improvement_suggestions?.length ||
                   editingSegment.osm_improvement_suggestions?.length) ? (
                   <div className="space-y-2">
@@ -1324,18 +1692,19 @@ const RefinementSegmentsTable = ({
                 )}
               </section>
             </div>
-          )}
-
-          <SheetFooter>
-            <Button variant="outline" onClick={handleEditCancel}>
-              Cancelar
-            </Button>
-            <Button onClick={() => void handleEditSave()}>
-              Salvar
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleEditCancel}>
+                Cancelar
+              </Button>
+              <Button onClick={() => void handleEditSave()}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+          </div>
+        );
+        return technicalPanelContainer ? createPortal(panel, technicalPanelContainer) : panel;
+      })()}
     </div>
   );
 };

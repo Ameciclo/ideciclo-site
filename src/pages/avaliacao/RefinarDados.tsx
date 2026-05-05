@@ -14,6 +14,8 @@ import {
   mergeSegmentsInDB,
   unmergeSegments,
   deleteMultipleSegments,
+  fetchDeletedSegments,
+  restoreDeletedSegments,
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -44,6 +46,8 @@ const RefinarDados = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [deletedSegments, setDeletedSegments] = useState<Segment[]>([]);
+  const [isLoadingTrash, setIsLoadingTrash] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
 
@@ -68,6 +72,20 @@ const RefinarDados = () => {
         segments: nextSegments,
       })
     );
+  };
+
+  const loadDeletedSegmentsForCity = async (selectedCityId: string) => {
+    if (!selectedCityId) return;
+    try {
+      setIsLoadingTrash(true);
+      const trash = await fetchDeletedSegments(selectedCityId);
+      setDeletedSegments(trash);
+    } catch (trashError) {
+      console.error("Erro ao carregar lixeira de segmentos:", trashError);
+      setDeletedSegments([]);
+    } finally {
+      setIsLoadingTrash(false);
+    }
   };
 
   useEffect(() => {
@@ -139,6 +157,7 @@ const RefinarDados = () => {
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
+        await loadDeletedSegmentsForCity(selectedCityId);
         persistCitySnapshot(
           selectedCityId,
           selectedCityName || storedData.city.name || "",
@@ -149,6 +168,7 @@ const RefinarDados = () => {
       } else if (fallbackData) {
         setCity(fallbackData.city);
         setSegments([...fallbackData.segments]);
+        await loadDeletedSegmentsForCity(selectedCityId);
         persistCitySnapshot(
           selectedCityId,
           selectedCityName || fallbackData.city.name || "",
@@ -170,6 +190,7 @@ const RefinarDados = () => {
             downloadedData.city,
             downloadedData.segments
           );
+          await loadDeletedSegmentsForCity(selectedCityId);
           toast({
             title: "Dados reconstruídos",
             description: `Os dados de ${selectedCityName}/${selectedStateName} foram baixados novamente.`,
@@ -219,6 +240,7 @@ const RefinarDados = () => {
       }));
 
       setSegments(enhancedSegments);
+      setDeletedSegments([]);
       persistCitySnapshot(cityId, cityName, stateName, updatedCity, enhancedSegments);
 
       await storeCityData(cityId, {
@@ -382,9 +404,10 @@ const RefinarDados = () => {
       );
       setSegments(updatedSegments);
       persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      await loadDeletedSegmentsForCity(cityId);
       toast({
-        title: "Segmento removido",
-        description: "O segmento foi removido com sucesso.",
+        title: "Segmento movido para lixeira",
+        description: "Você pode restaurar este segmento na seção de lixeira.",
       });
     } catch (error) {
       console.error("Erro ao remover segmento:", error);
@@ -411,6 +434,14 @@ const RefinarDados = () => {
     setSegments(updatedSegments);
   };
 
+  const handleClearSelection = () => {
+    const updatedSegments = segments.map((segment) => ({
+      ...segment,
+      selected: false,
+    }));
+    setSegments(updatedSegments);
+  };
+
   const handleMergeButtonClick = () =>
     Promise.resolve().then(() => {
       if (selectedSegmentsCount >= 2) {
@@ -430,15 +461,87 @@ const RefinarDados = () => {
       const updatedSegments = segments.filter((segment) => !segment.selected);
       setSegments(updatedSegments);
       persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      await loadDeletedSegmentsForCity(cityId);
       toast({
-        title: "Segmentos removidos",
-        description: `${selectedSegmentIds.length} segmentos foram removidos com sucesso.`,
+        title: "Segmentos movidos para lixeira",
+        description: `${selectedSegmentIds.length} segmentos podem ser restaurados na lixeira.`,
       });
     } catch (error) {
       console.error("Erro ao remover múltiplos segmentos:", error);
       toast({
         title: "Erro",
         description: "Falha ao remover os segmentos selecionados.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreDeletedSegment = async (segmentId: string) => {
+    try {
+      const restored = await restoreDeletedSegments([segmentId]);
+      if (!restored) {
+        throw new Error("Não foi possível restaurar o segmento.");
+      }
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(
+          storedData.segments.map((segment) => ({ ...segment, selected: false }))
+        );
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      }
+      await loadDeletedSegmentsForCity(cityId);
+      toast({
+        title: "Segmento restaurado",
+        description: "O segmento voltou para a lista principal.",
+      });
+    } catch (restoreError) {
+      console.error("Erro ao restaurar segmento:", restoreError);
+      toast({
+        title: "Erro",
+        description: "Falha ao restaurar segmento da lixeira.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreAllDeletedSegments = async () => {
+    if (deletedSegments.length === 0) return;
+    try {
+      const restored = await restoreDeletedSegments(
+        deletedSegments.map((segment) => segment.id)
+      );
+      if (!restored) {
+        throw new Error("Não foi possível restaurar todos os segmentos.");
+      }
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(
+          storedData.segments.map((segment) => ({ ...segment, selected: false }))
+        );
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      }
+      await loadDeletedSegmentsForCity(cityId);
+      toast({
+        title: "Lixeira restaurada",
+        description: "Todos os segmentos foram restaurados.",
+      });
+    } catch (restoreError) {
+      console.error("Erro ao restaurar todos os segmentos:", restoreError);
+      toast({
+        title: "Erro",
+        description: "Falha ao restaurar todos os segmentos da lixeira.",
         variant: "destructive",
       });
     }
@@ -677,6 +780,7 @@ const RefinarDados = () => {
               setStateName("");
               setCity(null);
               setSegments([]);
+              setDeletedSegments([]);
               navigate("/avaliacao");
             }}>
               Trocar Cidade
@@ -722,30 +826,38 @@ const RefinarDados = () => {
 
             <div className="flex flex-col gap-8">
               <div>
-                <div className="flex flex-wrap items-center gap-4 mb-4">
-                  {selectedSegmentsCount > 0 && (
-                    <>
-                      <Button
-                        onClick={handleMergeButtonClick}
-                        disabled={selectedSegmentsCount < 2}
-                      >
-                        Mesclar {selectedSegmentsCount} segmentos
-                      </Button>
-                      <Button
-                        onClick={handleDeleteMultipleSegments}
-                        variant="destructive"
-                      >
-                        Excluir {selectedSegmentsCount} segmentos
-                      </Button>
-                    </>
-                  )}
-                </div>
                 <MergeSegmentsDialog
                   open={mergeDialogOpen}
                   onOpenChange={setMergeDialogOpen}
                   selectedSegments={selectedSegments}
                   onConfirm={handleMergeSegments}
                 />
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  {selectedSegmentsCount >= 2 && (
+                    <Button
+                      onClick={handleMergeButtonClick}
+                      disabled={selectedSegmentsCount < 2}
+                    >
+                      Mesclar {selectedSegmentsCount} segmentos
+                    </Button>
+                  )}
+                  {selectedSegmentsCount > 0 && (
+                    <Button
+                      onClick={handleDeleteMultipleSegments}
+                      variant="destructive"
+                    >
+                      Excluir {selectedSegmentsCount} segmentos
+                    </Button>
+                  )}
+                  {selectedSegmentsCount > 0 && (
+                    <Button
+                      onClick={handleClearSelection}
+                      variant="outline"
+                    >
+                      Limpar seleção
+                    </Button>
+                  )}
+                </div>
                 {segments && segments.length > 0 ? (
                   <RefinementTableSortableWrapper
                     segments={segments}
@@ -761,12 +873,97 @@ const RefinarDados = () => {
                       handleUpdateSegmentClassification
                     }
                     onUpdateSegmentType={handleUpdateSegmentType}
+                    technicalOpen={selectedSegmentsCount === 1}
+                    technicalSegment={
+                      selectedSegmentsCount === 1
+                        ? selectedSegments[0]
+                        : null
+                    }
                   />
                 ) : (
                   <div className="text-center py-8">
                     <p>Nenhum segmento encontrado para esta cidade.</p>
                   </div>
                 )}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {selectedSegmentsCount >= 2 && (
+                    <Button
+                      onClick={handleMergeButtonClick}
+                      disabled={selectedSegmentsCount < 2}
+                    >
+                      Mesclar {selectedSegmentsCount} segmentos
+                    </Button>
+                  )}
+                  {selectedSegmentsCount > 0 && (
+                    <Button
+                      onClick={handleDeleteMultipleSegments}
+                      variant="destructive"
+                    >
+                      Excluir {selectedSegmentsCount} segmentos
+                    </Button>
+                  )}
+                  {selectedSegmentsCount > 0 && (
+                    <Button
+                      onClick={handleClearSelection}
+                      variant="outline"
+                    >
+                      Limpar seleção
+                    </Button>
+                  )}
+                </div>
+
+                <div className="mt-6 rounded-md border bg-muted/20 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                      Lixeira de segmentos
+                    </h3>
+                    {deletedSegments.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={handleRestoreAllDeletedSegments}>
+                        Restaurar todos
+                      </Button>
+                    )}
+                  </div>
+                  {isLoadingTrash ? (
+                    <p className="text-sm text-muted-foreground">Carregando lixeira...</p>
+                  ) : deletedSegments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum segmento removido nesta cidade.
+                    </p>
+                  ) : (
+                    <div className="max-h-56 overflow-auto rounded-md border bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-left">
+                          <tr>
+                            <th className="px-3 py-2">Segmento</th>
+                            <th className="px-3 py-2">Tipo</th>
+                            <th className="px-3 py-2 text-right">km</th>
+                            <th className="px-3 py-2 text-right">Ação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deletedSegments.map((deleted) => (
+                            <tr key={deleted.id} className="border-t">
+                              <td className="px-3 py-2">{deleted.name}</td>
+                              <td className="px-3 py-2">{deleted.type || "-"}</td>
+                              <td className="px-3 py-2 text-right">
+                                {deleted.length?.toFixed?.(4) || "0.0000"}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void handleRestoreDeletedSegment(deleted.id)}
+                                >
+                                  Restaurar
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 <div className="mt-8 flex justify-between">
                   <Button

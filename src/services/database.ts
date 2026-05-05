@@ -35,14 +35,14 @@ const getMissingColumnName = (error: unknown): string | null => {
     .join(" ");
 
   const patterns = [
-    /column ["']?([a-zA-Z0-9_]+)["']?/i,
-    /Could not find the ['"]?([a-zA-Z0-9_]+)['"]? column/i,
+    /column ["']?([a-zA-Z0-9_.]+)["']?/i,
+    /Could not find the ['"]?([a-zA-Z0-9_.]+)['"]? column/i,
   ];
 
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
-      return match[1];
+      return match[1].split(".").pop() || match[1];
     }
   }
 
@@ -55,10 +55,36 @@ const omitColumn = <T extends Record<string, any>>(payload: T, column: string) =
   return rest;
 };
 
+const SUPPORTED_SEGMENT_COLUMNS = new Set([
+  "id",
+  "id_cidade",
+  "id_form",
+  "name",
+  "type",
+  "length",
+  "neighborhood",
+  "geometry",
+  "selected",
+  "evaluated",
+  "is_merged",
+  "parent_segment_id",
+  "merged_segments",
+  "classification",
+  "osm_advanced",
+  "deleted_at",
+]);
+
+const sanitizeSegmentPayload = <T extends Record<string, any>>(payload: T): T => {
+  const sanitizedEntries = Object.entries(payload).filter(([key]) =>
+    SUPPORTED_SEGMENT_COLUMNS.has(key)
+  );
+  return Object.fromEntries(sanitizedEntries) as T;
+};
+
 const insertSegmentsWithCompatibility = async (
   payload: Record<string, any>[]
 ): Promise<{ error: any }> => {
-  let currentPayload = payload;
+  let currentPayload = payload.map((item) => sanitizeSegmentPayload(item));
 
   while (true) {
     const { error } = await supabase.from("segments").insert(currentPayload);
@@ -91,7 +117,7 @@ const updateSegmentWithCompatibility = async (
   updateId: string,
   payload: Record<string, any>
 ) => {
-  let currentPayload = payload;
+  let currentPayload = sanitizeSegmentPayload(payload);
 
   while (true) {
     const result = await supabase
@@ -377,21 +403,39 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
 
   // Prefer top-level segments, but fall back to all segments if the stored data
   // predates the merge fields or was persisted in an inconsistent state.
-  let { data, error } = await supabase
-    .from('segments')
-    .select('*')
-    .eq('id_cidade', cityId)
-    .is('parent_segment_id', null);
+  let { data, error } = await (supabase.from("segments") as any)
+    .select("*")
+    .eq("id_cidade", cityId)
+    .is("parent_segment_id", null)
+    .is("deleted_at", null);
 
   if (error) {
-    console.warn("Error fetching top-level segments, falling back to all city segments:", error);
+    const missingColumn = getMissingColumnName(error);
+    if (missingColumn === "deleted_at") {
+      const fallbackWithoutDeletedAt = await supabase
+        .from("segments")
+        .select("*")
+        .eq("id_cidade", cityId)
+        .is("parent_segment_id", null);
+      data = fallbackWithoutDeletedAt.data;
+      error = fallbackWithoutDeletedAt.error;
+    } else {
+      console.warn("Error fetching top-level segments, falling back to all city segments:", error);
+    }
   }
 
   if (!data || data.length === 0) {
-    const fallbackResult = await supabase
-      .from('segments')
-      .select('*')
-      .eq('id_cidade', cityId);
+    let fallbackResult = await (supabase.from("segments") as any)
+      .select("*")
+      .eq("id_cidade", cityId)
+      .is("deleted_at", null);
+
+    if (fallbackResult.error && getMissingColumnName(fallbackResult.error) === "deleted_at") {
+      fallbackResult = await supabase
+        .from("segments")
+        .select("*")
+        .eq("id_cidade", cityId);
+    }
 
     data = fallbackResult.data;
     error = fallbackResult.error;
@@ -469,120 +513,152 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
   }
 };
 
+const resolveSegmentPrefixedIds = async (segmentIds: string[]): Promise<string[]> => {
+  const { data: directMatches } = await supabase
+    .from("segments")
+    .select("id")
+    .in("id", segmentIds);
+
+  const foundDirect = new Set((directMatches || []).map((segment) => segment.id));
+  const unresolved = segmentIds.filter((id) => !foundDirect.has(id));
+
+  const resolvedFromSuffix: string[] = [];
+  for (const id of unresolved) {
+    const { data: matches } = await supabase
+      .from("segments")
+      .select("id")
+      .like("id", `%_${id}`)
+      .limit(1);
+    if (matches?.[0]?.id) {
+      resolvedFromSuffix.push(matches[0].id);
+    }
+  }
+
+  return Array.from(new Set([...Array.from(foundDirect), ...resolvedFromSuffix]));
+};
+
 export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
   if (segmentIds.length === 0) {
-    console.warn("No segment IDs provided for deletion.");
+    console.warn("No segment IDs provided for soft deletion.");
     return false;
   }
+
   try {
-    // Get all segments to find their city IDs
-    const { data: segments } = await supabase
-      .from('segments')
-      .select('id, id_cidade')
-      .in('id', segmentIds);
-    
-    if (!segments || segments.length === 0) {
-      // Try to find segments with prefixed IDs
-      const prefixedIds = await Promise.all(segmentIds.map(async (id) => {
-        // Check if this ID already exists in the database
-        const { data } = await supabase
-          .from('segments')
-          .select('id')
-          .eq('id', id)
-          .single();
-          
-        if (data) {
-          return id; // ID already exists as is
-        }
-        
-        // If not found, it might need a city prefix
-        // Try to find it by looking for IDs ending with this ID
-        const { data: matches } = await supabase
-          .from('segments')
-          .select('id')
-          .like('id', `%_${id}`);
-          
-        if (matches && matches.length > 0) {
-          return matches[0].id; // Return the first match
-        }
-        
-        return id; // Default to original ID if no match found
-      }));
-      
-      // First, handle any child segments by moving them back to top-level
-      const { data: childSegments } = await supabase
-        .from('segments')
-        .select('*')
-        .in('parent_segment_id', prefixedIds);
-
-      if (childSegments && childSegments.length > 0) {
-        await supabase
-          .from('segments')
-          .update({ 
-            parent_segment_id: null,
-            is_merged: false 
-          })
-          .in('parent_segment_id', prefixedIds);
-      }
-
-      // Delete the segments
-      const { error } = await supabase
-        .from('segments')
-        .delete()
-        .in('id', prefixedIds);
-      
-      if (error) {
-        console.error("Error deleting segments:", error);
-        return false;
-      }
-      
-      return true;
-    }
-    
-    // Map segment IDs to their prefixed versions
-    const idMap = new Map();
-    segments.forEach(segment => {
-      const cityId = segment.id_cidade;
-      const originalId = segment.id.includes('_') ? 
-        segment.id.substring(segment.id.indexOf('_') + 1) : 
-        segment.id;
-      
-      idMap.set(originalId, segment.id);
-    });
-    
-    // Get the prefixed IDs for deletion
-    const prefixedIds = segmentIds.map(id => idMap.get(id) || id);
-    
-    // First, handle any child segments by moving them back to top-level
-    const { data: childSegments } = await supabase
-      .from('segments')
-      .select('*')
-      .in('parent_segment_id', prefixedIds);
-
-    if (childSegments && childSegments.length > 0) {
-      await supabase
-        .from('segments')
-        .update({ 
-          parent_segment_id: null,
-          is_merged: false 
-        })
-        .in('parent_segment_id', prefixedIds);
+    const prefixedIds = await resolveSegmentPrefixedIds(segmentIds);
+    if (prefixedIds.length === 0) {
+      console.warn("No matching segments found for soft deletion.");
+      return false;
     }
 
-    // Delete the segments
-    const { error } = await supabase
-      .from('segments')
-      .delete()
-      .in('id', prefixedIds);
-    
+    // If a merged parent is archived, release children back to top-level.
+    await supabase
+      .from("segments")
+      .update({
+        parent_segment_id: null,
+        is_merged: false,
+      })
+      .in("parent_segment_id", prefixedIds);
+
+    // Soft-delete the selected segments to allow recovery from "lixeira".
+    const { error } = await (supabase.from("segments") as any)
+      .update({ deleted_at: new Date().toISOString() })
+      .in("id", prefixedIds);
+
     if (error) {
-      console.error("Error deleting segments:", error);
+      const missingColumn = getMissingColumnName(error);
+      if (missingColumn === "deleted_at") {
+        console.warn("segments.deleted_at missing; falling back to hard delete.");
+        const { error: hardDeleteError } = await supabase
+          .from("segments")
+          .delete()
+          .in("id", prefixedIds);
+        if (hardDeleteError) {
+          console.error("Error hard deleting segments after fallback:", hardDeleteError);
+          return false;
+        }
+        return true;
+      }
+      console.error("Error soft deleting segments:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("Unexpected error deleting segments:", error);
+    console.error("Unexpected error soft deleting segments:", error);
+    return false;
+  }
+};
+
+export const hardDeleteSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
+  if (segmentIds.length === 0) return false;
+  try {
+    const prefixedIds = await resolveSegmentPrefixedIds(segmentIds);
+    if (prefixedIds.length === 0) return false;
+    const { error } = await supabase
+      .from("segments")
+      .delete()
+      .in("id", prefixedIds);
+    if (error) {
+      console.error("Error hard deleting segments:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("Unexpected error hard deleting segments:", error);
+    return false;
+  }
+};
+
+export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segment[]> => {
+  const { data, error } = await (supabase.from("segments") as any)
+    .select("*")
+    .eq("id_cidade", cityId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error("Error fetching deleted segments:", error);
+    return [];
+  }
+
+  const rows = (data || []) as SegmentRow[];
+  return rows.map((row) => {
+    const segment = convertSegmentRowToSegment(row);
+    if (segment.id.startsWith(`${cityId}_`)) {
+      segment.id = segment.id.substring(cityId.length + 1);
+    }
+    if (
+      segment.parent_segment_id &&
+      segment.parent_segment_id.startsWith(`${cityId}_`)
+    ) {
+      segment.parent_segment_id = segment.parent_segment_id.substring(
+        cityId.length + 1
+      );
+    }
+    return segment;
+  });
+};
+
+export const restoreSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
+  if (segmentIds.length === 0) return false;
+
+  try {
+    const prefixedIds = await resolveSegmentPrefixedIds(segmentIds);
+    if (prefixedIds.length === 0) return false;
+
+    const { error } = await (supabase.from("segments") as any)
+      .update({ deleted_at: null })
+      .in("id", prefixedIds);
+
+    if (error) {
+      console.error("Error restoring segments:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Unexpected error restoring segments:", error);
     return false;
   }
 };

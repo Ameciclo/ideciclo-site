@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Segment } from "@/types";
 import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
@@ -31,6 +31,9 @@ interface RefinementTableSortableWrapperProps {
   ) => Promise<void>;
   onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
   onUpdateSegmentType?: (segmentId: string, type: any) => Promise<void>;
+  technicalOpen?: boolean;
+  technicalSegment?: Segment | null;
+  onFocusGeometryChange?: (geometry: any | null) => void;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -45,6 +48,9 @@ export const RefinementTableSortableWrapper = ({
   onUnmergeSegments,
   onUpdateSegmentClassification,
   onUpdateSegmentType,
+  technicalOpen = false,
+  technicalSegment = null,
+  onFocusGeometryChange,
 }: RefinementTableSortableWrapperProps) => {
   // Debug removed
   // Filter and sort state
@@ -62,10 +68,10 @@ export const RefinementTableSortableWrapper = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
   const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split" | "table-only">("stacked");
-
-  // Splitter state
-  const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [focusGeometry, setFocusGeometry] = useState<any | null>(null);
+  const [mapSticky, setMapSticky] = useState<boolean>(true);
+  const [technicalPortalTarget, setTechnicalPortalTarget] = useState<HTMLElement | null>(null);
+  const technicalPortalRef = useRef<HTMLDivElement | null>(null);
 
   const handleSortChange = (
     field: "name" | "type" | "classification" | "length"
@@ -170,6 +176,8 @@ export const RefinementTableSortableWrapper = ({
   };
 
   const processedSegments = filteredAndSortedSegments();
+  const mapSegments =
+    selectedSegments.length > 0 ? selectedSegments : processedSegments;
 
   // Calculate pagination values
   const totalPages = Math.ceil(processedSegments.length / itemsPerPage);
@@ -196,35 +204,16 @@ export const RefinementTableSortableWrapper = ({
     setCurrentPage(1);
   }, [initialSegments.length]);
 
-  // Splitter handlers
-  const handleMouseDown = () => {
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
-    const container = document.getElementById('splitter-container');
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const newLeftWidth = ((e.clientX - rect.left) / rect.width) * 100;
-    setLeftWidth(Math.max(20, Math.min(80, newLeftWidth))); // Limit between 20% and 80%
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  useEffect(() => {
+    if (selectedSegments.length !== 1) {
+      setFocusGeometry(null);
+      onFocusGeometryChange?.(null);
+    }
+  }, [selectedSegments.length, onFocusGeometryChange]);
 
   useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging]);
+    setTechnicalPortalTarget(technicalPortalRef.current);
+  }, []);
 
   // Safety check
   if (!initialSegments) {
@@ -252,32 +241,7 @@ export const RefinementTableSortableWrapper = ({
         showClassificationFilter={true}
       />
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span>Layout</span>
-            <Button
-              variant={desktopLayout === "split" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDesktopLayout("split")}
-            >
-              Lado a lado
-            </Button>
-            <Button
-              variant={desktopLayout === "stacked" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDesktopLayout("stacked")}
-            >
-              Empilhado
-            </Button>
-            <Button
-              variant={desktopLayout === "table-only" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDesktopLayout("table-only")}
-            >
-              Sem mapa
-            </Button>
-          </div>
-
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
           <div className="flex justify-end">
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span>Visualização</span>
@@ -312,6 +276,15 @@ export const RefinementTableSortableWrapper = ({
                   ))}
                 </SelectContent>
               </Select>
+              {desktopLayout === "split" && (
+                <Button
+                  variant={mapSticky ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMapSticky((prev) => !prev)}
+                >
+                  {mapSticky ? "Mapa fixo" : "Mapa livre"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -325,26 +298,39 @@ export const RefinementTableSortableWrapper = ({
         </p>
 
         {desktopLayout === "split" && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-            <RefinementSegmentsTable
-              segments={currentItems}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSortChange={handleSortChange}
-              onSelectSegment={onSelectSegment}
-              onSelectAllSegments={onSelectAllSegments}
-              selectedSegments={selectedSegments}
-              onUpdateSegmentName={onUpdateSegmentName}
-              onUpdateSegmentTechnical={onUpdateSegmentTechnical}
-              onDeleteSegment={onDeleteSegment}
-              onUnmergeSegments={onUnmergeSegments}
-              onUpdateSegmentClassification={onUpdateSegmentClassification}
-              onUpdateSegmentType={onUpdateSegmentType}
-            />
-            <MapboxMap
-              segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
-              className="w-full lg:sticky lg:top-6"
-            />
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)]">
+              <RefinementSegmentsTable
+                segments={currentItems}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortChange={handleSortChange}
+                onSelectSegment={onSelectSegment}
+                onSelectAllSegments={onSelectAllSegments}
+                selectedSegments={selectedSegments}
+                onUpdateSegmentName={onUpdateSegmentName}
+                onUpdateSegmentTechnical={onUpdateSegmentTechnical}
+                onDeleteSegment={onDeleteSegment}
+                onUnmergeSegments={onUnmergeSegments}
+                onUpdateSegmentClassification={onUpdateSegmentClassification}
+                onUpdateSegmentType={onUpdateSegmentType}
+                technicalOpen={technicalOpen}
+                technicalSegment={technicalSegment}
+                onFocusGeometryChange={(geometry) => {
+                  setFocusGeometry(geometry);
+                  onFocusGeometryChange?.(geometry);
+                }}
+                technicalPanelContainer={technicalPortalTarget}
+              />
+              <MapboxMap
+                segments={mapSegments}
+                className={`h-[62vh] min-h-[420px] w-full rounded-md border ${
+                  mapSticky ? "lg:sticky lg:top-6" : ""
+                }`}
+                focusGeometry={focusGeometry}
+              />
+            </div>
+            <div ref={technicalPortalRef} />
           </div>
         )}
 
@@ -364,10 +350,17 @@ export const RefinementTableSortableWrapper = ({
               onUnmergeSegments={onUnmergeSegments}
               onUpdateSegmentClassification={onUpdateSegmentClassification}
               onUpdateSegmentType={onUpdateSegmentType}
+              technicalOpen={technicalOpen}
+              technicalSegment={technicalSegment}
+              onFocusGeometryChange={(geometry) => {
+                setFocusGeometry(geometry);
+                onFocusGeometryChange?.(geometry);
+              }}
             />
             <MapboxMap
-              segments={selectedSegments.length > 0 ? selectedSegments : processedSegments}
-              className="w-full"
+              segments={mapSegments}
+              className="h-[58vh] min-h-[420px] w-full rounded-md border"
+              focusGeometry={focusGeometry}
             />
           </div>
         )}
@@ -387,6 +380,12 @@ export const RefinementTableSortableWrapper = ({
             onUnmergeSegments={onUnmergeSegments}
             onUpdateSegmentClassification={onUpdateSegmentClassification}
             onUpdateSegmentType={onUpdateSegmentType}
+            technicalOpen={technicalOpen}
+            technicalSegment={technicalSegment}
+            onFocusGeometryChange={(geometry) => {
+              setFocusGeometry(geometry);
+              onFocusGeometryChange?.(geometry);
+            }}
           />
         )}
       </div>

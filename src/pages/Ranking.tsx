@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   fetchFormsByCityId,
   fetchSegmentsFromDB,
+  fetchAllStoredCities,
 } from "@/services/database";
 import {
   calculateIdeciclo,
@@ -9,7 +10,6 @@ import {
   getIdecicloDescription,
 } from "@/utils/idecicloCalculator";
 import { City, Segment } from "@/types";
-import { databaseClient as supabase } from "@/integrations/database/client";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { downloadCsvFile, downloadElementAsPdf } from "@/utils/reportDownloads";
@@ -104,13 +104,8 @@ const Ranking = () => {
 
   // Função auxiliar para buscar cidades que têm formulários
   const fetchCitiesWithForms = async (): Promise<City[]> => {
-    // Esta é uma implementação simplificada
-    // Idealmente, você teria uma consulta no banco de dados para buscar diretamente as cidades com formulários
-
-    // Por enquanto, vamos buscar todas as cidades e filtrar depois
-    const { data: citiesData } = await supabase.from("cities").select("*");
-
-    if (!citiesData) return [];
+    const citiesData = await fetchAllStoredCities();
+    if (!citiesData || citiesData.length === 0) return [];
 
     const citiesWithForms = await Promise.all(
       citiesData.map(async (cityData) => {

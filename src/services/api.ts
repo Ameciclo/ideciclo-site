@@ -19,6 +19,9 @@ import {
   clearLocalStorage,
   saveSegmentToDB,
   removeSegmentsFromDB,
+  hardDeleteSegmentsFromDB,
+  fetchDeletedSegmentsFromDB,
+  restoreSegmentsFromDB,
   unmergeSegmentsFromDB,
   fetchAllStoredCities
 } from "./database";
@@ -1146,7 +1149,7 @@ export const mergeSegmentsInDB = async (
       .map((segment) => segment.id);
 
     if (redundantParentSegments.length > 0) {
-      await removeSegmentsFromDB(redundantParentSegments);
+      await hardDeleteSegmentsFromDB(redundantParentSegments);
     }
 
     console.log("Merge process completed successfully");
@@ -1225,6 +1228,24 @@ export const deleteMultipleSegments = async (segmentIds: string[]): Promise<bool
     return true;
   } catch (error) {
     console.error("Error deleting multiple segments:", error);
+    return false;
+  }
+};
+
+export const fetchDeletedSegments = async (cityId: string): Promise<Segment[]> => {
+  try {
+    return await fetchDeletedSegmentsFromDB(cityId);
+  } catch (error) {
+    console.error("Error fetching deleted segments:", error);
+    return [];
+  }
+};
+
+export const restoreDeletedSegments = async (segmentIds: string[]): Promise<boolean> => {
+  try {
+    return await restoreSegmentsFromDB(segmentIds);
+  } catch (error) {
+    console.error("Error restoring deleted segments:", error);
     return false;
   }
 };
