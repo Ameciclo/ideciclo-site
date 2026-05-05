@@ -45,6 +45,17 @@ export type SegmentIntersectionPreview = {
   hierarchy?: string;
 };
 
+export type SegmentIntersectionSelection = {
+  id: string;
+  pointKey: string;
+  roadId: string;
+  roadName?: string;
+  highway?: string;
+  hierarchyOsm?: string;
+  hierarchyIdeciclo?: string;
+  selected: boolean;
+};
+
 export type OsmAdvancedInfo = {
   osmId: string;
   osmType: string;
@@ -96,6 +107,7 @@ export interface Segment {
   estimated_blocks_count?: number;
   estimated_intersections_count?: number;
   intersections_preview?: SegmentIntersectionPreview[];
+  selected_intersections?: SegmentIntersectionSelection[];
   osm_advanced?: OsmAdvancedInfo;
 }
 

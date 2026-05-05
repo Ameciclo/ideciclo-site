@@ -67,6 +67,10 @@ export interface IdecicloFormData {
   connected_intersections_count: number;
   intersection_road_type_by_intersection: IntersectionRoadType[];
   intersection_has_cycling_connection_by_intersection: Array<boolean | null>;
+  intersection_name_by_intersection: string[];
+  intersection_highway_by_intersection: string[];
+  intersection_hierarchy_osm_by_intersection: string[];
+  intersection_hierarchy_ideciclo_by_intersection: string[];
   pedestrian_flow_per_hour_per_meter: number;
   infra_typology: string;
   infra_flow: string;

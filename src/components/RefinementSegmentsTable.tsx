@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Segment, SegmentType } from "@/types";
+import { Segment, SegmentIntersectionSelection, SegmentType } from "@/types";
 import { ParsedOsmAdvancedSegment } from "@/services/osmAdvancedParser";
 import { fetchSegmentOsmAdvancedData } from "@/services/api";
 import {
@@ -50,7 +50,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
@@ -100,6 +99,85 @@ const POSITION_OPTIONS = [
     icon: "/icones/isolada.svg",
   },
 ] as const;
+
+const FIELD_HELP_CONTENT: Record<
+  string,
+  {
+    title: string;
+    description: string;
+  }
+> = {
+  nomeTrecho: {
+    title: "Nome do trecho",
+    description:
+      "Nome consolidado da estrutura que será usado nas próximas etapas da avaliação.",
+  },
+  tipologia: {
+    title: "Tipologia",
+    description:
+      "Classificação principal da infraestrutura cicloviária (ciclovia, ciclofaixa, calçada partilhada ou ciclorrota).",
+  },
+  hierarquia: {
+    title: "Hierarquia viária",
+    description:
+      "Classe da via no IDECICLO (estrutural, alimentadora ou local).",
+  },
+  trechoInicio: {
+    title: "Trecho início",
+    description:
+      "Via transversal de referência em uma extremidade da estrutura avaliada.",
+  },
+  trechoFim: {
+    title: "Trecho fim",
+    description:
+      "Via transversal de referência na outra extremidade da estrutura avaliada.",
+  },
+  sentido: {
+    title: "Sentido",
+    description:
+      "Direção operacional da infraestrutura cicloviária (uni ou bidirecional).",
+  },
+  posicaoNaVia: {
+    title: "Posição na via",
+    description:
+      "Posicionamento da infraestrutura no espaço viário (canteiro, pista, calçada etc.).",
+  },
+  velocidade: {
+    title: "Velocidade regulamentada",
+    description:
+      "Velocidade máxima da via motorizada associada ao trecho (km/h).",
+  },
+  numeroFaixas: {
+    title: "Número de faixas",
+    description:
+      "Quantidade de faixas de rolamento da via motorizada do trecho.",
+  },
+  pavimento: {
+    title: "Pavimento",
+    description:
+      "Tipo de revestimento predominante da infraestrutura cicloviária no trecho.",
+  },
+  largura: {
+    title: "Largura",
+    description:
+      "Largura útil da infraestrutura cicloviária (em metros).",
+  },
+  bufferSeparacao: {
+    title: "Buffer/separação",
+    description:
+      "Dispositivo ou distância de separação entre o espaço cicloviário e o tráfego motorizado.",
+  },
+  quadras: {
+    title: "Número de quadras",
+    description:
+      "Estimativa de quadras do conjunto da estrutura para apoio ao formulário.",
+  },
+  intersecoes: {
+    title: "Interseções estimadas",
+    description:
+      "Lista de interseções identificadas no OSM. Desmarcar remove a interseção da contagem e do pré-preenchimento do formulário.",
+  },
+};
 
 type FlowValue = (typeof FLOW_OPTIONS)[number]["value"];
 type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
@@ -188,6 +266,10 @@ const RefinementSegmentsTable = ({
   });
   const [typeDraft, setTypeDraft] = useState<SegmentType | "">("");
   const [classificationDraft, setClassificationDraft] = useState<string>("");
+  const [fieldHelpKey, setFieldHelpKey] = useState<string | null>(null);
+  const [intersectionSelections, setIntersectionSelections] = useState<
+    SegmentIntersectionSelection[]
+  >([]);
 
   // Available classification options
   const classificationOptions = ["estrutural", "alimentadora", "local"];
@@ -501,6 +583,7 @@ const RefinementSegmentsTable = ({
     setIsLoadingOsmComplement(false);
     setAdvancedByPartId({});
     setSelectedPartId("");
+    setFieldHelpKey(null);
   };
 
   const handleNameEditStart = (segment: Segment) => {
@@ -546,6 +629,30 @@ const RefinementSegmentsTable = ({
           techDraft.numeroFaixas === "" ? NaN : Number(techDraft.numeroFaixas);
         const parsedLargura =
           techDraft.largura.trim() === "" ? undefined : Number(techDraft.largura);
+        const selectedIntersections = intersectionSelections.filter((item) => item.selected);
+        const allIntersectionsPreview = intersectionSelections.map((item) => ({
+          pointKey: item.pointKey,
+          roadId: item.roadId,
+          roadName: item.roadName,
+          highway: item.highway,
+          hierarchy: item.hierarchyIdeciclo,
+        }));
+
+        const currentPending = [
+          !typeDraft ? "Tipologia sem preenchimento" : null,
+          !classificationDraft ? "Hierarquia viária sem preenchimento" : null,
+          !techDraft.trechoInicio?.trim() ? "Trecho início sem preenchimento" : null,
+          !techDraft.trechoFim?.trim() ? "Trecho fim sem preenchimento" : null,
+          !techDraft.sentido ? "Sentido sem preenchimento" : null,
+          !techDraft.posicaoNaVia ? "Posição na via sem preenchimento" : null,
+          !techDraft.velocidade?.trim()
+            ? "Velocidade regulamentada sem preenchimento"
+            : null,
+          techDraft.numeroFaixas === "" ? "Número de faixas sem preenchimento" : null,
+          !techDraft.pavimento?.trim() ? "Pavimento sem preenchimento" : null,
+          !techDraft.largura?.trim() ? "Largura sem preenchimento" : null,
+          !techDraft.bufferSeparacao?.trim() ? "Buffer/separação sem preenchimento" : null,
+        ].filter((item): item is string => Boolean(item));
 
         const selectedData = selectedPartAdvanced;
         const prefillFromSelection = selectedData?.ideciclo_prefill;
@@ -566,10 +673,7 @@ const RefinementSegmentsTable = ({
             pavimento: techDraft.pavimento.trim(),
             largura: Number.isFinite(parsedLargura) ? parsedLargura : undefined,
             bufferSeparacao: techDraft.bufferSeparacao.trim(),
-            pendenciasCampo:
-              prefillFromSelection?.pendenciasCampo ||
-              editingSegment.ideciclo_prefill?.pendenciasCampo ||
-              [],
+            pendenciasCampo: currentPending,
           },
           osm_confidence: confidenceFromSelection || editingSegment.osm_confidence,
           osm_tags: selectedData?.osm_tags || editingSegment.osm_tags,
@@ -577,14 +681,18 @@ const RefinementSegmentsTable = ({
           osm_improvement_suggestions:
             selectedData?.osm_improvement_suggestions ||
             editingSegment.osm_improvement_suggestions,
-          intersections_preview:
-            selectedData?.intersections_preview || editingSegment.intersections_preview,
+          intersections_preview: allIntersectionsPreview,
+          selected_intersections: intersectionSelections,
           estimated_blocks_count:
             techDraft.quadrasEstimadas,
-          estimated_intersections_count:
-            techDraft.intersecoesEstimadas,
+          estimated_intersections_count: selectedIntersections.length,
           blocks_count: techDraft.quadrasEstimadas,
-          intersections_count: techDraft.intersecoesEstimadas,
+          intersections_count: selectedIntersections.length,
+          relevant_intersections_count: selectedIntersections.filter(
+            (item) =>
+              item.hierarchyIdeciclo === "estrutural" ||
+              item.hierarchyIdeciclo === "alimentadora"
+          ).length,
         });
       }
       setEditingSegment(null);
@@ -601,6 +709,7 @@ const RefinementSegmentsTable = ({
     setIsLoadingOsmComplement(false);
     setAdvancedByPartId({});
     setSelectedPartId("");
+    setFieldHelpKey(null);
   };
 
   useEffect(() => {
@@ -611,6 +720,35 @@ const RefinementSegmentsTable = ({
       setEditingSegment(null);
     }
   }, [technicalOpen, technicalSegment]);
+
+  useEffect(() => {
+    if (!editingSegment) {
+      setIntersectionSelections([]);
+      return;
+    }
+
+    const baseIntersections = getCombinedIntersectionsPreview();
+    const savedSelection =
+      editingSegment.selected_intersections ||
+      ((editingSegment.osm_advanced as any)?.selected_intersections as
+        | SegmentIntersectionSelection[]
+        | undefined);
+
+    const merged = mergeIntersectionsWithExistingSelection(
+      baseIntersections,
+      savedSelection
+    );
+    setIntersectionSelections(merged);
+  }, [editingSegment, advancedByPartId]);
+
+  useEffect(() => {
+    if (intersectionSelections.length === 0) return;
+    const selectedCount = intersectionSelections.filter((item) => item.selected).length;
+    setTechDraft((prev) => ({
+      ...prev,
+      intersecoesEstimadas: selectedCount,
+    }));
+  }, [intersectionSelections]);
 
   const handleFetchOsmComplement = async () => {
     if (!editingSegment) return;
@@ -652,6 +790,32 @@ const RefinementSegmentsTable = ({
       }
 
       setAdvancedByPartId(byPart);
+
+      const baseIntersections = (() => {
+        const byKey = new Map<string, SegmentIntersectionSelection>();
+        Object.values(byPart).forEach((part) => {
+          (part.intersections_preview || []).forEach((item) => {
+            const key = `${item.pointKey}-${item.roadId}`;
+            if (!byKey.has(key)) {
+              byKey.set(key, {
+                id: key,
+                pointKey: item.pointKey,
+                roadId: item.roadId,
+                roadName: item.roadName,
+                highway: item.highway,
+                hierarchyOsm: item.highway || undefined,
+                hierarchyIdeciclo: item.hierarchy || undefined,
+                selected: true,
+              });
+            }
+          });
+        });
+        return Array.from(byKey.values());
+      })();
+
+      setIntersectionSelections((prev) =>
+        mergeIntersectionsWithExistingSelection(baseIntersections, prev)
+      );
 
       if (editingSegment) {
         const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, byPart);
@@ -741,12 +905,14 @@ const RefinementSegmentsTable = ({
     min = 0,
     onDecrease,
     onIncrease,
+    disabled = false,
   }: {
     label: string;
     value: number;
     min?: number;
     onDecrease: () => void;
     onIncrease: () => void;
+    disabled?: boolean;
   }) => (
     <div className="rounded-xl border p-3">
       <p className="mb-2 text-xs text-muted-foreground">{label}</p>
@@ -756,7 +922,7 @@ const RefinementSegmentsTable = ({
           variant="outline"
           className="h-8 w-8 rounded-full p-0 text-base"
           onClick={onDecrease}
-          disabled={value <= min}
+          disabled={disabled || value <= min}
         >
           -
         </Button>
@@ -768,6 +934,7 @@ const RefinementSegmentsTable = ({
           variant="outline"
           className="h-8 w-8 rounded-full p-0 text-base"
           onClick={onIncrease}
+          disabled={disabled}
         >
           +
         </Button>
@@ -819,18 +986,66 @@ const RefinementSegmentsTable = ({
     }
   };
 
+  const renderFieldHelpButton = (helpKey: string) => (
+    <button
+      type="button"
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-slate-500 hover:bg-slate-100"
+      title="Ajuda"
+      onClick={() => setFieldHelpKey(helpKey)}
+    >
+      <CircleHelp size={12} />
+    </button>
+  );
+
   const getCombinedIntersectionsPreview = () => {
     if (Object.keys(advancedByPartId).length > 0) {
-      const byKey = new Map<string, any>();
+      const byKey = new Map<string, SegmentIntersectionSelection>();
       Object.values(advancedByPartId).forEach((part) => {
         (part.intersections_preview || []).forEach((item) => {
           const key = `${item.pointKey}-${item.roadId}`;
-          if (!byKey.has(key)) byKey.set(key, item as any);
+          if (!byKey.has(key)) {
+            byKey.set(key, {
+              id: key,
+              pointKey: item.pointKey,
+              roadId: item.roadId,
+              roadName: item.roadName,
+              highway: item.highway,
+              hierarchyOsm: item.highway || undefined,
+              hierarchyIdeciclo: item.hierarchy || undefined,
+              selected: true,
+            });
+          }
         });
       });
       return Array.from(byKey.values());
     }
-    return editingSegment?.intersections_preview || [];
+    return (editingSegment?.intersections_preview || []).map((item) => ({
+      id: `${item.pointKey}-${item.roadId}`,
+      pointKey: item.pointKey,
+      roadId: item.roadId,
+      roadName: item.roadName,
+      highway: item.highway,
+      hierarchyOsm: item.highway || undefined,
+      hierarchyIdeciclo: item.hierarchy || undefined,
+      selected: true,
+    }));
+  };
+
+  const mergeIntersectionsWithExistingSelection = (
+    base: SegmentIntersectionSelection[],
+    existing?: SegmentIntersectionSelection[]
+  ) => {
+    const existingById = new Map((existing || []).map((item) => [item.id, item]));
+    const mergedBase = base.map((item) => {
+      const saved = existingById.get(item.id);
+      return {
+        ...item,
+        selected: saved?.selected ?? true,
+      };
+    });
+    const baseIds = new Set(mergedBase.map((item) => item.id));
+    const appendedSaved = (existing || []).filter((item) => !baseIds.has(item.id));
+    return [...mergedBase, ...appendedSaved];
   };
 
   const applySelectedPartToDraft = (partId: string) => {
@@ -860,21 +1075,11 @@ const RefinementSegmentsTable = ({
   };
 
   const getCombinedEstimatedCounts = () => {
-    if (Object.keys(advancedByPartId).length === 0) {
-      return {
-        blocks: techDraft.quadrasEstimadas,
-        intersections: techDraft.intersecoesEstimadas,
-      };
-    }
-
-    const blocks = Object.values(advancedByPartId).reduce(
-      (sum, item) => sum + clampMinimumOne(item.estimated_blocks_count ?? 1),
-      0
-    );
-    const intersections = Object.values(advancedByPartId).reduce(
-      (sum, item) => sum + clampNonNegative(item.estimated_intersections_count ?? 0),
-      0
-    );
+    const blocks = techDraft.quadrasEstimadas;
+    const intersections =
+      intersectionSelections.length > 0
+        ? intersectionSelections.filter((item) => item.selected).length
+        : techDraft.intersecoesEstimadas;
 
     return { blocks, intersections };
   };
@@ -975,14 +1180,82 @@ const RefinementSegmentsTable = ({
     !techDraft.pavimento?.trim() ? "Pavimento sem preenchimento" : null,
     !techDraft.largura?.trim() ? "Largura sem preenchimento" : null,
     !techDraft.bufferSeparacao?.trim() ? "Buffer/separação sem preenchimento" : null,
+    intersectionSelections.length > 0 &&
+    intersectionSelections.every((item) => !item.selected)
+      ? "Interseções sem preenchimento"
+      : null,
   ].filter((item): item is string => Boolean(item));
 
-  const pendingFromOsm =
+  const pendingFromOsmRaw =
     selectedPartAdvanced?.ideciclo_prefill.pendenciasCampo ||
     editingSegment?.ideciclo_prefill?.pendenciasCampo ||
     [];
 
+  const getPendingFieldKey = (label: string) => {
+    const normalized = label.toLowerCase();
+    if (normalized.includes("tipolog")) return "tipologia";
+    if (normalized.includes("hierarquia")) return "hierarquia";
+    if (normalized.includes("trecho início") || normalized.includes("trecho inicio"))
+      return "trechoInicio";
+    if (normalized.includes("trecho fim")) return "trechoFim";
+    if (normalized.includes("sentido")) return "sentido";
+    if (normalized.includes("posição na via") || normalized.includes("posicao na via"))
+      return "posicaoNaVia";
+    if (normalized.includes("velocidade")) return "velocidade";
+    if (normalized.includes("faixas")) return "numeroFaixas";
+    if (normalized.includes("pavimento")) return "pavimento";
+    if (normalized.includes("largura")) return "largura";
+    if (normalized.includes("buffer") || normalized.includes("separa")) return "bufferSeparacao";
+    if (normalized.includes("interse")) return "intersecoes";
+    return "";
+  };
+
+  const isFilledByFieldKey = (fieldKey: string) => {
+    switch (fieldKey) {
+      case "tipologia":
+        return Boolean(typeDraft);
+      case "hierarquia":
+        return Boolean(classificationDraft);
+      case "trechoInicio":
+        return Boolean(techDraft.trechoInicio?.trim());
+      case "trechoFim":
+        return Boolean(techDraft.trechoFim?.trim());
+      case "sentido":
+        return Boolean(techDraft.sentido);
+      case "posicaoNaVia":
+        return Boolean(techDraft.posicaoNaVia);
+      case "velocidade":
+        return Boolean(techDraft.velocidade?.trim());
+      case "numeroFaixas":
+        return techDraft.numeroFaixas !== "";
+      case "pavimento":
+        return Boolean(techDraft.pavimento?.trim());
+      case "largura":
+        return Boolean(techDraft.largura?.trim());
+      case "bufferSeparacao":
+        return Boolean(techDraft.bufferSeparacao?.trim());
+      case "intersecoes":
+        return (
+          intersectionSelections.length === 0 ||
+          intersectionSelections.some((item) => item.selected)
+        );
+      default:
+        return false;
+    }
+  };
+
+  const pendingFromOsm = pendingFromOsmRaw.filter((item) => {
+    const key = getPendingFieldKey(item);
+    if (!key) return true;
+    return !isFilledByFieldKey(key);
+  });
+
   const pendingItems = Array.from(new Set([...pendingFromOsm, ...pendingFromDraft]));
+  const allIntersectionsSelected =
+    intersectionSelections.length > 0 &&
+    intersectionSelections.every((item) => item.selected);
+  const someIntersectionsSelected =
+    intersectionSelections.some((item) => item.selected) && !allIntersectionsSelected;
 
   return (
     <div className="rounded-md border">
@@ -1184,46 +1457,37 @@ const RefinementSegmentsTable = ({
           <div className="border-t bg-muted/10 p-4">
           <div className="mx-auto max-w-5xl space-y-6">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="text-lg font-semibold">Editar trecho e conteúdo técnico</h3>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
-                      title="Entender informações técnicas"
-                    >
-                      <CircleHelp size={15} />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-xl">
-                    <DialogHeader>
-                      <DialogTitle>Como ler os dados técnicos</DialogTitle>
-                      <DialogDescription>
-                        Este painel combina dados do OSM e ajustes manuais para apoiar o refinamento.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 text-sm text-slate-700">
-                      <p>
-                        `Tags de referência`: tags originais do OSM, separadas por trecho, para consulta.
-                      </p>
-                      <p>
-                        `Pendências para campo`: itens ainda sem preenchimento e pontos que exigem validação em campo.
-                      </p>
-                      <p>
-                        `Interseções e quadras estimadas`: visão consolidada do conjunto da estrutura (incluindo mesclagens).
-                      </p>
-                      <p>
-                        `Sugestões para OSM` e níveis de confiança não aparecem mais na tela principal para reduzir ruído.
-                      </p>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <p className="text-xs text-muted-foreground">
+                  Clique nos ícones de dúvida para entender cada campo.
+                </p>
               </div>
               <p className="text-sm text-muted-foreground">
                 Ajuste nome, tipologia, hierarquia e complemento técnico com o mapa disponível na página.
               </p>
             </div>
+            <Dialog
+              open={Boolean(fieldHelpKey)}
+              onOpenChange={(open) => {
+                if (!open) setFieldHelpKey(null);
+              }}
+            >
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>
+                    {fieldHelpKey
+                      ? FIELD_HELP_CONTENT[fieldHelpKey]?.title || "Ajuda"
+                      : "Ajuda"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {fieldHelpKey
+                      ? FIELD_HELP_CONTENT[fieldHelpKey]?.description
+                      : "Informação de apoio ao preenchimento."}
+                  </DialogDescription>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
             <div className="space-y-6">
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
@@ -1315,9 +1579,12 @@ const RefinementSegmentsTable = ({
                 </div>
               </section>
               <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  Nome do trecho
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                    Nome do trecho
+                  </h3>
+                  {renderFieldHelpButton("nomeTrecho")}
+                </div>
                 <Input
                   value={editName}
                   onChange={(event) => setEditName(event.target.value)}
@@ -1334,7 +1601,10 @@ const RefinementSegmentsTable = ({
                 </h3>
                 <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2">
                   <div>
-                    <p className="mb-2 text-xs text-muted-foreground">Tipologia</p>
+                    <div className="mb-2 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Tipologia</p>
+                      {renderFieldHelpButton("tipologia")}
+                    </div>
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -1364,7 +1634,10 @@ const RefinementSegmentsTable = ({
                     </div>
                   </div>
                   <div>
-                    <p className="mb-2 text-xs text-muted-foreground">Hierarquia</p>
+                    <div className="mb-2 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Hierarquia</p>
+                      {renderFieldHelpButton("hierarquia")}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -1394,7 +1667,10 @@ const RefinementSegmentsTable = ({
                 </h3>
                 <div className="space-y-4 rounded-md border p-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Trecho início</p>
+                    <div className="mb-1 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Trecho início</p>
+                      {renderFieldHelpButton("trechoInicio")}
+                    </div>
                     <Input
                       value={techDraft.trechoInicio}
                       onChange={(event) =>
@@ -1406,7 +1682,10 @@ const RefinementSegmentsTable = ({
                     />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Trecho fim</p>
+                    <div className="mb-1 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Trecho fim</p>
+                      {renderFieldHelpButton("trechoFim")}
+                    </div>
                     <Input
                       value={techDraft.trechoFim}
                       onChange={(event) =>
@@ -1415,7 +1694,10 @@ const RefinementSegmentsTable = ({
                     />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Sentido</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Sentido</p>
+                      {renderFieldHelpButton("sentido")}
+                    </div>
                     <div>
                       <button
                         type="button"
@@ -1456,7 +1738,10 @@ const RefinementSegmentsTable = ({
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Posição na via</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Posição na via</p>
+                      {renderFieldHelpButton("posicaoNaVia")}
+                    </div>
                     <div>
                       <button
                         type="button"
@@ -1500,7 +1785,12 @@ const RefinementSegmentsTable = ({
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Velocidade máxima regulamentada</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Velocidade máxima regulamentada
+                      </p>
+                      {renderFieldHelpButton("velocidade")}
+                    </div>
                     <div>
                       <button
                         type="button"
@@ -1536,7 +1826,10 @@ const RefinementSegmentsTable = ({
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Número de faixas</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Número de faixas</p>
+                      {renderFieldHelpButton("numeroFaixas")}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -1563,7 +1856,10 @@ const RefinementSegmentsTable = ({
                   </div>
 
                   <div>
-                    <p className="text-xs text-muted-foreground">Pavimento</p>
+                    <div className="mb-1 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Pavimento</p>
+                      {renderFieldHelpButton("pavimento")}
+                    </div>
                     <Input
                       value={techDraft.pavimento}
                       onChange={(event) =>
@@ -1572,7 +1868,10 @@ const RefinementSegmentsTable = ({
                     />
                   </div>
                   <div className="sm:max-w-[220px]">
-                    <p className="text-xs text-muted-foreground">Largura</p>
+                    <div className="mb-1 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Largura</p>
+                      {renderFieldHelpButton("largura")}
+                    </div>
                     <Input
                       value={techDraft.largura}
                       onChange={(event) =>
@@ -1582,7 +1881,10 @@ const RefinementSegmentsTable = ({
                     />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Buffer/separação</p>
+                    <div className="mb-1 flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">Buffer/separação</p>
+                      {renderFieldHelpButton("bufferSeparacao")}
+                    </div>
                     <Input
                       value={techDraft.bufferSeparacao}
                       onChange={(event) =>
@@ -1614,9 +1916,13 @@ const RefinementSegmentsTable = ({
               </section>
 
               <section className="space-y-2">
-                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-                  Interseções e quadras estimadas
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                    Interseções e quadras estimadas
+                  </h3>
+                  {renderFieldHelpButton("quadras")}
+                  {renderFieldHelpButton("intersecoes")}
+                </div>
                 {(() => {
                   const totals = getCombinedEstimatedCounts();
                   return (
@@ -1646,39 +1952,67 @@ const RefinementSegmentsTable = ({
                     label: "N° interseções",
                     value: techDraft.intersecoesEstimadas,
                     min: 0,
-                    onDecrease: () =>
-                      setTechDraft((prev) => ({
-                        ...prev,
-                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas - 1),
-                      })),
-                    onIncrease: () =>
-                      setTechDraft((prev) => ({
-                        ...prev,
-                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas + 1),
-                      })),
+                    disabled: intersectionSelections.length > 0,
+                    onDecrease: () => undefined,
+                    onIncrease: () => undefined,
                   })}
                 </div>
-                {getCombinedIntersectionsPreview().length > 0 ? (
+                {intersectionSelections.length > 0 ? (
                   <div className="max-h-48 overflow-auto rounded-md border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-left">
                         <tr>
+                          <th className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={allIntersectionsSelected}
+                                className={
+                                  someIntersectionsSelected
+                                    ? "data-[state=checked]:bg-primary/50"
+                                    : ""
+                                }
+                                onCheckedChange={(checked) =>
+                                  setIntersectionSelections((prev) =>
+                                    prev.map((item) => ({
+                                      ...item,
+                                      selected: Boolean(checked),
+                                    }))
+                                  )
+                                }
+                              />
+                              <span>Contar</span>
+                            </div>
+                          </th>
                           <th className="px-3 py-2">Via</th>
                           <th className="px-3 py-2">Highway</th>
-                          <th className="px-3 py-2">Hierarquia</th>
+                          <th className="px-3 py-2">Hierarquia IDECICLO</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {getCombinedIntersectionsPreview()
-                          .slice(0, 40)
+                        {intersectionSelections
+                          .slice(0, 80)
                           .map((item) => (
                             <tr key={`${item.pointKey}-${item.roadId}`} className="border-t">
+                              <td className="px-3 py-2">
+                                <Checkbox
+                                  checked={item.selected}
+                                  onCheckedChange={(checked) =>
+                                    setIntersectionSelections((prev) =>
+                                      prev.map((current) =>
+                                        current.id === item.id
+                                          ? { ...current, selected: Boolean(checked) }
+                                          : current
+                                      )
+                                    )
+                                  }
+                                />
+                              </td>
                               <td className="px-3 py-2">
                                 {item.roadName || `Via ${item.roadId}`}
                               </td>
                               <td className="px-3 py-2">{item.highway || "-"}</td>
                               <td className="px-3 py-2">
-                                {item.hierarchy || "não classificada"}
+                                {item.hierarchyIdeciclo || "não classificada"}
                               </td>
                             </tr>
                           ))}

@@ -95,6 +95,9 @@ const Page7: React.FC<Page7Props> = ({
   const canShow = (value: "b7" | "b5" | "a2" | "c1" | "e1" | "c2" | "c3") =>
     !visibleValues || visibleValues.includes(value);
   const visibleAccordionValues = ["b7", "b5", "a2", "c1", "e1", "c2", "c3"].filter(canShow);
+  const showIntersectionContextLabel =
+    Math.max(0, Number(data.intersections_count || 0)) > 0 &&
+    (canShow("a2") || canShow("c1") || canShow("e1") || canShow("c2") || canShow("c3"));
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const processedValue = type === "number" ? parseFloat(value) || 0 : value;
@@ -257,6 +260,11 @@ const Page7: React.FC<Page7Props> = ({
     null as boolean | null,
     null as boolean | null
   );
+  const currentIntersectionName = getIntersectionArrayValue(
+    data.intersection_name_by_intersection,
+    "",
+    ""
+  );
   const currentConnectionAccessibility = getIntersectionArrayValue(
     data.connection_accessibility_by_intersection,
     data.connection_accessibility || "",
@@ -389,17 +397,34 @@ const Page7: React.FC<Page7Props> = ({
       </Badge>
     </>
   );
+
+  const mapRoadTypeToIdecicloHierarchy = (
+    roadType: IntersectionRoadType
+  ): string => {
+    if (roadType === "arterial") return "estrutural";
+    if (roadType === "coletora") return "alimentadora";
+    if (roadType === "local") return "local";
+    return "";
+  };
+
   const setA2IntersectionRoadType = (nextValue: IntersectionRoadType) => {
     const nextRoadTypes = setIntersectionArrayValue(
       data.intersection_road_type_by_intersection,
       nextValue,
       "" as IntersectionRoadType
     );
+    const nextHierarchyIdeciclo = setIntersectionArrayValue(
+      data.intersection_hierarchy_ideciclo_by_intersection,
+      mapRoadTypeToIdecicloHierarchy(nextValue),
+      ""
+    );
 
     onDataChange({
       intersection_road_type_by_intersection: nextRoadTypes,
+      intersection_hierarchy_ideciclo_by_intersection: nextHierarchyIdeciclo,
       touched_fields: {
         intersection_road_type_by_intersection: true,
+        intersection_hierarchy_ideciclo_by_intersection: true,
         [intersectionTouchKey("a2_type", currentIntersectionIndex)]: true,
       },
     });
@@ -656,6 +681,12 @@ const Page7: React.FC<Page7Props> = ({
               </div>
             </div>
           </AssessmentCriterionAccordion> : null}
+
+          {showIntersectionContextLabel ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {currentIntersectionName || "Interseção sem nome"}
+            </div>
+          ) : null}
 
           {canShow("a2") ? (
             <AssessmentCriterionAccordion

@@ -131,6 +131,16 @@ const mapPositionPrefillToForm = (position?: string): string | undefined => {
   return undefined;
 };
 
+const mapIdecicloHierarchyToIntersectionRoadType = (
+  hierarchy?: string
+): "local" | "coletora" | "arterial" | "" => {
+  const normalized = (hierarchy || "").toLowerCase();
+  if (normalized === "estrutural") return "arterial";
+  if (normalized === "alimentadora") return "coletora";
+  if (normalized === "local") return "local";
+  return "";
+};
+
 const applyOsmPrefillToFormData = (
   data: IdecicloFormData,
   segmentData: Partial<Segment> | null | undefined
@@ -141,6 +151,26 @@ const applyOsmPrefillToFormData = (
   const inferredFlow = mapDirectionPrefillToInfraFlow(prefill.sentido);
   const inferredPosition = mapPositionPrefillToForm(prefill.posicaoNaVia);
   const inferredSpeed = prefill.velocidade ? Number(prefill.velocidade) : undefined;
+  const selectedIntersections = Array.isArray(segmentData.selected_intersections)
+    ? segmentData.selected_intersections.filter((item) => item.selected !== false)
+    : [];
+  const inferredIntersectionCount = selectedIntersections.length;
+  const inferredRoadTypesByIntersection = selectedIntersections.map((item) =>
+    mapIdecicloHierarchyToIntersectionRoadType(item.hierarchyIdeciclo)
+  );
+  const inferredConnectionByIntersection = selectedIntersections.map(() => null);
+  const inferredIntersectionNames = selectedIntersections.map(
+    (item) => item.roadName || `Via ${item.roadId}`
+  );
+  const inferredIntersectionHighways = selectedIntersections.map(
+    (item) => item.highway || ""
+  );
+  const inferredIntersectionOsmHierarchy = selectedIntersections.map(
+    (item) => item.hierarchyOsm || ""
+  );
+  const inferredIntersectionIdecicloHierarchy = selectedIntersections.map(
+    (item) => item.hierarchyIdeciclo || ""
+  );
 
   return {
     ...data,
@@ -176,23 +206,59 @@ const applyOsmPrefillToFormData = (
     intersections_count:
       data.intersections_count !== 0
         ? data.intersections_count
-        : clampNonNegative(
-            segmentData.intersections_count ??
-              segmentData.estimated_intersections_count ??
-              data.intersections_count
-          ),
+        : inferredIntersectionCount > 0
+          ? inferredIntersectionCount
+          : clampNonNegative(
+              segmentData.intersections_count ??
+                segmentData.estimated_intersections_count ??
+                data.intersections_count
+            ),
     relevant_intersections_count:
       data.relevant_intersections_count !== 0
         ? data.relevant_intersections_count
-        : clampNonNegative(
-            segmentData.relevant_intersections_count ?? data.relevant_intersections_count
-          ),
+        : inferredRoadTypesByIntersection.length > 0
+          ? inferredRoadTypesByIntersection.filter(
+              (value) => value === "coletora" || value === "arterial"
+            ).length
+          : clampNonNegative(
+              segmentData.relevant_intersections_count ?? data.relevant_intersections_count
+            ),
     connected_intersections_count:
       data.connected_intersections_count !== 0
         ? data.connected_intersections_count
         : clampNonNegative(
             segmentData.connected_intersections_count ?? data.connected_intersections_count
           ),
+    intersection_road_type_by_intersection:
+      Array.isArray(data.intersection_road_type_by_intersection) &&
+      data.intersection_road_type_by_intersection.length > 0
+        ? data.intersection_road_type_by_intersection
+        : inferredRoadTypesByIntersection,
+    intersection_has_cycling_connection_by_intersection:
+      Array.isArray(data.intersection_has_cycling_connection_by_intersection) &&
+      data.intersection_has_cycling_connection_by_intersection.length > 0
+        ? data.intersection_has_cycling_connection_by_intersection
+        : inferredConnectionByIntersection,
+    intersection_name_by_intersection:
+      Array.isArray(data.intersection_name_by_intersection) &&
+      data.intersection_name_by_intersection.length > 0
+        ? data.intersection_name_by_intersection
+        : inferredIntersectionNames,
+    intersection_highway_by_intersection:
+      Array.isArray(data.intersection_highway_by_intersection) &&
+      data.intersection_highway_by_intersection.length > 0
+        ? data.intersection_highway_by_intersection
+        : inferredIntersectionHighways,
+    intersection_hierarchy_osm_by_intersection:
+      Array.isArray(data.intersection_hierarchy_osm_by_intersection) &&
+      data.intersection_hierarchy_osm_by_intersection.length > 0
+        ? data.intersection_hierarchy_osm_by_intersection
+        : inferredIntersectionOsmHierarchy,
+    intersection_hierarchy_ideciclo_by_intersection:
+      Array.isArray(data.intersection_hierarchy_ideciclo_by_intersection) &&
+      data.intersection_hierarchy_ideciclo_by_intersection.length > 0
+        ? data.intersection_hierarchy_ideciclo_by_intersection
+        : inferredIntersectionIdecicloHierarchy,
   };
 };
 
@@ -242,6 +308,8 @@ const fetchSegmentContextById = async (
     osm_improvement_suggestions:
       dbSegment?.osm_improvement_suggestions || persistedSegment?.osm_improvement_suggestions,
     intersections_preview: dbSegment?.intersections_preview || persistedSegment?.intersections_preview,
+    selected_intersections:
+      dbSegment?.selected_intersections || persistedSegment?.selected_intersections,
     estimated_blocks_count:
       dbSegment?.estimated_blocks_count ?? persistedSegment?.estimated_blocks_count,
     estimated_intersections_count:
@@ -281,6 +349,7 @@ const toSegmentPreview = (
     estimated_blocks_count?: number | null;
     estimated_intersections_count?: number | null;
     intersections_preview?: Segment["intersections_preview"];
+    selected_intersections?: Segment["selected_intersections"];
     osm_advanced?: Segment["osm_advanced"];
   } | null
 ): Segment | null => {
@@ -319,6 +388,7 @@ const toSegmentPreview = (
     estimated_blocks_count: segmentData.estimated_blocks_count ?? undefined,
     estimated_intersections_count: segmentData.estimated_intersections_count ?? undefined,
     intersections_preview: segmentData.intersections_preview || undefined,
+    selected_intersections: segmentData.selected_intersections || undefined,
     osm_advanced: segmentData.osm_advanced || undefined,
   };
 };
@@ -343,6 +413,10 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   connected_intersections_count: 0,
   intersection_road_type_by_intersection: [],
   intersection_has_cycling_connection_by_intersection: [],
+  intersection_name_by_intersection: [],
+  intersection_highway_by_intersection: [],
+  intersection_hierarchy_osm_by_intersection: [],
+  intersection_hierarchy_ideciclo_by_intersection: [],
   pedestrian_flow_per_hour_per_meter: 0,
   infra_typology: "",
   infra_flow: "unidirectional",
@@ -476,6 +550,26 @@ const mergeWithDefaults = (
           if (index >= relevantCount) return null;
           return index < connectedCount;
         });
+  const fallbackIntersectionNameByIntersection =
+    Array.isArray(data.intersection_name_by_intersection) &&
+    data.intersection_name_by_intersection.length > 0
+      ? data.intersection_name_by_intersection
+      : [];
+  const fallbackIntersectionHighwayByIntersection =
+    Array.isArray(data.intersection_highway_by_intersection) &&
+    data.intersection_highway_by_intersection.length > 0
+      ? data.intersection_highway_by_intersection
+      : [];
+  const fallbackIntersectionHierarchyOsmByIntersection =
+    Array.isArray(data.intersection_hierarchy_osm_by_intersection) &&
+    data.intersection_hierarchy_osm_by_intersection.length > 0
+      ? data.intersection_hierarchy_osm_by_intersection
+      : [];
+  const fallbackIntersectionHierarchyIdecicloByIntersection =
+    Array.isArray(data.intersection_hierarchy_ideciclo_by_intersection) &&
+    data.intersection_hierarchy_ideciclo_by_intersection.length > 0
+      ? data.intersection_hierarchy_ideciclo_by_intersection
+      : [];
   const fallbackConnectionAccessibility =
     Array.isArray(data.connection_accessibility_by_intersection) &&
       data.connection_accessibility_by_intersection.length > 0
@@ -577,6 +671,12 @@ const mergeWithDefaults = (
     intersection_road_type_by_intersection: fallbackIntersectionRoadTypeByIntersection,
     intersection_has_cycling_connection_by_intersection:
       fallbackIntersectionHasCyclingConnectionByIntersection,
+    intersection_name_by_intersection: fallbackIntersectionNameByIntersection,
+    intersection_highway_by_intersection: fallbackIntersectionHighwayByIntersection,
+    intersection_hierarchy_osm_by_intersection:
+      fallbackIntersectionHierarchyOsmByIntersection,
+    intersection_hierarchy_ideciclo_by_intersection:
+      fallbackIntersectionHierarchyIdecicloByIntersection,
     intersection_conservation_by_intersection: fallbackIntersectionConservationByIntersection,
     connection_accessibility_by_intersection: fallbackConnectionAccessibility,
     traffic_lanes_per_direction_by_intersection: fallbackTrafficLanesPerIntersection,
@@ -683,6 +783,15 @@ const normalizeEvaluationCounts = (data: IdecicloFormData): IdecicloFormData => 
       : 0,
     Array.isArray(data.intersection_has_cycling_connection_by_intersection)
       ? data.intersection_has_cycling_connection_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_name_by_intersection)
+      ? data.intersection_name_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_hierarchy_osm_by_intersection)
+      ? data.intersection_hierarchy_osm_by_intersection.length
+      : 0,
+    Array.isArray(data.intersection_hierarchy_ideciclo_by_intersection)
+      ? data.intersection_hierarchy_ideciclo_by_intersection.length
       : 0,
     Array.isArray(data.intersection_signaling_by_intersection)
       ? data.intersection_signaling_by_intersection.length
@@ -1451,6 +1560,22 @@ const SegmentForm = () => {
       intersection_has_cycling_connection_by_intersection: trimArray(
         formData.intersection_has_cycling_connection_by_intersection,
         null
+      ),
+      intersection_name_by_intersection: trimArray(
+        formData.intersection_name_by_intersection,
+        ""
+      ),
+      intersection_highway_by_intersection: trimArray(
+        formData.intersection_highway_by_intersection,
+        ""
+      ),
+      intersection_hierarchy_osm_by_intersection: trimArray(
+        formData.intersection_hierarchy_osm_by_intersection,
+        ""
+      ),
+      intersection_hierarchy_ideciclo_by_intersection: trimArray(
+        formData.intersection_hierarchy_ideciclo_by_intersection,
+        ""
       ),
       intersection_signaling_by_intersection: trimArray(formData.intersection_signaling_by_intersection, ""),
       intersection_conservation_by_intersection: trimArray(
@@ -2319,7 +2444,7 @@ const SegmentForm = () => {
                                   <button
                                     type="button"
                                     onClick={() => setCurrentIntersectionIndex(index)}
-                                    className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                    className={`flex min-h-[44px] min-w-[72px] items-center justify-center rounded-2xl border px-2.5 py-1 text-[11px] font-semibold transition sm:min-h-[48px] sm:min-w-[96px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
                                       isActive,
                                       isComplete
                                     )}`}

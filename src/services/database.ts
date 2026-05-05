@@ -277,6 +277,8 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
       (row as any).estimated_intersections_count ?? advanced?.estimated_intersections_count ?? undefined,
     intersections_preview:
       (row as any).intersections_preview ?? advanced?.intersections_preview ?? undefined,
+    selected_intersections:
+      (row as any).selected_intersections ?? advanced?.selected_intersections ?? undefined,
     osm_advanced: advanced ?? undefined,
   };
 };
@@ -909,6 +911,7 @@ export const updateSegmentTechnicalInDB = async (
     osm_raw: updates.osm_raw ?? null,
     osm_improvement_suggestions: updates.osm_improvement_suggestions ?? null,
     intersections_preview: updates.intersections_preview ?? null,
+    selected_intersections: updates.selected_intersections ?? null,
     estimated_blocks_count:
       updates.estimated_blocks_count ?? updates.blocks_count ?? null,
     estimated_intersections_count:
