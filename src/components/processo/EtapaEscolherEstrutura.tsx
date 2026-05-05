@@ -386,118 +386,112 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
           ) : (
             <div className="grid gap-3">
               {filteredSegments.map((segment) => (
-                <button
+                <div
                   key={segment.id}
-                  type="button"
                   className={cn(
                     "w-full rounded-[28px] border p-5 text-left transition-all",
                     selectedSegment?.id === segment.id
-                      ? "border-ideciclo-blue bg-ideciclo-blue/5 shadow-md"
+                      ? "border-emerald-300 bg-emerald-50 shadow-md"
                       : "border-slate-200 bg-white hover:border-ideciclo-teal/40 hover:shadow-sm"
                   )}
-                  onClick={() => handleSelectSegment(segment)}
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          className={getEvaluatedBadgeClassName(segment.evaluated)}
-                        >
-                          {segment.evaluated ? "Avaliado" : "Pendente"}
-                        </Badge>
-                        <Badge className={getSegmentTypeBadgeClassName(segment.type)}>
-                          {segment.type}
-                        </Badge>
-                        {segment.classification ? (
-                          <Badge className={getHierarchyBadgeClassName(segment.classification)}>
-                            {classificationLabels[segment.classification] || segment.classification}
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => handleSelectSegment(segment)}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            className={getEvaluatedBadgeClassName(segment.evaluated)}
+                          >
+                            {segment.evaluated ? "Avaliado" : "Pendente"}
                           </Badge>
-                        ) : null}
-                        {selectedSegment?.id === segment.id ? (
-                          <Badge className="bg-ideciclo-blue text-white">Selecionado</Badge>
-                        ) : null}
+                          <Badge className={getSegmentTypeBadgeClassName(segment.type)}>
+                            {segment.type}
+                          </Badge>
+                          {segment.classification ? (
+                            <Badge className={getHierarchyBadgeClassName(segment.classification)}>
+                              {classificationLabels[segment.classification] || segment.classification}
+                            </Badge>
+                          ) : null}
+                          {selectedSegment?.id === segment.id ? (
+                            <Badge className="bg-emerald-600 text-white">Selecionado</Badge>
+                          ) : null}
+                        </div>
+                        <h4 className="mt-3 text-lg font-semibold text-foreground">
+                          {getReadableSegmentName(segment, cityData.cityId)}
+                        </h4>
+                        <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>ID: {segment.id}</span>
+                          <span>Extensão: {formatLength(segment.length)}</span>
+                          {segment.neighborhood ? <span>Bairro: {segment.neighborhood}</span> : null}
+                        </div>
                       </div>
-                      <h4 className="mt-3 text-lg font-semibold text-foreground">
-                        {getReadableSegmentName(segment, cityData.cityId)}
-                      </h4>
-                      <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>ID: {segment.id}</span>
-                        <span>Extensão: {formatLength(segment.length)}</span>
-                        {segment.neighborhood ? <span>Bairro: {segment.neighborhood}</span> : null}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>
+                          Interseções:{" "}
+                          {segment.intersections_count ??
+                            segment.estimated_intersections_count ??
+                            "-"}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Quadras:{" "}
+                          {segment.blocks_count ?? segment.estimated_blocks_count ?? "-"}
+                        </span>
+                        <span>•</span>
+                        <span>OSM: {segment.osm_id || "-"}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>
-                        Interseções:{" "}
-                        {segment.intersections_count ??
-                          segment.estimated_intersections_count ??
-                          "-"}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        Quadras:{" "}
-                        {segment.blocks_count ?? segment.estimated_blocks_count ?? "-"}
-                      </span>
-                      <span>•</span>
-                      <span>OSM: {segment.osm_id || "-"}</span>
+                  </button>
+
+                  {selectedSegment?.id === segment.id ? (
+                    <div className="mt-5 border-t border-emerald-200 pt-5">
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
+                        <div className="flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 text-emerald-700">
+                              <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                            <h4 className="mt-3 text-xl font-bold text-slate-900">
+                              {getReadableSegmentName(segment, cityData.cityId)}
+                            </h4>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Badge className={cn("border", getSegmentTypeBadgeClassName(segment.type))}>
+                                {segment.type}
+                              </Badge>
+                              {segment.classification ? (
+                                <Badge className={cn("border", getHierarchyBadgeClassName(segment.classification))}>
+                                  {classificationLabels[segment.classification] || segment.classification}
+                                </Badge>
+                              ) : null}
+                              <Badge variant="outline" className="border-emerald-300 bg-white">
+                                {formatLength(segment.length)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-5">
+                            <Button onClick={handleGoToEvaluation} className="gap-2">
+                              {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white">
+                          <SegmentPreviewMap
+                            segment={segment}
+                            className="h-[280px] w-full"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  ) : null}
+                </div>
               ))}
             </div>
           )}
-
-          {selectedSegment ? (
-            <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
-                <div className="flex flex-col justify-between">
-                  <div>
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <span className="font-semibold">Estrutura selecionada</span>
-                  </div>
-                  <h4 className="mt-3 text-xl font-bold text-slate-900">
-                    {getReadableSegmentName(selectedSegment, cityData.cityId)}
-                  </h4>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge className={cn("border", getSegmentTypeBadgeClassName(selectedSegment.type))}>
-                      {selectedSegment.type}
-                    </Badge>
-                    {selectedSegment.classification ? (
-                      <Badge className={cn("border", getHierarchyBadgeClassName(selectedSegment.classification))}>
-                        {classificationLabels[selectedSegment.classification] || selectedSegment.classification}
-                      </Badge>
-                    ) : null}
-                    <Badge variant="outline" className="border-emerald-300 bg-white">
-                      {formatLength(selectedSegment.length)}
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-600">
-                    {selectedSegment.evaluated
-                      ? "Esse trecho já possui avaliação salva. Você pode revisá-la e atualizar os dados."
-                      : "O próximo passo abre o formulário IDECICLO já vinculado a este trecho."}
-                  </p>
-                  </div>
-                  <div className="mt-5">
-                    <Button onClick={handleGoToEvaluation} className="gap-2">
-                      {selectedSegment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white">
-                  <div className="border-b border-emerald-100 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-900">Mapa do trecho selecionado</p>
-                    <p className="text-xs text-slate-500">Visualização aproximada da geometria salva para este segmento.</p>
-                  </div>
-                  <SegmentPreviewMap
-                    segment={selectedSegment}
-                    className="h-[280px] w-full"
-                  />
-                </div>
-              </div>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
     </div>
