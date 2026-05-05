@@ -264,3 +264,14 @@ ADD COLUMN IF NOT EXISTS classification text;
 
 CREATE INDEX IF NOT EXISTS idx_segments_classification
 ON public.segments(classification);
+
+-- 20260504120000_add_segments_osm_advanced_jsonb.sql
+ALTER TABLE public.segments
+ADD COLUMN IF NOT EXISTS osm_advanced jsonb;
+
+-- 20260505103000_add_segments_deleted_at.sql
+ALTER TABLE public.segments
+ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_segments_deleted_at
+ON public.segments (deleted_at);
