@@ -544,7 +544,66 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
 
                   {selectedSegment?.id === segment.id ? (
                     <div className="mt-5 border-t border-emerald-200 pt-5">
-                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
+                      <div className="space-y-4 md:hidden">
+                        <div className="flex flex-col gap-3">
+                          <Button onClick={handleGoToEvaluation} className="gap-2">
+                            {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" onClick={handleGoToReview}>
+                            Revisão da Estrutura
+                          </Button>
+                        </div>
+
+                        <details className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+                            Resumo técnico
+                          </summary>
+                          <div className="grid gap-3 border-t border-emerald-100 p-4">
+                            {getSegmentTechnicalSummary(segment).map((item) => {
+                              const missing = item.value === "Não obtido ainda";
+
+                              return (
+                                <div
+                                  key={item.label}
+                                  className={cn(
+                                    "rounded-2xl border px-4 py-3",
+                                    missing
+                                      ? "border-amber-200 bg-amber-50"
+                                      : "border-emerald-200 bg-emerald-50/50"
+                                  )}
+                                >
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "mt-2 text-sm font-semibold",
+                                      missing ? "text-amber-800" : "text-slate-900"
+                                    )}
+                                  >
+                                    {item.value}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+
+                        <details className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+                            Mapa do trecho
+                          </summary>
+                          <div className="border-t border-emerald-100">
+                            <SegmentPreviewMap
+                              segment={segment}
+                              className="h-[240px] w-full"
+                            />
+                          </div>
+                        </details>
+                      </div>
+
+                      <div className="hidden gap-5 md:grid xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
                         <div className="space-y-5">
                           <div className="grid gap-3 sm:grid-cols-2">
                             {getSegmentTechnicalSummary(segment).map((item) => {
@@ -586,10 +645,7 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                           </div>
                         </div>
                         <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white">
-                          <SegmentPreviewMap
-                            segment={segment}
-                            className="h-[280px] w-full"
-                          />
+                          <SegmentPreviewMap segment={segment} className="h-[280px] w-full" />
                         </div>
                       </div>
                     </div>
