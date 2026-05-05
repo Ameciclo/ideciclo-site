@@ -832,32 +832,6 @@ const RefinarDados = () => {
                   selectedSegments={selectedSegments}
                   onConfirm={handleMergeSegments}
                 />
-                <div className="mb-4 flex flex-wrap items-center gap-3">
-                  {selectedSegmentsCount >= 2 && (
-                    <Button
-                      onClick={handleMergeButtonClick}
-                      disabled={selectedSegmentsCount < 2}
-                    >
-                      Mesclar {selectedSegmentsCount} segmentos
-                    </Button>
-                  )}
-                  {selectedSegmentsCount > 0 && (
-                    <Button
-                      onClick={handleDeleteMultipleSegments}
-                      variant="destructive"
-                    >
-                      Excluir {selectedSegmentsCount} segmentos
-                    </Button>
-                  )}
-                  {selectedSegmentsCount > 0 && (
-                    <Button
-                      onClick={handleClearSelection}
-                      variant="outline"
-                    >
-                      Limpar seleção
-                    </Button>
-                  )}
-                </div>
                 {segments && segments.length > 0 ? (
                   <RefinementTableSortableWrapper
                     segments={segments}
@@ -879,39 +853,16 @@ const RefinarDados = () => {
                         ? selectedSegments[0]
                         : null
                     }
+                    selectedSegmentsCount={selectedSegmentsCount}
+                    onMergeClick={handleMergeButtonClick}
+                    onDeleteClick={handleDeleteMultipleSegments}
+                    onClearSelectionClick={handleClearSelection}
                   />
                 ) : (
                   <div className="text-center py-8">
                     <p>Nenhum segmento encontrado para esta cidade.</p>
                   </div>
                 )}
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {selectedSegmentsCount >= 2 && (
-                    <Button
-                      onClick={handleMergeButtonClick}
-                      disabled={selectedSegmentsCount < 2}
-                    >
-                      Mesclar {selectedSegmentsCount} segmentos
-                    </Button>
-                  )}
-                  {selectedSegmentsCount > 0 && (
-                    <Button
-                      onClick={handleDeleteMultipleSegments}
-                      variant="destructive"
-                    >
-                      Excluir {selectedSegmentsCount} segmentos
-                    </Button>
-                  )}
-                  {selectedSegmentsCount > 0 && (
-                    <Button
-                      onClick={handleClearSelection}
-                      variant="outline"
-                    >
-                      Limpar seleção
-                    </Button>
-                  )}
-                </div>
-
                 <div className="mt-6 rounded-md border bg-muted/20 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold uppercase text-muted-foreground">

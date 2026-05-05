@@ -155,8 +155,16 @@ const RefinementSegmentsTable = ({
   >({});
   const [selectedPartId, setSelectedPartId] = useState<string>("");
   const [selectedCharacteristic, setSelectedCharacteristic] = useState<
-    "velocidade" | "numeroFaixas" | "largura" | "sentido" | "posicaoNaVia" | "pavimento"
+    | "tipologia"
+    | "hierarquia"
+    | "velocidade"
+    | "numeroFaixas"
+    | "largura"
+    | "sentido"
+    | "posicaoNaVia"
+    | "pavimento"
   >("velocidade");
+  const [fetchScope, setFetchScope] = useState<"all" | "selected">("all");
   const [techDraft, setTechDraft] = useState({
     trechoInicio: "",
     trechoFim: "",
@@ -599,7 +607,12 @@ const RefinementSegmentsTable = ({
   const handleFetchOsmComplement = async () => {
     if (!editingSegment) return;
 
-    const partsWithIds = segmentParts.filter((part) => Boolean(part.osmId));
+    const targetParts =
+      fetchScope === "selected" && selectedPartId
+        ? segmentParts.filter((part) => part.partId === selectedPartId)
+        : segmentParts;
+
+    const partsWithIds = targetParts.filter((part) => Boolean(part.osmId));
     if (partsWithIds.length === 0) {
       setOsmComplementError(
         "Não há OSM ID válido para este trecho. Preencha manualmente no formulário."
@@ -635,10 +648,13 @@ const RefinementSegmentsTable = ({
         );
       }
 
-      setAdvancedByPartId(byPart);
+      setAdvancedByPartId((prev) =>
+        fetchScope === "selected" ? { ...prev, ...byPart } : byPart
+      );
 
       if (editingSegment) {
-        const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, byPart);
+        const mergedData = fetchScope === "selected" ? { ...advancedByPartId, ...byPart } : byPart;
+        const endpoints = inferEndpointRoadNamesFromGroup(editingSegment, mergedData);
         setTechDraft((prev) => ({
           ...prev,
           trechoInicio: endpoints.trechoInicio || prev.trechoInicio,
@@ -763,7 +779,15 @@ const RefinementSegmentsTable = ({
 
   const getCharacteristicValue = (
     data: ParsedOsmAdvancedSegment,
-    characteristic: "velocidade" | "numeroFaixas" | "largura" | "sentido" | "posicaoNaVia" | "pavimento"
+    characteristic:
+      | "tipologia"
+      | "hierarquia"
+      | "velocidade"
+      | "numeroFaixas"
+      | "largura"
+      | "sentido"
+      | "posicaoNaVia"
+      | "pavimento"
   ) => {
     const p = data.ideciclo_prefill;
     const flowLabel =
@@ -776,6 +800,10 @@ const RefinementSegmentsTable = ({
       POSITION_OPTIONS.find((option) => option.value === (p.posicaoNaVia as PositionValue))
         ?.label || p.posicaoNaVia;
     switch (characteristic) {
+      case "tipologia":
+        return p.tipologia || "sem dado";
+      case "hierarquia":
+        return p.hierarquia || "sem dado";
       case "velocidade":
         return p.velocidade ? `${p.velocidade} km/h` : "sem dado";
       case "numeroFaixas":
@@ -1123,6 +1151,116 @@ const RefinementSegmentsTable = ({
             <div className="space-y-6">
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                  Trechos da estrutura selecionada
+                </h3>
+                <div className="rounded-md border p-3">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => void handleFetchOsmComplement()}
+                      disabled={
+                        isLoadingOsmComplement ||
+                        (fetchScope === "selected" && !selectedPartId)
+                      }
+                    >
+                      {isLoadingOsmComplement
+                        ? "Baixando..."
+                        : fetchScope === "selected"
+                          ? "Baixar OSM do trecho selecionado"
+                          : "Baixar OSM de todos os trechos"}
+                    </Button>
+                    <Select
+                      value={fetchScope}
+                      onValueChange={(value) =>
+                        setFetchScope(value as "all" | "selected")
+                      }
+                    >
+                      <SelectTrigger className="w-[230px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Baixar todos os trechos</SelectItem>
+                        <SelectItem value="selected">
+                          Baixar trecho selecionado
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={selectedCharacteristic}
+                      onValueChange={(value) =>
+                        setSelectedCharacteristic(
+                          value as
+                            | "velocidade"
+                            | "numeroFaixas"
+                            | "largura"
+                            | "sentido"
+                            | "posicaoNaVia"
+                            | "pavimento"
+                            | "tipologia"
+                            | "hierarquia"
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-[230px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tipologia">Tipologia</SelectItem>
+                        <SelectItem value="hierarquia">Hierarquia viária</SelectItem>
+                        <SelectItem value="velocidade">Velocidade máxima</SelectItem>
+                        <SelectItem value="numeroFaixas">Número de faixas</SelectItem>
+                        <SelectItem value="largura">Largura</SelectItem>
+                        <SelectItem value="sentido">Sentido</SelectItem>
+                        <SelectItem value="posicaoNaVia">Posição na via</SelectItem>
+                        <SelectItem value="pavimento">Pavimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Clique na linha para definir a base do complemento técnico.
+                  </p>
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-left">
+                      <tr>
+                        <th className="px-3 py-2">Trecho</th>
+                        <th className="px-3 py-2">osm_id</th>
+                        <th className="px-3 py-2">Valor ({selectedCharacteristic})</th>
+                        <th className="px-3 py-2">Base</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {segmentParts.map((part) => {
+                        const advanced = advancedByPartId[part.partId];
+                        return (
+                        <tr
+                          key={`known-${part.partId}`}
+                          className={`border-t cursor-pointer ${
+                            selectedPartId === part.partId ? "bg-muted" : ""
+                          }`}
+                          onClick={() => applySelectedPartToDraft(part.partId)}
+                        >
+                          <td className="px-3 py-2">{part.label}</td>
+                          <td className="px-3 py-2">{part.osmId || "-"}</td>
+                          <td className="px-3 py-2">
+                            {advanced
+                              ? getCharacteristicValue(advanced, selectedCharacteristic)
+                              : "sem dados"}
+                          </td>
+                          <td className="px-3 py-2">
+                            {selectedPartId === part.partId ? "Selecionado" : "-"}
+                          </td>
+                        </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {osmComplementError && (
+                    <p className="mt-2 text-sm text-destructive">{osmComplementError}</p>
+                  )}
+                </div>
+              </section>
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Nome do trecho
                 </h3>
                 <Input
@@ -1199,88 +1337,9 @@ const RefinementSegmentsTable = ({
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Complemento técnico
                 </h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => void handleFetchOsmComplement()}
-                    disabled={isLoadingOsmComplement}
-                  >
-                    {isLoadingOsmComplement ? "Baixando..." : "Baixar dados do OSM"}
-                  </Button>
-                  <Select
-                    value={selectedCharacteristic}
-                    onValueChange={(value) =>
-                      setSelectedCharacteristic(
-                        value as
-                          | "velocidade"
-                          | "numeroFaixas"
-                          | "largura"
-                          | "sentido"
-                          | "posicaoNaVia"
-                          | "pavimento"
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-[260px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="velocidade">Velocidade máxima</SelectItem>
-                      <SelectItem value="numeroFaixas">Número de faixas</SelectItem>
-                      <SelectItem value="largura">Largura</SelectItem>
-                      <SelectItem value="sentido">Sentido</SelectItem>
-                      <SelectItem value="posicaoNaVia">Posição na via</SelectItem>
-                      <SelectItem value="pavimento">Pavimento</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {osmComplementError && (
-                  <p className="text-sm text-destructive">{osmComplementError}</p>
-                )}
-                {Object.keys(advancedByPartId).length > 0 ? (
-                  <div className="rounded-md border p-3">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Clique em um trecho para usar seus dados como base editável.
-                    </p>
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-left">
-                        <tr>
-                          <th className="px-3 py-2">Trecho</th>
-                          <th className="px-3 py-2">osm_id</th>
-                          <th className="px-3 py-2">
-                            Valor: {selectedCharacteristic}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {segmentParts.map((part) => {
-                          const advanced = advancedByPartId[part.partId];
-                          return (
-                            <tr
-                              key={part.partId}
-                              className={`border-t cursor-pointer ${
-                                selectedPartId === part.partId ? "bg-muted" : ""
-                              }`}
-                              onClick={() => applySelectedPartToDraft(part.partId)}
-                            >
-                              <td className="px-3 py-2">{part.label}</td>
-                              <td className="px-3 py-2">{part.osmId || "-"}</td>
-                              <td className="px-3 py-2">
-                                {advanced
-                                  ? getCharacteristicValue(advanced, selectedCharacteristic)
-                                  : "sem dados"}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Baixe os dados do OSM para comparar os trechos por característica.
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  Use a tabela de trechos acima para escolher a base e baixar dados do OSM.
+                </p>
               </section>
 
               <section className="space-y-3">

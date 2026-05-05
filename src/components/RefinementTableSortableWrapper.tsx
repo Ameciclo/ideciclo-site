@@ -34,6 +34,10 @@ interface RefinementTableSortableWrapperProps {
   technicalOpen?: boolean;
   technicalSegment?: Segment | null;
   onFocusGeometryChange?: (geometry: any | null) => void;
+  selectedSegmentsCount?: number;
+  onMergeClick?: () => void;
+  onDeleteClick?: () => void;
+  onClearSelectionClick?: () => void;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -51,6 +55,10 @@ export const RefinementTableSortableWrapper = ({
   technicalOpen = false,
   technicalSegment = null,
   onFocusGeometryChange,
+  selectedSegmentsCount = 0,
+  onMergeClick,
+  onDeleteClick,
+  onClearSelectionClick,
 }: RefinementTableSortableWrapperProps) => {
   // Debug removed
   // Filter and sort state
@@ -241,7 +249,36 @@ export const RefinementTableSortableWrapper = ({
         showClassificationFilter={true}
       />
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedSegmentsCount >= 2 && (
+              <Button
+                size="sm"
+                onClick={onMergeClick}
+                disabled={selectedSegmentsCount < 2}
+              >
+                Mesclar {selectedSegmentsCount} segmentos
+              </Button>
+            )}
+            {selectedSegmentsCount > 0 && (
+              <Button
+                size="sm"
+                onClick={onDeleteClick}
+                variant="destructive"
+              >
+                Excluir {selectedSegmentsCount} segmentos
+              </Button>
+            )}
+            {selectedSegmentsCount > 0 && (
+              <Button
+                size="sm"
+                onClick={onClearSelectionClick}
+                variant="outline"
+              >
+                Limpar seleção
+              </Button>
+            )}
+          </div>
           <div className="flex justify-end">
             <div className="flex flex-wrap items-center gap-3 text-sm">
               <span>Visualização</span>
