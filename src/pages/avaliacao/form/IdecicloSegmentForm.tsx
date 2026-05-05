@@ -2444,7 +2444,7 @@ const SegmentForm = () => {
                                   <button
                                     type="button"
                                     onClick={() => setCurrentIntersectionIndex(index)}
-                                    className={`flex min-h-[44px] min-w-[72px] items-center justify-center rounded-2xl border px-2.5 py-1 text-[11px] font-semibold transition sm:min-h-[48px] sm:min-w-[96px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
+                                    className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getIndexedPagerClassName(
                                       isActive,
                                       isComplete
                                     )}`}
