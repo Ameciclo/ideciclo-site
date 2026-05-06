@@ -10,6 +10,7 @@ import Ranking from "./pages/Ranking";
 import DetalhesCidades from "./pages/DetalhesCidades";
 import DetalhesEstrutura from "./pages/DetalhesEstrutura";
 import Apoiadores from "./pages/Apoiadores";
+import ResumoIdeciclo from "./pages/ResumoIdeciclo";
 import NotFound from "./pages/NotFound";
 import RefinarDados from "./pages/avaliacao/RefinarDados";
 import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
@@ -119,6 +120,7 @@ const App = () => (
                     }
                   />
                   <Route path="/ranking" element={<Ranking />} />
+                  <Route path="/resumo-ideciclo" element={<ResumoIdeciclo />} />
                   <Route path="/detalhes-cidades/:cityId" element={<DetalhesCidades />} />
                   <Route
                     path="/detalhes-cidades/:cityId/estruturas/:segmentId"

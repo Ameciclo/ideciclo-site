@@ -1,34 +1,16 @@
 import { HeroSection } from "@/components/sections/HeroSection";
 import { AccordionSection } from "@/components/sections/AccordionSection";
 import { SupportersSection } from "@/components/sections/SupportersSection";
-import { calcDownloadUrl, formDownloadUrl, manualDownloadUrl } from "@/constants/siteLinks";
+import { formDownloadUrl, manualDownloadUrl } from "@/constants/siteLinks";
 import accordionData from "@/data/accordion.json";
 import partnersData from "@/data/partners.json";
 import consultantsData from "@/data/consultants.json";
 import sponsorsData from "@/data/sponsors.json";
+import { Calculator, ClipboardList, FileDown, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Calculator, ClipboardList, FileDown } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated, openLoginModal } = useAuth();
-
-  const handleProtectedAccess = (route: string) => {
-    if (!isAuthenticated) {
-      openLoginModal({
-        redirectTo: route,
-        title: "Entrar para continuar",
-        description:
-          "O acesso às áreas de refinamento, seleção de trechos e resultados exige login.",
-      });
-      return;
-    }
-
-    navigate(route);
-  };
-
   const resourceCards = [
     {
       title: "Manual",
@@ -47,17 +29,10 @@ const Index = () => {
     {
       title: "Cálculo do IDECICLO",
       description: "Consulte o resumo do cálculo e dos pesos da metodologia.",
-      href: calcDownloadUrl,
+      href: "/resumo_ideciclo.pdf",
       icon: Calculator,
       color: "#6DBFAC",
     },
-  ];
-
-  const ratingLegend = [
-    { label: "A", title: "Excelente", description: "Infraestrutura de alta qualidade", color: "bg-green-500" },
-    { label: "B", title: "Bom", description: "Infraestrutura de boa qualidade", color: "bg-ideciclo-blue" },
-    { label: "C", title: "Regular", description: "Infraestrutura de qualidade média", color: "bg-ideciclo-yellow text-text-grey" },
-    { label: "D", title: "Ruim", description: "Infraestrutura inadequada ou inexistente", color: "bg-ideciclo-red" },
   ];
 
   return (
@@ -84,16 +59,28 @@ const Index = () => {
               </p>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {ratingLegend.map((item) => (
-                <div key={item.label} className="rounded-[24px] bg-white p-5 shadow-md">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white ${item.color}`}>
-                    {item.label}
-                  </div>
-                  <h3 className="mt-4 text-lg font-bold text-text-grey">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-text-grey">{item.description}</p>
+            <div className="mt-8 rounded-[30px] bg-white p-6 shadow-md md:p-8">
+              <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-ideciclo-red">
+                    Resumo didático
+                  </p>
+                  <h3 className="mt-3 text-2xl font-bold text-text-grey md:text-3xl">
+                    Entenda em linguagem simples como o IDECICLO avalia uma cidade
+                  </h3>
+                  <p className="mt-4 text-sm leading-7 text-text-grey md:text-base">
+                    Criamos uma página visual explicando o que o índice mede, por que ele é diferente de uma contagem de quilômetros e como a nota final é formada.
+                  </p>
                 </div>
-              ))}
+                <div className="flex flex-wrap gap-3 lg:justify-end">
+                  <Button asChild className="bg-ideciclo-red text-white hover:bg-ideciclo-red/90">
+                    <Link to="/resumo-ideciclo">
+                      Ver resumo do IDECICLO
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 grid gap-6 md:grid-cols-3">
@@ -114,18 +101,6 @@ const Index = () => {
                   </a>
                 );
               })}
-            </div>
-
-            <div className="mt-8 flex flex-col gap-4 md:flex-row">
-              <Button
-                className="bg-ideciclo-blue hover:bg-ideciclo-blue/90 text-white"
-                onClick={() => handleProtectedAccess("/avaliacao/refinar-dados")}
-              >
-                Aprimorar os dados
-              </Button>
-              <Button asChild variant="outline" className="border-ideciclo-red text-ideciclo-red hover:bg-ideciclo-red hover:text-white">
-                <Link to="/avaliacao">Avaliar infraestrutura</Link>
-              </Button>
             </div>
 
             <p className="mt-6 rounded-2xl bg-white/90 px-5 py-4 text-sm font-medium text-text-grey shadow-sm">
