@@ -226,9 +226,16 @@ npm run auth:dev
 Comandos úteis:
 
 ```bash
+npm run db:bootstrap
 npm run db:logs
 npm run db:down
 npm run db:seedsudo
+```
+
+Para carregar a estrutura do banco no Neon ou em qualquer Postgres apontado por `DATABASE_URL`:
+
+```bash
+npm run db:bootstrap
 ```
 
 Primeiro admin global:
