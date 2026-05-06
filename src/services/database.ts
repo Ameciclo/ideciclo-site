@@ -1,4 +1,4 @@
-import { authClient, databaseClient as supabase } from "@/integrations/database/client";
+import { authClient } from "@/integrations/database/client";
 import { City, Segment, Form, Review, SegmentType, RatingType } from "@/types";
 import { Database } from "@/integrations/database/types";
 
@@ -23,32 +23,6 @@ const formatDatabaseError = (context: string, error: unknown): string => {
   ].filter(Boolean);
 
   return parts.length > 0 ? `${context}: ${parts.join(" | ")}` : context;
-};
-
-const getMissingColumnName = (error: unknown): string | null => {
-  if (!error || typeof error !== "object") return null;
-
-  const message = [
-    "message" in error ? error.message : "",
-    "details" in error ? error.details : "",
-    "hint" in error ? error.hint : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const patterns = [
-    /column ["']?([a-zA-Z0-9_.]+)["']?/i,
-    /Could not find the ['"]?([a-zA-Z0-9_.]+)['"]? column/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = message.match(pattern);
-    if (match?.[1]) {
-      return match[1].split(".").pop() || match[1];
-    }
-  }
-
-  return null;
 };
 
 const readCityRankingVisibilityMap = (): Record<string, boolean> => {
@@ -83,6 +57,30 @@ const setLocalCityRankingVisibility = (cityId: string, visible: boolean) => {
   const current = readCityRankingVisibilityMap();
   current[cityId] = visible;
   writeCityRankingVisibilityMap(current);
+};
+
+const DB_API_BASE_PATH = "/api/db";
+
+const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(`${DB_API_BASE_PATH}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String(payload.error)
+        : "Erro inesperado ao acessar a API de leitura do banco.";
+    throw new Error(message);
+  }
+
+  return payload as T;
 };
 
 const fetchAuthDb = async <T>(
@@ -132,34 +130,16 @@ const resolveDatabaseSegmentId = async (
     return { dbId: `${cityId}_${segmentId}`, cityId };
   }
 
-  const exactMatch = await supabase
-    .from("segments")
-    .select("id, id_cidade")
-    .eq("id", segmentId)
-    .single();
+  try {
+    const payload = await fetchDb<{
+      segment: { dbId: string; cityId?: string } | null;
+    }>(`/segments/resolve/${encodeURIComponent(segmentId)}`);
 
-  if (exactMatch.data) {
-    return {
-      dbId: exactMatch.data.id,
-      cityId: exactMatch.data.id_cidade,
-    };
+    return payload.segment;
+  } catch (error) {
+    console.error("Error resolving segment ID:", error);
+    return null;
   }
-
-  const likeMatch = await supabase
-    .from("segments")
-    .select("id, id_cidade")
-    .like("id", `%_${segmentId}`)
-    .limit(1)
-    .maybeSingle();
-
-  if (likeMatch.data) {
-    return {
-      dbId: likeMatch.data.id,
-      cityId: likeMatch.data.id_cidade,
-    };
-  }
-
-  return null;
 };
 
 export const getSegmentByIdForForm = async (
@@ -268,18 +248,15 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
  * City CRUD operations
  */
 export const fetchCityFromDB = async (cityId: string): Promise<City | null> => {
-  const { data, error } = await supabase
-    .from('cities')
-    .select('*')
-    .eq('id', cityId)
-    .single();
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ city: CityRow | null }>(
+      `/cities/${encodeURIComponent(cityId)}`
+    );
+    return payload.city ? convertCityRowToCity(payload.city) : null;
+  } catch (error) {
     console.error("Error fetching city:", error);
     return null;
   }
-
-  return convertCityRowToCity(data);
 };
 
 export const saveCityToDB = async (city: Partial<City>): Promise<City | null> => {
@@ -372,47 +349,14 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
       });
   };
 
-  // Prefer top-level segments, but fall back to all segments if the stored data
-  // predates the merge fields or was persisted in an inconsistent state.
-  let { data, error } = await (supabase.from("segments") as any)
-    .select("*")
-    .eq("id_cidade", cityId)
-    .is("parent_segment_id", null)
-    .is("deleted_at", null);
+  let data: SegmentRow[] = [];
 
-  if (error) {
-    const missingColumn = getMissingColumnName(error);
-    if (missingColumn === "deleted_at") {
-      const fallbackWithoutDeletedAt = await supabase
-        .from("segments")
-        .select("*")
-        .eq("id_cidade", cityId)
-        .is("parent_segment_id", null);
-      data = fallbackWithoutDeletedAt.data;
-      error = fallbackWithoutDeletedAt.error;
-    } else {
-      console.warn("Error fetching top-level segments, falling back to all city segments:", error);
-    }
-  }
-
-  if (!data || data.length === 0) {
-    let fallbackResult = await (supabase.from("segments") as any)
-      .select("*")
-      .eq("id_cidade", cityId)
-      .is("deleted_at", null);
-
-    if (fallbackResult.error && getMissingColumnName(fallbackResult.error) === "deleted_at") {
-      fallbackResult = await supabase
-        .from("segments")
-        .select("*")
-        .eq("id_cidade", cityId);
-    }
-
-    data = fallbackResult.data;
-    error = fallbackResult.error;
-  }
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ segments: SegmentRow[] }>(
+      `/segments/city/${encodeURIComponent(cityId)}`
+    );
+    data = payload.segments || [];
+  } catch (error) {
     console.error("Error fetching segments:", error);
     return [];
   }
@@ -520,19 +464,18 @@ export const hardDeleteSegmentsFromDB = async (segmentIds: string[]): Promise<bo
 };
 
 export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segment[]> => {
-  const { data, error } = await (supabase.from("segments") as any)
-    .select("*")
-    .eq("id_cidade", cityId)
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false })
-    .limit(200);
+  let rows: SegmentRow[] = [];
 
-  if (error) {
+  try {
+    const payload = await fetchDb<{ segments: SegmentRow[] }>(
+      `/segments/city/${encodeURIComponent(cityId)}/deleted`
+    );
+    rows = payload.segments || [];
+  } catch (error) {
     console.error("Error fetching deleted segments:", error);
     return [];
   }
 
-  const rows = (data || []) as SegmentRow[];
   return rows.map((row) => {
     const segment = convertSegmentRowToSegment(row);
     if (segment.id.startsWith(`${cityId}_`)) {
@@ -749,17 +692,15 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
  * Form CRUD operations
  */
 export const fetchFormsByCityId = async (cityId: string): Promise<Form[]> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('city_id', cityId);
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ forms: FormRow[] }>(
+      `/forms/city/${encodeURIComponent(cityId)}`
+    );
+    return (payload.forms || []).map(convertFormRowToForm);
+  } catch (error) {
     console.error("Error fetching forms by city ID:", error);
     return [];
   }
-
-  return data.map(convertFormRowToForm);
 };
 
 export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> => {
@@ -802,35 +743,27 @@ export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> =>
 };
 
 export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('id', formId)
-    .single();
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ? convertFormRowToForm(payload.form) : null;
+  } catch (error) {
     console.error("Error fetching form:", error);
     return null;
   }
-
-  return convertFormRowToForm(data);
 };
 
 export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | null> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('segment_id', segmentId)
-    .single();
-
-  if (error) {
-    if (error.code !== 'PGRST116') { // PGRST116 is "no rows returned" - not a real error in this case
-      console.error("Error fetching form by segment ID:", error);
-    }
+  try {
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+    );
+    return payload.form ? convertFormRowToForm(payload.form) : null;
+  } catch (error) {
+    console.error("Error fetching form by segment ID:", error);
     return null;
   }
-
-  return convertFormRowToForm(data);
 };
 
 /**
@@ -838,18 +771,17 @@ export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | nu
  */
 export const checkFormsExistByIds = async (formIds: string[]): Promise<string[]> => {
   if (formIds.length === 0) return [];
-  
-  const { data, error } = await supabase
-    .from('forms')
-    .select('id')
-    .in('id', formIds);
 
-  if (error) {
+  try {
+    const query = new URLSearchParams();
+    formIds.forEach((formId) => query.append("id", formId));
+
+    const payload = await fetchDb<{ formIds: string[] }>(`/forms/exists?${query.toString()}`);
+    return payload.formIds || [];
+  } catch (error) {
     console.error("Error checking forms existence:", error);
     return [];
   }
-
-  return data.map(form => form.id);
 };
 
 /**
@@ -881,23 +813,22 @@ export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
 };
 
 export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('form_id', formId);
+  try {
+    const payload = await fetchDb<{ reviews: ReviewRow[] }>(
+      `/reviews/form/${encodeURIComponent(formId)}`
+    );
 
-  if (error) {
+    return (payload.reviews || []).map((review: ReviewRow): Review => ({
+      id: review.id,
+      form_id: review.form_id,
+      rating_name: review.rating_name as RatingType,
+      rating: review.rating,
+      weight: review.weight
+    }));
+  } catch (error) {
     console.error("Error fetching reviews:", error);
     return [];
   }
-
-  return data.map((review: ReviewRow): Review => ({
-    id: review.id,
-    form_id: review.form_id,
-    rating_name: review.rating_name as RatingType,
-    rating: review.rating,
-    weight: review.weight
-  }));
 };
 
 /**
@@ -923,18 +854,10 @@ export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
  */
 export const fetchFormById = async (formId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .select("*")
-      .eq("id", formId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching form by ID:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form by ID:", error);
     return null;
@@ -943,36 +866,10 @@ export const fetchFormById = async (formId: string): Promise<any | null> => {
 
 export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
   try {
-    const directMatch = await supabase
-      .from("forms")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .maybeSingle();
-
-    if (directMatch.error && directMatch.error.code !== "PGRST116") {
-      console.error("Error fetching form by segment ID:", directMatch.error);
-    }
-
-    if (directMatch.data) {
-      return directMatch.data;
-    }
-
-    const resolvedSegment = await resolveDatabaseSegmentId(segmentId);
-    if (!resolvedSegment || resolvedSegment.dbId === segmentId) {
-      return null;
-    }
-
-    const fallbackMatch = await supabase
-      .from("forms")
-      .select("*")
-      .eq("segment_id", resolvedSegment.dbId)
-      .maybeSingle();
-
-    if (fallbackMatch.error && fallbackMatch.error.code !== "PGRST116") {
-      console.error("Error fetching form by resolved segment ID:", fallbackMatch.error);
-    }
-
-    return fallbackMatch.data || null;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form by segment ID:", error);
     return null;
@@ -981,56 +878,12 @@ export const getFormBySegmentId = async (segmentId: string): Promise<any | null>
 
 export const fetchSegmentById = async (segmentId: string): Promise<any | null> => {
   try {
-    const candidateIds = Array.from(
-      new Set(
-        segmentId.includes("_")
-          ? [segmentId, segmentId.split("_").slice(1).join("_")]
-          : [segmentId]
-      )
-    ).filter(Boolean);
+    const payload = await fetchDb<{ segment: SegmentRow | null }>(
+      `/segments/${encodeURIComponent(segmentId)}`
+    );
 
-    let data = null;
-    let error = null;
-
-    for (const candidateId of candidateIds) {
-      const result = await supabase
-        .from("segments")
-        .select("*")
-        .eq("id", candidateId)
-        .maybeSingle();
-
-      if (result.data) {
-        data = result.data;
-        error = null;
-        break;
-      }
-
-      error = result.error;
-    }
-
-    if (!data && !segmentId.includes("_")) {
-      const wildcardResult = await supabase
-        .from("segments")
-        .select("*")
-        .like("id", `%_${segmentId}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (wildcardResult.data) {
-        data = wildcardResult.data;
-        error = null;
-      } else {
-        error = wildcardResult.error;
-      }
-    }
-
-    if (!data && error) {
-      console.error("Error fetching segment by ID:", error);
-      return null;
-    }
-
-    if (!data) return null;
-    return convertSegmentRowToSegment(data as SegmentRow);
+    if (!payload.segment) return null;
+    return convertSegmentRowToSegment(payload.segment);
   } catch (error) {
     console.error("Error fetching segment by ID:", error);
     return null;
@@ -1093,18 +946,10 @@ export const updateSegmentEvaluationStatus = async (segmentId: string, formId: s
  */
 export const fetchFormWithDetails = async (formId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .select("*")
-      .eq("id", formId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching form details:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form details:", error);
     return null;
@@ -1116,21 +961,8 @@ export const fetchFormWithDetails = async (formId: string): Promise<any | null> 
  */
 export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    const { data, error } = await supabase.from("cities").select("state");
-
-    if (error) {
-      console.error("Error fetching states:", error);
-      return [];
-    }
-
-    // Extract unique states
-    const uniqueStatesSet = new Set(data.map((item) => item.state));
-    const uniqueStates = Array.from(uniqueStatesSet).map((state) => ({
-      id: state,
-      name: state,
-    }));
-
-    return uniqueStates;
+    const payload = await fetchDb<{ states: { id: string; name: string }[] }>("/states");
+    return payload.states || [];
   } catch (error) {
     console.error("Error fetching states:", error);
     return [];
@@ -1139,17 +971,10 @@ export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: str
 
 export const fetchCitiesByState = async (state: string): Promise<City[]> => {
   try {
-    const { data, error } = await supabase
-      .from("cities")
-      .select("*")
-      .eq("state", state);
-
-    if (error) {
-      console.error("Error fetching cities:", error);
-      return [];
-    }
-
-    return data as City[];
+    const payload = await fetchDb<{ cities: CityRow[] }>(
+      `/cities?state=${encodeURIComponent(state)}`
+    );
+    return (payload.cities || []).map(convertCityRowToCity);
   } catch (error) {
     console.error("Error fetching cities:", error);
     return [];
@@ -1161,18 +986,8 @@ export const fetchCitiesByState = async (state: string): Promise<City[]> => {
  */
 export const fetchAllStoredCities = async (): Promise<City[]> => {
   try {
-    const { data, error } = await supabase
-      .from("cities")
-      .select("*")
-      .order("state", { ascending: true })
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching stored cities:", error);
-      return [];
-    }
-
-    return data.map(convertCityRowToCity);
+    const payload = await fetchDb<{ cities: CityRow[] }>("/cities");
+    return (payload.cities || []).map(convertCityRowToCity);
   } catch (error) {
     console.error("Error fetching stored cities:", error);
     return [];
@@ -1238,12 +1053,11 @@ export const clearAllCaches = async (): Promise<void> => {
     // 2. Clear client-side session/cache placeholders
     await authClient.refreshSession();
     
-    // 3. Clear browser cache for Supabase API requests
+    // 3. Clear browser cache for app API requests
     try {
       const cachesToClear = await caches.keys();
       for (const cacheName of cachesToClear) {
-        // Only clear caches related to our app or Supabase
-        if (cacheName.includes('postgrest') || cacheName.includes('ideciclo')) {
+        if (cacheName.includes('ideciclo')) {
           await caches.delete(cacheName);
         }
       }

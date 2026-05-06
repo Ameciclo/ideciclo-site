@@ -8,7 +8,7 @@
     "auth:dev": "node --watch server/auth-server.mjs",
     "db:seedsudo": "node scripts/db-seedsudo.mjs",
     "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f postgres postgrest",
+    "db:logs": "docker compose logs -f postgres",
     "db:up": "docker compose up -d",
     "build": "vite build",
     "build:dev": "vite build --mode development",

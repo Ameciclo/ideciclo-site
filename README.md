@@ -52,7 +52,6 @@ npm run dev
 ```bash
 # Desenvolvimento
 npm run dev
-npm run auth:dev
 
 # Build para produção
 npm run build
@@ -87,7 +86,7 @@ npm run preview
 - **Turf.js** - Análise geoespacial
 
 ### Dados e Estado
-- **Supabase** - Backend como serviço
+- **PostgreSQL + rotas server-side** - Persistência e acesso ao banco
 - **TanStack Query** - Gerenciamento de estado do servidor
 - **React Hook Form** - Gerenciamento de formulários
 - **Zod** - Validação de esquemas
@@ -177,9 +176,9 @@ Este projeto é uma ferramenta aberta e replicável, desenvolvida para fortalece
 
 ### Configuração do Ambiente
 
-O projeto agora pode rodar localmente com `Postgres + PostgREST` em Docker, sem depender do Supabase.
+O projeto agora roda localmente com `Postgres` em Docker e rotas server-side em `/api/auth/*` e `/api/db/*`.
 
-1. Suba o banco e a API:
+1. Suba o banco:
 
 ```bash
 npm run db:up
@@ -189,9 +188,6 @@ npm run db:up
 
 ```bash
 # .env.local
-VITE_DATABASE_API_URL=/api
-DATABASE_API_PROXY_TARGET=http://127.0.0.1:3000
-AUTH_API_PROXY_TARGET=http://127.0.0.1:3001
 DATABASE_URL=postgresql://ideciclo:change_me_local_password@127.0.0.1:54322/ideciclo
 APP_URL=http://127.0.0.1:8080
 EMAIL_FROM=no-reply@ideciclo.local
@@ -210,10 +206,6 @@ POSTGRES_DB=ideciclo
 POSTGRES_USER=ideciclo
 POSTGRES_PASSWORD=change_me_local_password
 POSTGRES_PORT=54322
-POSTGREST_PORT=3000
-POSTGREST_DB_ANON_ROLE=web_anon
-POSTGREST_DB_AUTHENTICATOR_USER=authenticator
-POSTGREST_DB_AUTHENTICATOR_PASSWORD=change_me_local_password
 VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
 ```
 
@@ -223,14 +215,13 @@ VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
 npm run dev
 ```
 
-4. Inicie o servidor de autenticação:
+O Postgres ficará disponível em `localhost:54322` por padrão. Em desenvolvimento, o Vite serve localmente as rotas `/api/auth/*` e `/api/db/*` usando os handlers do projeto, então não há proxy nem processo extra obrigatório para a API.
+
+Se você quiser testar o auth server isoladamente fora do Vite, ainda pode rodar:
 
 ```bash
 npm run auth:dev
 ```
-
-O Postgres ficará disponível em `localhost:54322` e a API PostgREST em `localhost:3000` por padrão.
-O servidor de autenticação ficará disponível em `localhost:3001` e será acessado pelo frontend via proxy em `/api/auth`.
 
 Comandos úteis:
 
@@ -254,10 +245,9 @@ npm run db:seedsudo -- admin@exemplo.org
 
 ### Deploy
 
-O deploy de produção atual assume frontend Vite + função Node para autenticação.
+O deploy de produção atual assume frontend Vite + funções Node em `/api`.
 
-- **Vercel**: o frontend é servido como SPA e o auth roda em `/api/auth/*` via função Node do projeto.
-- **PostgREST em produção**: mantenha `VITE_DATABASE_API_URL=/api` e configure `DATABASE_API_PROXY_TARGET` apontando para a sua instância real do PostgREST; a Vercel fará o proxy em runtime.
+- **Vercel**: o frontend é servido como SPA, a autenticação roda em `/api/auth/*` e as leituras do banco em `/api/db/*`.
 - **Variáveis obrigatórias em produção**: `DATABASE_URL`, `APP_URL` com `https`, `EMAIL_FROM`, `MAGIC_LINK_SECRET` forte, `SMTP_HOST` e `AUTH_COOKIE_SECURE=true`.
 - **Provisionamento inicial**: depois de aplicar as migrations no banco, rode `npm run db:seedsudo` uma vez para criar o primeiro `admin_global`.
 
