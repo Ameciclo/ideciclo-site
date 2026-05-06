@@ -12,6 +12,7 @@ import {
 } from "@/utils/idecicloResults";
 import {
   getCriterionLabel,
+  isCriterionApplicable,
   getScoreBreakdown,
 } from "@/utils/idecicloAssessment";
 import { getCriterionRatingScale } from "@/utils/criterionRatingDescriptions";
@@ -277,15 +278,17 @@ export const buildStructureDetails = (
 
       const criteria = Object.entries(breakdown.sections).flatMap(
         ([, section]): PublicCriterionDetail[] =>
-          Object.entries(section.items).map(([code, item]) => ({
-            code: code as CriterionCode,
-            label: getCriterionLabel(code as CriterionCode) || item.label,
-            rating: item.rating ?? null,
-            points: typeof item.points === "number" ? item.points : null,
-            maxPoints: item.maxPoints,
-            evidence: getCriterionEvidence(code as CriterionCode, formData),
-            scale: getCriterionRatingScale(code as CriterionCode, formData),
-          }))
+          Object.entries(section.items)
+            .filter(([code]) => isCriterionApplicable(formData, code as CriterionCode))
+            .map(([code, item]) => ({
+              code: code as CriterionCode,
+              label: getCriterionLabel(code as CriterionCode) || item.label,
+              rating: item.rating ?? null,
+              points: typeof item.points === "number" ? item.points : null,
+              maxPoints: item.maxPoints,
+              evidence: getCriterionEvidence(code as CriterionCode, formData),
+              scale: getCriterionRatingScale(code as CriterionCode, formData),
+            }))
       );
 
       const criteriaByCode = new Map(criteria.map((item) => [item.code, item]));
