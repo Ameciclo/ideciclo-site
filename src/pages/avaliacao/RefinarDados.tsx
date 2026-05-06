@@ -112,18 +112,24 @@ const RefinarDados = () => {
   useEffect(() => {
     const storedData = getPersistedCityData();
     if (storedData) {
-      const data = JSON.parse(storedData);
-      setCityId(data.cityId);
-      setCityName(data.cityName);
-      setStateName(data.stateName);
-      loadStoredCityData(
-        data.cityId,
-        data.cityName,
-        data.stateName,
-        data.city && Array.isArray(data.segments) && data.segments.length > 0
-          ? { city: data.city, segments: data.segments }
-          : undefined
-      );
+      try {
+        const data = JSON.parse(storedData);
+        setCityId(data.cityId);
+        setCityName(data.cityName);
+        setStateName(data.stateName);
+        loadStoredCityData(
+          data.cityId,
+          data.cityName,
+          data.stateName,
+          data.city && Array.isArray(data.segments) && data.segments.length > 0
+            ? { city: data.city, segments: data.segments }
+            : undefined
+        );
+      } catch (error) {
+        console.error("Falha ao ler snapshot persistido da cidade:", error);
+        clearPersistedCityData();
+        setError("Os dados locais da cidade ficaram inválidos. Selecione a cidade novamente.");
+      }
     }
   }, []);
 
@@ -222,7 +228,26 @@ const RefinarDados = () => {
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      setError("Falha ao carregar dados armazenados");
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "Falha ao carregar os dados da cidade.";
+
+      setError(errorMessage);
+
+      if (
+        errorMessage.includes("401") ||
+        errorMessage.includes("403") ||
+        errorMessage.toLowerCase().includes("acesso negado") ||
+        errorMessage.toLowerCase().includes("acesso restrito")
+      ) {
+        toast({
+          title: "Permissão insuficiente",
+          description:
+            "Sua sessão está ativa, mas esta conta não tem acesso a essa operação para a cidade selecionada.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
