@@ -20,6 +20,7 @@ import SignageStep from "./SignageStep";
 import SafetyAndComfortStep from "./SafetyAndComfortStep";
 import UrbanityStep from "./UrbanityStep";
 import ReviewAndSubmitStep from "./ReviewAndSubmitStep";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   createFormInDB,
@@ -524,7 +525,6 @@ const createEmptyFormData = (segmentId?: string | null): IdecicloFormData => ({
   date: new Date().toISOString().split("T")[0],
   city: "",
   city_id: "",
-  neighborhood: "",
   id: segmentId || "",
   segment_id: segmentId || "",
   segment_name: "",
@@ -858,7 +858,6 @@ const hydrateHeaderFields = async (
     segment_id: data.segment_id || currentSegmentId,
     city: data.city || cityName,
     city_id: data.city_id || cityId,
-    neighborhood: data.neighborhood || segmentData.neighborhood || "",
     segment_name: data.segment_name || segmentData.name || "",
     infra_typology: data.infra_typology || segmentData.type || "",
     extension_m: data.extension_m || segmentData.length || 0,
@@ -1196,6 +1195,7 @@ const removePendingSubmission = (segmentId: string) => {
 };
 
 const SegmentForm = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { segmentId, formId } = useParams();
@@ -1902,7 +1902,6 @@ const SegmentForm = () => {
               city: cityName,
               city_id: resolvedCityId,
               extension_m: segmentData.length || 0,
-              neighborhood: segmentData.neighborhood || "",
               road_hierarchy: segmentData.classification || "",
               classification: segmentData.classification || undefined,
               blocks_count:
@@ -1938,6 +1937,10 @@ const SegmentForm = () => {
         const segmentForFinalPrefill = await fetchSegmentContextById(
           effectiveSegmentId || nextFormData.segment_id || nextFormData.id
         );
+        nextFormData = {
+          ...nextFormData,
+          researcher: nextFormData.researcher || user?.email || "",
+        };
         nextFormData = applyOsmPrefillToFormData(nextFormData, segmentForFinalPrefill);
         nextFormData = syncSegmentA1ToFormData(nextFormData, segmentForFinalPrefill);
 
@@ -1955,7 +1958,7 @@ const SegmentForm = () => {
     };
 
     fetchData();
-  }, [draftKey, effectiveSegmentId, formId, sessionCityId, toast]);
+  }, [draftKey, effectiveSegmentId, formId, sessionCityId, toast, user?.email]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -2067,7 +2070,6 @@ const SegmentForm = () => {
       researcher: formData.researcher || "",
       date: formData.date || null,
       street_name: formData.segment_name || null,
-      neighborhood: formData.neighborhood || null,
       extension: formData.extension_m || null,
       start_point: formData.start_point || null,
       end_point: formData.end_point || null,
@@ -2343,7 +2345,7 @@ const SegmentForm = () => {
                 label="Pesquisador(a):"
                 name="researcher"
                 value={formData.researcher || ""}
-                onChange={handleHeaderInputChange}
+                readOnly
               />
               <HeaderField
                 label="Data:"
@@ -2357,12 +2359,6 @@ const SegmentForm = () => {
                 name="city"
                 value={formData.city || ""}
                 readOnly
-              />
-              <HeaderField
-                label="Bairro:"
-                name="neighborhood"
-                value={formData.neighborhood || ""}
-                onChange={handleHeaderInputChange}
               />
               <HeaderField
                 label="ID:"

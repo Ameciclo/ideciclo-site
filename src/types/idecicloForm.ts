@@ -51,7 +51,6 @@ export interface IdecicloFormData {
   date: string;
   city: string;
   city_id: string;
-  neighborhood: string;
   id: string;
   segment_id: string;
   segment_name: string;
