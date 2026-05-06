@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 
 import CityMap from "@/components/CityMap";
-import ManualHelpDialog from "@/components/ManualHelpDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,7 +99,6 @@ const MetricCard = ({
   icon: typeof Bike;
   label: string;
   value: string;
-  helper?: string;
   caption?: string;
   tone?: "default" | "warm" | "cool" | "alert";
 }) => {
@@ -121,7 +119,6 @@ const MetricCard = ({
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/90 text-ideciclo-red shadow-sm">
               <Icon className="h-6 w-6" />
             </div>
-            {helper ? <ManualHelpDialog helpKey={helper} compact /> : null}
           </div>
           <CardDescription className="text-sm font-medium uppercase tracking-[0.16em] text-slate-500">
             {label}
@@ -745,7 +742,6 @@ const DetalhesCidades = () => {
               <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-2xl text-text-grey">Leitura rápida</CardTitle>
-                  <ManualHelpDialog helpKey="A1" compact />
                 </div>
                 <CardDescription>
                   Uma visão direta do que já foi medido e do que hoje pesa mais na leitura pública da cidade.
@@ -790,7 +786,6 @@ const DetalhesCidades = () => {
             icon={Gauge}
             label="Índice IDECICLO"
             value={formatIndex(displayedIndex)}
-            helper="A1"
             caption="Leitura sintética da qualidade cicloviária observada nesta cidade."
             tone="warm"
           />
@@ -798,7 +793,6 @@ const DetalhesCidades = () => {
             icon={Route}
             label="Km avaliados"
             value={`${formatKm(results.summary.evaluatedStructureKm)} km`}
-            helper="B1"
             caption="Trechos que já possuem formulário preenchido e nota calculada."
             tone="cool"
           />
@@ -806,14 +800,12 @@ const DetalhesCidades = () => {
             icon={Bike}
             label="Estruturas observadas"
             value={formatCount(results.summary.totalStructures)}
-            helper="A2"
             caption="Trechos cicloviários analisados na leitura pública da cidade."
           />
           <MetricCard
             icon={TriangleAlert}
             label="Trechos incompatíveis"
             value={formatCount(results.summary.incompatibleStructures)}
-            helper="A1"
             caption="Estruturas que hoje não entram no índice por incompatibilidade metodológica."
             tone="alert"
           />
@@ -829,7 +821,6 @@ const DetalhesCidades = () => {
                     Uma síntese para quem quer entender por que a cidade aparece assim hoje.
                   </CardDescription>
                 </div>
-                <ManualHelpDialog helpKey="A2" compact />
               </div>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
@@ -924,7 +915,6 @@ const DetalhesCidades = () => {
                     Quanto da rede observada aparece em cada tipo de infraestrutura.
                   </CardDescription>
                 </div>
-                <ManualHelpDialog helpKey="B3" compact />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -961,7 +951,6 @@ const DetalhesCidades = () => {
                   <Badge className={cn("rounded-full px-3 py-1", getHierarchyBadgeClassName(network.key))}>
                     {network.label}
                   </Badge>
-                  <ManualHelpDialog helpKey="A2" compact />
                 </div>
                 <CardTitle className="text-xl text-text-grey">{network.label}</CardTitle>
                 <CardDescription>
@@ -1015,7 +1004,6 @@ const DetalhesCidades = () => {
                     Um atalho para as estruturas que mais ajudam ou mais puxam a leitura da cidade.
                   </CardDescription>
                 </div>
-                <ManualHelpDialog helpKey="E2" compact />
               </div>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
@@ -1293,7 +1281,6 @@ const DetalhesCidades = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ManualHelpDialog helpKey="B4" compact />
                   <Button
                     type="button"
                     variant="outline"
@@ -1419,7 +1406,6 @@ const DetalhesCidades = () => {
                                       {row.code} • {row.first?.label || row.second?.label}
                                     </div>
                                   </div>
-                                  <ManualHelpDialog helpKey={row.code} compact />
                                 </div>
                               </TableCell>
                               <TableCell>

@@ -43,221 +43,6 @@ import {
   type PublicStructureDetail,
 } from "@/utils/publicIdeciclo";
 
-type FieldSection = {
-  title: string;
-  helpKey?: string;
-  items: Array<{
-    label: string;
-    value: string;
-  }>;
-};
-
-const FLOW_LABELS: Record<string, string> = {
-  unidirectional: "Unidirecional",
-  bidirectional: "Bidirecional",
-};
-
-const POSITION_LABELS: Record<string, string> = {
-  canteiro: "Junto ao canteiro",
-  pista_canteiro: "Entre pista e canteiro",
-  pista_calcada: "Entre pista e calçada",
-  calcada: "Na calçada",
-  centro_pista: "No centro da pista",
-  isolada: "Isolada da pista",
-};
-
-const RATING_LABELS: Record<string, string> = {
-  A: "Muito favorável",
-  B: "Boa",
-  C: "Regular",
-  D: "Crítica",
-};
-
-const asLabel = (value: unknown, fallback = "Não informado") => {
-  const text = String(value ?? "").trim();
-  return text || fallback;
-};
-
-const asBooleanLabel = (value: unknown) => {
-  if (value === null || value === undefined || value === "") return "Não informado";
-  return value ? "Sim" : "Não";
-};
-
-const sumNumbers = (values: unknown) =>
-  Array.isArray(values)
-    ? values.reduce((sum, item) => sum + Number(item || 0), 0)
-    : Number(values || 0);
-
-const countRiskOccurrences = (detail: PublicStructureDetail) => {
-  const counts = detail.formData.risk_occurrence_counts;
-  if (counts && typeof counts === "object") {
-    return Object.values(counts).reduce((sum, item) => sum + Number(item || 0), 0);
-  }
-
-  return [
-    detail.formData.bus_stop_conflict,
-    detail.formData.school_conflict,
-    detail.formData.horizontal_obstacles,
-    detail.formData.vertical_obstacles,
-    detail.formData.side_change_mid_block,
-    detail.formData.opposite_flow_direction,
-  ].filter(Boolean).length;
-};
-
-const buildFieldSections = (detail: PublicStructureDetail): FieldSection[] => {
-  const totalSignalizedCrossings =
-    sumNumbers(detail.formData.signalized_crossings_count_by_block) ||
-    Number(detail.formData.signalized_crossings_count || 0);
-  const totalSignsPerBlock = Array.isArray(detail.formData.regulation_signs_per_block_by_block)
-    ? detail.formData.regulation_signs_per_block_by_block.join(", ")
-    : String(detail.formData.regulation_signs_per_block || "Não informado");
-  const furnitureBlocks = Array.isArray(detail.formData.cycling_furniture_by_block)
-    ? detail.formData.cycling_furniture_by_block.filter((items) => items.length > 0).length
-    : Number(detail.formData.blocks_with_cycling_furniture || 0);
-  const observations =
-    String(detail.formData.observations || detail.form?.observations || "").trim();
-
-  return [
-    {
-      title: "Resumo do trecho",
-      helpKey: "A1",
-      items: [
-        { label: "Tipologia", value: detail.result.typeLabel },
-        { label: "Hierarquia viária", value: detail.result.hierarchyLabel },
-        { label: "Extensão", value: `${formatKm(detail.result.lengthKm)} km` },
-        { label: "Bairro", value: asLabel(detail.segment.neighborhood) },
-        { label: "Fluxo", value: FLOW_LABELS[String(detail.formData.infra_flow || "")] || asLabel(detail.formData.infra_flow) },
-        {
-          label: "Posição na via",
-          value:
-            POSITION_LABELS[String(detail.formData.position_on_road || "")] ||
-            asLabel(detail.formData.position_on_road),
-        },
-        {
-          label: "Velocidade regulamentada",
-          value: detail.formData.velocity_kmh
-            ? `${detail.formData.velocity_kmh} km/h`
-            : "Não informada",
-        },
-        {
-          label: "Quadras observadas",
-          value: formatCount(Number(detail.formData.blocks_count || detail.segment.blocks_count || 0)),
-        },
-        {
-          label: "Interseções observadas",
-          value: formatCount(
-            Number(detail.formData.intersections_count || detail.segment.intersections_count || 0)
-          ),
-        },
-      ],
-    },
-    {
-      title: "Projeto e sinalização",
-      helpKey: "B4",
-      items: [
-        {
-          label: "Largura útil",
-          value: detail.formData.width_meters
-            ? `${detail.formData.width_meters.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })} m`
-            : "Não informada",
-        },
-        {
-          label: "Buffer lateral",
-          value: detail.formData.buffer_width_m
-            ? `${detail.formData.buffer_width_m.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })} m`
-            : "Não informado",
-        },
-        {
-          label: "Travessias sinalizadas",
-          value: formatCount(totalSignalizedCrossings),
-        },
-        {
-          label: "Placas por quadra",
-          value: totalSignsPerBlock,
-        },
-        {
-          label: "Pictogramas por quadra",
-          value: detail.formData.pictograms_per_block
-            ? formatCount(detail.formData.pictograms_per_block)
-            : "Não informado",
-        },
-        {
-          label: "Sinalização em interseções",
-          value:
-            RATING_LABELS[String(detail.formData.intersection_signaling || "")] ||
-            asLabel(detail.formData.intersection_signaling),
-        },
-      ],
-    },
-    {
-      title: "Conforto, segurança e manutenção",
-      helpKey: "E2",
-      items: [
-        {
-          label: "Pavimento",
-          value:
-            RATING_LABELS[String(detail.formData.pavement_type || "")] ||
-            asLabel(detail.formData.pavement_type),
-        },
-        {
-          label: "Conservação do piso",
-          value:
-            RATING_LABELS[String(detail.formData.conservation_state || "")] ||
-            asLabel(detail.formData.conservation_state),
-        },
-        {
-          label: "Iluminação",
-          value:
-            RATING_LABELS[String(detail.formData.lighting_rating || "")] ||
-            asBooleanLabel(detail.formData.has_lighting_posts),
-        },
-        {
-          label: "Sombreamento",
-          value:
-            RATING_LABELS[String(detail.formData.shading_coverage || "")] ||
-            asLabel(detail.formData.shading_coverage),
-        },
-        {
-          label: "Quadras com mobiliário",
-          value: formatCount(furnitureBlocks),
-        },
-        {
-          label: "Ocorrências de risco",
-          value: formatCount(countRiskOccurrences(detail)),
-        },
-        {
-          label: "Conexões cicloviárias visíveis",
-          value: formatCount(
-            Array.isArray(detail.formData.intersection_has_cycling_connection_by_intersection)
-              ? detail.formData.intersection_has_cycling_connection_by_intersection.filter(Boolean).length
-              : 0
-          ),
-        },
-      ],
-    },
-    ...(observations
-      ? [
-          {
-            title: "Observações registradas",
-            helpKey: "B7",
-            items: [
-              {
-                label: "Síntese de campo",
-                value: observations,
-              },
-            ],
-          },
-        ]
-      : []),
-  ];
-};
-
 const SummaryMetric = ({
   icon: Icon,
   label,
@@ -370,11 +155,6 @@ const DetalhesEstrutura = () => {
       ? orderedDetails[currentIndex + 1]
       : null;
 
-  const fieldSections = useMemo(
-    () => (currentDetail ? buildFieldSections(currentDetail) : []),
-    [currentDetail]
-  );
-
   const topBottom = useMemo(
     () => (currentDetail ? getTopAndBottomCriteria(currentDetail) : null),
     [currentDetail]
@@ -485,24 +265,10 @@ const DetalhesEstrutura = () => {
                   <ManualHelpDialog helpKey="A1" compact />
                 </div>
                 <CardDescription>
-                  Uma síntese para entender se este trecho ajuda a cidade ou se hoje precisa de revisão.
+                  Uma síntese dos pontos que mais ajudam a entender a qualidade deste trecho.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Status metodológico</div>
-                  <Badge className={`mt-3 ${getStructureStatusBadgeClassName(currentDetail.result)}`}>
-                    {getStructureStatusLabel(currentDetail.result)}
-                  </Badge>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Contribuição no índice</div>
-                  <div className="mt-2 text-lg font-semibold text-text-grey">
-                    {currentDetail.result.contributes
-                      ? "Este trecho entra no cálculo da cidade."
-                      : "Este trecho hoje não pesa no cálculo da cidade."}
-                  </div>
-                </div>
                 {topBottom ? (
                   <>
                     <div className="rounded-2xl bg-emerald-50 p-4">
@@ -569,10 +335,10 @@ const DetalhesEstrutura = () => {
           />
           <SummaryMetric
             icon={Shield}
-            label="Status"
-            value={currentDetail.result.contributes ? "Válida" : "Em revisão"}
+            label="Hierarquia da via"
+            value={currentDetail.result.hierarchyLabel}
             helper="A1"
-            tone={currentDetail.result.contributes ? "good" : "alert"}
+            tone="good"
           />
           <SummaryMetric
             icon={MapPinned}
@@ -653,31 +419,6 @@ const DetalhesEstrutura = () => {
               </div>
             </CardContent>
           </Card>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-3">
-          {fieldSections.map((section) => (
-            <Card key={section.title} className="rounded-[28px] border-0 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-              <CardHeader>
-                <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-xl text-text-grey">{section.title}</CardTitle>
-                  {section.helpKey ? <ManualHelpDialog helpKey={section.helpKey} compact /> : null}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {section.items.map((item) => (
-                  <div key={`${section.title}-${item.label}`} className="rounded-2xl bg-slate-50 p-4">
-                    <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                      {item.label}
-                    </div>
-                    <div className="mt-2 text-sm font-medium leading-6 text-text-grey">
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
         </section>
 
         <section className="space-y-6">
