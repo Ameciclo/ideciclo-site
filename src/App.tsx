@@ -111,7 +111,7 @@ const App = () => (
                   <Route
                     path="/admin"
                     element={
-                      <ProtectedRoute requireAdminGlobal>
+                      <ProtectedRoute requiredModule="admin">
                         <AdminUsers />
                       </ProtectedRoute>
                     }

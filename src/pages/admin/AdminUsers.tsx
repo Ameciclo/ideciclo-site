@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Shield, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AUTH_MODULES, AUTH_ROLES } from "@/lib/authPermissions";
+import { fetchCities, fetchStates } from "@/services/api";
 import {
   createAdminUser,
   createUserPermission,
@@ -19,7 +21,8 @@ import {
   fetchAdminUsers,
   updateAdminUser,
 } from "@/services/authApi";
-import type { AdminUser, AuthModule, AuthRole } from "@/types/auth";
+import type { IBGECity, IBGEState } from "@/types";
+import type { AdminUser, AuthModule, AuthPermission, AuthRole } from "@/types/auth";
 
 const roleLabels: Record<string, string> = {
   admin_global: "Admin global",
@@ -50,14 +53,82 @@ const defaultPermissionDraft: PermissionDraft = {
   city: "",
 };
 
+const normalizeScopeValue = (value?: string | null) =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim().toLowerCase() : "";
+
+const matchesPermissionScope = (
+  permission: Pick<AuthPermission, "state" | "city">,
+  state?: string,
+  city?: string
+) => {
+  const permissionState = normalizeScopeValue(permission.state);
+  const permissionCity = normalizeScopeValue(permission.city);
+  const requestedState = normalizeScopeValue(state);
+  const requestedCity = normalizeScopeValue(city);
+
+  if (permissionState && requestedState && permissionState !== requestedState) {
+    return false;
+  }
+
+  if (permissionCity && requestedCity && permissionCity !== requestedCity) {
+    return false;
+  }
+
+  return true;
+};
+
 const AdminUsers = () => {
   const { toast } = useToast();
+  const { permissions } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [states, setStates] = useState<IBGEState[]>([]);
+  const [citiesByUserId, setCitiesByUserId] = useState<Record<string, IBGECity[]>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [permissionDrafts, setPermissionDrafts] = useState<Record<string, PermissionDraft>>({});
+
+  const adminPermissions = useMemo(
+    () =>
+      permissions.filter(
+        (permission) =>
+          permission.role === "admin_global" ||
+          permission.role === "admin_estado" ||
+          permission.role === "admin_cidade"
+      ),
+    [permissions]
+  );
+
+  const isGlobalAdmin = adminPermissions.some((permission) => permission.role === "admin_global");
+
+  const allowedRoles = AUTH_ROLES;
+
+  const availableStates = useMemo(() => {
+    if (isGlobalAdmin) return states;
+
+    return states.filter((state) =>
+      adminPermissions.some((permission) => matchesPermissionScope(permission, state.sigla))
+    );
+  }, [adminPermissions, isGlobalAdmin, states]);
+
+  useEffect(() => {
+    const loadStates = async () => {
+      try {
+        const statesResponse = await fetchStates();
+        setStates(statesResponse);
+      } catch (error) {
+        toast({
+          title: "Erro ao carregar estados",
+          description:
+            error instanceof Error ? error.message : "Não foi possível carregar os estados.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    void loadStates();
+  }, [toast]);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -67,7 +138,10 @@ const AdminUsers = () => {
         setUsers(response.users);
         setPermissionDrafts(
           response.users.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
-            accumulator[user.id] = defaultPermissionDraft;
+            accumulator[user.id] = {
+              ...defaultPermissionDraft,
+              role: allowedRoles[0] || defaultPermissionDraft.role,
+            };
             return accumulator;
           }, {})
         );
@@ -90,7 +164,12 @@ const AdminUsers = () => {
     setUsers(nextUsers);
     setPermissionDrafts((currentDrafts) =>
       nextUsers.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
-        accumulator[user.id] = currentDrafts[user.id] || defaultPermissionDraft;
+        const currentDraft = currentDrafts[user.id] || {
+          ...defaultPermissionDraft,
+          role: defaultPermissionDraft.role,
+        };
+
+        accumulator[user.id] = currentDraft;
         return accumulator;
       }, {})
     );
@@ -148,6 +227,69 @@ const AdminUsers = () => {
         ...patch,
       },
     }));
+  };
+
+  const handleStateChange = async (userId: string, stateId: string) => {
+    const selectedState = states.find((state) => state.id.toString() === stateId);
+
+    handlePermissionDraftChange(userId, {
+      state: selectedState?.sigla || "",
+      city: "",
+    });
+
+    if (!stateId) {
+      setCitiesByUserId((current) => ({
+        ...current,
+        [userId]: [],
+      }));
+      return;
+    }
+
+    try {
+      const cities = await fetchCities(stateId);
+      const filteredCities = isGlobalAdmin
+        ? cities
+        : cities.filter((city) =>
+            adminPermissions.some((permission) =>
+              matchesPermissionScope(permission, selectedState?.sigla, city.nome)
+            )
+          );
+
+      setCitiesByUserId((current) => ({
+        ...current,
+        [userId]: filteredCities,
+      }));
+    } catch (error) {
+      setCitiesByUserId((current) => ({
+        ...current,
+        [userId]: [],
+      }));
+      toast({
+        title: "Erro ao carregar cidades",
+        description:
+          error instanceof Error ? error.message : "Não foi possível carregar as cidades.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getSelectedStateId = (stateCode: string) =>
+    states.find((state) => state.sigla === stateCode)?.id.toString() || "__none__";
+
+  const canManageExistingPermission = (permission: AuthPermission) => {
+    if (isGlobalAdmin) return true;
+    if (permission.role === "admin_global") return false;
+
+    return adminPermissions.some((adminPermission) =>
+      matchesPermissionScope(adminPermission, permission.state || "", permission.city || "")
+    );
+  };
+
+  const canManageUser = (user: AdminUser) => {
+    if (isGlobalAdmin) return true;
+    if (user.permissions.length === 0) return true;
+
+    return user.permissions.every(canManageExistingPermission);
   };
 
   const handleCreatePermission = async (userId: string) => {
@@ -212,8 +354,8 @@ const AdminUsers = () => {
         <div>
           <h1 className="text-3xl font-bold text-text-grey">Administração de usuários</h1>
           <p className="mt-2 max-w-3xl text-gray-600">
-            Cadastre e-mails autorizados, ative ou desative acessos e atribua permissões por
-            módulo, estado e cidade.
+            Cadastre e-mails autorizados, ative ou desative acessos e atribua permissões dentro
+            do escopo administrativo da sua conta.
           </p>
         </div>
       </div>
@@ -242,6 +384,7 @@ const AdminUsers = () => {
       <div className="space-y-6">
         {users.map((user) => {
           const draft = permissionDrafts[user.id] || defaultPermissionDraft;
+          const userIsManageable = canManageUser(user);
 
           return (
             <div key={user.id} className="rounded-[28px] border bg-white p-6 shadow-sm">
@@ -258,7 +401,11 @@ const AdminUsers = () => {
                   <p className="mt-2 text-sm text-gray-600">{user.email}</p>
                 </div>
 
-                <Button variant="outline" disabled={isSaving} onClick={() => handleToggleActive(user)}>
+                <Button
+                  variant="outline"
+                  disabled={isSaving || !userIsManageable}
+                  onClick={() => handleToggleActive(user)}
+                >
                   {user.active ? "Desativar" : "Ativar"}
                 </Button>
               </div>
@@ -292,7 +439,7 @@ const AdminUsers = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={isSaving}
+                          disabled={isSaving || !canManageExistingPermission(permission)}
                           onClick={() => handleDeletePermission(permission.id)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -306,13 +453,14 @@ const AdminUsers = () => {
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                   <Select
                     value={draft.role}
+                    disabled={isSaving || !userIsManageable}
                     onValueChange={(value) => handlePermissionDraftChange(user.id, { role: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {AUTH_ROLES.map((role) => (
+                      {allowedRoles.map((role) => (
                         <SelectItem key={role} value={role}>
                           {roleLabels[role]}
                         </SelectItem>
@@ -322,6 +470,7 @@ const AdminUsers = () => {
 
                   <Select
                     value={draft.module}
+                    disabled={isSaving || !userIsManageable}
                     onValueChange={(value) => handlePermissionDraftChange(user.id, { module: value })}
                   >
                     <SelectTrigger>
@@ -337,23 +486,55 @@ const AdminUsers = () => {
                     </SelectContent>
                   </Select>
 
-                  <Input
-                    placeholder="Estado"
-                    value={draft.state}
-                    onChange={(event) =>
-                      handlePermissionDraftChange(user.id, { state: event.target.value })
+                  <Select
+                    value={getSelectedStateId(draft.state)}
+                    disabled={isSaving || !userIsManageable}
+                    onValueChange={(value) =>
+                      void handleStateChange(user.id, value === "__none__" ? "" : value)
                     }
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem estado</SelectItem>
+                      {availableStates.map((state) => (
+                        <SelectItem key={state.id} value={state.id.toString()}>
+                          {state.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                  <Input
-                    placeholder="Cidade"
-                    value={draft.city}
-                    onChange={(event) =>
-                      handlePermissionDraftChange(user.id, { city: event.target.value })
+                  <Select
+                    value={draft.city || "__none__"}
+                    disabled={
+                      isSaving ||
+                      !userIsManageable ||
+                      !draft.state ||
+                      (citiesByUserId[user.id] || []).length === 0
                     }
-                  />
+                    onValueChange={(value) =>
+                      handlePermissionDraftChange(user.id, { city: value === "__none__" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Cidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem cidade</SelectItem>
+                      {(citiesByUserId[user.id] || []).map((city) => (
+                        <SelectItem key={city.id} value={city.nome}>
+                          {city.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                  <Button disabled={isSaving} onClick={() => void handleCreatePermission(user.id)}>
+                  <Button
+                    disabled={isSaving || !userIsManageable}
+                    onClick={() => void handleCreatePermission(user.id)}
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     Atribuir
                   </Button>

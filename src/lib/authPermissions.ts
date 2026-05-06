@@ -40,7 +40,12 @@ export const matchesPermissionScope = (
 };
 
 export const canManageAdmin = (permissions: AuthPermission[]) =>
-  permissions.some((permission) => permission.role === "admin_global");
+  permissions.some(
+    (permission) =>
+      permission.role === "admin_global" ||
+      permission.role === "admin_estado" ||
+      permission.role === "admin_cidade"
+  );
 
 export const canAccessModule = ({
   permissions,

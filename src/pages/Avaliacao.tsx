@@ -27,6 +27,7 @@ import {
 } from "@/utils/persistedCityData";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import type { AuthPermission } from "@/types/auth";
 
 interface PersistedCityData {
   cityId: string;
@@ -39,10 +40,46 @@ interface SelectedCityActionState extends PersistedCityData {
   storedCity: City | null;
 }
 
+const EVALUATION_MODULES = new Set([
+  "avaliacao_estrutura_cicloviaria",
+  "refinamento_dados_cidade",
+] as const);
+
+const normalizeScopeValue = (value?: string | null) =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim().toLowerCase() : "";
+
+const isEvaluationPermission = (permission: AuthPermission) =>
+  permission.role === "admin_global" ||
+  permission.role === "admin_estado" ||
+  permission.role === "admin_cidade" ||
+  permission.role === "visualizador" ||
+  (permission.module !== null && EVALUATION_MODULES.has(permission.module));
+
+const matchesRegionalScope = (
+  permission: AuthPermission,
+  stateCode?: string,
+  cityName?: string
+) => {
+  const permissionState = normalizeScopeValue(permission.state);
+  const permissionCity = normalizeScopeValue(permission.city);
+  const requestedState = normalizeScopeValue(stateCode);
+  const requestedCity = normalizeScopeValue(cityName);
+
+  if (permissionState && requestedState && permissionState !== requestedState) {
+    return false;
+  }
+
+  if (permissionCity && requestedCity && permissionCity !== requestedCity) {
+    return false;
+  }
+
+  return true;
+};
+
 const Avaliacao = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAuthenticated, openLoginModal, canAccess } = useAuth();
+  const { isAuthenticated, openLoginModal, canAccess, permissions } = useAuth();
   const [states, setStates] = useState<IBGEState[]>([]);
   const [cities, setCities] = useState<IBGECity[]>([]);
   const [storedCitiesById, setStoredCitiesById] = useState<Record<string, City>>({});
@@ -134,6 +171,22 @@ const Avaliacao = () => {
     []
   );
 
+  const relevantPermissions = useMemo(
+    () => permissions.filter(isEvaluationPermission),
+    [permissions]
+  );
+
+  const availableStates = useMemo(() => {
+    if (!isAuthenticated) return states;
+    if (relevantPermissions.some((permission) => permission.role === "admin_global")) {
+      return states;
+    }
+
+    return states.filter((state) =>
+      relevantPermissions.some((permission) => matchesRegionalScope(permission, state.sigla))
+    );
+  }, [isAuthenticated, relevantPermissions, states]);
+
   const formatLastDownload = (storedCity?: City | null) => {
     const rawDate = storedCity?.updated_at || storedCity?.created_at;
     if (!rawDate) return "Ainda não baixada";
@@ -158,7 +211,17 @@ const Avaliacao = () => {
     try {
       setIsLoadingCities(true);
       const citiesData = await fetchCities(stateId);
-      setCities(citiesData);
+      const filteredCities =
+        !isAuthenticated ||
+        relevantPermissions.some((permission) => permission.role === "admin_global")
+          ? citiesData
+          : citiesData.filter((city) =>
+              relevantPermissions.some((permission) =>
+                matchesRegionalScope(permission, selectedState?.sigla, city.nome)
+              )
+            );
+
+      setCities(filteredCities);
     } catch (error) {
       console.error("Erro ao carregar cidades:", error);
       toast({
@@ -329,7 +392,7 @@ const Avaliacao = () => {
                         <SelectValue placeholder="Selecione um estado" />
                       </SelectTrigger>
                       <SelectContent>
-                        {states.map((state) => (
+                        {availableStates.map((state) => (
                           <SelectItem key={state.id} value={state.id.toString()}>
                             {state.nome} - {state.sigla}
                           </SelectItem>
@@ -350,7 +413,11 @@ const Avaliacao = () => {
                       <SelectTrigger id="cidade-avaliacao">
                         <SelectValue
                           placeholder={
-                            isLoadingCities ? "Carregando cidades..." : "Selecione uma cidade"
+                            isLoadingCities
+                              ? "Carregando cidades..."
+                              : cities.length === 0 && selectedStateId
+                                ? "Nenhuma cidade disponível"
+                                : "Selecione uma cidade"
                           }
                         />
                       </SelectTrigger>

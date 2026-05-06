@@ -357,6 +357,14 @@ const matchesScope = (permission, state, city) => {
 const isAdminGlobal = (session) =>
   session.permissions.some((permission) => permission.role === "admin_global");
 
+const getAdminManagementPermissions = (session) =>
+  session.permissions.filter(
+    (permission) =>
+      permission.role === "admin_global" ||
+      permission.role === "admin_estado" ||
+      permission.role === "admin_cidade"
+  );
+
 const canAccessModule = ({ permissions, module, state, city, allowViewer = false }) => {
   return permissions.some((permission) => {
     if (permission.role === "admin_global") return true;
@@ -508,6 +516,96 @@ const requireAdminGlobal = async (request, response) => {
   }
 
   return auth;
+};
+
+const requireAdminManager = async (request, response) => {
+  const auth = await requireSession(request, response);
+  if (!auth) return null;
+
+  if (getAdminManagementPermissions(auth.session).length === 0) {
+    json(response, 403, { error: "Acesso restrito a administradores." });
+    return null;
+  }
+
+  return auth;
+};
+
+const canManagePermissionGrant = (session, permission) => {
+  if (isAdminGlobal(session)) return true;
+
+  const allowedRoles = new Set([
+    "visualizador",
+    "avaliador_estrutura_cicloviaria",
+    "refinador_dados_cidade",
+  ]);
+  const adminPermissions = getAdminManagementPermissions(session);
+  const normalizedState = normalizeScopeValue(permission.state);
+  const normalizedCity = normalizeScopeValue(permission.city);
+
+  const hasStateAdmin = adminPermissions.some((adminPermission) => adminPermission.role === "admin_estado");
+  const hasCityAdmin = adminPermissions.some((adminPermission) => adminPermission.role === "admin_cidade");
+
+  if (permission.role === "admin_estado") {
+    if (!hasStateAdmin || normalizedCity) return false;
+
+    return adminPermissions.some(
+      (adminPermission) =>
+        adminPermission.role === "admin_estado" && matchesScope(adminPermission, normalizedState, null)
+    );
+  }
+
+  if (permission.role === "admin_cidade") {
+    if (!normalizedState || !normalizedCity) return false;
+
+    if (hasStateAdmin) {
+      return adminPermissions.some(
+        (adminPermission) =>
+          adminPermission.role === "admin_estado" &&
+          matchesScope(adminPermission, normalizedState, normalizedCity)
+      );
+    }
+
+    if (hasCityAdmin) {
+      return adminPermissions.some(
+        (adminPermission) =>
+          adminPermission.role === "admin_cidade" &&
+          matchesScope(adminPermission, normalizedState, normalizedCity)
+      );
+    }
+
+    return false;
+  }
+
+  if (!allowedRoles.has(permission.role)) {
+    return false;
+  }
+
+  return adminPermissions.some((adminPermission) =>
+    matchesScope(adminPermission, normalizedState, normalizedCity)
+  );
+};
+
+const canManageExistingPermission = (session, permission) => {
+  if (isAdminGlobal(session)) return true;
+  if (permission.role === "admin_global") return false;
+
+  return getAdminManagementPermissions(session).some((adminPermission) =>
+    matchesScope(adminPermission, permission.state, permission.city)
+  );
+};
+
+const fetchUserPermissions = async (userId) => {
+  const result = await pool.query(
+    `
+      SELECT id, user_id, role, state, city, module, created_at
+      FROM auth.permissions
+      WHERE user_id = $1
+      ORDER BY created_at ASC
+    `,
+    [userId]
+  );
+
+  return result.rows.map(toCamelPermission);
 };
 
 const listUsersWithPermissions = async () => {
@@ -1985,7 +2083,7 @@ export const handleAuthRequest = async (request, response) => {
     }
 
     if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/users") {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const users = await listUsersWithPermissions();
@@ -1994,7 +2092,7 @@ export const handleAuthRequest = async (request, response) => {
     }
 
     if (request.method === "POST" && requestUrl.pathname === "/api/auth/admin/users") {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const body = await parseJsonBody(request);
@@ -2032,7 +2130,7 @@ export const handleAuthRequest = async (request, response) => {
       request.method === "PATCH" &&
       requestUrl.pathname.startsWith("/api/auth/admin/users/")
     ) {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const userId = requestUrl.pathname.split("/").pop();
@@ -2052,6 +2150,18 @@ export const handleAuthRequest = async (request, response) => {
       if (name === undefined && active === undefined) {
         json(response, 400, { error: "Nenhuma alteração recebida." });
         return;
+      }
+
+      if (!isAdminGlobal(auth.session)) {
+        const targetPermissions = await fetchUserPermissions(userId);
+
+        if (
+          targetPermissions.length === 0 ||
+          targetPermissions.some((permission) => !canManageExistingPermission(auth.session, permission))
+        ) {
+          json(response, 403, { error: "Você só pode alterar usuários do seu escopo." });
+          return;
+        }
       }
 
       const fields = [];
@@ -2083,7 +2193,7 @@ export const handleAuthRequest = async (request, response) => {
     }
 
     if (request.method === "POST" && requestUrl.pathname === "/api/auth/admin/permissions") {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const body = await parseJsonBody(request);
@@ -2100,6 +2210,18 @@ export const handleAuthRequest = async (request, response) => {
 
       if (moduleValue && !ALLOWED_MODULES.has(moduleValue)) {
         json(response, 400, { error: "Módulo inválido." });
+        return;
+      }
+
+      if (
+        !canManagePermissionGrant(auth.session, {
+          role,
+          module: moduleValue,
+          state,
+          city,
+        })
+      ) {
+        json(response, 403, { error: "Permissão fora do seu escopo de administração." });
         return;
       }
 
@@ -2129,7 +2251,7 @@ export const handleAuthRequest = async (request, response) => {
       request.method === "DELETE" &&
       requestUrl.pathname.startsWith("/api/auth/admin/permissions/")
     ) {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const permissionId = requestUrl.pathname.split("/").pop();
@@ -2137,6 +2259,29 @@ export const handleAuthRequest = async (request, response) => {
       if (!permissionId) {
         json(response, 400, { error: "Permissão inválida." });
         return;
+      }
+
+      if (!isAdminGlobal(auth.session)) {
+        const permissionResult = await pool.query(
+          `
+            SELECT id, user_id, role, state, city, module, created_at
+            FROM auth.permissions
+            WHERE id = $1
+          `,
+          [permissionId]
+        );
+
+        const permission = permissionResult.rows[0] ? toCamelPermission(permissionResult.rows[0]) : null;
+
+        if (!permission) {
+          json(response, 404, { error: "Permissão não encontrada." });
+          return;
+        }
+
+        if (!canManageExistingPermission(auth.session, permission)) {
+          json(response, 403, { error: "Você só pode remover permissões do seu escopo." });
+          return;
+        }
       }
 
       await pool.query(`DELETE FROM auth.permissions WHERE id = $1`, [permissionId]);
