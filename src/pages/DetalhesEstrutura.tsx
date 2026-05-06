@@ -85,6 +85,35 @@ const SummaryMetric = ({
   );
 };
 
+const SECTION_HEADER_STYLES: Record<
+  string,
+  {
+    letterClassName: string;
+    titleClassName: string;
+  }
+> = {
+  A: {
+    letterClassName: "bg-[#f6d7cc] text-[#8f2f1d]",
+    titleClassName: "text-[#8f2f1d]",
+  },
+  B: {
+    letterClassName: "bg-[#f6e8be] text-[#8a6112]",
+    titleClassName: "text-[#8a6112]",
+  },
+  C: {
+    letterClassName: "bg-[#d9edf5] text-[#1f6278]",
+    titleClassName: "text-[#1f6278]",
+  },
+  D: {
+    letterClassName: "bg-[#dff1e4] text-[#27623d]",
+    titleClassName: "text-[#27623d]",
+  },
+  E: {
+    letterClassName: "bg-[#e8def7] text-[#5f3b91]",
+    titleClassName: "text-[#5f3b91]",
+  },
+};
+
 const DetalhesEstrutura = () => {
   const { cityId, segmentId } = useParams<{ cityId: string; segmentId: string }>();
   const [city, setCity] = useState<City | null>(null);
@@ -434,17 +463,31 @@ const DetalhesEstrutura = () => {
                 <ManualHelpDialog helpKey="B4" compact />
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {currentDetail.sections.map((section) => (
-                <div key={section.key} className="rounded-[28px] border border-slate-200 bg-white p-5">
+            <CardContent className="space-y-8 px-4 pb-6 sm:space-y-6 sm:px-6">
+              {currentDetail.sections.map((section) => {
+                const headerStyle =
+                  SECTION_HEADER_STYLES[section.key] || {
+                    letterClassName: "bg-slate-200 text-slate-700",
+                    titleClassName: "text-text-grey",
+                  };
+
+                return (
+                <div
+                  key={section.key}
+                  className="px-0 py-0 sm:rounded-[28px] sm:border sm:border-slate-200 sm:bg-white sm:p-5"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {section.key}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${headerStyle.letterClassName}`}
+                        >
+                          {section.key}
+                        </div>
+                        <h3 className={`text-xl font-semibold sm:text-2xl ${headerStyle.titleClassName}`}>
+                          {section.label}
+                        </h3>
                       </div>
-                      <h3 className="mt-1 text-xl font-semibold text-text-grey">
-                        {section.label}
-                      </h3>
                       <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
                         {PUBLIC_CRITERION_GROUPS.find((group) => group.key === section.key)?.description}
                       </p>
@@ -463,25 +506,26 @@ const DetalhesEstrutura = () => {
                       return (
                         <div
                           key={criterion.code}
-                          className="rounded-[24px] border border-slate-200 bg-slate-50 p-4"
+                          className="rounded-[24px] border border-slate-200 bg-slate-50 p-3 sm:p-4"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <Badge className={getRatingBadgeClassName(criterion.rating)}>
-                                  {criterion.code} • {criterion.rating || "-"}
-                                </Badge>
+                                <div className="text-lg font-semibold text-text-grey">
+                                  {criterion.code} • {criterion.label}
+                                </div>
                                 <ManualHelpDialog helpKey={criterion.code} compact />
-                              </div>
-                              <div className="mt-3 text-lg font-semibold text-text-grey">
-                                {criterion.label}
                               </div>
                               <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
                                 {currentScale?.description || "Sem explicação textual registrada para este item."}
                               </p>
                             </div>
-                            <Badge variant="outline" className="rounded-full px-4 py-2">
-                              {criterion.points !== null ? `${criterion.points} / ${criterion.maxPoints}` : `até ${criterion.maxPoints}`}
+                            <Badge className={`rounded-full px-4 py-2 ${getRatingBadgeClassName(criterion.rating)}`}>
+                              {criterion.rating || "-"}
+                              <span className="mx-2 opacity-80">•</span>
+                              {criterion.points !== null
+                                ? `${criterion.points}/${criterion.maxPoints}`
+                                : `até ${criterion.maxPoints}`}
                             </Badge>
                           </div>
                           {criterion.evidence.length > 0 ? (
@@ -489,7 +533,7 @@ const DetalhesEstrutura = () => {
                               {criterion.evidence.map((item) => (
                                 <div
                                   key={`${criterion.code}-${item}`}
-                                  className="rounded-2xl bg-white p-3 text-sm leading-6 text-slate-600"
+                                  className="rounded-2xl bg-white p-2.5 text-sm leading-6 text-slate-600 sm:p-3"
                                 >
                                   {item}
                                 </div>
@@ -501,7 +545,8 @@ const DetalhesEstrutura = () => {
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </section>
