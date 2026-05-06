@@ -19,6 +19,8 @@ const DATABASE_URL =
   }@127.0.0.1:${process.env.POSTGRES_PORT || 54322}/${process.env.POSTGRES_DB || "ideciclo"}`;
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:8080";
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@ideciclo.local";
+const ACCESS_REQUEST_NOTIFICATION_EMAIL =
+  process.env.ACCESS_REQUEST_NOTIFICATION_EMAIL || "contato@ideciclo.org";
 const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET || "";
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const HAS_SMTP = Boolean(process.env.SMTP_HOST);
@@ -274,6 +276,84 @@ const parseJsonBody = async (request) => {
   }
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const buildTransactionalEmailHtml = ({
+  eyebrow,
+  title,
+  intro,
+  buttonLabel,
+  buttonUrl,
+  details = [],
+  outro,
+}) => `
+  <div style="margin:0;padding:32px 16px;background:#f4f7f4;font-family:Arial,sans-serif;color:#163127;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #d9e4dd;">
+      <tr>
+        <td style="padding:32px 32px 16px;background:linear-gradient(135deg,#0f766e 0%,#166534 100%);color:#ffffff;">
+          <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.86;font-weight:700;">${escapeHtml(eyebrow)}</div>
+          <h1 style="margin:12px 0 0;font-size:28px;line-height:1.2;font-weight:700;">${escapeHtml(title)}</h1>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px 32px 12px;">
+          <p style="margin:0;font-size:16px;line-height:1.7;color:#334155;">${escapeHtml(intro)}</p>
+        </td>
+      </tr>
+      ${
+        buttonUrl
+          ? `<tr>
+        <td style="padding:8px 32px 12px;">
+          <a href="${buttonUrl}" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#b91c1c;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;">${escapeHtml(buttonLabel)}</a>
+        </td>
+      </tr>`
+          : ""
+      }
+      ${
+        details.length > 0
+          ? `<tr>
+        <td style="padding:12px 32px 8px;">
+          <div style="border-radius:18px;background:#f8fafc;border:1px solid #e2e8f0;padding:18px 20px;">
+            ${details
+              .map(
+                ({ label, value }) => `
+                  <div style="padding:6px 0;">
+                    <div style="font-size:12px;line-height:1.4;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;font-weight:700;">${escapeHtml(label)}</div>
+                    <div style="margin-top:4px;font-size:15px;line-height:1.6;color:#0f172a;">${escapeHtml(value)}</div>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </td>
+      </tr>`
+          : ""
+      }
+      ${
+        buttonUrl
+          ? `<tr>
+        <td style="padding:8px 32px 8px;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Se o botão acima não funcionar, copie e cole este link no navegador:</p>
+          <p style="margin:8px 0 0;word-break:break-all;font-size:13px;line-height:1.6;color:#0f766e;">${escapeHtml(buttonUrl)}</p>
+        </td>
+      </tr>`
+          : ""
+      }
+      <tr>
+        <td style="padding:12px 32px 32px;">
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#475569;">${escapeHtml(outro)}</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+`;
+
 const sendMagicLinkEmail = async ({ email, token, redirectTo }) => {
   const verifyUrl = new URL("/auth/verify", APP_URL);
   verifyUrl.searchParams.set("token", token);
@@ -282,18 +362,33 @@ const sendMagicLinkEmail = async ({ email, token, redirectTo }) => {
   const info = await transporter.sendMail({
     from: EMAIL_FROM,
     to: email,
-    subject: "Seu acesso ao IDECICLO",
+    subject: "Acesse sua conta no IDECICLO",
     text: [
-      "Use o link abaixo para acessar o IDECICLO:",
+      "Use o link abaixo para acessar sua conta no IDECICLO:",
       verifyUrl.toString(),
       "",
       `O link expira em ${MAGIC_LINK_TTL_MINUTES} minutos e só pode ser usado uma vez.`,
     ].join("\n"),
-    html: `
-      <p>Use o link abaixo para acessar o IDECICLO:</p>
-      <p><a href="${verifyUrl.toString()}">${verifyUrl.toString()}</a></p>
-      <p>O link expira em ${MAGIC_LINK_TTL_MINUTES} minutos e só pode ser usado uma vez.</p>
-    `,
+    html: buildTransactionalEmailHtml({
+      eyebrow: "IDECICLO",
+      title: "Seu link de acesso está pronto",
+      intro:
+        "Recebemos uma solicitação de login para este e-mail. Use o botão abaixo para entrar na sua conta.",
+      buttonLabel: "Acessar o IDECICLO",
+      buttonUrl: verifyUrl.toString(),
+      details: [
+        {
+          label: "Validade do link",
+          value: `${MAGIC_LINK_TTL_MINUTES} minutos`,
+        },
+        {
+          label: "Segurança",
+          value: "Este link só pode ser usado uma vez.",
+        },
+      ],
+      outro:
+        "Se você não solicitou este acesso, basta ignorar esta mensagem. Nenhuma ação adicional será realizada.",
+    }),
   });
 
   if (!process.env.SMTP_HOST) {
@@ -326,17 +421,83 @@ const sendAccessRequestVerificationEmail = async ({ email, token }) => {
       `O link expira em ${ACCESS_REQUEST_VERIFICATION_TTL_MINUTES} minutos.`,
       "Depois da confirmação, sua solicitação ficará pendente de revisão da equipe administradora.",
     ].join("\n"),
-    html: `
-      <p>Recebemos sua manifestação de interesse no IDECICLO.</p>
-      <p>Confirme a posse deste e-mail no link abaixo:</p>
-      <p><a href="${verifyUrl.toString()}">${verifyUrl.toString()}</a></p>
-      <p>O link expira em ${ACCESS_REQUEST_VERIFICATION_TTL_MINUTES} minutos.</p>
-      <p>Depois da confirmação, sua solicitação ficará pendente de revisão da equipe administradora.</p>
-    `,
+    html: buildTransactionalEmailHtml({
+      eyebrow: "Solicitação de acesso",
+      title: "Confirme seu e-mail",
+      intro:
+        "Recebemos sua manifestação de interesse no IDECICLO. Antes de encaminhar a solicitação para análise, precisamos confirmar a posse deste endereço de e-mail.",
+      buttonLabel: "Confirmar meu e-mail",
+      buttonUrl: verifyUrl.toString(),
+      details: [
+        {
+          label: "Próxima etapa",
+          value: "Depois da confirmação, sua solicitação ficará pendente de revisão da equipe administradora.",
+        },
+        {
+          label: "Validade do link",
+          value: `${ACCESS_REQUEST_VERIFICATION_TTL_MINUTES} minutos`,
+        },
+      ],
+      outro:
+        "Se você não enviou esta solicitação, ignore esta mensagem. Nenhum acesso será liberado sem revisão administrativa.",
+    }),
   });
 
   if (!process.env.SMTP_HOST) {
     console.log("Verificação de solicitação de acesso gerada em modo local:", info.message);
+  }
+};
+
+const sendAccessRequestNotificationEmail = async ({
+  name,
+  email,
+  organization,
+  state,
+  city,
+  interestType,
+  message,
+}) => {
+  const adminUrl = new URL("/admin", APP_URL);
+
+  const info = await transporter.sendMail({
+    from: EMAIL_FROM,
+    to: ACCESS_REQUEST_NOTIFICATION_EMAIL,
+    subject: "Nova solicitação de acesso ao IDECICLO",
+    text: [
+      "Uma nova solicitação de acesso foi registrada no IDECICLO.",
+      `Nome: ${name}`,
+      `E-mail: ${email}`,
+      `Organização: ${organization}`,
+      `Estado: ${state || "Não informado"}`,
+      `Cidade: ${city || "Não informada"}`,
+      `Interesse: ${interestType}`,
+      `Mensagem: ${message}`,
+      "",
+      `Revisar em: ${adminUrl.toString()}`,
+    ].join("\n"),
+    html: buildTransactionalEmailHtml({
+      eyebrow: "Administração",
+      title: "Nova solicitação de acesso recebida",
+      intro:
+        "Uma nova manifestação de interesse foi enviada e já pode ser acompanhada pela equipe administradora.",
+      buttonLabel: "Abrir painel administrativo",
+      buttonUrl: adminUrl.toString(),
+      details: [
+        { label: "Nome", value: name },
+        { label: "E-mail", value: email },
+        { label: "Organização", value: organization },
+        { label: "Estado", value: state || "Não informado" },
+        { label: "Cidade", value: city || "Não informada" },
+        { label: "Interesse", value: interestType },
+        { label: "Mensagem", value: message },
+      ],
+      outro:
+        "A solicitação só deve ser aprovada após confirmação de e-mail e revisão administrativa no painel.",
+    }),
+  });
+
+  if (!process.env.SMTP_HOST) {
+    console.log("Notificação de solicitação de acesso gerada em modo local:", info.message);
   }
 };
 
@@ -661,7 +822,7 @@ const assertAccessRequestRateLimit = async (email, ipAddress, client = pool) => 
   return { allowed: true, reason: null };
 };
 
-const listAccessRequests = async (status) => {
+const listAccessRequests = async (status, session) => {
   const values = [];
   const where = [];
 
@@ -706,10 +867,12 @@ const listAccessRequests = async (status) => {
     values
   );
 
-  return result.rows.map(toCamelAccessRequest);
+  return result.rows
+    .map(toCamelAccessRequest)
+    .filter((accessRequest) => (session ? canManageAccessRequest(session, accessRequest) : true));
 };
 
-const getAccessRequestById = async (requestId, client = pool) => {
+const getAccessRequestById = async (requestId, session, client = pool) => {
   const result = await client.query(
     `
       SELECT
@@ -738,7 +901,17 @@ const getAccessRequestById = async (requestId, client = pool) => {
     [requestId]
   );
 
-  return result.rows[0] ? toCamelAccessRequest(result.rows[0]) : null;
+  const accessRequest = result.rows[0] ? toCamelAccessRequest(result.rows[0]) : null;
+
+  if (!accessRequest) {
+    return null;
+  }
+
+  if (session && !canManageAccessRequest(session, accessRequest)) {
+    return null;
+  }
+
+  return accessRequest;
 };
 
 const requireSession = async (request, response) => {
@@ -843,6 +1016,26 @@ const canManageExistingPermission = (session, permission) => {
   return getAdminManagementPermissions(session).some((adminPermission) =>
     matchesScope(adminPermission, permission.state, permission.city)
   );
+};
+
+const canManageAccessRequest = (session, accessRequest) => {
+  if (isAdminGlobal(session)) return true;
+
+  const requestState = normalizeScopeValue(accessRequest.state);
+  const requestCity = normalizeScopeValue(accessRequest.city);
+
+  return getAdminManagementPermissions(session).some((adminPermission) => {
+    if (adminPermission.role === "admin_estado") {
+      return matchesScope(adminPermission, requestState, null);
+    }
+
+    if (adminPermission.role === "admin_cidade") {
+      if (!requestCity) return false;
+      return matchesScope(adminPermission, requestState, requestCity);
+    }
+
+    return false;
+  });
 };
 
 const fetchUserPermissions = async (userId) => {
@@ -1730,6 +1923,15 @@ export const handleAuthRequest = async (request, response) => {
         await client.query("COMMIT");
 
         await sendAccessRequestVerificationEmail({ email, token });
+        await sendAccessRequestNotificationEmail({
+          name,
+          email,
+          organization,
+          state,
+          city,
+          interestType,
+          message,
+        });
 
         json(response, 201, {
           message:
@@ -2585,7 +2787,7 @@ export const handleAuthRequest = async (request, response) => {
     }
 
     if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/access-requests") {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const statusParam = requestUrl.searchParams.get("status");
@@ -2606,7 +2808,8 @@ export const handleAuthRequest = async (request, response) => {
       }
 
       const requests = await listAccessRequests(
-        statusParam === "all" ? null : status || "pending_review"
+        statusParam === "all" ? null : status || "pending_review",
+        auth.session
       );
       json(response, 200, { requests });
       return;
@@ -2616,7 +2819,7 @@ export const handleAuthRequest = async (request, response) => {
       request.method === "GET" &&
       /^\/api\/auth\/admin\/access-requests\/[^/]+$/.test(requestUrl.pathname)
     ) {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const requestId = requestUrl.pathname.split("/").pop();
@@ -2625,7 +2828,7 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
-      const accessRequest = await getAccessRequestById(requestId);
+      const accessRequest = await getAccessRequestById(requestId, auth.session);
       if (!accessRequest) {
         json(response, 404, { error: "Solicitação não encontrada." });
         return;
@@ -2667,7 +2870,7 @@ export const handleAuthRequest = async (request, response) => {
       request.method === "POST" &&
       /^\/api\/auth\/admin\/access-requests\/[^/]+\/approve$/.test(requestUrl.pathname)
     ) {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const requestId = requestUrl.pathname.split("/")[5];
@@ -2725,6 +2928,12 @@ export const handleAuthRequest = async (request, response) => {
         ) {
           await client.query("ROLLBACK");
           json(response, 400, { error: "A solicitação não está pronta para aprovação." });
+          return;
+        }
+
+        if (!canManageAccessRequest(auth.session, accessRequest)) {
+          await client.query("ROLLBACK");
+          json(response, 403, { error: "Solicitação fora do seu escopo de administração." });
           return;
         }
 
@@ -2795,7 +3004,7 @@ export const handleAuthRequest = async (request, response) => {
 
         json(response, 200, {
           ok: true,
-          request: await getAccessRequestById(requestId),
+          request: await getAccessRequestById(requestId, auth.session),
         });
         return;
       } catch (error) {
@@ -2810,7 +3019,7 @@ export const handleAuthRequest = async (request, response) => {
       request.method === "POST" &&
       /^\/api\/auth\/admin\/access-requests\/[^/]+\/reject$/.test(requestUrl.pathname)
     ) {
-      const auth = await requireAdminGlobal(request, response);
+      const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
       const requestId = requestUrl.pathname.split("/")[5];
@@ -2852,6 +3061,12 @@ export const handleAuthRequest = async (request, response) => {
           return;
         }
 
+        if (!canManageAccessRequest(auth.session, accessRequest)) {
+          await client.query("ROLLBACK");
+          json(response, 403, { error: "Solicitação fora do seu escopo de administração." });
+          return;
+        }
+
         await client.query(
           `
             UPDATE auth.access_requests
@@ -2871,7 +3086,7 @@ export const handleAuthRequest = async (request, response) => {
 
         json(response, 200, {
           ok: true,
-          request: await getAccessRequestById(requestId),
+          request: await getAccessRequestById(requestId, auth.session),
         });
         return;
       } catch (error) {

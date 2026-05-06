@@ -59,6 +59,17 @@ const setLocalCityRankingVisibility = (cityId: string, visible: boolean) => {
   writeCityRankingVisibilityMap(current);
 };
 
+const coerceNumber = (value: unknown, fallback = 0) => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const DB_API_BASE_PATH = "/api/db";
 
 const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
@@ -196,7 +207,7 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
     id_cidade: row.id_cidade,
     name: row.name,
     type: row.type as SegmentType,
-    length: row.length,
+    length: coerceNumber(row.length),
     neighborhood: row.neighborhood || undefined,
     geometry: row.geometry,
     selected: row.selected || false,
@@ -386,7 +397,7 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
       id_form: segment.id_form,
       name: segment.name,
       type: segment.type,
-      length: segment.length,
+      length: coerceNumber(segment.length),
       neighborhood: segment.neighborhood,
       geometry: segment.geometry,
       selected: segment.selected,

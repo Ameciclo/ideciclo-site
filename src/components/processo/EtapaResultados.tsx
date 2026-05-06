@@ -18,6 +18,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -132,6 +140,9 @@ const formatPercent = (value: number) =>
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })}%`;
+
+const formatCountLabel = (value: number, singular: string, plural: string) =>
+  `${value} ${value === 1 ? singular : plural}`;
 
 const getStatusBadgeClassName = (segment: SegmentResultEntry) => {
   if (!segment.evaluated) {
@@ -436,6 +447,8 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [showInRanking, setShowInRanking] = useState<boolean>(true);
   const [isUpdatingRankingVisibility, setIsUpdatingRankingVisibility] = useState(false);
+  const [cityFormsCount, setCityFormsCount] = useState(0);
+  const [rankingConfirmationOpen, setRankingConfirmationOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -469,6 +482,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
         const breakdown = calculateCityResults(city, segments, forms);
 
         setResults(breakdown);
+        setCityFormsCount(forms.length);
         setShowInRanking(city.show_in_ranking !== false);
 
         const storedSelectedSegmentId =
@@ -500,6 +514,65 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
       isActive = false;
     };
   }, [cityData]);
+
+  const rankingReadiness = useMemo(() => {
+    if (!results) return null;
+
+    const pendingEvaluations = results.summary.pendingStructures;
+    const pendingClassification = results.summary.unclassifiedStructures;
+    const incompatibleStructures = results.summary.incompatibleStructures;
+    const missingScoreStructures = results.segments.filter(
+      (segment) => segment.evaluated && segment.score === null
+    ).length;
+    const readyToAppear = cityFormsCount > 0;
+
+    return {
+      readyToAppear,
+      mandatory: [
+        {
+          label: "Ter ao menos um formulário salvo",
+          ok: readyToAppear,
+          detail: readyToAppear
+            ? formatCountLabel(cityFormsCount, "formulário salvo", "formulários salvos")
+            : "Sem formulário persistido no banco. A cidade não entra no ranking até existir pelo menos uma avaliação salva.",
+        },
+      ],
+      optional: [
+        {
+          label: "Trechos ainda sem avaliação",
+          count: pendingEvaluations,
+          detail:
+            pendingEvaluations > 0
+              ? "Esses trechos ainda não entram no cálculo oficial da cidade."
+              : "Todos os trechos já foram avaliados.",
+        },
+        {
+          label: "Trechos sem hierarquia definida",
+          count: pendingClassification,
+          detail:
+            pendingClassification > 0
+              ? "A cidade aparece no ranking, mas ainda há trechos sem classificação concluída."
+              : "Todas as estruturas já têm hierarquia definida.",
+        },
+        {
+          label: "Trechos incompatíveis",
+          count: incompatibleStructures,
+          detail:
+            incompatibleStructures > 0
+              ? "Trechos marcados com A1 = D ainda precisam de revisão."
+              : "Nenhum trecho está bloqueado por incompatibilidade.",
+        },
+        {
+          label: "Trechos sem nota final",
+          count: missingScoreStructures,
+          detail:
+            missingScoreStructures > 0
+              ? "Alguns trechos foram avaliados, mas ainda não têm nota final."
+              : "Todos os trechos avaliados têm nota final.",
+        },
+      ],
+    };
+  }, [cityFormsCount, results]);
 
   const handleToggleRankingVisibility = async () => {
     if (!results?.city?.id || isUpdatingRankingVisibility) return;
@@ -538,7 +611,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
               ...current,
               city: {
                 ...current.city,
-              show_in_ranking: nextValue,
+                show_in_ranking: nextValue,
               },
             }
           : current
@@ -560,6 +633,20 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
     } finally {
       setIsUpdatingRankingVisibility(false);
     }
+  };
+
+  const handleRankingButtonClick = () => {
+    if (showInRanking) {
+      void handleToggleRankingVisibility();
+      return;
+    }
+
+    setRankingConfirmationOpen(true);
+  };
+
+  const handleConfirmRankingVisibility = async () => {
+    setRankingConfirmationOpen(false);
+    await handleToggleRankingVisibility();
   };
 
   const filteredSegments = useMemo(() => {
@@ -1385,7 +1472,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
             </Button>
 
             <Button
-              onClick={handleToggleRankingVisibility}
+              onClick={handleRankingButtonClick}
               variant="outline"
               className={cn(
                 "h-auto flex-col gap-2 p-6 border-transparent text-white",
@@ -1406,8 +1493,90 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
               <span>Nova cidade</span>
             </Button>
           </div>
-        </CardContent>
-      </Card>
+      </CardContent>
+    </Card>
+
+      <Dialog open={rankingConfirmationOpen} onOpenChange={setRankingConfirmationOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Liberar cidade no ranking</DialogTitle>
+            <DialogDescription className="leading-6">
+              Antes de publicar, confira o que já está pronto e o que ainda pode ser ajustado.
+              A cidade só entra no ranking público quando existir pelo menos um formulário
+              salvo no banco.
+            </DialogDescription>
+          </DialogHeader>
+
+          {rankingReadiness ? (
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  Pendências obrigatórias para aparecer
+                </p>
+                <div className="mt-3 space-y-2">
+                  {rankingReadiness.mandatory.map((item) => (
+                    <div key={item.label} className="flex gap-3 text-sm text-amber-900">
+                      <CheckCircle2
+                        className={`mt-0.5 h-4 w-4 flex-none ${
+                          item.ok ? "text-emerald-600" : "text-amber-600"
+                        }`}
+                      />
+                      <div>
+                        <div className="font-medium">{item.label}</div>
+                        <div className="text-amber-800">{item.detail}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  Pendências não obrigatórias, mas recomendadas
+                </p>
+                <div className="mt-3 space-y-3">
+                  {rankingReadiness.optional.map((item) => (
+                    <div key={item.label} className="flex gap-3 text-sm text-slate-800">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600" />
+                      <div>
+                        <div className="font-medium">
+                          {item.label}: {item.count}
+                        </div>
+                        <div className="text-slate-600">{item.detail}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm ${
+                  rankingReadiness.readyToAppear
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : "border border-rose-200 bg-rose-50 text-rose-900"
+                }`}
+              >
+                {rankingReadiness.readyToAppear
+                  ? "A cidade já tem o mínimo para aparecer no ranking. As pendências acima são recomendações para publicar com mais segurança."
+                  : "Sem pelo menos um formulário salvo no banco, a cidade não vai aparecer no ranking mesmo após a liberação."}
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRankingConfirmationOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => void handleConfirmRankingVisibility()}
+              disabled={isUpdatingRankingVisibility}
+            >
+              {isUpdatingRankingVisibility ? "Salvando..." : "Confirmar liberação"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

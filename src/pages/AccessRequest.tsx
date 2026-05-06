@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, MailCheck } from "lucide-react";
+import { CheckCircle2, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -27,6 +35,7 @@ const AccessRequest = () => {
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -126,6 +135,7 @@ const AccessRequest = () => {
     try {
       const result = await createAccessRequest(formData);
       setFeedback(result.message);
+      setConfirmationOpen(true);
       setFormData({
         name: "",
         email: "",
@@ -329,18 +339,41 @@ const AccessRequest = () => {
           </div>
         </form>
 
-        {feedback ? (
-          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {feedback}
-          </div>
-        ) : null}
-
         <div className="mt-6 text-sm text-gray-500">
           <Link className="underline" to="/login">
             Já tem acesso? Ir para o login
           </Link>
         </div>
       </div>
+
+      <Dialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Solicitação enviada
+            </DialogTitle>
+            <DialogDescription className="leading-6">
+              {feedback ||
+                "A solicitação foi registrada. Agora você precisa confirmar a posse do e-mail para que ela siga para análise administrativa."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+            Verifique sua caixa de entrada e clique no link de confirmação enviado para o
+            e-mail informado. Sem essa etapa, a solicitação não entra na fila de revisão.
+          </div>
+
+          <DialogFooter>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => setConfirmationOpen(false)}
+            >
+              Entendido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

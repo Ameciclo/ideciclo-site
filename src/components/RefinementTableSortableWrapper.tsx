@@ -14,6 +14,11 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
+const normalizeLength = (value: unknown) => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
   onSelectSegment: (id: string, selected: boolean) => void;
@@ -165,7 +170,7 @@ export const RefinementTableSortableWrapper = ({
       })
       .filter((segment) => {
         // Filter by length
-        const segmentLength = segment.length;
+        const segmentLength = normalizeLength(segment.length);
         const min = minLength ? parseFloat(minLength) : null;
         const max = maxLength ? parseFloat(maxLength) : null;
 
@@ -182,7 +187,7 @@ export const RefinementTableSortableWrapper = ({
         const direction = sortDirection === "asc" ? 1 : -1;
 
         if (sortField === "length") {
-          return (a.length - b.length) * direction;
+          return (normalizeLength(a.length) - normalizeLength(b.length)) * direction;
         }
 
         const valueA =

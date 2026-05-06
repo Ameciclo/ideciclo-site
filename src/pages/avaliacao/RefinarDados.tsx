@@ -40,6 +40,12 @@ import {
   setPersistedCityData,
 } from "@/utils/persistedCityData";
 
+const normalizeSegmentLength = (segment: Segment): Segment => ({
+  ...segment,
+  length:
+    typeof segment.length === "number" ? segment.length : Number(segment.length) || 0,
+});
+
 const RefinarDados = () => {
   const [cityId, setCityId] = useState<string>("");
   const [cityName, setCityName] = useState<string>("");
@@ -122,7 +128,12 @@ const RefinarDados = () => {
           data.cityName,
           data.stateName,
           data.city && Array.isArray(data.segments) && data.segments.length > 0
-            ? { city: data.city, segments: data.segments }
+            ? {
+                city: data.city,
+                segments: data.segments.map((segment: Segment) =>
+                  normalizeSegmentLength(segment)
+                ),
+              }
             : undefined
         );
       } catch (error) {
@@ -1113,13 +1124,13 @@ const RefinarDados = () => {
                                           Boolean(checked)
                                         )
                                       }
-                                    />
-                                    {segment.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {segment.length.toFixed(4)} km
-                                  </span>
-                                </label>
+                                  />
+                                  {segment.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {Number(segment.length || 0).toFixed(4)} km
+                                </span>
+                              </label>
                               ))}
                             </div>
                             {suggestion.selectedSegmentIds.length < 2 && (

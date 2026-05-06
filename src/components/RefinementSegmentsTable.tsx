@@ -195,6 +195,11 @@ const FIELD_HELP_CONTENT: Record<
   },
 };
 
+const formatLength = (value: unknown) => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed.toFixed(4) : "0.0000";
+};
+
 type FlowValue = (typeof FLOW_OPTIONS)[number]["value"];
 type PositionValue = (typeof POSITION_OPTIONS)[number]["value"];
 type OptionalFlowValue = FlowValue | "";
@@ -1563,7 +1568,7 @@ const RefinementSegmentsTable = ({
                 </TableCell>
                 <TableCell>{getCompatibilityBadge(segment)}</TableCell>
                 <TableCell className="text-right">
-                  {segment.length.toFixed(4)}
+                  {formatLength(segment.length)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end items-center gap-2">
