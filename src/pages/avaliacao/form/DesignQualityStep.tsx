@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { IdecicloFormData } from "@/types/idecicloForm";
 import { getA1Decision, getA1FieldLabel } from "@/utils/idecicloAssessment";
+import { HelpCircle } from "lucide-react";
 
 interface Page2Props {
   data: IdecicloFormData;
@@ -103,6 +105,53 @@ const POSITION_OPTIONS = [
   },
 ] as const;
 
+const PEDESTRIAN_FLOW_OPTIONS = [
+  {
+    value: "quase_vazio",
+    label: "Espaço quase vazio",
+    description: "Fluxo muito baixo, com encontros raros entre pedestres.",
+    rangeLabel: "<100 ped/h/m",
+    representativeValue: 80,
+  },
+  {
+    value: "ocasional",
+    label: "Presença ocasional de pedestres",
+    description: "Pedestres aparecem com alguma frequência, mas sem pressão sobre a passagem.",
+    rangeLabel: "100-300 ped/h/m",
+    representativeValue: 150,
+  },
+  {
+    value: "continuo",
+    label: "Fluxo contínuo confortável",
+    description: "Há movimento constante, porém ainda com circulação fluida.",
+    rangeLabel: "300-800 ped/h/m",
+    representativeValue: 500,
+  },
+  {
+    value: "intenso",
+    label: "Fluxo intenso",
+    description: "A circulação é forte e exige mais desvios e atenção.",
+    rangeLabel: "800-1800 ped/h/m",
+    representativeValue: 1200,
+  },
+  {
+    value: "saturado",
+    label: "Saturado/congestionado",
+    description: "A passagem está disputada, com desconforto e lentidão.",
+    rangeLabel: ">1800 ped/h/m",
+    representativeValue: 2000,
+  },
+] as const;
+
+const resolvePedestrianFlowCategory = (value?: number) => {
+  if (!value || value <= 0) return null;
+  if (value < 100) return "quase_vazio";
+  if (value < 300) return "ocasional";
+  if (value < 800) return "continuo";
+  if (value < 1800) return "intenso";
+  return "saturado";
+};
+
 const Page2: React.FC<Page2Props> = ({
   data,
   onDataChange,
@@ -136,11 +185,6 @@ const Page2: React.FC<Page2Props> = ({
       setAllowPositionEdit(true);
     }
   }, [originalPositionOnRoad]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    onDataChange({ [name]: value });
-  };
 
   const handleRadioChange = (name: string, value: string) => {
     onDataChange({ [name]: value });
@@ -222,6 +266,9 @@ const Page2: React.FC<Page2Props> = ({
         : originalVelocityKmh
           ? [originalVelocityKmh]
           : [];
+  const selectedPedestrianFlowCategory = resolvePedestrianFlowCategory(
+    Number(data.pedestrian_flow_per_hour_per_meter || 0)
+  );
   const getSpeedCount = (speed: number) =>
     resolvedSpeedChoices.filter((value) => value === speed).length;
   const handleSpeedCountChange = (speed: number, delta: 1 | -1) => {
@@ -244,6 +291,14 @@ const Page2: React.FC<Page2Props> = ({
         normalizedChoices.length > 0
           ? normalizedChoices[normalizedChoices.length - 1]
           : 0,
+    });
+  };
+
+  const handlePedestrianFlowCategorySelect = (
+    representativeValue: number
+  ) => {
+    onDataChange({
+      pedestrian_flow_per_hour_per_meter: representativeValue,
     });
   };
   const a1Decision = getA1Decision(data);
@@ -588,23 +643,141 @@ const Page2: React.FC<Page2Props> = ({
           .toLowerCase()
           .includes("partilh") && (
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-            <Label
-              htmlFor="pedestrian_flow_per_hour_per_meter"
-              className="text-base font-semibold text-slate-900"
-            >
-              Fluxo de pedestres por hora por metro:
-            </Label>
-            <Input
-              id="pedestrian_flow_per_hour_per_meter"
-              name="pedestrian_flow_per_hour_per_meter"
-              type="number"
-              value={data.pedestrian_flow_per_hour_per_meter || ""}
-              onChange={handleChange}
-              className="mt-3"
-            />
-            <p className="mt-2 text-sm text-muted-foreground">
-              Se passar de 200 pedestres/hora/metro, a calçada partilhada fica inadequada pelo manual.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <Label className="text-base font-semibold text-slate-900">
+                  Movimento de pedestres
+                </Label>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Para a A.1, apenas as duas primeiras faixas contam como abaixo do limite operacional de 200 ped/h/m.
+                </p>
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 rounded-full"
+                    title="Como observar o movimento de pedestres"
+                    aria-label="Como observar o movimento de pedestres"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[min(92vw,720px)] p-4">
+                  <div className="space-y-3 text-sm text-slate-700">
+                    <div>
+                      <div className="font-semibold text-slate-900">
+                        O que observar
+                      </div>
+                      <p className="mt-1">
+                        Conte quantas pessoas passam por um trecho da calçada durante um intervalo fixo e considere a largura útil disponível para caminhar.
+                      </p>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-900">
+                        Metodologia sugerida
+                      </div>
+                      <p className="mt-1">
+                        Escolha um ponto representativo, conte o fluxo bidirecional total por 1, 5, 10, 15 ou 30 minutos e divida pela largura útil da calçada.
+                      </p>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="min-w-full text-xs sm:text-sm">
+                        <thead className="bg-slate-50 text-slate-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold">Categoria</th>
+                            <th className="px-3 py-2 text-right font-semibold">ped/h/m</th>
+                            <th className="px-3 py-2 text-right font-semibold">1 min</th>
+                            <th className="px-3 py-2 text-right font-semibold">5 min</th>
+                            <th className="px-3 py-2 text-right font-semibold">10 min</th>
+                            <th className="px-3 py-2 text-right font-semibold">15 min</th>
+                            <th className="px-3 py-2 text-right font-semibold">30 min</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t border-slate-200">
+                            <td className="px-3 py-2">Espaço quase vazio</td>
+                            <td className="px-3 py-2 text-right">&lt;100</td>
+                            <td className="px-3 py-2 text-right">&lt;2</td>
+                            <td className="px-3 py-2 text-right">&lt;8</td>
+                            <td className="px-3 py-2 text-right">&lt;17</td>
+                            <td className="px-3 py-2 text-right">&lt;25</td>
+                            <td className="px-3 py-2 text-right">&lt;50</td>
+                          </tr>
+                          <tr className="border-t border-slate-200">
+                            <td className="px-3 py-2">Presença ocasional de pedestres</td>
+                            <td className="px-3 py-2 text-right">100-300</td>
+                            <td className="px-3 py-2 text-right">2-5</td>
+                            <td className="px-3 py-2 text-right">8-25</td>
+                            <td className="px-3 py-2 text-right">17-50</td>
+                            <td className="px-3 py-2 text-right">25-75</td>
+                            <td className="px-3 py-2 text-right">50-150</td>
+                          </tr>
+                          <tr className="border-t border-slate-200">
+                            <td className="px-3 py-2">Fluxo contínuo confortável</td>
+                            <td className="px-3 py-2 text-right">300-800</td>
+                            <td className="px-3 py-2 text-right">5-13</td>
+                            <td className="px-3 py-2 text-right">25-67</td>
+                            <td className="px-3 py-2 text-right">50-133</td>
+                            <td className="px-3 py-2 text-right">75-200</td>
+                            <td className="px-3 py-2 text-right">150-400</td>
+                          </tr>
+                          <tr className="border-t border-slate-200">
+                            <td className="px-3 py-2">Fluxo intenso</td>
+                            <td className="px-3 py-2 text-right">800-1800</td>
+                            <td className="px-3 py-2 text-right">13-30</td>
+                            <td className="px-3 py-2 text-right">67-150</td>
+                            <td className="px-3 py-2 text-right">133-300</td>
+                            <td className="px-3 py-2 text-right">200-450</td>
+                            <td className="px-3 py-2 text-right">400-900</td>
+                          </tr>
+                          <tr className="border-t border-slate-200">
+                            <td className="px-3 py-2">Saturado / congestionado</td>
+                            <td className="px-3 py-2 text-right">&gt;1800</td>
+                            <td className="px-3 py-2 text-right">&gt;30</td>
+                            <td className="px-3 py-2 text-right">&gt;150</td>
+                            <td className="px-3 py-2 text-right">&gt;300</td>
+                            <td className="px-3 py-2 text-right">&gt;450</td>
+                            <td className="px-3 py-2 text-right">&gt;900</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="space-y-1 text-xs text-slate-600">
+                      <p>Todos os valores são por metro de largura útil da calçada e consideram o fluxo bidirecional total.</p>
+                      <p>Exemplo: uma calçada útil de 2 m, com 50 pessoas em 5 min, resulta em 5 ped/min/m, ou 300 ped/h/m. Isso cai em "Fluxo contínuo confortável".</p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {PEDESTRIAN_FLOW_OPTIONS.map((option) => {
+                const selected = selectedPedestrianFlowCategory === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handlePedestrianFlowCategorySelect(option.representativeValue)}
+                    className={selectionCardClassName(selected)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{option.label}</div>
+                        <p className="mt-1 text-sm text-slate-600">{option.description}</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {option.rangeLabel}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
