@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, Mail, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -70,6 +70,13 @@ const Login = () => {
                 Enviar magic link
               </>
             )}
+          </Button>
+
+          <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700">
+            <Link to="/solicitar-acesso">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Solicitar acesso
+            </Link>
           </Button>
         </form>
 

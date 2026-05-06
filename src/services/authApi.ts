@@ -1,4 +1,11 @@
-import type { AdminUser, AuthModule, AuthSession, AuthRole } from "@/types/auth";
+import type {
+  AccessRequest,
+  AuthModule,
+  AuthPermission,
+  AuthRole,
+  AuthSession,
+  AdminUser,
+} from "@/types/auth";
 
 type JsonResponse<T> = T & {
   error?: string;
@@ -85,3 +92,69 @@ export const deleteUserPermission = async (permissionId: string) =>
   fetchJson<{ users: AdminUser[] }>(`/api/auth/admin/permissions/${permissionId}`, {
     method: "DELETE",
   });
+
+export const createAccessRequest = async (payload: {
+  name: string;
+  email: string;
+  organization: string;
+  state: string;
+  city?: string;
+  interestType: string;
+  message: string;
+}) =>
+  fetchJson<{ message: string }>("/api/auth/access-requests", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const fetchAdminAccessRequests = async (status?: string) => {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return fetchJson<{ requests: AccessRequest[] }>(`/api/auth/admin/access-requests${query}`, {
+    method: "GET",
+  });
+};
+
+export const fetchAdminAccessRequest = async (requestId: string) =>
+  fetchJson<{
+    request: AccessRequest;
+    existingUser: AdminUser | null;
+    existingPermissions: AuthPermission[];
+  }>(`/api/auth/admin/access-requests/${requestId}`, {
+    method: "GET",
+  });
+
+export const approveAdminAccessRequest = async (
+  requestId: string,
+  payload: {
+    name?: string;
+    reviewerNotes?: string;
+    permissions: Array<{
+      role: AuthRole;
+      state?: string;
+      city?: string;
+      module?: AuthModule | "";
+    }>;
+  }
+) =>
+  fetchJson<{ ok: true; request: AccessRequest }>(
+    `/api/auth/admin/access-requests/${requestId}/approve`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+
+export const rejectAdminAccessRequest = async (
+  requestId: string,
+  payload: {
+    reviewerNotes?: string;
+    rejectionReason?: string;
+  }
+) =>
+  fetchJson<{ ok: true; request: AccessRequest }>(
+    `/api/auth/admin/access-requests/${requestId}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );

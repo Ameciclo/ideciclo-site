@@ -10,10 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AUTH_MODULES, AUTH_ROLES } from "@/lib/authPermissions";
 import { fetchCities, fetchStates } from "@/services/api";
+import AdminAccessRequests from "@/pages/admin/AdminAccessRequests";
 import {
   createAdminUser,
   createUserPermission,
@@ -360,190 +362,213 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      <div className="mb-8 rounded-[28px] bg-background-grey p-6 shadow-md">
-        <form className="grid gap-4 md:grid-cols-[2fr_2fr_auto]" onSubmit={handleCreateUser}>
-          <Input
-            type="email"
-            placeholder="email@organizacao.org"
-            value={newUserEmail}
-            onChange={(event) => setNewUserEmail(event.target.value)}
-            required
-          />
-          <Input
-            placeholder="Nome do usuário"
-            value={newUserName}
-            onChange={(event) => setNewUserName(event.target.value)}
-          />
-          <Button disabled={isSaving} className="bg-ideciclo-red hover:bg-ideciclo-red/90">
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar usuário
-          </Button>
-        </form>
-      </div>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          {isGlobalAdmin ? (
+            <TabsTrigger value="access-requests">Solicitações de acesso</TabsTrigger>
+          ) : null}
+        </TabsList>
 
-      <div className="space-y-6">
-        {users.map((user) => {
-          const draft = permissionDrafts[user.id] || defaultPermissionDraft;
-          const userIsManageable = canManageUser(user);
+        <TabsContent value="users" className="space-y-6">
+          <div className="mb-8 rounded-[28px] bg-background-grey p-6 shadow-md">
+            <form className="grid gap-4 md:grid-cols-[2fr_2fr_auto]" onSubmit={handleCreateUser}>
+              <Input
+                type="email"
+                placeholder="email@organizacao.org"
+                value={newUserEmail}
+                onChange={(event) => setNewUserEmail(event.target.value)}
+                required
+              />
+              <Input
+                placeholder="Nome do usuário"
+                value={newUserName}
+                onChange={(event) => setNewUserName(event.target.value)}
+              />
+              <Button disabled={isSaving} className="bg-ideciclo-red hover:bg-ideciclo-red/90">
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar usuário
+              </Button>
+            </form>
+          </div>
 
-          return (
-            <div key={user.id} className="rounded-[28px] border bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-xl font-semibold text-text-grey">
-                      {user.name || user.email}
-                    </h2>
-                    <Badge variant={user.active ? "default" : "destructive"}>
-                      {user.active ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-600">{user.email}</p>
-                </div>
+          <div className="space-y-6">
+            {users.map((user) => {
+              const draft = permissionDrafts[user.id] || defaultPermissionDraft;
+              const userIsManageable = canManageUser(user);
 
-                <Button
-                  variant="outline"
-                  disabled={isSaving || !userIsManageable}
-                  onClick={() => handleToggleActive(user)}
-                >
-                  {user.active ? "Desativar" : "Ativar"}
-                </Button>
-              </div>
-
-              <div className="mt-6 rounded-2xl bg-background-grey p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-ideciclo-blue" />
-                  <h3 className="font-semibold text-text-grey">Permissões</h3>
-                </div>
-
-                <div className="space-y-3">
-                  {user.permissions.length === 0 ? (
-                    <p className="text-sm text-gray-500">Nenhuma permissão atribuída.</p>
-                  ) : (
-                    user.permissions.map((permission) => (
-                      <div
-                        key={permission.id}
-                        className="flex flex-col gap-3 rounded-2xl border bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
-                      >
-                        <div className="flex flex-wrap gap-2">
-                          <Badge>{roleLabels[permission.role] || permission.role}</Badge>
-                          {permission.module ? (
-                            <Badge variant="secondary">
-                              {moduleLabels[permission.module] || permission.module}
-                            </Badge>
-                          ) : null}
-                          {permission.state ? <Badge variant="outline">{permission.state}</Badge> : null}
-                          {permission.city ? <Badge variant="outline">{permission.city}</Badge> : null}
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={isSaving || !canManageExistingPermission(permission)}
-                          onClick={() => handleDeletePermission(permission.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remover
-                        </Button>
+              return (
+                <div key={user.id} className="rounded-[28px] border bg-white p-6 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-xl font-semibold text-text-grey">
+                          {user.name || user.email}
+                        </h2>
+                        <Badge variant={user.active ? "default" : "destructive"}>
+                          {user.active ? "Ativo" : "Inativo"}
+                        </Badge>
                       </div>
-                    ))
-                  )}
+                      <p className="mt-2 text-sm text-gray-600">{user.email}</p>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      disabled={isSaving || !userIsManageable}
+                      onClick={() => handleToggleActive(user)}
+                    >
+                      {user.active ? "Desativar" : "Ativar"}
+                    </Button>
+                  </div>
+
+                  <div className="mt-6 rounded-2xl bg-background-grey p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-ideciclo-blue" />
+                      <h3 className="font-semibold text-text-grey">Permissões</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      {user.permissions.length === 0 ? (
+                        <p className="text-sm text-gray-500">Nenhuma permissão atribuída.</p>
+                      ) : (
+                        user.permissions.map((permission) => (
+                          <div
+                            key={permission.id}
+                            className="flex flex-col gap-3 rounded-2xl border bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              <Badge>{roleLabels[permission.role] || permission.role}</Badge>
+                              {permission.module ? (
+                                <Badge variant="secondary">
+                                  {moduleLabels[permission.module] || permission.module}
+                                </Badge>
+                              ) : null}
+                              {permission.state ? <Badge variant="outline">{permission.state}</Badge> : null}
+                              {permission.city ? <Badge variant="outline">{permission.city}</Badge> : null}
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isSaving || !canManageExistingPermission(permission)}
+                              onClick={() => handleDeletePermission(permission.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remover
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                      <Select
+                        value={draft.role}
+                        disabled={isSaving || !userIsManageable}
+                        onValueChange={(value) =>
+                          handlePermissionDraftChange(user.id, { role: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allowedRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {roleLabels[role]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={draft.module}
+                        disabled={isSaving || !userIsManageable}
+                        onValueChange={(value) =>
+                          handlePermissionDraftChange(user.id, { module: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Módulo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem módulo</SelectItem>
+                          {AUTH_MODULES.map((module) => (
+                            <SelectItem key={module} value={module}>
+                              {moduleLabels[module]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={getSelectedStateId(draft.state)}
+                        disabled={isSaving || !userIsManageable}
+                        onValueChange={(value) =>
+                          void handleStateChange(user.id, value === "__none__" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem estado</SelectItem>
+                          {availableStates.map((state) => (
+                            <SelectItem key={state.id} value={state.id.toString()}>
+                              {state.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={draft.city || "__none__"}
+                        disabled={
+                          isSaving ||
+                          !userIsManageable ||
+                          !draft.state ||
+                          (citiesByUserId[user.id] || []).length === 0
+                        }
+                        onValueChange={(value) =>
+                          handlePermissionDraftChange(user.id, {
+                            city: value === "__none__" ? "" : value,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Cidade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sem cidade</SelectItem>
+                          {(citiesByUserId[user.id] || []).map((city) => (
+                            <SelectItem key={city.id} value={city.nome}>
+                              {city.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Button
+                        disabled={isSaving || !userIsManageable}
+                        onClick={() => void handleCreatePermission(user.id)}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Atribuir
+                      </Button>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </TabsContent>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                  <Select
-                    value={draft.role}
-                    disabled={isSaving || !userIsManageable}
-                    onValueChange={(value) => handlePermissionDraftChange(user.id, { role: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allowedRoles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {roleLabels[role]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={draft.module}
-                    disabled={isSaving || !userIsManageable}
-                    onValueChange={(value) => handlePermissionDraftChange(user.id, { module: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Módulo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem módulo</SelectItem>
-                      {AUTH_MODULES.map((module) => (
-                        <SelectItem key={module} value={module}>
-                          {moduleLabels[module]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={getSelectedStateId(draft.state)}
-                    disabled={isSaving || !userIsManageable}
-                    onValueChange={(value) =>
-                      void handleStateChange(user.id, value === "__none__" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem estado</SelectItem>
-                      {availableStates.map((state) => (
-                        <SelectItem key={state.id} value={state.id.toString()}>
-                          {state.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={draft.city || "__none__"}
-                    disabled={
-                      isSaving ||
-                      !userIsManageable ||
-                      !draft.state ||
-                      (citiesByUserId[user.id] || []).length === 0
-                    }
-                    onValueChange={(value) =>
-                      handlePermissionDraftChange(user.id, { city: value === "__none__" ? "" : value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Cidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem cidade</SelectItem>
-                      {(citiesByUserId[user.id] || []).map((city) => (
-                        <SelectItem key={city.id} value={city.nome}>
-                          {city.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Button
-                    disabled={isSaving || !userIsManageable}
-                    onClick={() => void handleCreatePermission(user.id)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Atribuir
-                  </Button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        {isGlobalAdmin ? (
+          <TabsContent value="access-requests">
+            <AdminAccessRequests />
+          </TabsContent>
+        ) : null}
+      </Tabs>
     </div>
   );
 };

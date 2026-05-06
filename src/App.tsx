@@ -23,6 +23,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Login from "./pages/Login";
+import AccessRequest from "./pages/AccessRequest";
 import AuthVerify from "./pages/auth/AuthVerify";
 import Logout from "./pages/auth/Logout";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -53,6 +54,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
+                  <Route path="/solicitar-acesso" element={<AccessRequest />} />
                   <Route path="/auth/verify" element={<AuthVerify />} />
                   <Route path="/auth/logout" element={<Logout />} />
                   <Route path="/avaliacao" element={<Avaliacao />} />

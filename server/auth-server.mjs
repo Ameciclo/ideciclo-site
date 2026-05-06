@@ -40,6 +40,24 @@ const MAGIC_LINK_RATE_LIMIT_IP_MAX = Number(
 const MAGIC_LINK_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS = Number(
   process.env.AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS || 60
 );
+const ACCESS_REQUEST_VERIFICATION_TTL_MINUTES = Number(
+  process.env.AUTH_ACCESS_REQUEST_VERIFICATION_TTL_MINUTES || 60
+);
+const ACCESS_REQUEST_PENDING_TTL_DAYS = Number(
+  process.env.AUTH_ACCESS_REQUEST_PENDING_TTL_DAYS || 7
+);
+const ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES = Number(
+  process.env.AUTH_ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES || 60
+);
+const ACCESS_REQUEST_RATE_LIMIT_EMAIL_MAX = Number(
+  process.env.AUTH_ACCESS_REQUEST_RATE_LIMIT_EMAIL_MAX || 3
+);
+const ACCESS_REQUEST_RATE_LIMIT_IP_MAX = Number(
+  process.env.AUTH_ACCESS_REQUEST_RATE_LIMIT_IP_MAX || 10
+);
+const ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS = Number(
+  process.env.AUTH_ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS || 300
+);
 
 if (!DATABASE_URL) {
   throw new Error("DATABASE_URL é obrigatória para iniciar o servidor de autenticação.");
@@ -144,6 +162,27 @@ const toCamelPermission = (row) => ({
   createdAt: row.created_at,
 });
 
+const toCamelAccessRequest = (row) => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  organization: row.organization,
+  state: row.state,
+  city: row.city,
+  interestType: row.interest_type,
+  message: row.message,
+  status: row.status,
+  emailVerifiedAt: row.email_verified_at,
+  requesterIp: row.requester_ip,
+  reviewerNotes: row.reviewer_notes,
+  rejectionReason: row.rejection_reason,
+  reviewedAt: row.reviewed_at,
+  reviewedByUserId: row.reviewed_by_user_id,
+  approvedUserId: row.approved_user_id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
 const toSessionPayload = (sessionRow, permissions) => ({
   session: {
     user: {
@@ -204,6 +243,11 @@ const json = (response, statusCode, payload, extraHeaders = {}) => {
   response.end(JSON.stringify(payload));
 };
 
+const redirect = (response, location, statusCode = 302) => {
+  response.writeHead(statusCode, { Location: location });
+  response.end();
+};
+
 const notFound = (response) => json(response, 404, { error: "Not found" });
 
 const sanitizeRedirectPath = (value) => {
@@ -255,6 +299,62 @@ const sendMagicLinkEmail = async ({ email, token, redirectTo }) => {
   if (!process.env.SMTP_HOST) {
     console.log("Magic link gerado em modo local:", info.message);
   }
+};
+
+const buildAccessRequestStatusUrl = (status, requestId) => {
+  const nextUrl = new URL("/solicitar-acesso", APP_URL);
+  nextUrl.searchParams.set("status", status);
+  if (requestId) {
+    nextUrl.searchParams.set("requestId", requestId);
+  }
+  return nextUrl.toString();
+};
+
+const sendAccessRequestVerificationEmail = async ({ email, token }) => {
+  const verifyUrl = new URL("/api/auth/access-requests/verify", APP_URL);
+  verifyUrl.searchParams.set("token", token);
+
+  const info = await transporter.sendMail({
+    from: EMAIL_FROM,
+    to: email,
+    subject: "Confirme sua solicitação de acesso ao IDECICLO",
+    text: [
+      "Recebemos sua manifestação de interesse no IDECICLO.",
+      "Confirme a posse deste e-mail no link abaixo:",
+      verifyUrl.toString(),
+      "",
+      `O link expira em ${ACCESS_REQUEST_VERIFICATION_TTL_MINUTES} minutos.`,
+      "Depois da confirmação, sua solicitação ficará pendente de revisão da equipe administradora.",
+    ].join("\n"),
+    html: `
+      <p>Recebemos sua manifestação de interesse no IDECICLO.</p>
+      <p>Confirme a posse deste e-mail no link abaixo:</p>
+      <p><a href="${verifyUrl.toString()}">${verifyUrl.toString()}</a></p>
+      <p>O link expira em ${ACCESS_REQUEST_VERIFICATION_TTL_MINUTES} minutos.</p>
+      <p>Depois da confirmação, sua solicitação ficará pendente de revisão da equipe administradora.</p>
+    `,
+  });
+
+  if (!process.env.SMTP_HOST) {
+    console.log("Verificação de solicitação de acesso gerada em modo local:", info.message);
+  }
+};
+
+const getAccessRequestRateLimitMessage = (reason) => {
+  if (reason === "email_cooldown") {
+    const minutes = Math.ceil(ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS / 60);
+    return `Este e-mail acabou de enviar uma solicitação. Aguarde ${minutes} minuto(s) antes de tentar de novo.`;
+  }
+
+  if (reason === "email_window") {
+    return `Este e-mail atingiu o limite de ${ACCESS_REQUEST_RATE_LIMIT_EMAIL_MAX} solicitações em ${ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES} minuto(s).`;
+  }
+
+  if (reason === "ip_window") {
+    return `Este IP atingiu o limite de ${ACCESS_REQUEST_RATE_LIMIT_IP_MAX} solicitações em ${ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES} minuto(s).`;
+  }
+
+  return "Tente novamente mais tarde.";
 };
 
 const getSessionFromRequest = async (request) => {
@@ -426,6 +526,25 @@ const cleanupExpiredAuthState = async (client = pool) => {
       WHERE requested_at <= now() - interval '7 days'
     `
   );
+
+  await client.query(
+    `
+      DELETE FROM auth.access_request_verifications
+      WHERE (used_at IS NOT NULL AND used_at <= now() - interval '7 days')
+         OR expires_at <= now() - make_interval(days => $1::int)
+    `
+    ,
+    [ACCESS_REQUEST_PENDING_TTL_DAYS]
+  );
+
+  await client.query(
+    `
+      DELETE FROM auth.access_requests
+      WHERE status = 'email_verification_pending'
+        AND created_at <= now() - make_interval(days => $1::int)
+    `,
+    [ACCESS_REQUEST_PENDING_TTL_DAYS]
+  );
 };
 
 const assertMagicLinkRateLimit = async (email, ipAddress, client = pool) => {
@@ -488,6 +607,138 @@ const recordMagicLinkRequest = async (email, ipAddress, client = pool) => {
     `,
     [email, ipAddress]
   );
+};
+
+const assertAccessRequestRateLimit = async (email, ipAddress, client = pool) => {
+  const emailStatsResult = await client.query(
+    `
+      SELECT
+        COUNT(*) FILTER (
+          WHERE created_at > now() - make_interval(mins => $2::int)
+        )::int AS recent_count,
+        MAX(created_at) AS last_request_at
+      FROM auth.access_requests
+      WHERE lower(email) = lower($1)
+    `,
+    [email, ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES]
+  );
+
+  const emailStats = emailStatsResult.rows[0];
+  const emailRecentCount = Number(emailStats?.recent_count || 0);
+  const lastRequestAt = emailStats?.last_request_at
+    ? new Date(emailStats.last_request_at).getTime()
+    : null;
+
+  if (emailRecentCount >= ACCESS_REQUEST_RATE_LIMIT_EMAIL_MAX) {
+    return { allowed: false, reason: "email_window" };
+  }
+
+  if (
+    lastRequestAt &&
+    Date.now() - lastRequestAt <
+      ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS * 1000
+  ) {
+    return { allowed: false, reason: "email_cooldown" };
+  }
+
+  if (ipAddress) {
+    const ipStatsResult = await client.query(
+      `
+        SELECT COUNT(*)::int AS recent_count
+        FROM auth.access_requests
+        WHERE requester_ip = $1
+          AND created_at > now() - make_interval(mins => $2::int)
+      `,
+      [ipAddress, ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES]
+    );
+
+    const ipRecentCount = Number(ipStatsResult.rows[0]?.recent_count || 0);
+    if (ipRecentCount >= ACCESS_REQUEST_RATE_LIMIT_IP_MAX) {
+      return { allowed: false, reason: "ip_window" };
+    }
+  }
+
+  return { allowed: true, reason: null };
+};
+
+const listAccessRequests = async (status) => {
+  const values = [];
+  const where = [];
+
+  if (status) {
+    values.push(status);
+    where.push(`ar.status = $${values.length}`);
+  }
+
+  const result = await pool.query(
+    `
+      SELECT
+        ar.id,
+        ar.name,
+        ar.email,
+        ar.organization,
+        ar.state,
+        ar.city,
+        ar.interest_type,
+        ar.message,
+        ar.status,
+        ar.email_verified_at,
+        ar.requester_ip,
+        ar.reviewer_notes,
+        ar.rejection_reason,
+        ar.reviewed_at,
+        ar.reviewed_by_user_id,
+        ar.approved_user_id,
+        ar.created_at,
+        ar.updated_at
+      FROM auth.access_requests ar
+      ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY
+        CASE ar.status
+          WHEN 'pending_review' THEN 0
+          WHEN 'email_verification_pending' THEN 1
+          WHEN 'rejected' THEN 2
+          WHEN 'approved' THEN 3
+          ELSE 4
+        END,
+        ar.created_at ASC
+    `,
+    values
+  );
+
+  return result.rows.map(toCamelAccessRequest);
+};
+
+const getAccessRequestById = async (requestId, client = pool) => {
+  const result = await client.query(
+    `
+      SELECT
+        ar.id,
+        ar.name,
+        ar.email,
+        ar.organization,
+        ar.state,
+        ar.city,
+        ar.interest_type,
+        ar.message,
+        ar.status,
+        ar.email_verified_at,
+        ar.requester_ip,
+        ar.reviewer_notes,
+        ar.rejection_reason,
+        ar.reviewed_at,
+        ar.reviewed_by_user_id,
+        ar.approved_user_id,
+        ar.created_at,
+        ar.updated_at
+      FROM auth.access_requests ar
+      WHERE ar.id = $1
+      LIMIT 1
+    `,
+    [requestId]
+  );
+
+  return result.rows[0] ? toCamelAccessRequest(result.rows[0]) : null;
 };
 
 const requireSession = async (request, response) => {
@@ -606,6 +857,25 @@ const fetchUserPermissions = async (userId) => {
   );
 
   return result.rows.map(toCamelPermission);
+};
+
+const normalizePermissionPayload = (permission) => ({
+  role: typeof permission?.role === "string" ? permission.role : "",
+  module: normalizeScopeValue(permission?.module),
+  state: normalizeScopeValue(permission?.state),
+  city: normalizeScopeValue(permission?.city),
+});
+
+const validatePermissionPayload = (permission) => {
+  if (!permission.role || !ALLOWED_ROLES.has(permission.role)) {
+    return "Permissão inválida.";
+  }
+
+  if (permission.module && !ALLOWED_MODULES.has(permission.module)) {
+    return "Módulo inválido.";
+  }
+
+  return null;
 };
 
 const listUsersWithPermissions = async () => {
@@ -1338,6 +1608,238 @@ export const handleAuthRequest = async (request, response) => {
 
       json(response, 200, { session });
       return;
+    }
+
+    if (request.method === "POST" && requestUrl.pathname === "/api/auth/access-requests") {
+      const body = await parseJsonBody(request);
+      const name = normalizeScopeValue(body.name);
+      const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+      const organization = normalizeScopeValue(body.organization);
+      const state = normalizeScopeValue(body.state);
+      const city = normalizeScopeValue(body.city);
+      const interestType = normalizeScopeValue(body.interestType);
+      const message = normalizeScopeValue(body.message);
+      const ipAddress = getClientIp(request);
+
+      if (
+        !name ||
+        !email ||
+        !email.includes("@") ||
+        !organization ||
+        !state ||
+        !interestType ||
+        !message
+      ) {
+        json(response, 400, { error: "Preencha os campos obrigatórios da solicitação." });
+        return;
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        await cleanupExpiredAuthState(client);
+
+        const rateLimit = await assertAccessRequestRateLimit(email, ipAddress, client);
+        if (!rateLimit.allowed) {
+          await client.query("COMMIT");
+          json(response, 429, {
+            error: getAccessRequestRateLimitMessage(rateLimit.reason),
+          });
+          return;
+        }
+
+        const existingUserResult = await client.query(
+          `
+            SELECT id, active
+            FROM auth.users
+            WHERE lower(email) = lower($1)
+            LIMIT 1
+          `,
+          [email]
+        );
+
+        if (existingUserResult.rows[0]?.active) {
+          await client.query("COMMIT");
+          json(response, 409, {
+            error: "Este e-mail já possui acesso aprovado. Use a tela de login.",
+          });
+          return;
+        }
+
+        const pendingRequestResult = await client.query(
+          `
+            SELECT id, status
+            FROM auth.access_requests
+            WHERE lower(email) = lower($1)
+              AND status IN ('email_verification_pending', 'pending_review')
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [email]
+        );
+
+        const pendingRequest = pendingRequestResult.rows[0];
+        if (pendingRequest) {
+          await client.query("COMMIT");
+          json(response, 409, {
+            error:
+              pendingRequest.status === "pending_review"
+                ? "Já existe uma solicitação pendente de revisão para este e-mail."
+                : "Já existe uma solicitação aguardando confirmação deste e-mail.",
+          });
+          return;
+        }
+
+        const accessRequestResult = await client.query(
+          `
+            INSERT INTO auth.access_requests (
+              name,
+              email,
+              organization,
+              state,
+              city,
+              interest_type,
+              message,
+              requester_ip
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+          `,
+          [name, email, organization, state, city, interestType, message, ipAddress]
+        );
+
+        const accessRequestId = accessRequestResult.rows[0].id;
+        const token = generateOpaqueToken();
+        const tokenHash = hashSecretValue(token);
+
+        await client.query(
+          `
+            INSERT INTO auth.access_request_verifications (
+              access_request_id,
+              email,
+              token_hash,
+              ip_address,
+              expires_at
+            )
+            VALUES ($1, $2, $3, $4, now() + make_interval(mins => $5::int))
+          `,
+          [accessRequestId, email, tokenHash, ipAddress, ACCESS_REQUEST_VERIFICATION_TTL_MINUTES]
+        );
+
+        await client.query("COMMIT");
+
+        await sendAccessRequestVerificationEmail({ email, token });
+
+        json(response, 201, {
+          message:
+            "Recebemos sua solicitação. Verifique seu e-mail para confirmar a posse do endereço antes da análise administrativa.",
+        });
+        return;
+      } catch (error) {
+        await client.query("ROLLBACK");
+
+        if (error?.code === "23505") {
+          json(response, 409, {
+            error: "Já existe uma solicitação pendente para este e-mail.",
+          });
+          return;
+        }
+
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/api/auth/access-requests/verify") {
+      const token = typeof requestUrl.searchParams.get("token") === "string"
+        ? requestUrl.searchParams.get("token").trim()
+        : "";
+
+      if (!token) {
+        redirect(response, buildAccessRequestStatusUrl("invalid"));
+        return;
+      }
+
+      const tokenHash = hashSecretValue(token);
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+        await cleanupExpiredAuthState(client);
+
+        const verificationResult = await client.query(
+          `
+            SELECT
+              arv.id,
+              arv.access_request_id,
+              arv.expires_at,
+              arv.used_at,
+              ar.status
+            FROM auth.access_request_verifications arv
+            INNER JOIN auth.access_requests ar ON ar.id = arv.access_request_id
+            WHERE arv.token_hash = $1
+            FOR UPDATE
+          `,
+          [tokenHash]
+        );
+
+        const verification = verificationResult.rows[0];
+
+        if (!verification) {
+          await client.query("ROLLBACK");
+          redirect(response, buildAccessRequestStatusUrl("invalid"));
+          return;
+        }
+
+        if (verification.used_at || verification.status !== "email_verification_pending") {
+          await client.query("ROLLBACK");
+          redirect(
+            response,
+            buildAccessRequestStatusUrl("already-verified", verification.access_request_id)
+          );
+          return;
+        }
+
+        if (new Date(verification.expires_at).getTime() <= Date.now()) {
+          await client.query("ROLLBACK");
+          redirect(response, buildAccessRequestStatusUrl("expired", verification.access_request_id));
+          return;
+        }
+
+        await client.query(
+          `
+            UPDATE auth.access_request_verifications
+            SET used_at = now()
+            WHERE id = $1
+          `,
+          [verification.id]
+        );
+
+        await client.query(
+          `
+            UPDATE auth.access_requests
+            SET
+              status = 'pending_review',
+              email_verified_at = now()
+            WHERE id = $1
+          `,
+          [verification.access_request_id]
+        );
+
+        await client.query("COMMIT");
+        redirect(
+          response,
+          buildAccessRequestStatusUrl("verified", verification.access_request_id)
+        );
+        return;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     }
 
     if (request.method === "POST" && requestUrl.pathname === "/api/auth/request-magic-link") {
@@ -2080,6 +2582,304 @@ export const handleAuthRequest = async (request, response) => {
       await saveReviewsRows(reviews);
       json(response, 200, { ok: true });
       return;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/access-requests") {
+      const auth = await requireAdminGlobal(request, response);
+      if (!auth) return;
+
+      const statusParam = requestUrl.searchParams.get("status");
+      const status =
+        !statusParam || statusParam === "all" ? null : normalizeScopeValue(statusParam);
+
+      if (
+        status &&
+        ![
+          "email_verification_pending",
+          "pending_review",
+          "approved",
+          "rejected",
+        ].includes(status)
+      ) {
+        json(response, 400, { error: "Status inválido." });
+        return;
+      }
+
+      const requests = await listAccessRequests(
+        statusParam === "all" ? null : status || "pending_review"
+      );
+      json(response, 200, { requests });
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      /^\/api\/auth\/admin\/access-requests\/[^/]+$/.test(requestUrl.pathname)
+    ) {
+      const auth = await requireAdminGlobal(request, response);
+      if (!auth) return;
+
+      const requestId = requestUrl.pathname.split("/").pop();
+      if (!requestId) {
+        json(response, 400, { error: "Solicitação inválida." });
+        return;
+      }
+
+      const accessRequest = await getAccessRequestById(requestId);
+      if (!accessRequest) {
+        json(response, 404, { error: "Solicitação não encontrada." });
+        return;
+      }
+
+      const existingUserResult = await pool.query(
+        `
+          SELECT id, email, name, active, created_at
+          FROM auth.users
+          WHERE lower(email) = lower($1)
+          LIMIT 1
+        `,
+        [accessRequest.email]
+      );
+
+      const existingUser = existingUserResult.rows[0]
+        ? {
+            id: existingUserResult.rows[0].id,
+            email: existingUserResult.rows[0].email,
+            name: existingUserResult.rows[0].name,
+            active: existingUserResult.rows[0].active,
+            createdAt: existingUserResult.rows[0].created_at,
+          }
+        : null;
+
+      const existingPermissions = existingUser
+        ? await fetchUserPermissions(existingUser.id)
+        : [];
+
+      json(response, 200, {
+        request: accessRequest,
+        existingUser,
+        existingPermissions,
+      });
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      /^\/api\/auth\/admin\/access-requests\/[^/]+\/approve$/.test(requestUrl.pathname)
+    ) {
+      const auth = await requireAdminGlobal(request, response);
+      if (!auth) return;
+
+      const requestId = requestUrl.pathname.split("/")[5];
+      const body = await parseJsonBody(request);
+      const reviewerNotes = normalizeScopeValue(body.reviewerNotes);
+      const requestedName = normalizeScopeValue(body.name);
+      const permissions = Array.isArray(body.permissions)
+        ? body.permissions.map(normalizePermissionPayload)
+        : [];
+
+      if (!requestId) {
+        json(response, 400, { error: "Solicitação inválida." });
+        return;
+      }
+
+      if (permissions.length === 0) {
+        json(response, 400, { error: "Defina ao menos uma permissão para aprovar o acesso." });
+        return;
+      }
+
+      for (const permission of permissions) {
+        const validationError = validatePermissionPayload(permission);
+        if (validationError) {
+          json(response, 400, { error: validationError });
+          return;
+        }
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const accessRequestResult = await client.query(
+          `
+            SELECT *
+            FROM auth.access_requests
+            WHERE id = $1
+            FOR UPDATE
+          `,
+          [requestId]
+        );
+
+        const accessRequestRow = accessRequestResult.rows[0];
+        if (!accessRequestRow) {
+          await client.query("ROLLBACK");
+          json(response, 404, { error: "Solicitação não encontrada." });
+          return;
+        }
+
+        const accessRequest = toCamelAccessRequest(accessRequestRow);
+        if (
+          accessRequest.status !== "pending_review" ||
+          !accessRequest.emailVerifiedAt
+        ) {
+          await client.query("ROLLBACK");
+          json(response, 400, { error: "A solicitação não está pronta para aprovação." });
+          return;
+        }
+
+        const userResult = await client.query(
+          `
+            SELECT id, name
+            FROM auth.users
+            WHERE lower(email) = lower($1)
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [accessRequest.email]
+        );
+
+        let userId = userResult.rows[0]?.id || null;
+        const nextName = requestedName || accessRequest.name;
+
+        if (userId) {
+          await client.query(
+            `
+              UPDATE auth.users
+              SET
+                name = COALESCE($2, name),
+                active = true
+              WHERE id = $1
+            `,
+            [userId, nextName]
+          );
+        } else {
+          const insertUserResult = await client.query(
+            `
+              INSERT INTO auth.users (email, name, active)
+              VALUES ($1, $2, true)
+              RETURNING id
+            `,
+            [accessRequest.email, nextName]
+          );
+          userId = insertUserResult.rows[0].id;
+        }
+
+        for (const permission of permissions) {
+          await client.query(
+            `
+              INSERT INTO auth.permissions (user_id, role, state, city, module)
+              VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT DO NOTHING
+            `,
+            [userId, permission.role, permission.state, permission.city, permission.module]
+          );
+        }
+
+        await client.query(
+          `
+            UPDATE auth.access_requests
+            SET
+              status = 'approved',
+              reviewer_notes = $2,
+              rejection_reason = NULL,
+              reviewed_at = now(),
+              reviewed_by_user_id = $3,
+              approved_user_id = $4
+            WHERE id = $1
+          `,
+          [requestId, reviewerNotes, auth.session.user.id, userId]
+        );
+
+        await client.query("COMMIT");
+
+        json(response, 200, {
+          ok: true,
+          request: await getAccessRequestById(requestId),
+        });
+        return;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    if (
+      request.method === "POST" &&
+      /^\/api\/auth\/admin\/access-requests\/[^/]+\/reject$/.test(requestUrl.pathname)
+    ) {
+      const auth = await requireAdminGlobal(request, response);
+      if (!auth) return;
+
+      const requestId = requestUrl.pathname.split("/")[5];
+      const body = await parseJsonBody(request);
+      const reviewerNotes = normalizeScopeValue(body.reviewerNotes);
+      const rejectionReason = normalizeScopeValue(body.rejectionReason);
+
+      if (!requestId) {
+        json(response, 400, { error: "Solicitação inválida." });
+        return;
+      }
+
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const accessRequestResult = await client.query(
+          `
+            SELECT *
+            FROM auth.access_requests
+            WHERE id = $1
+            FOR UPDATE
+          `,
+          [requestId]
+        );
+
+        const accessRequestRow = accessRequestResult.rows[0];
+        if (!accessRequestRow) {
+          await client.query("ROLLBACK");
+          json(response, 404, { error: "Solicitação não encontrada." });
+          return;
+        }
+
+        const accessRequest = toCamelAccessRequest(accessRequestRow);
+        if (accessRequest.status !== "pending_review") {
+          await client.query("ROLLBACK");
+          json(response, 400, { error: "A solicitação não está pendente de revisão." });
+          return;
+        }
+
+        await client.query(
+          `
+            UPDATE auth.access_requests
+            SET
+              status = 'rejected',
+              reviewer_notes = $2,
+              rejection_reason = $3,
+              reviewed_at = now(),
+              reviewed_by_user_id = $4,
+              approved_user_id = NULL
+            WHERE id = $1
+          `,
+          [requestId, reviewerNotes, rejectionReason, auth.session.user.id]
+        );
+
+        await client.query("COMMIT");
+
+        json(response, 200, {
+          ok: true,
+          request: await getAccessRequestById(requestId),
+        });
+        return;
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     }
 
     if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/users") {

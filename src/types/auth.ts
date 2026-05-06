@@ -11,6 +11,18 @@ export type AuthModule =
   | "avaliacao_estrutura_cicloviaria"
   | "refinamento_dados_cidade";
 
+export type AccessRequestStatus =
+  | "email_verification_pending"
+  | "pending_review"
+  | "approved"
+  | "rejected";
+
+export type AccessRequestInterestType =
+  | "avaliacao_estrutura_cicloviaria"
+  | "refinamento_dados_cidade"
+  | "visualizacao_resultados"
+  | "administracao_local";
+
 export interface AuthPermission {
   id: string;
   userId: string;
@@ -37,4 +49,25 @@ export interface AuthSession {
 export interface AdminUser extends AuthUser {
   createdAt: string;
   permissions: AuthPermission[];
+}
+
+export interface AccessRequest {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  state: string | null;
+  city: string | null;
+  interestType: AccessRequestInterestType | string;
+  message: string | null;
+  status: AccessRequestStatus;
+  emailVerifiedAt: string | null;
+  requesterIp: string | null;
+  reviewerNotes: string | null;
+  rejectionReason: string | null;
+  reviewedAt: string | null;
+  reviewedByUserId: string | null;
+  approvedUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
