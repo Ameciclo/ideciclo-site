@@ -4,6 +4,7 @@ import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
 import MapboxMap from "./MapboxMap";
+import { getA1Decision } from "@/utils/idecicloAssessment";
 import {
   Select,
   SelectContent,
@@ -68,6 +69,7 @@ export const RefinementTableSortableWrapper = ({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedClassification, setSelectedClassification] = useState<string>("all");
+  const [selectedCompatibility, setSelectedCompatibility] = useState<string>("all");
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
@@ -98,7 +100,18 @@ export const RefinementTableSortableWrapper = ({
     setMaxLength("");
     setSelectedType("all");
     setSelectedClassification("all");
+    setSelectedCompatibility("all");
   };
+
+  const getSegmentCompatibilityStatus = (segment: Segment) =>
+    getA1Decision({
+      infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+      road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+      classification: segment.classification || undefined,
+      velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+      pedestrian_flow_per_hour_per_meter: 0,
+      position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+    }).status;
 
   // Filter and sort segments - show all segments that are not children of merged segments
   const filteredAndSortedSegments = () => {
@@ -143,6 +156,12 @@ export const RefinementTableSortableWrapper = ({
         } else {
           return segment.classification === selectedClassification;
         }
+      })
+      .filter((segment) => {
+        if (selectedCompatibility !== "all") {
+          return getSegmentCompatibilityStatus(segment) === selectedCompatibility;
+        }
+        return true;
       })
       .filter((segment) => {
         // Filter by length
@@ -203,7 +222,7 @@ export const RefinementTableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedType, selectedClassification, minLength, maxLength, sortField, sortDirection, nameFilter, itemsPerPage]);
+  }, [selectedType, selectedClassification, selectedCompatibility, minLength, maxLength, sortField, sortDirection, nameFilter, itemsPerPage]);
   
   // Reset to first page when segments change (e.g., after merge)
   useEffect(() => {
@@ -311,6 +330,8 @@ export const RefinementTableSortableWrapper = ({
           onTypeChange={setSelectedType}
           selectedClassification={selectedClassification}
           onClassificationChange={setSelectedClassification}
+          selectedCompatibility={selectedCompatibility}
+          onCompatibilityChange={setSelectedCompatibility}
           minLength={minLength}
           onMinLengthChange={setMinLength}
           maxLength={maxLength}
@@ -318,6 +339,7 @@ export const RefinementTableSortableWrapper = ({
           onResetFilters={resetFilters}
           showRatingFilter={false}
           showClassificationFilter={true}
+          showCompatibilityFilter
         />
         <p className="text-sm text-gray-600">
           Modo atual:{" "}

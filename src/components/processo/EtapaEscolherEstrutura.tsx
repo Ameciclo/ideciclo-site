@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { fetchSegmentsByCity } from "@/services/database";
 import type { Segment } from "@/types";
+import { getA1Decision } from "@/utils/idecicloAssessment";
 import {
   getEvaluatedBadgeClassName,
   getHierarchyBadgeClassName,
@@ -151,6 +152,16 @@ const getReadableSegmentName = (segment: Segment, cityId?: string) => {
   return `Trecho ${displayId}`;
 };
 
+const getSegmentCompatibilityDecision = (segment: Segment) =>
+  getA1Decision({
+    infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+    road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+    classification: segment.classification || undefined,
+    velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+    pedestrian_flow_per_hour_per_meter: 0,
+    position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+  });
+
 const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
   const navigate = useNavigate();
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -249,12 +260,24 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
 
   const segmentSummary = useMemo(() => {
     const evaluated = segments.filter((segment) => segment.evaluated).length;
+    const compatible = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "compatible"
+    ).length;
+    const pendingCompatibility = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "pending"
+    ).length;
+    const incompatible = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "incompatible"
+    ).length;
 
     return {
       total: segments.length,
       evaluated,
       pending: Math.max(segments.length - evaluated, 0),
       classified: segments.filter((segment) => segment.classification).length,
+      compatible,
+      pendingCompatibility,
+      incompatible,
     };
   }, [segments]);
 
@@ -262,6 +285,11 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
     const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
 
     return segments.filter((segment) => {
+      const compatibilityDecision = getSegmentCompatibilityDecision(segment);
+      if (compatibilityDecision.status === "incompatible") {
+        return false;
+      }
+
       const matchesSearch =
         normalizedSearch.length === 0 ||
         [
@@ -284,7 +312,7 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
       const matchesClassification =
         classificationFilter === "todos" || segment.classification === classificationFilter;
 
-      return matchesSearch && matchesStatus && matchesType && matchesClassification;
+        return matchesSearch && matchesStatus && matchesType && matchesClassification;
     });
   }, [cityData?.cityId, classificationFilter, searchTerm, segments, statusFilter, typeFilter]);
 
@@ -365,11 +393,21 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
         </Card>
         <Card className="rounded-[28px] border-slate-200 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Com classificação</p>
-            <p className="mt-2 text-3xl font-black text-slate-700">{segmentSummary.classified}</p>
+            <p className="text-sm text-muted-foreground">Compatibilizadas / pendentes</p>
+            <p className="mt-2 text-3xl font-black text-slate-700">
+              {segmentSummary.compatible} / {segmentSummary.pendingCompatibility}
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      {segmentSummary.incompatible > 0 ? (
+        <Card className="rounded-[28px] border-rose-200 bg-rose-50/70 shadow-sm">
+          <CardContent className="p-5 text-sm text-rose-950">
+            {segmentSummary.incompatible} trecho{segmentSummary.incompatible === 1 ? "" : "s"} incompatível{segmentSummary.incompatible === 1 ? "" : "eis"} já ficaram fora da lista principal de avaliação.
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="rounded-[32px] border-0 shadow-lg">
         <CardHeader>
@@ -482,7 +520,10 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
             </div>
           ) : (
             <div className="grid gap-3">
-              {filteredSegments.map((segment) => (
+              {filteredSegments.map((segment) => {
+                const compatibilityDecision = getSegmentCompatibilityDecision(segment);
+
+                return (
                 <div
                   key={segment.id}
                   className={cn(
@@ -513,6 +554,17 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                               {classificationLabels[segment.classification] || segment.classification}
                             </Badge>
                           ) : null}
+                          <Badge
+                            className={
+                              compatibilityDecision.status === "compatible"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-amber-500 text-white"
+                            }
+                          >
+                            {compatibilityDecision.status === "compatible"
+                              ? "Compatível"
+                              : "Compatibilização pendente"}
+                          </Badge>
                           {selectedSegment?.id === segment.id ? (
                             <Badge className="bg-emerald-600 text-white">Selecionado</Badge>
                           ) : null}
@@ -634,6 +686,9 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                               );
                             })}
                           </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                            {compatibilityDecision.detail}
+                          </div>
                           <div className="flex flex-wrap gap-3">
                             <Button onClick={handleGoToEvaluation} className="gap-2">
                               {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
@@ -651,7 +706,8 @@ const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
                     </div>
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

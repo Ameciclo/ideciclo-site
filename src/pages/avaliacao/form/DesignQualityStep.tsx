@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { IdecicloFormData } from "@/types/idecicloForm";
+import { getA1Decision, getA1FieldLabel } from "@/utils/idecicloAssessment";
 
 interface Page2Props {
   data: IdecicloFormData;
@@ -245,9 +246,19 @@ const Page2: React.FC<Page2Props> = ({
           : 0,
     });
   };
+  const a1Decision = getA1Decision(data);
 
   return (
       <div className="space-y-5">
+        <Alert>
+          <AlertTitle>{a1Decision.headline}</AlertTitle>
+          <AlertDescription>
+            {a1Decision.detail}
+            {a1Decision.missingFields.length > 0
+              ? ` Priorize: ${a1Decision.missingFields.map(getA1FieldLabel).join(", ")}.`
+              : ""}
+          </AlertDescription>
+        </Alert>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>

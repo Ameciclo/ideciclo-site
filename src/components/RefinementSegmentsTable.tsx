@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getA1Decision, getA1FieldLabel } from "@/utils/idecicloAssessment";
 import {
   getHierarchyBadgeClassName,
   getSegmentTypeBadgeClassName,
@@ -53,6 +55,11 @@ import {
 } from "@/components/ui/dialog";
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+const CTB_SPEED_BY_HIERARCHY: Record<string, number> = {
+  estrutural: 60,
+  alimentadora: 40,
+  local: 30,
+};
 
 const FLOW_OPTIONS = [
   {
@@ -607,6 +614,30 @@ const RefinementSegmentsTable = ({
     return <Badge className={getHierarchyBadgeClassName(classification)}>{label}</Badge>;
   };
 
+  const getCompatibilityBadge = (segment: Segment) => {
+    const decision = getA1Decision({
+      infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+      road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+      classification: segment.classification || undefined,
+      velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+      pedestrian_flow_per_hour_per_meter: 0,
+      position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+    });
+
+    if (decision.status === "compatible") {
+      return <Badge className="bg-emerald-600 text-white">Compatível</Badge>;
+    }
+
+    if (decision.status === "incompatible") {
+      return <Badge className="bg-rose-600 text-white">Incompatível</Badge>;
+    }
+
+    return <Badge className="bg-amber-500 text-white">Pendente</Badge>;
+  };
+
+  const getCtbSpeedForClassification = (classification: string) =>
+    CTB_SPEED_BY_HIERARCHY[classification] ?? null;
+
   const handleEditStart = (segment: Segment) => {
     setEditingSegment(segment);
     setEditName(segment.name);
@@ -698,6 +729,8 @@ const RefinementSegmentsTable = ({
           ideciclo_prefill: {
             ...editingSegment.ideciclo_prefill,
             ...(prefillFromSelection || {}),
+            tipologia: typeDraft || undefined,
+            hierarquia: classificationDraft || undefined,
             trechoInicio: techDraft.trechoInicio.trim(),
             trechoFim: techDraft.trechoFim.trim(),
             posicaoNaVia: techDraft.posicaoNaVia || undefined,
@@ -1315,6 +1348,15 @@ const RefinementSegmentsTable = ({
   });
 
   const pendingItems = Array.from(new Set([...pendingFromOsm, ...pendingFromDraft]));
+  const refinementCompatibilityDecision = getA1Decision({
+    infra_typology: typeDraft,
+    road_hierarchy: classificationDraft,
+    classification: classificationDraft || undefined,
+    velocity_kmh: Number(techDraft.velocidade || 0),
+    position_on_road: techDraft.posicaoNaVia || "",
+    pedestrian_flow_per_hour_per_meter: 0,
+  });
+  const ctbSuggestedSpeed = getCtbSpeedForClassification(classificationDraft);
   const filteredIntersectionSelections = intersectionSelections.filter((item) => {
     const roadFilter = intersectionRoadFilter.trim().toLowerCase();
     const roadMatch =
@@ -1367,6 +1409,7 @@ const RefinementSegmentsTable = ({
             <TableHead>{renderSortButton("name", "Nome")}</TableHead>
             <TableHead>{renderSortButton("type", "Tipo")}</TableHead>
             <TableHead>{renderSortButton("classification", "Hierarquia da via")}</TableHead>
+            <TableHead>Compatibilidade</TableHead>
             <TableHead className="text-right">
               {renderSortButton("length", "km", "right")}
             </TableHead>
@@ -1376,7 +1419,7 @@ const RefinementSegmentsTable = ({
         <TableBody>
           {segments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-6">
+              <TableCell colSpan={7} className="text-center py-6">
                 Nenhum segmento encontrado
               </TableCell>
             </TableRow>
@@ -1518,6 +1561,7 @@ const RefinementSegmentsTable = ({
                     )}
                   </div>
                 </TableCell>
+                <TableCell>{getCompatibilityBadge(segment)}</TableCell>
                 <TableCell className="text-right">
                   {segment.length.toFixed(4)}
                 </TableCell>
@@ -1579,6 +1623,25 @@ const RefinementSegmentsTable = ({
               </DialogContent>
             </Dialog>
             <div className="space-y-6">
+              <Alert
+                className={
+                  refinementCompatibilityDecision.status === "incompatible"
+                    ? "border-rose-300 bg-rose-50 text-rose-950"
+                    : refinementCompatibilityDecision.status === "compatible"
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                      : "border-amber-300 bg-amber-50 text-amber-950"
+                }
+              >
+                <AlertTitle>{refinementCompatibilityDecision.headline}</AlertTitle>
+                <AlertDescription>
+                  {refinementCompatibilityDecision.detail}
+                  {refinementCompatibilityDecision.missingFields.length > 0
+                    ? ` Campos-chave: ${refinementCompatibilityDecision.missingFields
+                        .map(getA1FieldLabel)
+                        .join(", ")}.`
+                    : ""}
+                </AlertDescription>
+              </Alert>
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Trechos da estrutura selecionada
@@ -1892,6 +1955,25 @@ const RefinementSegmentsTable = ({
                       >
                         Sem preenchimento
                       </button>
+                      <button
+                        type="button"
+                        className={chipClassName(
+                          ctbSuggestedSpeed !== null &&
+                            Number(techDraft.velocidade) === ctbSuggestedSpeed
+                        )}
+                        onClick={() => {
+                          if (ctbSuggestedSpeed === null) return;
+                          setTechDraft((prev) => ({
+                            ...prev,
+                            velocidade: String(ctbSuggestedSpeed),
+                          }));
+                        }}
+                        disabled={ctbSuggestedSpeed === null}
+                      >
+                        {ctbSuggestedSpeed === null
+                          ? "Usar velocidade do CTB"
+                          : `Usar CTB (${ctbSuggestedSpeed} km/h)`}
+                      </button>
                     </div>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                       {SPEED_OPTIONS.map((speed) => {
@@ -1914,6 +1996,9 @@ const RefinementSegmentsTable = ({
                         );
                       })}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sem placa observada, use o padrão urbano do CTB pela hierarquia do trecho.
+                    </p>
                   </div>
 
                   <div className="space-y-2">

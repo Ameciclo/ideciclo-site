@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardDescription,
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronLeft, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Eye, Lightbulb, Menu, Pin, Save, Wifi, WifiOff, X } from "lucide-react";
 import DesignQualityStep from "./DesignQualityStep";
 import TrafficConflictsStep from "./TrafficConflictsStep";
 import PavementStep from "./PavementStep";
@@ -27,6 +28,7 @@ import {
   fetchSegmentById,
   getFormBySegmentId,
   getSegmentByIdForForm,
+  updateSegmentInDB,
   updateFormInDB,
   updateSegmentEvaluationStatus,
 } from "@/services/database";
@@ -34,6 +36,8 @@ import {
   CRITERION_CODES,
   CriterionCode,
   getInitialRatingModes,
+  getA1Decision,
+  getA1FieldLabel,
   getScoreBreakdown,
   isCriterionApplicable,
 } from "@/utils/idecicloAssessment";
@@ -129,6 +133,25 @@ const mapPositionPrefillToForm = (position?: string): string | undefined => {
   if (normalized.includes("calçada") || normalized.includes("calcada")) return "calcada";
   if (normalized.includes("canteiro")) return "canteiro";
   if (normalized.includes("dedicada") || normalized.includes("segregada")) return "isolada";
+  return undefined;
+};
+
+const mapFormTypologyToSegmentType = (
+  value?: string
+): Segment["type"] | undefined => {
+  const normalized = (value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (normalized.includes("ciclovia")) return "Ciclovia";
+  if (normalized.includes("ciclofaixa")) return "Ciclofaixa";
+  if (normalized.includes("ciclorrota")) return "Ciclorrota";
+  if (normalized.includes("partilhada") || normalized.includes("compartilhada")) {
+    return "Compartilhada";
+  }
+
   return undefined;
 };
 
@@ -336,6 +359,32 @@ const applyOsmPrefillToFormData = (
       data.intersection_hierarchy_ideciclo_by_intersection.length > 0
         ? data.intersection_hierarchy_ideciclo_by_intersection
         : inferredIntersectionIdecicloHierarchy,
+  };
+};
+
+const syncSegmentA1ToFormData = (
+  data: IdecicloFormData,
+  segmentData: Partial<Segment> | null | undefined
+): IdecicloFormData => {
+  if (!segmentData) return data;
+
+  const prefill = segmentData.ideciclo_prefill;
+  const inferredFlow = mapDirectionPrefillToInfraFlow(prefill?.sentido);
+  const inferredPosition = mapPositionPrefillToForm(prefill?.posicaoNaVia);
+  const inferredSpeed = prefill?.velocidade ? Number(prefill.velocidade) : 0;
+
+  return {
+    ...data,
+    infra_typology: segmentData.type || prefill?.tipologia || data.infra_typology,
+    road_hierarchy:
+      segmentData.classification || prefill?.hierarquia || data.road_hierarchy,
+    classification:
+      segmentData.classification || prefill?.hierarquia || data.classification,
+    infra_flow: inferredFlow || data.infra_flow,
+    position_on_road: inferredPosition || data.position_on_road,
+    velocity_kmh: inferredSpeed > 0 ? inferredSpeed : data.velocity_kmh,
+    regulated_speed_choices:
+      inferredSpeed > 0 ? [inferredSpeed] : data.regulated_speed_choices,
   };
 };
 
@@ -1200,8 +1249,20 @@ const SegmentForm = () => {
   const [formData, setFormData] = useState<IdecicloFormData>(() =>
     createEmptyFormData(effectiveSegmentId)
   );
+  const [a1BannerSticky, setA1BannerSticky] = useState(false);
   const draftKey = buildDraftKey(effectiveSegmentId || formData.segment_id || formData.id);
   const liveSummary = useMemo(() => getScoreBreakdown(formData), [formData]);
+  const a1Decision = useMemo(() => getA1Decision(formData), [formData]);
+  const a1DecisionSignature = useMemo(
+    () => `${a1Decision.status}:${a1Decision.headline}:${a1Decision.detail}:${a1Decision.missingFields.join("|")}`,
+    [a1Decision]
+  );
+
+  useEffect(() => {
+    setA1BannerSticky(
+      a1Decision.status === "pending" || a1Decision.status === "incompatible"
+    );
+  }, [a1DecisionSignature, a1Decision.status]);
 
   useEffect(() => {
     if (!formId && !effectiveSegmentId) {
@@ -1322,6 +1383,10 @@ const SegmentForm = () => {
   const criterionAnswered = (code: CriterionCode) => {
     const manualRating = formData.manual_ratings?.[code];
     if (manualRating) return true;
+
+    if (code === "A1") {
+      return a1Decision.status !== "pending";
+    }
 
     const touched = formData.touched_fields || {};
     const hasTouched = (fields: string[]) => fields.some((field) => Boolean(touched[field]));
@@ -1516,7 +1581,7 @@ const SegmentForm = () => {
   const blockCount = Math.max(0, Number(formData.blocks_count || 0));
   const intersectionCount = Math.max(0, Number(formData.intersections_count || 0));
   const normalizedTypology = String(formData.infra_typology || "").toLowerCase();
-  const touchedFields = formData.touched_fields || {};
+  const touchedFields = useMemo(() => formData.touched_fields || {}, [formData.touched_fields]);
   const isCiclorrota = normalizedTypology.includes("ciclorrota");
 
   const blockCompletionStates = useMemo(
@@ -1582,6 +1647,7 @@ const SegmentForm = () => {
   };
 
   const getCriterionNavClassName = (
+    code: CriterionCode,
     applicable: boolean,
     inAnalysis: boolean,
     answered: boolean,
@@ -1589,6 +1655,9 @@ const SegmentForm = () => {
   ) => {
     if (!applicable) return "border-slate-200 bg-slate-100 text-slate-400 opacity-45";
     if (inAnalysis) return "border-amber-300 bg-amber-100 text-amber-950 ring-2 ring-amber-300";
+    if (code === "A1" && a1Decision.status === "pending") {
+      return "border-amber-300 bg-amber-100 text-amber-950";
+    }
     if (!answered) return "border-rose-600 bg-rose-600 text-white";
     if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
     if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
@@ -1870,6 +1939,7 @@ const SegmentForm = () => {
           effectiveSegmentId || nextFormData.segment_id || nextFormData.id
         );
         nextFormData = applyOsmPrefillToFormData(nextFormData, segmentForFinalPrefill);
+        nextFormData = syncSegmentA1ToFormData(nextFormData, segmentForFinalPrefill);
 
         setFormData(normalizeEvaluationCounts(nextFormData));
       } catch (error) {
@@ -2039,6 +2109,21 @@ const SegmentForm = () => {
         throw new Error("Não foi possível persistir os dados no banco.");
       }
 
+      await updateSegmentInDB({
+        id: persistedSegmentId,
+        id_cidade: cityId,
+        type: mapFormTypologyToSegmentType(formData.infra_typology),
+        classification: formData.road_hierarchy || undefined,
+        ideciclo_prefill: {
+          ...(segmentPreview?.ideciclo_prefill || {}),
+          tipologia: formData.infra_typology || undefined,
+          hierarquia: formData.road_hierarchy || undefined,
+          velocidade: formData.velocity_kmh > 0 ? String(formData.velocity_kmh) : undefined,
+          sentido: formData.infra_flow || undefined,
+          posicaoNaVia: formData.position_on_road || undefined,
+        },
+      });
+
       localStorage.removeItem(draftKey);
       removePendingSubmission(currentSegmentId);
 
@@ -2134,6 +2219,51 @@ const SegmentForm = () => {
             </p>
           </div>
         </Card>
+      </div>
+
+      <div
+        className={
+          a1BannerSticky
+            ? "mb-6 md:sticky md:top-4 md:z-40"
+            : "mb-6"
+        }
+      >
+        <Alert
+          className={`border pr-12 ${
+            a1Decision.status === "incompatible"
+              ? "border-rose-300 bg-rose-50 text-rose-950"
+              : a1Decision.status === "compatible"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                : "border-amber-300 bg-amber-50 text-amber-950"
+          }`}
+        >
+          {a1Decision.status === "compatible" ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
+          {(a1Decision.status === "pending" || a1Decision.status === "incompatible") && a1BannerSticky ? (
+            <button
+              type="button"
+              onClick={() => setA1BannerSticky(false)}
+              className="absolute right-3 top-3 rounded-full border border-current/20 p-1 opacity-70 transition hover:opacity-100"
+              title="Desfixar aviso"
+              aria-label="Desfixar aviso"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+          <AlertTitle>{a1Decision.headline}</AlertTitle>
+          <AlertDescription>
+            {a1Decision.detail}
+            {a1Decision.missingFields.length > 0
+              ? ` Campos a verificar: ${a1Decision.missingFields.map(getA1FieldLabel).join(", ")}.`
+              : ""}
+            {a1Decision.status === "incompatible"
+              ? " Você pode continuar a coleta, mas este trecho não será compatibilizado no IDECICLO."
+              : ""}
+          </AlertDescription>
+        </Alert>
       </div>
 
       <Card className="mb-6 overflow-hidden">
@@ -2288,15 +2418,9 @@ const SegmentForm = () => {
                     <AssessmentCriterionAccordion
                       value="a1"
                       title="A.1. Adequação da tipologia de tratamento em relação à velocidade da via e sua respectiva hierarquia"
-                      description="Confirme a tipologia, o fluxo, a posição na via e a velocidade regulamentada antes de seguir para a conectividade do trecho."
+                      description={a1Decision.detail}
                       scorePreview={buildCriterionScorePreview(formData, ["A1"])}
-                      answered={Boolean(
-                        formData.infra_typology &&
-                        formData.infra_flow &&
-                        formData.position_on_road &&
-                        formData.velocity_kmh > 0 &&
-                        (formData.road_hierarchy || formData.classification)
-                      )}
+                      answered={a1Decision.status !== "pending"}
                       inAnalysis={formData.criterion_workflow_state?.a1 === "analysis"}
                       onAnalysisChange={(value) =>
                         handleDataChange({
@@ -2691,6 +2815,7 @@ const SegmentForm = () => {
                                     type="button"
                                     onClick={() => scrollToCriterion(code)}
                                     className={`flex h-9 min-w-[38px] items-center justify-center rounded-full border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:min-w-[42px] sm:px-3 sm:text-xs ${getCriterionNavClassName(
+                                      code,
                                       applicable,
                                       inAnalysis,
                                       answered,
@@ -2837,7 +2962,7 @@ const SegmentForm = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+                </div>
             </CriteriaAccordionContext.Provider>
           ) : (
             <Card className="mb-6">
