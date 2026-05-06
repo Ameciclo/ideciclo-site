@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const Navbar = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const isAvaliarEstruturaPage = location.pathname === "/avaliacao/avaliar-estrutura";
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -47,7 +48,11 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-lg fixed top-0 left-0 right-0 z-50 border-b-2 border-ideciclo-teal">
+    <nav
+      className={`bg-white shadow-lg border-b-2 border-ideciclo-teal ${
+        isAvaliarEstruturaPage ? "static md:fixed md:top-0 md:left-0 md:right-0 md:z-50" : "fixed top-0 left-0 right-0 z-50"
+      }`}
+    >
       <div className="container mx-auto px-4">
         <div className="flex justify-between h-20">
           <div className="flex flex-1 items-center justify-between">
