@@ -55,6 +55,97 @@ const omitColumn = <T extends Record<string, any>>(payload: T, column: string) =
   return rest;
 };
 
+const SUPPORTED_FORM_COLUMNS = new Set([
+  "id",
+  "segment_id",
+  "city_id",
+  "researcher",
+  "date",
+  "street_name",
+  "neighborhood",
+  "extension",
+  "start_point",
+  "end_point",
+  "hierarchy",
+  "velocity",
+  "blocks_count",
+  "intersections_count",
+  "observations",
+  "responses",
+]);
+
+const sanitizeFormPayload = <T extends Record<string, any>>(payload: T): T => {
+  const sanitizedEntries = Object.entries(payload).filter(([key]) =>
+    SUPPORTED_FORM_COLUMNS.has(key)
+  );
+  return Object.fromEntries(sanitizedEntries) as T;
+};
+
+const insertFormWithCompatibility = async (payload: Record<string, any>) => {
+  let currentPayload = sanitizeFormPayload(payload);
+
+  while (true) {
+    const result = await supabase
+      .from("forms")
+      .insert(currentPayload)
+      .select()
+      .single();
+
+    if (!result.error) {
+      return result;
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn) {
+      return result;
+    }
+
+    const nextPayload = omitColumn(currentPayload, missingColumn);
+    if (nextPayload === currentPayload) {
+      return result;
+    }
+
+    console.warn(
+      `forms.${missingColumn} is missing in the remote database; retrying insert without it.`,
+      result.error
+    );
+    currentPayload = nextPayload;
+  }
+};
+
+const updateFormWithCompatibility = async (formId: string, payload: Record<string, any>) => {
+  let currentPayload = sanitizeFormPayload(payload);
+
+  while (true) {
+    const result = await supabase
+      .from("forms")
+      .update(currentPayload)
+      .eq("id", formId)
+      .select()
+      .single();
+
+    if (!result.error) {
+      return result;
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn) {
+      return result;
+    }
+
+    const nextPayload = omitColumn(currentPayload, missingColumn);
+    if (nextPayload === currentPayload) {
+      return result;
+    }
+
+    console.warn(
+      `forms.${missingColumn} is missing in the remote database; retrying update without it.`,
+      result.error
+    );
+    currentPayload = nextPayload;
+  }
+};
+
 const SUPPORTED_SEGMENT_COLUMNS = new Set([
   "id",
   "id_cidade",
@@ -190,6 +281,12 @@ const resolveDatabaseSegmentId = async (
 
   return null;
 };
+
+export const getSegmentByIdForForm = async (
+  segmentId: string,
+  cityId?: string
+): Promise<{ dbId: string; cityId?: string } | null> =>
+  resolveDatabaseSegmentId(segmentId, cityId);
 
 // Conversion helpers
 const convertCityRowToCity = (row: CityRow): City => ({
@@ -1317,17 +1414,36 @@ export const fetchFormById = async (formId: string): Promise<any | null> => {
 
 export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
+    const directMatch = await supabase
       .from("forms")
       .select("*")
       .eq("segment_id", segmentId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error("Error fetching form by segment ID:", error);
+    if (directMatch.error && directMatch.error.code !== "PGRST116") {
+      console.error("Error fetching form by segment ID:", directMatch.error);
     }
 
-    return data || null;
+    if (directMatch.data) {
+      return directMatch.data;
+    }
+
+    const resolvedSegment = await resolveDatabaseSegmentId(segmentId);
+    if (!resolvedSegment || resolvedSegment.dbId === segmentId) {
+      return null;
+    }
+
+    const fallbackMatch = await supabase
+      .from("forms")
+      .select("*")
+      .eq("segment_id", resolvedSegment.dbId)
+      .maybeSingle();
+
+    if (fallbackMatch.error && fallbackMatch.error.code !== "PGRST116") {
+      console.error("Error fetching form by resolved segment ID:", fallbackMatch.error);
+    }
+
+    return fallbackMatch.data || null;
   } catch (error) {
     console.error("Error fetching form by segment ID:", error);
     return null;
@@ -1394,42 +1510,35 @@ export const fetchSegmentById = async (segmentId: string): Promise<any | null> =
 
 export const updateFormInDB = async (formId: string, formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .update(formData)
-      .eq("id", formId)
-      .select()
-      .single();
+    const { data, error } = await updateFormWithCompatibility(formId, formData);
 
     if (error) {
-      console.error("Error updating form:", error);
-      return null;
+      const message = formatDatabaseError("Erro ao atualizar formulário", error);
+      console.error(message, error);
+      throw new Error(message);
     }
 
     return data;
   } catch (error) {
     console.error("Error updating form:", error);
-    return null;
+    throw error;
   }
 };
 
 export const createFormInDB = async (formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .insert(formData)
-      .select()
-      .single();
+    const { data, error } = await insertFormWithCompatibility(formData);
 
     if (error) {
-      console.error("Error creating form:", error);
-      return null;
+      const message = formatDatabaseError("Erro ao criar formulário", error);
+      console.error(message, error);
+      throw new Error(message);
     }
 
     return data;
   } catch (error) {
     console.error("Error creating form:", error);
-    return null;
+    throw error;
   }
 };
 

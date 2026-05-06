@@ -26,6 +26,7 @@ import {
   fetchFormById,
   fetchSegmentById,
   getFormBySegmentId,
+  getSegmentByIdForForm,
   updateFormInDB,
   updateSegmentEvaluationStatus,
 } from "@/services/database";
@@ -1973,10 +1974,13 @@ const SegmentForm = () => {
       return;
     }
 
+    const resolvedSegment = await getSegmentByIdForForm(currentSegmentId, cityId);
+    const persistedSegmentId = resolvedSegment?.dbId || currentSegmentId;
+
     const enrichedResponses = {
       ...formData,
       city_id: cityId,
-      segment_id: currentSegmentId,
+      segment_id: persistedSegmentId,
       score_breakdown: liveSummary,
       criterion_ratings: liveSummary.resolvedRatings,
       auto_ratings: liveSummary.autoRatings,
@@ -1988,7 +1992,7 @@ const SegmentForm = () => {
     };
 
     const formToSave = {
-      segment_id: currentSegmentId,
+      segment_id: persistedSegmentId,
       city_id: cityId,
       researcher: formData.researcher || "",
       date: formData.date || null,
@@ -2026,7 +2030,7 @@ const SegmentForm = () => {
         result = await createFormInDB({ ...formToSave, id: generatedFormId });
 
         if (result) {
-          await updateSegmentEvaluationStatus(currentSegmentId, generatedFormId);
+          await updateSegmentEvaluationStatus(persistedSegmentId, generatedFormId);
           setExistingFormId(generatedFormId);
         }
       }
@@ -2047,10 +2051,13 @@ const SegmentForm = () => {
     } catch (error) {
       console.error("Error saving form:", error);
       savePendingSubmission(currentSegmentId, formToSave);
+      const description =
+        error instanceof Error && error.message
+          ? error.message
+          : "Guardei o conteúdo como rascunho local para você tentar de novo quando a conexão estabilizar.";
       toast({
         title: "Falha no envio online",
-        description:
-          "Guardei o conteúdo como rascunho local para você tentar de novo quando a conexão estabilizar.",
+        description,
         variant: "destructive",
       });
     }
