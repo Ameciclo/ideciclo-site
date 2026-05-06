@@ -229,7 +229,6 @@ const DetalhesEstrutura = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
-  const [comparisonType, setComparisonType] = useState("todos");
   const [firstComparisonId, setFirstComparisonId] = useState("");
   const [secondComparisonId, setSecondComparisonId] = useState("");
 
@@ -289,27 +288,16 @@ const DetalhesEstrutura = () => {
     [currentDetail?.id, orderedDetails]
   );
 
-  const structureTypeOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          structureDetails
-            .map((detail) => detail.result.typeLabel)
-            .filter(Boolean)
-        )
-      ).sort((left, right) => left.localeCompare(right, "pt-BR")),
-    [structureDetails]
-  );
+  const comparisonType = currentDetail?.result.typeLabel || "";
 
   const comparisonCandidates = useMemo(() => {
-    if (comparisonType === "todos") return structureDetails;
+    if (!comparisonType) return [];
     return structureDetails.filter((detail) => detail.result.typeLabel === comparisonType);
   }, [comparisonType, structureDetails]);
 
   useEffect(() => {
     if (!currentDetail) return;
 
-    setComparisonType(currentDetail.result.typeLabel || "todos");
     setFirstComparisonId(currentDetail.id);
   }, [currentDetail?.id, currentDetail?.result.typeLabel]);
 
@@ -836,7 +824,6 @@ const DetalhesEstrutura = () => {
                   variant="outline"
                   className="rounded-full"
                   onClick={() => {
-                    setComparisonType(currentDetail.result.typeLabel || "todos");
                     setFirstComparisonId(currentDetail.id);
                     setSecondComparisonId("");
                   }}
@@ -853,17 +840,14 @@ const DetalhesEstrutura = () => {
                     <Filter className="h-4 w-4" />
                     Tipologia
                   </label>
-                  <Select value={comparisonType} onValueChange={setComparisonType}>
+                  <Select value={comparisonType || "__none__"} disabled>
                     <SelectTrigger className="rounded-full">
                       <SelectValue placeholder="Escolha a tipologia" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todas as tipologias</SelectItem>
-                      {structureTypeOptions.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value={comparisonType || "__none__"}>
+                        {comparisonType || "Sem tipologia"}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

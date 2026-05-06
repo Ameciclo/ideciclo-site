@@ -256,7 +256,7 @@ const DetalhesCidades = () => {
   const [statusFilter, setStatusFilter] = useState<StructureStatusFilter>("todos");
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("todos");
   const [sortOption, setSortOption] = useState<SortOption>("nota-desc");
-  const [comparisonType, setComparisonType] = useState("todos");
+  const [comparisonType, setComparisonType] = useState("");
   const [firstComparisonId, setFirstComparisonId] = useState("");
   const [secondComparisonId, setSecondComparisonId] = useState("");
 
@@ -486,12 +486,10 @@ const DetalhesCidades = () => {
   ]);
 
   const comparisonCandidates = useMemo(() => {
+    if (!comparisonType) return [];
+
     return structureDetails
-      .filter((detail) =>
-        comparisonType === "todos"
-          ? true
-          : detail.result.typeLabel === comparisonType
-      )
+      .filter((detail) => detail.result.typeLabel === comparisonType)
       .sort((left, right) =>
         getComparisonFriendlyTitle(left).localeCompare(
           getComparisonFriendlyTitle(right),
@@ -501,7 +499,7 @@ const DetalhesCidades = () => {
   }, [comparisonType, structureDetails]);
 
   useEffect(() => {
-    if (comparisonType === "todos") return;
+    if (!comparisonType) return;
 
     const currentTypeValues = new Set(comparisonCandidates.map((detail) => detail.id));
 
@@ -526,15 +524,21 @@ const DetalhesCidades = () => {
     const first = structureDetails.find((detail) => detail.id === selectedIds[0]);
     if (!first) return;
 
-    setComparisonType(first.result.typeLabel || "todos");
+    setComparisonType(first.result.typeLabel || "");
     setFirstComparisonId(first.id);
 
     const second = selectedIds[1]
       ? structureDetails.find((detail) => detail.id === selectedIds[1])
       : null;
 
-    if (second && second.id !== first.id) {
+    if (
+      second &&
+      second.id !== first.id &&
+      second.result.typeLabel === first.result.typeLabel
+    ) {
       setSecondComparisonId(second.id);
+    } else {
+      setSecondComparisonId("");
     }
 
     setSearchParams((current) => {
@@ -1286,7 +1290,7 @@ const DetalhesCidades = () => {
                     variant="outline"
                     className="rounded-full"
                     onClick={() => {
-                      setComparisonType("todos");
+                      setComparisonType("");
                       setFirstComparisonId("");
                       setSecondComparisonId("");
                     }}
@@ -1304,12 +1308,17 @@ const DetalhesCidades = () => {
                     <Filter className="h-4 w-4" />
                     Tipologia
                   </label>
-                  <Select value={comparisonType} onValueChange={setComparisonType}>
+                  <Select
+                    value={comparisonType || "__none__"}
+                    onValueChange={(value) =>
+                      setComparisonType(value === "__none__" ? "" : value)
+                    }
+                  >
                     <SelectTrigger className="rounded-full">
                       <SelectValue placeholder="Escolha a tipologia" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="todos">Todas as tipologias</SelectItem>
+                      <SelectItem value="__none__">Escolha a tipologia</SelectItem>
                       {structureTypeOptions.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
@@ -1329,6 +1338,7 @@ const DetalhesCidades = () => {
                     onValueChange={(value) =>
                       setFirstComparisonId(value === "__none__" ? "" : value)
                     }
+                    disabled={!comparisonType}
                   >
                     <SelectTrigger className="rounded-full">
                       <SelectValue placeholder="Selecione" />
@@ -1356,6 +1366,7 @@ const DetalhesCidades = () => {
                     onValueChange={(value) =>
                       setSecondComparisonId(value === "__none__" ? "" : value)
                     }
+                    disabled={!comparisonType}
                   >
                     <SelectTrigger className="rounded-full">
                       <SelectValue placeholder="Selecione" />
@@ -1461,10 +1472,14 @@ const DetalhesCidades = () => {
                 <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <ArrowRightLeft className="mx-auto h-10 w-10 text-slate-400" />
                   <p className="mt-4 text-lg font-semibold text-text-grey">
-                    Escolha duas estruturas para iniciar a comparação
+                    {!comparisonType
+                      ? "Escolha uma tipologia para iniciar a comparação"
+                      : "Escolha duas estruturas para iniciar a comparação"}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    A tipologia ajuda a manter a comparação justa. Depois disso, veja lado a lado as notas e os principais critérios do manual.
+                    {!comparisonType
+                      ? "A comparação entre estruturas da cidade só fica disponível depois da escolha obrigatória da tipologia."
+                      : "Depois disso, veja lado a lado as notas e os principais critérios do manual."}
                   </p>
                 </div>
               )}
