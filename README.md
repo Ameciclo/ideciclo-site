@@ -196,6 +196,7 @@ DATABASE_URL=postgresql://ideciclo:change_me_local_password@127.0.0.1:54322/idec
 APP_URL=http://127.0.0.1:8080
 EMAIL_FROM=no-reply@ideciclo.local
 MAGIC_LINK_SECRET=change_me_magic_link_secret
+AUTH_BOOTSTRAP_ADMIN_EMAIL=contato@ideciclo.org
 AUTH_COOKIE_SECURE=false
 SMTP_HOST=
 SMTP_PORT=587

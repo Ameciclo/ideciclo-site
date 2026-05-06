@@ -70,6 +70,9 @@ const ALLOWED_MODULES = new Set([
 ]);
 
 const normalizeEmail = (value) => value.trim().toLowerCase();
+const BOOTSTRAP_ADMIN_EMAIL = normalizeEmail(
+  process.env.AUTH_BOOTSTRAP_ADMIN_EMAIL || "contato@ideciclo.org"
+);
 const normalizeScopeValue = (value) =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 
@@ -326,6 +329,33 @@ const canAccessModule = ({ permissions, module, state, city, allowViewer = false
   });
 };
 
+const ensureBootstrapAdminUser = async (email, client = pool) => {
+  if (!email || email !== BOOTSTRAP_ADMIN_EMAIL) return;
+
+  await client.query(
+    `
+      INSERT INTO auth.users (email, name, active)
+      VALUES ($1, $2, true)
+      ON CONFLICT ((lower(email)))
+      DO UPDATE SET
+        active = true,
+        name = COALESCE(auth.users.name, EXCLUDED.name)
+    `,
+    [BOOTSTRAP_ADMIN_EMAIL, "Administrador IDECICLO"]
+  );
+
+  await client.query(
+    `
+      INSERT INTO auth.permissions (user_id, role, state, city, module)
+      SELECT id, 'admin_global', null, null, 'admin'
+      FROM auth.users
+      WHERE lower(email) = lower($1)
+      ON CONFLICT DO NOTHING
+    `,
+    [BOOTSTRAP_ADMIN_EMAIL]
+  );
+};
+
 const requireSession = async (request, response) => {
   const { session, sessionToken } = await getSessionFromRequest(request);
 
@@ -419,6 +449,8 @@ const server = http.createServer(async (request, response) => {
         json(response, 200, { message: GENERIC_LOGIN_MESSAGE });
         return;
       }
+
+      await ensureBootstrapAdminUser(email);
 
       const userResult = await pool.query(
         `
