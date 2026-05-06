@@ -16,6 +16,7 @@ export type Database = {
           id: string
           ideciclo: number | null
           name: string
+          show_in_ranking: boolean
           state: string
           updated_at: string
           vias_alimentadoras_km: number | null
@@ -28,6 +29,7 @@ export type Database = {
           id: string
           ideciclo?: number | null
           name: string
+          show_in_ranking?: boolean
           state: string
           updated_at?: string
           vias_alimentadoras_km?: number | null
@@ -40,6 +42,7 @@ export type Database = {
           id?: string
           ideciclo?: number | null
           name?: string
+          show_in_ranking?: boolean
           state?: string
           updated_at?: string
           vias_alimentadoras_km?: number | null

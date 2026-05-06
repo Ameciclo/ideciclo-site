@@ -121,6 +121,7 @@ const Ranking = () => {
             vias_estruturais_km: cityData.vias_estruturais_km || 0,
             vias_alimentadoras_km: cityData.vias_alimentadoras_km || 0,
             vias_locais_km: cityData.vias_locais_km || 0,
+            show_in_ranking: cityData.show_in_ranking,
           },
           hasForms: forms.length > 0,
         };
@@ -128,7 +129,7 @@ const Ranking = () => {
     );
 
     return citiesWithForms
-      .filter((item) => item.hasForms)
+      .filter((item) => item.hasForms && item.city.show_in_ranking !== false)
       .map((item) => item.city);
   };
 

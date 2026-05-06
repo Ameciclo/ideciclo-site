@@ -8,6 +8,8 @@ type SegmentRow = Database['public']['Tables']['segments']['Row'];
 type FormRow = Database['public']['Tables']['forms']['Row'];
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
+const CITY_RANKING_VISIBILITY_STORAGE_KEY = "ideciclo-city-ranking-visibility";
+
 const formatDatabaseError = (context: string, error: unknown): string => {
   if (!error || typeof error !== "object") {
     return context;
@@ -53,6 +55,45 @@ const omitColumn = <T extends Record<string, any>>(payload: T, column: string) =
   if (!(column in payload)) return payload;
   const { [column]: _omitted, ...rest } = payload;
   return rest;
+};
+
+const readCityRankingVisibilityMap = (): Record<string, boolean> => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(CITY_RANKING_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, boolean> : {};
+  } catch (error) {
+    console.warn("Failed to read ranking visibility map from localStorage:", error);
+    return {};
+  }
+};
+
+const writeCityRankingVisibilityMap = (value: Record<string, boolean>) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      CITY_RANKING_VISIBILITY_STORAGE_KEY,
+      JSON.stringify(value)
+    );
+  } catch (error) {
+    console.warn("Failed to write ranking visibility map to localStorage:", error);
+  }
+};
+
+const setLocalCityRankingVisibility = (cityId: string, visible: boolean) => {
+  const current = readCityRankingVisibilityMap();
+  current[cityId] = visible;
+  writeCityRankingVisibilityMap(current);
+};
+
+export const getLocalCityRankingVisibility = (cityId: string): boolean | null => {
+  const current = readCityRankingVisibilityMap();
+  return typeof current[cityId] === "boolean" ? current[cityId] : null;
 };
 
 const SUPPORTED_FORM_COLUMNS = new Set([
@@ -298,6 +339,10 @@ const convertCityRowToCity = (row: CityRow): City => ({
   vias_estruturais_km: row.vias_estruturais_km || 0,
   vias_alimentadoras_km: row.vias_alimentadoras_km || 0,
   vias_locais_km: row.vias_locais_km || 0,
+  show_in_ranking:
+    typeof (row as any).show_in_ranking === "boolean"
+      ? (row as any).show_in_ranking
+      : getLocalCityRankingVisibility(row.id) ?? true,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -424,6 +469,9 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
         vias_estruturais_km: city.vias_estruturais_km || 0,
         vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
         vias_locais_km: city.vias_locais_km || 0,
+        ...(typeof city.show_in_ranking === "boolean"
+          ? { show_in_ranking: city.show_in_ranking }
+          : {}),
       })
       .eq('id', city.id);
   } else {
@@ -439,18 +487,102 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
         vias_estruturais_km: city.vias_estruturais_km || 0,
         vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
         vias_locais_km: city.vias_locais_km || 0,
+        ...(typeof city.show_in_ranking === "boolean"
+          ? { show_in_ranking: city.show_in_ranking }
+          : {}),
       });
   }
 
   const { data, error } = await operation.select().single();
 
   if (error) {
+    const missingColumn = getMissingColumnName(error);
+    if (missingColumn === "show_in_ranking" && city.id && typeof city.show_in_ranking === "boolean") {
+      console.warn("cities.show_in_ranking missing in remote database; retrying save without the column.");
+      const fallbackPayload = omitColumn(
+        {
+          id: city.id,
+          name: city.name,
+          state: city.state,
+          extensao_avaliada: city.extensao_avaliada || 0,
+          ideciclo: city.ideciclo || 0,
+          vias_estruturais_km: city.vias_estruturais_km || 0,
+          vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
+          vias_locais_km: city.vias_locais_km || 0,
+          show_in_ranking: city.show_in_ranking,
+        },
+        "show_in_ranking"
+      );
+
+      const fallbackOperation = existingCity
+        ? supabase.from("cities").update(fallbackPayload).eq("id", city.id)
+        : supabase.from("cities").insert(fallbackPayload);
+
+      const fallbackResult = await fallbackOperation.select().single();
+
+      if (fallbackResult.error) {
+        const message = formatDatabaseError(
+          "Erro ao salvar a cidade no banco de dados sem show_in_ranking",
+          fallbackResult.error
+        );
+        console.error(message, fallbackResult.error);
+        throw new Error(message);
+      }
+
+      setLocalCityRankingVisibility(city.id, city.show_in_ranking);
+      return convertCityRowToCity(fallbackResult.data);
+    }
     const message = formatDatabaseError("Erro ao salvar a cidade no banco de dados", error);
     console.error(message, error);
     throw new Error(message);
   }
 
   return convertCityRowToCity(data);
+};
+
+export const updateCityRankingVisibility = async (
+  cityId: string,
+  visible: boolean,
+  citySnapshot?: Partial<City>
+): Promise<boolean> => {
+  try {
+    const result = await (supabase.from("cities") as any)
+      .update({ show_in_ranking: visible })
+      .eq("id", cityId)
+      .select("id")
+      .maybeSingle();
+
+    if (!result.error && result.data?.id) {
+      setLocalCityRankingVisibility(cityId, visible);
+      return true;
+    }
+
+    if (!result.error && citySnapshot?.name && citySnapshot?.state) {
+      const savedCity = await saveCityToDB({
+        ...citySnapshot,
+        id: cityId,
+        show_in_ranking: visible,
+      });
+
+      if (savedCity) {
+        setLocalCityRankingVisibility(cityId, visible);
+        return true;
+      }
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (missingColumn === "show_in_ranking") {
+      console.warn("cities.show_in_ranking missing; using local visibility fallback.");
+      setLocalCityRankingVisibility(cityId, visible);
+      return true;
+    }
+
+    console.error("Error updating city ranking visibility:", result.error);
+    return false;
+  } catch (error) {
+    console.error("Error updating city ranking visibility:", error);
+    return false;
+  }
 };
 
 /**
