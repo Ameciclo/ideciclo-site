@@ -41,6 +41,12 @@ const moduleLabels: Record<string, string> = {
   refinamento_dados_cidade: "Refinamento de dados",
 };
 
+const REGIONAL_ASSIGNABLE_ROLES: AuthRole[] = [
+  "visualizador",
+  "avaliador_estrutura_cicloviaria",
+  "refinador_dados_cidade",
+];
+
 type PermissionDraft = {
   role: string;
   module: string;
@@ -81,7 +87,7 @@ const matchesPermissionScope = (
 
 const AdminUsers = () => {
   const { toast } = useToast();
-  const { permissions } = useAuth();
+  const { permissions, user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [states, setStates] = useState<IBGEState[]>([]);
   const [citiesByUserId, setCitiesByUserId] = useState<Record<string, IBGECity[]>>({});
@@ -104,7 +110,16 @@ const AdminUsers = () => {
 
   const isGlobalAdmin = adminPermissions.some((permission) => permission.role === "admin_global");
 
-  const allowedRoles = AUTH_ROLES;
+  const allowedRoles = useMemo(
+    () => (isGlobalAdmin ? AUTH_ROLES : REGIONAL_ASSIGNABLE_ROLES),
+    [isGlobalAdmin]
+  );
+  const canAccessAccessRequests = adminPermissions.length > 0;
+  const currentUserId = user?.id || "";
+  const createPermissionDraft = (): PermissionDraft => ({
+    ...defaultPermissionDraft,
+    role: allowedRoles[0] || defaultPermissionDraft.role,
+  });
 
   const availableStates = useMemo(() => {
     if (isGlobalAdmin) return states;
@@ -140,10 +155,7 @@ const AdminUsers = () => {
         setUsers(response.users);
         setPermissionDrafts(
           response.users.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
-            accumulator[user.id] = {
-              ...defaultPermissionDraft,
-              role: allowedRoles[0] || defaultPermissionDraft.role,
-            };
+            accumulator[user.id] = createPermissionDraft();
             return accumulator;
           }, {})
         );
@@ -166,10 +178,7 @@ const AdminUsers = () => {
     setUsers(nextUsers);
     setPermissionDrafts((currentDrafts) =>
       nextUsers.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
-        const currentDraft = currentDrafts[user.id] || {
-          ...defaultPermissionDraft,
-          role: defaultPermissionDraft.role,
-        };
+        const currentDraft = currentDrafts[user.id] || createPermissionDraft();
 
         accumulator[user.id] = currentDraft;
         return accumulator;
@@ -225,7 +234,7 @@ const AdminUsers = () => {
     setPermissionDrafts((currentDrafts) => ({
       ...currentDrafts,
       [userId]: {
-        ...(currentDrafts[userId] || defaultPermissionDraft),
+        ...(currentDrafts[userId] || createPermissionDraft()),
         ...patch,
       },
     }));
@@ -288,6 +297,7 @@ const AdminUsers = () => {
   };
 
   const canManageUser = (user: AdminUser) => {
+    if (user.id === currentUserId) return false;
     if (isGlobalAdmin) return true;
     if (user.permissions.length === 0) return true;
 
@@ -365,7 +375,7 @@ const AdminUsers = () => {
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
           <TabsTrigger value="users">Usuários</TabsTrigger>
-          {isGlobalAdmin ? (
+          {canAccessAccessRequests ? (
             <TabsTrigger value="access-requests">Solicitações de acesso</TabsTrigger>
           ) : null}
         </TabsList>
@@ -394,8 +404,9 @@ const AdminUsers = () => {
 
           <div className="space-y-6">
             {users.map((user) => {
-              const draft = permissionDrafts[user.id] || defaultPermissionDraft;
+              const draft = permissionDrafts[user.id] || createPermissionDraft();
               const userIsManageable = canManageUser(user);
+              const isSelf = user.id === currentUserId;
 
               return (
                 <div key={user.id} className="rounded-[28px] border bg-white p-6 shadow-sm">
@@ -408,16 +419,17 @@ const AdminUsers = () => {
                         <Badge variant={user.active ? "default" : "destructive"}>
                           {user.active ? "Ativo" : "Inativo"}
                         </Badge>
+                        {isSelf ? <Badge variant="secondary">Seu usuário</Badge> : null}
                       </div>
                       <p className="mt-2 text-sm text-gray-600">{user.email}</p>
                     </div>
 
                     <Button
                       variant="outline"
-                      disabled={isSaving || !userIsManageable}
+                      disabled={isSaving || !userIsManageable || isSelf}
                       onClick={() => handleToggleActive(user)}
                     >
-                      {user.active ? "Desativar" : "Ativar"}
+                      {isSelf ? "Não permitido" : user.active ? "Desativar" : "Ativar"}
                     </Button>
                   </div>
 
@@ -450,7 +462,7 @@ const AdminUsers = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              disabled={isSaving || !canManageExistingPermission(permission)}
+                              disabled={isSaving || isSelf || !canManageExistingPermission(permission)}
                               onClick={() => handleDeletePermission(permission.id)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -464,7 +476,7 @@ const AdminUsers = () => {
                     <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                       <Select
                         value={draft.role}
-                        disabled={isSaving || !userIsManageable}
+                        disabled={isSaving || !userIsManageable || isSelf}
                         onValueChange={(value) =>
                           handlePermissionDraftChange(user.id, { role: value })
                         }
@@ -483,7 +495,7 @@ const AdminUsers = () => {
 
                       <Select
                         value={draft.module}
-                        disabled={isSaving || !userIsManageable}
+                        disabled={isSaving || !userIsManageable || isSelf}
                         onValueChange={(value) =>
                           handlePermissionDraftChange(user.id, { module: value })
                         }
@@ -503,7 +515,7 @@ const AdminUsers = () => {
 
                       <Select
                         value={getSelectedStateId(draft.state)}
-                        disabled={isSaving || !userIsManageable}
+                        disabled={isSaving || !userIsManageable || isSelf}
                         onValueChange={(value) =>
                           void handleStateChange(user.id, value === "__none__" ? "" : value)
                         }
@@ -526,6 +538,7 @@ const AdminUsers = () => {
                         disabled={
                           isSaving ||
                           !userIsManageable ||
+                          isSelf ||
                           !draft.state ||
                           (citiesByUserId[user.id] || []).length === 0
                         }
@@ -549,12 +562,17 @@ const AdminUsers = () => {
                       </Select>
 
                       <Button
-                        disabled={isSaving || !userIsManageable}
+                        disabled={isSaving || !userIsManageable || isSelf}
                         onClick={() => void handleCreatePermission(user.id)}
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Atribuir
                       </Button>
+                      {isSelf ? (
+                        <p className="text-xs text-gray-500 md:col-span-2 xl:col-span-5">
+                          Você não pode alterar suas próprias permissões ou status.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -563,7 +581,7 @@ const AdminUsers = () => {
           </div>
         </TabsContent>
 
-        {isGlobalAdmin ? (
+        {canAccessAccessRequests ? (
           <TabsContent value="access-requests">
             <AdminAccessRequests />
           </TabsContent>

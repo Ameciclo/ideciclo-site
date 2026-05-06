@@ -966,40 +966,6 @@ const canManagePermissionGrant = (session, permission) => {
   const normalizedState = normalizeScopeValue(permission.state);
   const normalizedCity = normalizeScopeValue(permission.city);
 
-  const hasStateAdmin = adminPermissions.some((adminPermission) => adminPermission.role === "admin_estado");
-  const hasCityAdmin = adminPermissions.some((adminPermission) => adminPermission.role === "admin_cidade");
-
-  if (permission.role === "admin_estado") {
-    if (!hasStateAdmin || normalizedCity) return false;
-
-    return adminPermissions.some(
-      (adminPermission) =>
-        adminPermission.role === "admin_estado" && matchesScope(adminPermission, normalizedState, null)
-    );
-  }
-
-  if (permission.role === "admin_cidade") {
-    if (!normalizedState || !normalizedCity) return false;
-
-    if (hasStateAdmin) {
-      return adminPermissions.some(
-        (adminPermission) =>
-          adminPermission.role === "admin_estado" &&
-          matchesScope(adminPermission, normalizedState, normalizedCity)
-      );
-    }
-
-    if (hasCityAdmin) {
-      return adminPermissions.some(
-        (adminPermission) =>
-          adminPermission.role === "admin_cidade" &&
-          matchesScope(adminPermission, normalizedState, normalizedCity)
-      );
-    }
-
-    return false;
-  }
-
   if (!allowedRoles.has(permission.role)) {
     return false;
   }
@@ -3162,8 +3128,13 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
-      if (name === undefined && active === undefined) {
-        json(response, 400, { error: "Nenhuma alteração recebida." });
+    if (name === undefined && active === undefined) {
+      json(response, 400, { error: "Nenhuma alteração recebida." });
+      return;
+    }
+
+      if (userId === auth.session.user.id) {
+        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
         return;
       }
 
@@ -3223,6 +3194,11 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
+      if (userId === auth.session.user.id) {
+        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
+        return;
+      }
+
       if (moduleValue && !ALLOWED_MODULES.has(moduleValue)) {
         json(response, 400, { error: "Módulo inválido." });
         return;
@@ -3276,23 +3252,28 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
+      const permissionResult = await pool.query(
+        `
+          SELECT id, user_id, role, state, city, module, created_at
+          FROM auth.permissions
+          WHERE id = $1
+        `,
+        [permissionId]
+      );
+
+      const permission = permissionResult.rows[0] ? toCamelPermission(permissionResult.rows[0]) : null;
+
+      if (!permission) {
+        json(response, 404, { error: "Permissão não encontrada." });
+        return;
+      }
+
+      if (permission.userId === auth.session.user.id) {
+        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
+        return;
+      }
+
       if (!isAdminGlobal(auth.session)) {
-        const permissionResult = await pool.query(
-          `
-            SELECT id, user_id, role, state, city, module, created_at
-            FROM auth.permissions
-            WHERE id = $1
-          `,
-          [permissionId]
-        );
-
-        const permission = permissionResult.rows[0] ? toCamelPermission(permissionResult.rows[0]) : null;
-
-        if (!permission) {
-          json(response, 404, { error: "Permissão não encontrada." });
-          return;
-        }
-
         if (!canManageExistingPermission(auth.session, permission)) {
           json(response, 403, { error: "Você só pode remover permissões do seu escopo." });
           return;
