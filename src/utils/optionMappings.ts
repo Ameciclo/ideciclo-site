@@ -67,24 +67,24 @@ export const optionMappings = {
 
   // E.3.1 Conservation state of identification
   identification_conservation: {
-    A: 'Preenchimento total da área útil em tom vermelho (pavimento pigmentado ou pintura).',
-    B: 'Identificação de mais da metade da infraestrutura ou ao menos nas aproximações de travessias de pedestres e área de conflito com outros modos.',
-    C: 'Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
+    A: 'Boa identificação da infraestrutura cicloviária, com preenchimento total da área útil em tom vermelho (pavimento pigmentado ou pintura).',
+    B: 'Há identificação de mais da metade da infraestrutura ou ao menos nas aproximações de travessias de pedestres e áreas de conflito com outros modos.',
+    C: 'Há identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
     D: 'Praticamente apagada.'
   },
 
   // B.4.2 Pictogram conservation
   pictograms_conservation: {
     A: 'Pictogramas visíveis em toda a extensão.',
-    B: 'Pictogramas desgastados em toda a extensão.',
-    C: 'Há sinalização identificação em menos da metade do trecho da infraestrutura cicloviária ou está muito danificada.',
+    B: 'Não se aplica.',
+    C: 'Pictogramas desgastados em toda a extensão.',
     D: 'Praticamente apagados ou não há.'
   },
 
   // B.4.3 Vertical signs conservation
   vertical_signs_conservation: {
     A: 'Placas e postes em bom estado de conservação.',
-    B: 'Menos da metade das placas com danos (sujeira, soltas, outras).',
+    B: 'Menos da metade das placas com danos ( soltas, sujas, pichadas, adesivadas, outros).',
     C: 'Placas bastante danificadas ao longo do trecho.',
     D: 'Não há placas no trecho.'
   },
@@ -99,9 +99,10 @@ export const optionMappings = {
 
   // C.1/E.4 Intersection conservation
   intersection_conservation: {
-    A: 'Sinalização em bom estado',
-    B: 'Sinalização danificada',
-    C: 'Não há sinalização'
+    A: 'Sinalização visível em todas as interseções do trecho',
+    B: 'Sinalização em mais da metade das interseções, em bom estado',
+    C: 'Sinalização em menos da metade das interseções ou muito danificada',
+    D: 'Sinalização praticamente apagada'
   },
 
   // C.2 Connection accessibility
@@ -109,6 +110,14 @@ export const optionMappings = {
     A: 'A conexão entre infraestruturas possui acessbilidade universal, e é bem visível.',
     B: 'A conexão possui degraus (com ou sem canaletas).',
     C: 'Não é possível ver a conexão.'
+  },
+
+  // D.1 Lighting post type
+  lighting_rating: {
+    A: 'Há postes de iluminação peatonais ou exclusivos para a infraestrutura cicloviária, instalados próximos e direcionados à estrutura, com espaçamento máximo de 30 metros entre os postes.',
+    B: 'Há postes de iluminação ao lado da infraestrutura cicloviária, direcionados à via; distanciamento entre 30 e 50 metros entre postes.',
+    C: 'Há postes na via, com distanciamento superior a 5 metros da infraestrutura cicloviária, e distanciamento superior a 50 metros entre os postes; há postes próximos à infraestrutura cicloviária com barreiras abaixo que impedem a iluminação direta da infraestrutura (ex: coberturas, árvores).',
+    D: 'Não há postes de iluminação no trecho analisado.'
   },
 
   // D.1 Lighting post type
@@ -125,10 +134,10 @@ export const optionMappings = {
 
   // D.2 Shading coverage
   shading_coverage: {
-    A: 'Toda extensão',
-    B: 'Mais da metade',
-    C: 'Menos da metade',
-    D: 'Não há'
+    A: 'Há sombreamento em praticamente toda a extensão.',
+    B: 'Há sombra em mais da metade da extensão; há arborização de baixo porte em quase todo o trecho.',
+    C: 'Há sombra em menos da metade da extensão.',
+    D: 'Não há ou praticamente não há sombra.'
   },
 
   // D.2 Vegetation size

@@ -1,12 +1,163 @@
-import { supabase } from "@/integrations/supabase/client";
+import { authClient } from "@/integrations/database/client";
 import { City, Segment, Form, Review, SegmentType, RatingType } from "@/types";
-import { Database } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/database/types";
 
 // Type aliases for database row types
 type CityRow = Database['public']['Tables']['cities']['Row'];
 type SegmentRow = Database['public']['Tables']['segments']['Row'];
 type FormRow = Database['public']['Tables']['forms']['Row'];
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
+
+const CITY_RANKING_VISIBILITY_STORAGE_KEY = "ideciclo-city-ranking-visibility";
+
+const formatDatabaseError = (context: string, error: unknown): string => {
+  if (!error || typeof error !== "object") {
+    return context;
+  }
+
+  const parts = [
+    "message" in error ? error.message : "",
+    "details" in error ? error.details : "",
+    "hint" in error ? error.hint : "",
+    "code" in error ? `(code: ${error.code})` : "",
+  ].filter(Boolean);
+
+  return parts.length > 0 ? `${context}: ${parts.join(" | ")}` : context;
+};
+
+const readCityRankingVisibilityMap = (): Record<string, boolean> => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(CITY_RANKING_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, boolean> : {};
+  } catch (error) {
+    console.warn("Failed to read ranking visibility map from localStorage:", error);
+    return {};
+  }
+};
+
+const writeCityRankingVisibilityMap = (value: Record<string, boolean>) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      CITY_RANKING_VISIBILITY_STORAGE_KEY,
+      JSON.stringify(value)
+    );
+  } catch (error) {
+    console.warn("Failed to write ranking visibility map to localStorage:", error);
+  }
+};
+
+const setLocalCityRankingVisibility = (cityId: string, visible: boolean) => {
+  const current = readCityRankingVisibilityMap();
+  current[cityId] = visible;
+  writeCityRankingVisibilityMap(current);
+};
+
+const coerceNumber = (value: unknown, fallback = 0) => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const DB_API_BASE_PATH = "/api/db";
+
+const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(`${DB_API_BASE_PATH}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String(payload.error)
+        : "Erro inesperado ao acessar a API de leitura do banco.";
+    throw new Error(message);
+  }
+
+  return payload as T;
+};
+
+const fetchAuthDb = async <T>(
+  input: RequestInfo,
+  init?: Omit<RequestInit, "body"> & { body?: unknown }
+): Promise<T> => {
+  const response = await fetch(input, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+    body:
+      init && "body" in init
+        ? JSON.stringify(init.body ?? {})
+        : undefined,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload
+        ? String(payload.error)
+        : "Erro inesperado ao acessar a API autenticada.";
+    throw new Error(message);
+  }
+
+  return payload as T;
+};
+
+export const getLocalCityRankingVisibility = (cityId: string): boolean | null => {
+  const current = readCityRankingVisibilityMap();
+  return typeof current[cityId] === "boolean" ? current[cityId] : null;
+};
+
+const resolveDatabaseSegmentId = async (
+  segmentId: string,
+  cityId?: string
+): Promise<{ dbId: string; cityId?: string } | null> => {
+  if (segmentId.includes("_")) {
+    return { dbId: segmentId, cityId };
+  }
+
+  if (cityId) {
+    return { dbId: `${cityId}_${segmentId}`, cityId };
+  }
+
+  try {
+    const payload = await fetchDb<{
+      segment: { dbId: string; cityId?: string } | null;
+    }>(`/segments/resolve/${encodeURIComponent(segmentId)}`);
+
+    return payload.segment;
+  } catch (error) {
+    console.error("Error resolving segment ID:", error);
+    return null;
+  }
+};
+
+export const getSegmentByIdForForm = async (
+  segmentId: string,
+  cityId?: string
+): Promise<{ dbId: string; cityId?: string } | null> =>
+  resolveDatabaseSegmentId(segmentId, cityId);
 
 // Conversion helpers
 const convertCityRowToCity = (row: CityRow): City => ({
@@ -18,6 +169,12 @@ const convertCityRowToCity = (row: CityRow): City => ({
   vias_estruturais_km: row.vias_estruturais_km || 0,
   vias_alimentadoras_km: row.vias_alimentadoras_km || 0,
   vias_locais_km: row.vias_locais_km || 0,
+  show_in_ranking:
+    typeof (row as any).show_in_ranking === "boolean"
+      ? (row as any).show_in_ranking
+      : getLocalCityRankingVisibility(row.id) ?? true,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
 });
 
 const convertFormRowToForm = (row: FormRow): Form => ({
@@ -41,94 +198,119 @@ const convertFormRowToForm = (row: FormRow): Form => ({
   intersections_count: row.intersections_count || undefined,
 });
 
-const convertSegmentRowToSegment = (row: SegmentRow): Segment => ({
-  id: row.id,
-  id_form: row.id_form || undefined,
-  id_cidade: row.id_cidade,
-  name: row.name,
-  type: row.type as SegmentType,
-  length: row.length,
-  neighborhood: row.neighborhood || undefined,
-  geometry: row.geometry,
-  selected: row.selected || false,
-  evaluated: row.evaluated || false,
-  is_merged: row.is_merged || false,
-  parent_segment_id: row.parent_segment_id || undefined,
-  merged_segments: row.merged_segments as any[] || [],
-  classification: row.classification || undefined,
-});
+const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
+  const advanced = (row as any).osm_advanced as Record<string, any> | undefined;
+
+  return {
+    id: row.id,
+    id_form: row.id_form || undefined,
+    id_cidade: row.id_cidade,
+    name: row.name,
+    type: row.type as SegmentType,
+    length: coerceNumber(row.length),
+    neighborhood: row.neighborhood || undefined,
+    geometry: row.geometry,
+    selected: row.selected || false,
+    evaluated: row.evaluated || false,
+    is_merged: row.is_merged || false,
+    parent_segment_id: row.parent_segment_id || undefined,
+    merged_segments: (row.merged_segments as any[]) || [],
+    classification: row.classification || undefined,
+    blocks_count:
+      (row as any).blocks_count ?? advanced?.blocks_count ?? advanced?.estimated_blocks_count ?? undefined,
+    intersections_count:
+      (row as any).intersections_count ??
+      advanced?.intersections_count ??
+      advanced?.estimated_intersections_count ??
+      undefined,
+    relevant_intersections_count:
+      (row as any).relevant_intersections_count ?? advanced?.relevant_intersections_count ?? undefined,
+    connected_intersections_count:
+      (row as any).connected_intersections_count ?? advanced?.connected_intersections_count ?? undefined,
+    osm_id: (row as any).osm_id ?? advanced?.osm_id ?? advanced?.osmId ?? undefined,
+    osm_type: (row as any).osm_type ?? advanced?.osm_type ?? advanced?.osmType ?? undefined,
+    osm_tags: (row as any).osm_tags ?? advanced?.osm_tags ?? advanced?.rawTags ?? undefined,
+    osm_raw: (row as any).osm_raw ?? advanced?.osm_raw ?? undefined,
+    osm_confidence:
+      (row as any).osm_confidence ??
+      advanced?.osm_confidence ??
+      advanced?.confidenceByField ??
+      undefined,
+    ideciclo_prefill:
+      (row as any).ideciclo_prefill ?? advanced?.ideciclo_prefill ?? advanced?.interpreted ?? undefined,
+    osm_improvement_suggestions:
+      (row as any).osm_improvement_suggestions ??
+      advanced?.osm_improvement_suggestions ??
+      advanced?.suggestions ??
+      undefined,
+    estimated_blocks_count:
+      (row as any).estimated_blocks_count ?? advanced?.estimated_blocks_count ?? undefined,
+    estimated_intersections_count:
+      (row as any).estimated_intersections_count ?? advanced?.estimated_intersections_count ?? undefined,
+    intersections_preview:
+      (row as any).intersections_preview ?? advanced?.intersections_preview ?? undefined,
+    selected_intersections:
+      (row as any).selected_intersections ?? advanced?.selected_intersections ?? undefined,
+    osm_advanced: advanced ?? undefined,
+  };
+};
 
 /**
  * City CRUD operations
  */
 export const fetchCityFromDB = async (cityId: string): Promise<City | null> => {
-  const { data, error } = await supabase
-    .from('cities')
-    .select('*')
-    .eq('id', cityId)
-    .single();
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ city: CityRow | null }>(
+      `/cities/${encodeURIComponent(cityId)}`
+    );
+    return payload.city ? convertCityRowToCity(payload.city) : null;
+  } catch (error) {
     console.error("Error fetching city:", error);
     return null;
   }
-
-  return convertCityRowToCity(data);
 };
 
 export const saveCityToDB = async (city: Partial<City>): Promise<City | null> => {
-  // Ensure required fields are present
   if (!city.id || !city.name || !city.state) {
-    console.error("Required city fields missing");
-    return null;
+    throw new Error("Campos obrigatorios da cidade estao ausentes.");
   }
+  try {
+    const payload = await fetchAuthDb<{ city: CityRow }>("/api/auth/db/cities/upsert", {
+      method: "POST",
+      body: { city },
+    });
 
-  // Check if city already exists
-  const { data: existingCity } = await supabase
-    .from('cities')
-    .select('*')
-    .eq('id', city.id)
-    .single();
+    if (typeof city.show_in_ranking === "boolean") {
+      setLocalCityRankingVisibility(city.id, city.show_in_ranking);
+    }
 
-  let operation;
-  if (existingCity) {
-    // Update
-    operation = supabase
-      .from('cities')
-      .update({
-        name: city.name,
-        state: city.state,
-        extensao_avaliada: city.extensao_avaliada || 0,
-        ideciclo: city.ideciclo || 0,
-        vias_estruturais_km: city.vias_estruturais_km || 0,
-        vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
-        vias_locais_km: city.vias_locais_km || 0,
-      })
-      .eq('id', city.id);
-  } else {
-    // Insert
-    operation = supabase
-      .from('cities')
-      .insert({
-        id: city.id,
-        name: city.name,
-        state: city.state,
-        extensao_avaliada: city.extensao_avaliada || 0,
-        ideciclo: city.ideciclo || 0,
-        vias_estruturais_km: city.vias_estruturais_km || 0,
-        vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
-        vias_locais_km: city.vias_locais_km || 0,
-      });
+    return payload.city ? convertCityRowToCity(payload.city) : null;
+  } catch (error) {
+    const message = formatDatabaseError("Erro ao salvar a cidade no banco de dados", error);
+    console.error(message, error);
+    throw new Error(message);
   }
+};
 
-  const { data, error } = await operation.select().single();
-
-  if (error) {
-    console.error("Error saving city:", error);
-    return null;
+export const updateCityRankingVisibility = async (
+  cityId: string,
+  visible: boolean,
+  _citySnapshot?: Partial<City>
+): Promise<boolean> => {
+  try {
+    await fetchAuthDb<{ ok: true }>(
+      `/api/auth/db/cities/${encodeURIComponent(cityId)}/ranking-visibility`,
+      {
+        method: "PATCH",
+        body: { visible },
+      }
+    );
+    setLocalCityRankingVisibility(cityId, visible);
+    return true;
+  } catch (error) {
+    console.error("Error updating city ranking visibility:", error);
+    return false;
   }
-
-  return convertCityRowToCity(data);
 };
 
 /**
@@ -146,44 +328,29 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
     console.log("Cache API not supported or error clearing segment cache:", cacheError);
   }
   
-  // Now fetch from the database
-  const { data, error } = await supabase
-    .from('segments')
-    .select('*')
-    .eq('id_cidade', cityId)
-    .is('parent_segment_id', null); // Only fetch top-level segments
-
-  if (error) {
-    console.error("Error fetching segments:", error);
-    return [];
-  }
-
-  // Check if we have segments in the database
-  if (data && data.length > 0) {
-    console.log(`Found ${data.length} segments in database for city ${cityId}, using database data`);
-    
-    // Create a Set to track unique IDs
+  const normalizeSegments = (rows: SegmentRow[]) => {
     const uniqueIds = new Set<string>();
-    
-    // Convert the data and restore original segment IDs (remove city prefix if needed)
-    const segments = data
-      .map(row => {
+
+    return rows
+      .map((row) => {
         const segment = convertSegmentRowToSegment(row);
-        
-        // If the ID has the city prefix, remove it for consistency with the rest of the app
+
         if (segment.id.startsWith(`${cityId}_`)) {
           segment.id = segment.id.substring(cityId.length + 1);
         }
-        
-        // Also fix parent_segment_id if it exists
-        if (segment.parent_segment_id && segment.parent_segment_id.startsWith(`${cityId}_`)) {
-          segment.parent_segment_id = segment.parent_segment_id.substring(cityId.length + 1);
+
+        if (
+          segment.parent_segment_id &&
+          segment.parent_segment_id.startsWith(`${cityId}_`)
+        ) {
+          segment.parent_segment_id = segment.parent_segment_id.substring(
+            cityId.length + 1
+          );
         }
-        
+
         return segment;
       })
-      // Filter out duplicates
-      .filter(segment => {
+      .filter((segment) => {
         if (uniqueIds.has(segment.id)) {
           console.warn(`Duplicate segment ID found: ${segment.id}`);
           return false;
@@ -191,49 +358,78 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
         uniqueIds.add(segment.id);
         return true;
       });
-    
-    console.log(`Fetched ${segments.length} unique segments for city ${cityId} from database`);
-    return segments;
-  } else {
-    console.log(`No segments found in database for city ${cityId}, will need to fetch from OSM`);
+  };
+
+  let data: SegmentRow[] = [];
+
+  try {
+    const payload = await fetchDb<{ segments: SegmentRow[] }>(
+      `/segments/city/${encodeURIComponent(cityId)}`
+    );
+    data = payload.segments || [];
+  } catch (error) {
+    console.error("Error fetching segments:", error);
     return [];
   }
+
+  if (data && data.length > 0) {
+    console.log(`Found ${data.length} segments in database for city ${cityId}, using database data`);
+    const segments = normalizeSegments(data);
+    console.log(`Fetched ${segments.length} unique segments for city ${cityId} from database`);
+    return segments;
+  }
+
+  console.log(`No segments found in database for city ${cityId}, will need to fetch from OSM`);
+  return [];
 };
 
 export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
   try {
-    // Make segment ID unique by prefixing with city ID if not already prefixed
     const segmentId = segment.id.includes('_') ? segment.id : `${segment.id_cidade}_${segment.id}`;
-    
-    // Also update parent_segment_id if it exists
-    const parentSegmentId = segment.parent_segment_id ? 
-      (segment.parent_segment_id.includes('_') ? segment.parent_segment_id : `${segment.id_cidade}_${segment.parent_segment_id}`) : 
+
+    const parentSegmentId = segment.parent_segment_id ?
+      (segment.parent_segment_id.includes('_') ? segment.parent_segment_id : `${segment.id_cidade}_${segment.parent_segment_id}`) :
       null;
-    
-    const { error } = await supabase
-      .from('segments')
-      .insert({
-        id: segmentId,
-        id_cidade: segment.id_cidade,
-        id_form: segment.id_form,
-        name: segment.name,
-        type: segment.type,
-        length: segment.length,
-        neighborhood: segment.neighborhood,
-        geometry: segment.geometry,
-        selected: segment.selected,
-        evaluated: segment.evaluated,
-        is_merged: segment.is_merged || false,
-        parent_segment_id: parentSegmentId,
-        merged_segments: segment.merged_segments || [],
-        classification: segment.classification
-      });
 
-    if (error) {
-      console.error("Error inserting segment:", error);
-      return false;
-    }
+    const segmentPayload = {
+      id: segmentId,
+      id_cidade: segment.id_cidade,
+      id_form: segment.id_form,
+      name: segment.name,
+      type: segment.type,
+      length: coerceNumber(segment.length),
+      neighborhood: segment.neighborhood,
+      geometry: segment.geometry,
+      selected: segment.selected,
+      evaluated: segment.evaluated,
+      is_merged: segment.is_merged || false,
+      parent_segment_id: parentSegmentId,
+      merged_segments: segment.merged_segments || [],
+      classification: segment.classification,
+      blocks_count: segment.blocks_count ?? null,
+      intersections_count: segment.intersections_count ?? null,
+      relevant_intersections_count: segment.relevant_intersections_count ?? null,
+      connected_intersections_count: segment.connected_intersections_count ?? null,
+      osm_id: segment.osm_id ?? null,
+      osm_type: segment.osm_type ?? null,
+      osm_tags: segment.osm_tags ?? null,
+      osm_raw: segment.osm_raw ?? null,
+      osm_confidence: segment.osm_confidence ?? null,
+      ideciclo_prefill: segment.ideciclo_prefill ?? null,
+      osm_improvement_suggestions: segment.osm_improvement_suggestions ?? null,
+      estimated_blocks_count: segment.estimated_blocks_count ?? null,
+      estimated_intersections_count: segment.estimated_intersections_count ?? null,
+      intersections_preview: segment.intersections_preview ?? null,
+      osm_advanced: segment.osm_advanced ?? null,
+      deleted_at: (segment as any).deleted_at ?? null,
+    };
 
+    await fetchAuthDb<{ segment: SegmentRow }>("/api/auth/db/segments/upsert", {
+      method: "POST",
+      body: {
+        segment: segmentPayload,
+      },
+    });
     return true;
   } catch (error) {
     console.error("Unexpected error inserting segment:", error);
@@ -243,118 +439,84 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
 
 export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
   if (segmentIds.length === 0) {
-    console.warn("No segment IDs provided for deletion.");
+    console.warn("No segment IDs provided for soft deletion.");
     return false;
   }
+
   try {
-    // Get all segments to find their city IDs
-    const { data: segments } = await supabase
-      .from('segments')
-      .select('id, id_cidade')
-      .in('id', segmentIds);
-    
-    if (!segments || segments.length === 0) {
-      // Try to find segments with prefixed IDs
-      const prefixedIds = await Promise.all(segmentIds.map(async (id) => {
-        // Check if this ID already exists in the database
-        const { data } = await supabase
-          .from('segments')
-          .select('id')
-          .eq('id', id)
-          .single();
-          
-        if (data) {
-          return id; // ID already exists as is
-        }
-        
-        // If not found, it might need a city prefix
-        // Try to find it by looking for IDs ending with this ID
-        const { data: matches } = await supabase
-          .from('segments')
-          .select('id')
-          .like('id', `%_${id}`);
-          
-        if (matches && matches.length > 0) {
-          return matches[0].id; // Return the first match
-        }
-        
-        return id; // Default to original ID if no match found
-      }));
-      
-      // First, handle any child segments by moving them back to top-level
-      const { data: childSegments } = await supabase
-        .from('segments')
-        .select('*')
-        .in('parent_segment_id', prefixedIds);
-
-      if (childSegments && childSegments.length > 0) {
-        await supabase
-          .from('segments')
-          .update({ 
-            parent_segment_id: null,
-            is_merged: false 
-          })
-          .in('parent_segment_id', prefixedIds);
-      }
-
-      // Delete the segments
-      const { error } = await supabase
-        .from('segments')
-        .delete()
-        .in('id', prefixedIds);
-      
-      if (error) {
-        console.error("Error deleting segments:", error);
-        return false;
-      }
-      
-      return true;
-    }
-    
-    // Map segment IDs to their prefixed versions
-    const idMap = new Map();
-    segments.forEach(segment => {
-      const cityId = segment.id_cidade;
-      const originalId = segment.id.includes('_') ? 
-        segment.id.substring(segment.id.indexOf('_') + 1) : 
-        segment.id;
-      
-      idMap.set(originalId, segment.id);
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/segments/delete", {
+      method: "POST",
+      body: {
+        segmentIds,
+      },
     });
-    
-    // Get the prefixed IDs for deletion
-    const prefixedIds = segmentIds.map(id => idMap.get(id) || id);
-    
-    // First, handle any child segments by moving them back to top-level
-    const { data: childSegments } = await supabase
-      .from('segments')
-      .select('*')
-      .in('parent_segment_id', prefixedIds);
-
-    if (childSegments && childSegments.length > 0) {
-      await supabase
-        .from('segments')
-        .update({ 
-          parent_segment_id: null,
-          is_merged: false 
-        })
-        .in('parent_segment_id', prefixedIds);
-    }
-
-    // Delete the segments
-    const { error } = await supabase
-      .from('segments')
-      .delete()
-      .in('id', prefixedIds);
-    
-    if (error) {
-      console.error("Error deleting segments:", error);
-      return false;
-    }
-
     return true;
   } catch (error) {
-    console.error("Unexpected error deleting segments:", error);
+    console.error("Unexpected error soft deleting segments:", error);
+    return false;
+  }
+};
+
+export const hardDeleteSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
+  if (segmentIds.length === 0) return false;
+  try {
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/segments/delete", {
+      method: "POST",
+      body: {
+        segmentIds,
+        hard: true,
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error("Unexpected error hard deleting segments:", error);
+    return false;
+  }
+};
+
+export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segment[]> => {
+  let rows: SegmentRow[] = [];
+
+  try {
+    const payload = await fetchDb<{ segments: SegmentRow[] }>(
+      `/segments/city/${encodeURIComponent(cityId)}/deleted`
+    );
+    rows = payload.segments || [];
+  } catch (error) {
+    console.error("Error fetching deleted segments:", error);
+    return [];
+  }
+
+  return rows.map((row) => {
+    const segment = convertSegmentRowToSegment(row);
+    if (segment.id.startsWith(`${cityId}_`)) {
+      segment.id = segment.id.substring(cityId.length + 1);
+    }
+    if (
+      segment.parent_segment_id &&
+      segment.parent_segment_id.startsWith(`${cityId}_`)
+    ) {
+      segment.parent_segment_id = segment.parent_segment_id.substring(
+        cityId.length + 1
+      );
+    }
+    return segment;
+  });
+};
+
+export const restoreSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
+  if (segmentIds.length === 0) return false;
+
+  try {
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/segments/restore", {
+      method: "POST",
+      body: {
+        segmentIds,
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error("Unexpected error restoring segments:", error);
     return false;
   }
 };
@@ -369,7 +531,6 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
   const cityId = segments[0].id_cidade;
   
   try {
-    // Filter out segments with duplicate IDs
     const uniqueSegmentIds = new Set<string>();
     const uniqueSegments = segments.filter(segment => {
       if (uniqueSegmentIds.has(segment.id)) {
@@ -382,21 +543,7 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
     
     // Log all segment IDs we're trying to upload
     console.log(`Segments being uploaded to database: ${uniqueSegments.length} unique segments out of ${segments.length} total`);
-    
-    // First, delete existing segments for this city
-    console.log(`Deleting existing segments for city ${cityId}`);
-    const { error: deleteError } = await supabase
-      .from('segments')
-      .delete()
-      .eq('id_cidade', cityId);
 
-    if (deleteError) {
-      console.error("Error deleting existing segments:", deleteError);
-      return false;
-    }
-    
-    // Map segments to the format expected by the database
-    // Make segment IDs unique by prefixing with city ID
     const segmentsToInsert = uniqueSegments.map(segment => ({
       id: `${cityId}_${segment.id}`, // Make ID unique by prefixing with city ID
       id_cidade: segment.id_cidade,
@@ -411,62 +558,42 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
       is_merged: segment.is_merged || false,
       parent_segment_id: segment.parent_segment_id ? `${cityId}_${segment.parent_segment_id}` : null, // Update parent reference too
       merged_segments: segment.merged_segments || [],
-      classification: segment.classification || null // Ensure null instead of undefined
+      classification: segment.classification || null, // Ensure null instead of undefined
+      blocks_count: segment.blocks_count ?? null,
+      intersections_count: segment.intersections_count ?? null,
+      relevant_intersections_count: segment.relevant_intersections_count ?? null,
+      connected_intersections_count: segment.connected_intersections_count ?? null,
+      osm_id: segment.osm_id ?? null,
+      osm_type: segment.osm_type ?? null,
+      osm_tags: segment.osm_tags ?? null,
+      osm_raw: segment.osm_raw ?? null,
+      osm_confidence: segment.osm_confidence ?? null,
+      ideciclo_prefill: segment.ideciclo_prefill ?? null,
+      osm_improvement_suggestions: segment.osm_improvement_suggestions ?? null,
+      estimated_blocks_count: segment.estimated_blocks_count ?? null,
+      estimated_intersections_count: segment.estimated_intersections_count ?? null,
+      intersections_preview: segment.intersections_preview ?? null,
+      osm_advanced: segment.osm_advanced ?? null,
+      deleted_at: (segment as any).deleted_at ?? null,
     }));
 
-    // Split segments into batches of 50 to avoid timeouts or payload size limits
-    const BATCH_SIZE = 50;
-    console.log(`Inserting ${segmentsToInsert.length} segments in batches of ${BATCH_SIZE}`);
-    
-    let allBatchesSuccessful = true;
-    
-    for (let i = 0; i < segmentsToInsert.length; i += BATCH_SIZE) {
-      const batch = segmentsToInsert.slice(i, i + BATCH_SIZE);
-      console.log(`Inserting batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(segmentsToInsert.length/BATCH_SIZE)}`);
-      
-      // Try up to 3 times for each batch
-      let batchSuccess = false;
-      
-      for (let attempt = 1; attempt <= 3 && !batchSuccess; attempt++) {
-        try {
-          const { error: insertError } = await supabase
-            .from('segments')
-            .insert(batch);
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/segments/bulk-upsert", {
+      method: "POST",
+      body: {
+        cityId,
+        segments: segmentsToInsert,
+      },
+    });
 
-          if (!insertError) {
-            batchSuccess = true;
-          } else if (attempt < 3) {
-            console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed (attempt ${attempt}), retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-          } else {
-            console.error(`Error inserting batch ${Math.floor(i/BATCH_SIZE) + 1} after ${attempt} attempts:`, insertError);
-          }
-        } catch (err) {
-          if (attempt < 3) {
-            console.log(`Batch ${Math.floor(i/BATCH_SIZE) + 1} failed with exception (attempt ${attempt}), retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            console.error(`Exception inserting batch ${Math.floor(i/BATCH_SIZE) + 1} after ${attempt} attempts:`, err);
-          }
-        }
-      }
-      
-      if (!batchSuccess) {
-        allBatchesSuccessful = false;
-        break;
-      }
-    }
-    
-    if (allBatchesSuccessful) {
-      console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
-      return true;
-    } else {
-      console.error(`Failed to insert all segments for city ${cityId}`);
-      return false;
-    }
+    console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
+    return true;
   } catch (error) {
-    console.error("Unexpected error in saveSegmentsToDB:", error);
-    return false;
+    if (error instanceof Error) {
+      throw error;
+    }
+    const message = formatDatabaseError("Erro inesperado ao salvar segmentos", error);
+    console.error(message, error);
+    throw new Error(message);
   }
 };
 
@@ -475,166 +602,96 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
     console.error("Segment ID is required for updates");
     return null;
   }
-  
-  // Get the city ID to construct the full segment ID
-  let cityId = segment.id_cidade;
-  
-  if (!cityId) {
-    // If city ID is not provided, try to get it from the database
-    const { data: segmentData } = await supabase
-      .from('segments')
-      .select('id_cidade')
-      .eq('id', segment.id)
-      .single();
-      
-    if (segmentData) {
-      cityId = segmentData.id_cidade;
-    }
-  }
-  
-  // Determine the ID to use for the update
-  // If the ID already contains an underscore, assume it's already prefixed
-  // Otherwise, try to prefix it with the city ID if available
-  const updateId = segment.id.includes('_') ? 
-    segment.id : 
-    (cityId ? `${cityId}_${segment.id}` : segment.id);
-  
-  // Also handle parent_segment_id if it exists
-  let parentSegmentId = segment.parent_segment_id;
-  if (parentSegmentId && cityId && !parentSegmentId.includes('_')) {
-    parentSegmentId = `${cityId}_${parentSegmentId}`;
-  }
-  
-  const { data, error } = await supabase
-    .from('segments')
-    .update({
-      name: segment.name,
-      type: segment.type,
-      length: segment.length,
-      neighborhood: segment.neighborhood,
-      geometry: segment.geometry,
-      selected: segment.selected,
-      evaluated: segment.evaluated,
-      id_form: segment.id_form,
-      is_merged: segment.is_merged,
-      parent_segment_id: parentSegmentId,
-      merged_segments: segment.merged_segments,
-      classification: segment.classification
-    })
-    .eq('id', updateId)
-    .select()
-    .single();
 
-  if (error) {
+  try {
+    const payload = await fetchAuthDb<{ segment: SegmentRow }>(
+      `/api/auth/db/segments/${encodeURIComponent(segment.id)}`,
+      {
+        method: "PATCH",
+        body: {
+          cityId: segment.id_cidade,
+          segment,
+        },
+      }
+    );
+
+    if (!payload.segment) {
+      return null;
+    }
+
+    const result = convertSegmentRowToSegment(payload.segment);
+    const cityId = segment.id_cidade || result.id_cidade;
+
+    if (result.id.includes('_') && cityId) {
+      result.id = result.id.substring(result.id.indexOf('_') + 1);
+    }
+
+    if (result.parent_segment_id && result.parent_segment_id.includes('_')) {
+      result.parent_segment_id = result.parent_segment_id.substring(result.parent_segment_id.indexOf('_') + 1);
+    }
+
+    return result;
+  } catch (error) {
     console.error("Error updating segment:", error);
     return null;
   }
+};
 
-  // Convert and restore original ID format
-  const result = convertSegmentRowToSegment(data);
-  if (result.id.includes('_') && cityId) {
-    result.id = result.id.substring(result.id.indexOf('_') + 1);
+export const updateSegmentTechnicalInDB = async (
+  segmentId: string,
+  cityId: string,
+  updates: Partial<Segment>
+): Promise<Segment | null> => {
+  try {
+    const payload = await fetchAuthDb<{ segment: SegmentRow }>(
+      `/api/auth/db/segments/${encodeURIComponent(segmentId)}/technical`,
+      {
+        method: "PATCH",
+        body: {
+          cityId,
+          updates,
+        },
+      }
+    );
+
+    if (!payload.segment) {
+      return null;
+    }
+
+    const result = convertSegmentRowToSegment(payload.segment);
+  if (!result.osm_advanced) {
+    console.error(
+      "segments.osm_advanced is unavailable in database response; technical data was not persisted."
+    );
+    return null;
   }
-  
-  if (result.parent_segment_id && result.parent_segment_id.includes('_')) {
-    result.parent_segment_id = result.parent_segment_id.substring(result.parent_segment_id.indexOf('_') + 1);
+  if (result.id.includes("_") && cityId) {
+    result.id = result.id.substring(result.id.indexOf("_") + 1);
   }
-  
-  return result;
+
+  if (result.parent_segment_id && result.parent_segment_id.includes("_")) {
+    result.parent_segment_id = result.parent_segment_id.substring(
+      result.parent_segment_id.indexOf("_") + 1
+    );
+  }
+
+    return result;
+  } catch (error) {
+    console.error("Error updating segment technical data:", error);
+    return null;
+  }
 };
 
 // New function to unmerge segments
 export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsToUnmerge: string[]): Promise<boolean> => {
   try {
-    console.log("Unmerging segments from parent:", parentSegmentId);
-    console.log("Segments to unmerge:", segmentIdsToUnmerge);
-    
-    // Try to find the parent segment directly
-    let { data: parentSegment, error: fetchError } = await supabase
-      .from('segments')
-      .select('*')
-      .eq('id', parentSegmentId);
-    
-    // If not found, try with a wildcard search (for prefixed IDs)
-    if (fetchError || !parentSegment || parentSegment.length === 0) {
-      console.log("Parent segment not found with exact ID, trying wildcard search");
-      const { data: segments, error: wildcardError } = await supabase
-        .from('segments')
-        .select('*')
-        .like('id', `%${parentSegmentId}`);
-      
-      if (wildcardError || !segments || segments.length === 0) {
-        console.error("Parent segment not found with wildcard search:", wildcardError || "No results");
-        return false;
-      }
-      
-      parentSegment = segments;
-    }
-    
-    // Ensure we have exactly one parent segment
-    if (parentSegment.length !== 1) {
-      console.error(`Expected 1 parent segment, found ${parentSegment.length}`);
-      return false;
-    }
-    
-    const parent = parentSegment[0];
-    console.log("Found parent segment:", parent.id);
-    
-    if (!parent.merged_segments || !Array.isArray(parent.merged_segments) || parent.merged_segments.length === 0) {
-      console.error("Parent segment has no merged segments");
-      return false;
-    }
-    
-    // 2. Filter out the segments to unmerge from the merged_segments array
-    const remainingMergedSegments = parent.merged_segments.filter(
-      (segment: any) => !segmentIdsToUnmerge.includes(segment.id)
-    );
-    
-    console.log(`Filtered merged segments: ${parent.merged_segments.length} -> ${remainingMergedSegments.length}`);
-    
-    // 3. Update the parent segment with the remaining merged segments
-    const { error: updateError } = await supabase
-      .from('segments')
-      .update({
-        merged_segments: remainingMergedSegments,
-        is_merged: remainingMergedSegments.length > 0
-      })
-      .eq('id', parent.id);
-
-    if (updateError) {
-      console.error("Error updating parent segment:", updateError);
-      return false;
-    }
-    
-    // Set parent_segment_id to null for unmerged segments
-    for (const segmentId of segmentIdsToUnmerge) {
-      // Try to find the segment with exact ID or with city prefix
-      const { error: resetError } = await supabase
-        .from('segments')
-        .update({ 
-          parent_segment_id: null,
-          is_merged: false
-        })
-        .or(`id.eq.${segmentId},id.like.%_${segmentId}`);
-      
-      if (resetError) {
-        console.error(`Error resetting parent_segment_id for segment ${segmentId}:`, resetError);
-      }
-    }
-
-    // 4. If no segments remain, delete the parent segment
-    if (remainingMergedSegments.length === 0) {
-      const { error: deleteError } = await supabase
-        .from('segments')
-        .delete()
-        .eq('id', parent.id);
-
-      if (deleteError) {
-        console.error("Error deleting parent segment:", deleteError);
-        return false;
-      }
-    }
-
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/segments/unmerge", {
+      method: "POST",
+      body: {
+        parentSegmentId,
+        segmentIdsToUnmerge,
+      },
+    });
     return true;
   } catch (error) {
     console.error("Unexpected error unmerging segments:", error);
@@ -642,43 +699,27 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
   }
 };
 
-// Helper function to merge geometries
-const mergeGeometries = (geometries: any[]): any => {
-  const allCoordinates: number[][][] = geometries.flatMap(geometry => 
-    geometry?.coordinates || []
-  );
-
-  return {
-    type: "MultiLineString",
-    coordinates: allCoordinates
-  };
-};
-
 /**
  * Form CRUD operations
  */
 export const fetchFormsByCityId = async (cityId: string): Promise<Form[]> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('city_id', cityId);
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ forms: FormRow[] }>(
+      `/forms/city/${encodeURIComponent(cityId)}`
+    );
+    return (payload.forms || []).map(convertFormRowToForm);
+  } catch (error) {
     console.error("Error fetching forms by city ID:", error);
     return [];
   }
-
-  return data.map(convertFormRowToForm);
 };
 
 export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> => {
-  // Ensure required fields are present
   if (!form.id || !form.segment_id || !form.city_id) {
     console.error("Required form fields missing");
     return null;
   }
 
-  // Convert date fields to ISO strings for database storage
   const formToInsert = {
     id: form.id,
     segment_id: form.segment_id,
@@ -698,65 +739,42 @@ export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> =>
     responses: form.responses || null
   };
 
-  const { data, error } = await supabase
-    .from('forms')
-    .insert(formToInsert)
-    .select()
-    .single();
-
-  if (error) {
+  try {
+    const payload = await fetchAuthDb<{ form: FormRow }>("/api/auth/db/forms", {
+      method: "POST",
+      body: {
+        formData: formToInsert,
+      },
+    });
+    return payload.form ? convertFormRowToForm(payload.form) : null;
+  } catch (error) {
     console.error("Error saving form:", error);
     return null;
   }
-
-  // Update the segment to mark it as evaluated
-  if (form.segment_id) {
-    const { error: updateError } = await supabase
-      .from('segments')
-      .update({ 
-        evaluated: true,
-        id_form: form.id 
-      })
-      .eq('id', form.segment_id);
-
-    if (updateError) {
-      console.error("Error updating segment evaluation status:", updateError);
-    }
-  }
-
-  return convertFormRowToForm(data);
 };
 
 export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('id', formId)
-    .single();
-
-  if (error) {
+  try {
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ? convertFormRowToForm(payload.form) : null;
+  } catch (error) {
     console.error("Error fetching form:", error);
     return null;
   }
-
-  return convertFormRowToForm(data);
 };
 
 export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | null> => {
-  const { data, error } = await supabase
-    .from('forms')
-    .select('*')
-    .eq('segment_id', segmentId)
-    .single();
-
-  if (error) {
-    if (error.code !== 'PGRST116') { // PGRST116 is "no rows returned" - not a real error in this case
-      console.error("Error fetching form by segment ID:", error);
-    }
+  try {
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+    );
+    return payload.form ? convertFormRowToForm(payload.form) : null;
+  } catch (error) {
+    console.error("Error fetching form by segment ID:", error);
     return null;
   }
-
-  return convertFormRowToForm(data);
 };
 
 /**
@@ -764,18 +782,17 @@ export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | nu
  */
 export const checkFormsExistByIds = async (formIds: string[]): Promise<string[]> => {
   if (formIds.length === 0) return [];
-  
-  const { data, error } = await supabase
-    .from('forms')
-    .select('id')
-    .in('id', formIds);
 
-  if (error) {
+  try {
+    const query = new URLSearchParams();
+    formIds.forEach((formId) => query.append("id", formId));
+
+    const payload = await fetchDb<{ formIds: string[] }>(`/forms/exists?${query.toString()}`);
+    return payload.formIds || [];
+  } catch (error) {
     console.error("Error checking forms existence:", error);
     return [];
   }
-
-  return data.map(form => form.id);
 };
 
 /**
@@ -784,7 +801,6 @@ export const checkFormsExistByIds = async (formIds: string[]): Promise<string[]>
 export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
   if (reviews.length === 0) return true;
 
-  // Prepare reviews for insertion by ensuring they match the database schema
   const reviewsToInsert = reviews.map(review => ({
     id: review.id,
     form_id: review.form_id,
@@ -793,36 +809,37 @@ export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
     weight: review.weight
   }));
 
-  const { error } = await supabase
-    .from('reviews')
-    .insert(reviewsToInsert);
-
-  if (error) {
+  try {
+    await fetchAuthDb<{ ok: true }>("/api/auth/db/reviews/bulk", {
+      method: "POST",
+      body: {
+        reviews: reviewsToInsert,
+      },
+    });
+    return true;
+  } catch (error) {
     console.error("Error saving reviews:", error);
     return false;
   }
-
-  return true;
 };
 
 export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select('*')
-    .eq('form_id', formId);
+  try {
+    const payload = await fetchDb<{ reviews: ReviewRow[] }>(
+      `/reviews/form/${encodeURIComponent(formId)}`
+    );
 
-  if (error) {
+    return (payload.reviews || []).map((review: ReviewRow): Review => ({
+      id: review.id,
+      form_id: review.form_id,
+      rating_name: review.rating_name as RatingType,
+      rating: review.rating,
+      weight: review.weight
+    }));
+  } catch (error) {
     console.error("Error fetching reviews:", error);
     return [];
   }
-
-  return data.map((review: ReviewRow): Review => ({
-    id: review.id,
-    form_id: review.form_id,
-    rating_name: review.rating_name as RatingType,
-    rating: review.rating,
-    weight: review.weight
-  }));
 };
 
 /**
@@ -833,13 +850,9 @@ export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => 
  */
 export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase.from("cities").delete().eq("id", cityId);
-    
-    if (error) {
-      console.error("Error deleting city:", error);
-      return false;
-    }
-    
+    await fetchAuthDb<{ ok: true }>(`/api/auth/db/cities/${encodeURIComponent(cityId)}`, {
+      method: "DELETE",
+    });
     return true;
   } catch (error) {
     console.error("Error deleting city:", error);
@@ -852,18 +865,10 @@ export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
  */
 export const fetchFormById = async (formId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .select("*")
-      .eq("id", formId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching form by ID:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form by ID:", error);
     return null;
@@ -872,17 +877,10 @@ export const fetchFormById = async (formId: string): Promise<any | null> => {
 
 export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .select("*")
-      .eq("segment_id", segmentId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error("Error fetching form by segment ID:", error);
-    }
-
-    return data || null;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form by segment ID:", error);
     return null;
@@ -891,18 +889,12 @@ export const getFormBySegmentId = async (segmentId: string): Promise<any | null>
 
 export const fetchSegmentById = async (segmentId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id", segmentId)
-      .single();
+    const payload = await fetchDb<{ segment: SegmentRow | null }>(
+      `/segments/${encodeURIComponent(segmentId)}`
+    );
 
-    if (error) {
-      console.error("Error fetching segment by ID:", error);
-      return null;
-    }
-
-    return data;
+    if (!payload.segment) return null;
+    return convertSegmentRowToSegment(payload.segment);
   } catch (error) {
     console.error("Error fetching segment by ID:", error);
     return null;
@@ -911,60 +903,48 @@ export const fetchSegmentById = async (segmentId: string): Promise<any | null> =
 
 export const updateFormInDB = async (formId: string, formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .update(formData)
-      .eq("id", formId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating form:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchAuthDb<{ form: FormRow }>(
+      `/api/auth/db/forms/${encodeURIComponent(formId)}`,
+      {
+        method: "PATCH",
+        body: {
+          formData,
+        },
+      }
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error updating form:", error);
-    return null;
+    throw error;
   }
 };
 
 export const createFormInDB = async (formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .insert(formData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating form:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchAuthDb<{ form: FormRow }>("/api/auth/db/forms", {
+      method: "POST",
+      body: {
+        formData,
+      },
+    });
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error creating form:", error);
-    return null;
+    throw error;
   }
 };
 
 export const updateSegmentEvaluationStatus = async (segmentId: string, formId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from("segments")
-      .update({
-        evaluated: true,
-        id_form: formId,
-      })
-      .eq("id", segmentId);
-
-    if (error) {
-      console.error("Error updating segment evaluation status:", error);
-      return false;
-    }
-
+    await fetchAuthDb<{ ok: true }>(
+      `/api/auth/db/segments/${encodeURIComponent(segmentId)}/evaluation-status`,
+      {
+        method: "PATCH",
+        body: {
+          formId,
+        },
+      }
+    );
     return true;
   } catch (error) {
     console.error("Error updating segment evaluation status:", error);
@@ -977,18 +957,10 @@ export const updateSegmentEvaluationStatus = async (segmentId: string, formId: s
  */
 export const fetchFormWithDetails = async (formId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .select("*")
-      .eq("id", formId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching form details:", error);
-      return null;
-    }
-
-    return data;
+    const payload = await fetchDb<{ form: FormRow | null }>(
+      `/forms/${encodeURIComponent(formId)}`
+    );
+    return payload.form ?? null;
   } catch (error) {
     console.error("Error fetching form details:", error);
     return null;
@@ -1000,21 +972,8 @@ export const fetchFormWithDetails = async (formId: string): Promise<any | null> 
  */
 export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    const { data, error } = await supabase.from("cities").select("state");
-
-    if (error) {
-      console.error("Error fetching states:", error);
-      return [];
-    }
-
-    // Extract unique states
-    const uniqueStatesSet = new Set(data.map((item) => item.state));
-    const uniqueStates = Array.from(uniqueStatesSet).map((state) => ({
-      id: state,
-      name: state,
-    }));
-
-    return uniqueStates;
+    const payload = await fetchDb<{ states: { id: string; name: string }[] }>("/states");
+    return payload.states || [];
   } catch (error) {
     console.error("Error fetching states:", error);
     return [];
@@ -1023,17 +982,10 @@ export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: str
 
 export const fetchCitiesByState = async (state: string): Promise<City[]> => {
   try {
-    const { data, error } = await supabase
-      .from("cities")
-      .select("*")
-      .eq("state", state);
-
-    if (error) {
-      console.error("Error fetching cities:", error);
-      return [];
-    }
-
-    return data as City[];
+    const payload = await fetchDb<{ cities: CityRow[] }>(
+      `/cities?state=${encodeURIComponent(state)}`
+    );
+    return (payload.cities || []).map(convertCityRowToCity);
   } catch (error) {
     console.error("Error fetching cities:", error);
     return [];
@@ -1045,18 +997,8 @@ export const fetchCitiesByState = async (state: string): Promise<City[]> => {
  */
 export const fetchAllStoredCities = async (): Promise<City[]> => {
   try {
-    const { data, error } = await supabase
-      .from("cities")
-      .select("*")
-      .order("state", { ascending: true })
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching stored cities:", error);
-      return [];
-    }
-
-    return data.map(convertCityRowToCity);
+    const payload = await fetchDb<{ cities: CityRow[] }>("/cities");
+    return (payload.cities || []).map(convertCityRowToCity);
   } catch (error) {
     console.error("Error fetching stored cities:", error);
     return [];
@@ -1065,17 +1007,7 @@ export const fetchAllStoredCities = async (): Promise<City[]> => {
 
 export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> => {
   try {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id_cidade", cityId);
-
-    if (error) {
-      console.error("Error fetching segments:", error);
-      return [];
-    }
-
-    return data as Segment[];
+    return await fetchSegmentsFromDB(cityId);
   } catch (error) {
     console.error("Error fetching segments:", error);
     return [];
@@ -1123,22 +1055,20 @@ export const clearLocalStorage = (): void => {
   }
 };
 
-// Function to clear all caches (localStorage and Supabase)
+// Function to clear all caches (localStorage and database API)
 export const clearAllCaches = async (): Promise<void> => {
   try {
     // 1. Clear localStorage
     clearLocalStorage();
     
-    // 2. Clear Supabase cache by refreshing the client
-    // This will clear any cached queries in the Supabase client
-    await supabase.auth.refreshSession();
+    // 2. Clear client-side session/cache placeholders
+    await authClient.refreshSession();
     
-    // 3. Clear browser cache for Supabase API requests
+    // 3. Clear browser cache for app API requests
     try {
       const cachesToClear = await caches.keys();
       for (const cacheName of cachesToClear) {
-        // Only clear caches related to our app or Supabase
-        if (cacheName.includes('supabase') || cacheName.includes('ideciclo')) {
+        if (cacheName.includes('ideciclo')) {
           await caches.delete(cacheName);
         }
       }

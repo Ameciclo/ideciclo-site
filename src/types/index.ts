@@ -12,6 +12,63 @@ export enum RatingType {
   D = "D"
 }
 
+export type OsmConfidence = "high" | "medium" | "low" | "unknown";
+
+export type IdecicloPrefill = {
+  nome?: string;
+  trechoInicio?: string;
+  trechoFim?: string;
+  tipologia?: string;
+  posicaoNaVia?: string;
+  hierarquia?: string;
+  velocidade?: string;
+  sentido?: string;
+  numeroFaixas?: number;
+  pavimento?: string;
+  largura?: number;
+  bufferSeparacao?: string;
+  pendenciasCampo: string[];
+};
+
+export type OsmImprovementSuggestion = {
+  field: string;
+  reason: string;
+  suggestedTags: string[];
+  priority: "high" | "medium" | "low";
+};
+
+export type SegmentIntersectionPreview = {
+  pointKey: string;
+  roadId: string;
+  roadName?: string;
+  highway?: string;
+  hierarchy?: string;
+  hasCyclingInfrastructure?: boolean | null;
+  cyclingInfrastructureType?: string;
+};
+
+export type SegmentIntersectionSelection = {
+  id: string;
+  pointKey: string;
+  roadId: string;
+  roadName?: string;
+  highway?: string;
+  hierarchyOsm?: string;
+  hierarchyIdeciclo?: string;
+  hasCyclingInfrastructure?: boolean | null;
+  cyclingInfrastructureType?: string;
+  selected: boolean;
+};
+
+export type OsmAdvancedInfo = {
+  osmId: string;
+  osmType: string;
+  rawTags: Record<string, string>;
+  interpreted: IdecicloPrefill;
+  confidenceByField: Record<string, OsmConfidence>;
+  suggestions: OsmImprovementSuggestion[];
+};
+
 export interface City {
   id: string;
   name: string;
@@ -21,6 +78,9 @@ export interface City {
   vias_estruturais_km: number;
   vias_alimentadoras_km: number;
   vias_locais_km: number;
+  show_in_ranking?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Segment {
@@ -38,6 +98,22 @@ export interface Segment {
   parent_segment_id?: string;
   merged_segments?: any[];
   classification?: string; // 'estrutural', 'alimentadora', or 'local'
+  blocks_count?: number;
+  intersections_count?: number;
+  relevant_intersections_count?: number;
+  connected_intersections_count?: number;
+  osm_id?: string;
+  osm_type?: string;
+  osm_tags?: Record<string, string>;
+  osm_raw?: OverpassElement | Record<string, unknown>;
+  osm_confidence?: Record<string, OsmConfidence>;
+  ideciclo_prefill?: IdecicloPrefill;
+  osm_improvement_suggestions?: OsmImprovementSuggestion[];
+  estimated_blocks_count?: number;
+  estimated_intersections_count?: number;
+  intersections_preview?: SegmentIntersectionPreview[];
+  selected_intersections?: SegmentIntersectionSelection[];
+  osm_advanced?: OsmAdvancedInfo;
 }
 
 export interface Form {
@@ -116,6 +192,7 @@ export interface SurveyResponses {
   segment_name: string;
   extension_m: number;
   velocity_kmh: number;
+  regulated_speed_choices: number[];
   start_point: string;
   end_point: string;
   road_hierarchy: string;
@@ -129,10 +206,19 @@ export interface SurveyResponses {
 
   // B.1.1 Width of cycling infrastructure
   width_meters: number;
+  width_measurements_m: number[];
   includes_gutter: boolean;
+  buffer_width_m: number;
+  buffer_measurements_m: number[];
 
   // B.1.2 Speed moderation measures (for cyclorrotas)
   speed_measures: string[];
+  traffic_calming_counts: Partial<
+    Record<
+      "lombada" | "valas" | "faixa_elevada" | "elevacao_intersecao" | "reducao_largura",
+      number
+    >
+  >;
   avg_distance_measures_m: number;
 
   // B.2 Pavement type
@@ -166,15 +252,22 @@ export interface SurveyResponses {
 
   // B.4.3 Vertical regulation signaling
   regulation_signs_per_block: number;
+  regulation_signs_per_block_by_block?: number[];
   signs_both_directions: boolean;
+  signs_both_directions_by_block?: Array<boolean | null>;
   vertical_signs_conservation: 'A' | 'B' | 'C' | 'D';
+  vertical_signs_conservation_by_block?: Array<'good' | 'damage' | ''>;
 
   // B.5 Accessibility relative to adjacent land use
   traffic_lanes_count: number;
-  signalized_crossings_per_block: number;
+  signalized_crossings_count: number;
+  traffic_lanes_count_by_block?: number[];
+  signalized_crossings_count_by_block?: number[];
+  no_risk_situations: boolean;
 
   // B.6 Risk situations along infrastructure
-  bus_school_conflict: boolean;
+  bus_stop_conflict: boolean;
+  school_conflict: boolean;
   horizontal_obstacles: boolean;
   vertical_obstacles: boolean;
   side_change_mid_block: boolean;
@@ -182,7 +275,8 @@ export interface SurveyResponses {
 
   // C.1/E.4 Horizontal cycling signaling at intersections
   intersection_signaling: 'A' | 'B' | 'C' | 'D';
-  intersection_conservation: 'A' | 'B' | 'C';
+  intersection_conservation: 'A' | 'B' | 'C' | 'D';
+  intersection_conservation_by_intersection?: Array<'good' | 'damage' | 'none'>;
 
   // C.2 Accessibility between cycling connections
   connection_accessibility: 'A' | 'B' | 'C';
@@ -191,6 +285,7 @@ export interface SurveyResponses {
   motorized_conflicts: string[];
 
   // D.1 Public lighting
+  lighting_rating: 'A' | 'B' | 'C' | 'D';
   lighting_post_type: 'A' | 'B';
   lighting_distance_m: number;
   lighting_directed: boolean;
@@ -203,4 +298,7 @@ export interface SurveyResponses {
 
   // D.3 Cycling furniture
   cycling_furniture: string[];
+  cycling_furniture_by_block?: string[][];
+  cycling_furniture_counts_by_block?: Record<string, number>[];
+  no_cycling_furniture_by_block?: boolean[];
 }

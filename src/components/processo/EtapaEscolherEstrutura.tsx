@@ -1,142 +1,713 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, MapPin, ArrowRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchSegmentsByCity } from "@/services/database";
+import { ArrowRight, Filter, Search } from "lucide-react";
 
-interface EtapaEscolherEstruturaProps {
-  cityData: any;
-  onComplete: (segmentId?: string) => void;
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import SegmentPreviewMap from "@/components/SegmentPreviewMap";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { fetchSegmentsByCity } from "@/services/database";
+import type { Segment } from "@/types";
+import { getA1Decision } from "@/utils/idecicloAssessment";
+import {
+  getEvaluatedBadgeClassName,
+  getHierarchyBadgeClassName,
+  getSegmentTypeBadgeClassName,
+} from "@/utils/segmentBadgeStyles";
+
+interface PersistedCityData {
+  cityId: string;
+  cityName: string;
+  stateName: string;
 }
 
-const EtapaEscolherEstrutura = ({ cityData, onComplete }: EtapaEscolherEstruturaProps) => {
+interface EtapaEscolherEstruturaProps {
+  cityData: PersistedCityData | null;
+}
+
+type StatusFilter = "todos" | "pendentes" | "avaliados";
+
+const classificationLabels: Record<string, string> = {
+  estrutural: "Estrutural",
+  alimentadora: "Alimentadora",
+  local: "Local",
+};
+
+const positionLabels: Record<string, string> = {
+  canteiro: "Sobre o canteiro",
+  pista_canteiro: "Pista, junto ao canteiro",
+  pista_calcada: "Pista, junto à calçada",
+  calcada: "Sobre a calçada",
+  centro_pista: "Centro da pista",
+  isolada: "Isolada",
+};
+
+const directionLabels: Record<string, string> = {
+  unidirectional: "Unidirecional",
+  bidirectional: "Bidirecional",
+};
+
+const getReadableValue = (value?: string | number | null, suffix = "") => {
+  if (value === undefined || value === null || value === "") {
+    return "Não obtido ainda";
+  }
+
+  return `${value}${suffix}`;
+};
+
+const getSegmentTechnicalSummary = (segment: Segment) => {
+  const prefill = segment.ideciclo_prefill || { pendenciasCampo: [] };
+
+  return [
+    {
+      label: "Tipologia",
+      value: getReadableValue(prefill.tipologia || segment.type || ""),
+    },
+    {
+      label: "Hierarquia viária",
+      value: getReadableValue(
+        prefill.hierarquia ||
+          (segment.classification ? classificationLabels[segment.classification] : "")
+      ),
+    },
+    {
+      label: "Trecho início",
+      value: getReadableValue(prefill.trechoInicio),
+    },
+    {
+      label: "Trecho fim",
+      value: getReadableValue(prefill.trechoFim),
+    },
+    {
+      label: "Sentido",
+      value: getReadableValue(
+        directionLabels[prefill.sentido || ""] || prefill.sentido
+      ),
+    },
+    {
+      label: "Posição na via",
+      value: getReadableValue(
+        positionLabels[prefill.posicaoNaVia || ""] || prefill.posicaoNaVia
+      ),
+    },
+    {
+      label: "Velocidade",
+      value: getReadableValue(prefill.velocidade, prefill.velocidade ? " km/h" : ""),
+    },
+    {
+      label: "Número de faixas",
+      value: getReadableValue(prefill.numeroFaixas),
+    },
+    {
+      label: "Pavimento",
+      value: getReadableValue(prefill.pavimento),
+    },
+    {
+      label: "Largura",
+      value: getReadableValue(prefill.largura, prefill.largura ? " m" : ""),
+    },
+    {
+      label: "Buffer / separação",
+      value: getReadableValue(prefill.bufferSeparacao),
+    },
+    {
+      label: "Quadras",
+      value: getReadableValue(segment.blocks_count ?? segment.estimated_blocks_count),
+    },
+    {
+      label: "Interseções",
+      value: getReadableValue(
+        segment.intersections_count ?? segment.estimated_intersections_count
+      ),
+    },
+  ];
+};
+
+const formatLength = (length?: number | null) => {
+  const safeLength = length ?? 0;
+  return `${safeLength.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} km`;
+};
+
+const getReadableSegmentName = (segment: Segment, cityId?: string) => {
+  if (segment.name?.trim()) {
+    return segment.name.trim();
+  }
+
+  const displayId =
+    cityId && segment.id.startsWith(`${cityId}_`)
+      ? segment.id.slice(cityId.length + 1)
+      : segment.id;
+
+  return `Trecho ${displayId}`;
+};
+
+const getSegmentCompatibilityDecision = (segment: Segment) =>
+  getA1Decision({
+    infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+    road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+    classification: segment.classification || undefined,
+    velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+    pedestrian_flow_per_hour_per_meter: 0,
+    position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+  });
+
+const EtapaEscolherEstrutura = ({ cityData }: EtapaEscolherEstruturaProps) => {
   const navigate = useNavigate();
-  const [segments, setSegments] = useState<any[]>([]);
-  const [selectedSegment, setSelectedSegment] = useState<any>(null);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const [typeFilter, setTypeFilter] = useState("todos");
+  const [classificationFilter, setClassificationFilter] = useState("todos");
 
   useEffect(() => {
+    let isActive = true;
+
     const loadSegments = async () => {
-      if (cityData?.cityId) {
-        try {
-          const data = await fetchSegmentsByCity(cityData.cityId);
-          setSegments(data);
-        } catch (error) {
-          console.error("Error loading segments:", error);
-        } finally {
+      if (!cityData?.cityId) {
+        if (isActive) {
+          setSegments([]);
+          setSelectedSegment(null);
+          setLoadError(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (isActive) {
+        setIsLoading(true);
+        setLoadError(null);
+      }
+
+      try {
+        const data = await fetchSegmentsByCity(cityData.cityId);
+        if (!isActive) return;
+
+        const topLevelSegments = data.filter((segment) => !segment.parent_segment_id);
+        const source = topLevelSegments.length > 0 ? topLevelSegments : data;
+        const uniqueSegments = Array.from(
+          new Map(source.map((segment) => [segment.id, segment])).values()
+        ).sort((firstSegment, secondSegment) => {
+          if (firstSegment.evaluated !== secondSegment.evaluated) {
+            return Number(firstSegment.evaluated) - Number(secondSegment.evaluated);
+          }
+
+          return getReadableSegmentName(firstSegment, cityData.cityId).localeCompare(
+            getReadableSegmentName(secondSegment, cityData.cityId),
+            "pt-BR"
+          );
+        });
+
+        const storedSelectedSegmentId =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("selectedSegmentId")
+            : null;
+
+        setSegments(uniqueSegments);
+        setSelectedSegment(
+          uniqueSegments.find((segment) => segment.id === storedSelectedSegmentId) || null
+        );
+      } catch (error) {
+        console.error("Error loading segments:", error);
+        if (isActive) {
+          setSegments([]);
+          setSelectedSegment(null);
+          setLoadError("Não foi possível carregar os trechos desta cidade agora.");
+        }
+      } finally {
+        if (isActive) {
           setIsLoading(false);
         }
       }
     };
 
     loadSegments();
-  }, [cityData]);
 
-  const handleSelectSegment = (segment: any) => {
+    return () => {
+      isActive = false;
+    };
+  }, [cityData, reloadKey]);
+
+  const typeOptions = useMemo(
+    () =>
+      Array.from(new Set(segments.map((segment) => segment.type).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, "pt-BR")
+      ),
+    [segments]
+  );
+
+  const classificationOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(segments.map((segment) => segment.classification).filter(Boolean) as string[])
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [segments]
+  );
+
+  const segmentSummary = useMemo(() => {
+    const evaluated = segments.filter((segment) => segment.evaluated).length;
+    const compatible = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "compatible"
+    ).length;
+    const pendingCompatibility = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "pending"
+    ).length;
+    const incompatible = segments.filter(
+      (segment) => getSegmentCompatibilityDecision(segment).status === "incompatible"
+    ).length;
+
+    return {
+      total: segments.length,
+      evaluated,
+      pending: Math.max(segments.length - evaluated, 0),
+      classified: segments.filter((segment) => segment.classification).length,
+      compatible,
+      pendingCompatibility,
+      incompatible,
+    };
+  }, [segments]);
+
+  const filteredSegments = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLocaleLowerCase("pt-BR");
+
+    return segments.filter((segment) => {
+      const compatibilityDecision = getSegmentCompatibilityDecision(segment);
+      if (compatibilityDecision.status === "incompatible") {
+        return false;
+      }
+
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        [
+          getReadableSegmentName(segment, cityData?.cityId),
+          segment.id,
+          segment.neighborhood || "",
+          segment.type || "",
+          classificationLabels[segment.classification || ""] || segment.classification || "",
+        ]
+          .join(" ")
+          .toLocaleLowerCase("pt-BR")
+          .includes(normalizedSearch);
+
+      const matchesStatus =
+        statusFilter === "todos" ||
+        (statusFilter === "avaliados" && segment.evaluated) ||
+        (statusFilter === "pendentes" && !segment.evaluated);
+
+      const matchesType = typeFilter === "todos" || segment.type === typeFilter;
+      const matchesClassification =
+        classificationFilter === "todos" || segment.classification === classificationFilter;
+
+        return matchesSearch && matchesStatus && matchesType && matchesClassification;
+    });
+  }, [cityData?.cityId, classificationFilter, searchTerm, segments, statusFilter, typeFilter]);
+
+  const hasActiveFilters =
+    searchTerm.trim().length > 0 ||
+    statusFilter !== "todos" ||
+    typeFilter !== "todos" ||
+    classificationFilter !== "todos";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("todos");
+    setTypeFilter("todos");
+    setClassificationFilter("todos");
+  };
+
+  const handleSelectSegment = (segment: Segment) => {
     setSelectedSegment(segment);
-    // Store selected segment in sessionStorage for the evaluation
     sessionStorage.setItem("selectedSegmentId", segment.id);
-    sessionStorage.setItem("selectedCityId", cityData.cityId);
+
+    if (cityData?.cityId) {
+      sessionStorage.setItem("selectedCityId", cityData.cityId);
+    }
   };
 
   const handleGoToEvaluation = () => {
-    if (selectedSegment) {
-      // Store segment ID for the evaluation form
-      sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
-      navigate("/avaliacao/avaliar-estrutura");
-    }
+    if (!selectedSegment) return;
+
+    sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
+    navigate("/avaliacao/avaliar-estrutura");
   };
 
-  const handleContinue = () => {
-    if (selectedSegment) {
-      sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
-      onComplete(selectedSegment.id);
-    }
+  const handleGoToReview = () => {
+    if (!selectedSegment) return;
+
+    sessionStorage.setItem("selectedSegmentId", selectedSegment.id);
+    navigate(`/avaliacao/formulario-ideciclo/${selectedSegment.id}?step=review`);
   };
 
   if (!cityData) {
     return (
-      <div className="text-center py-8">
-        <p>Nenhum dado de cidade disponível. Volte à etapa anterior.</p>
-      </div>
+      <Card className="border-dashed">
+        <CardHeader className="text-center">
+          <CardTitle>Selecione uma cidade antes de continuar</CardTitle>
+          <CardDescription>
+            Esta etapa depende da cidade escolhida e dos trechos refinados na etapa anterior.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center">
+          <Button onClick={() => navigate("/avaliacao/refinar-dados")}>
+            Voltar para refinamento
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold mb-2">Escolher Estrutura para Avaliar</h3>
-        <p className="text-gray-600">
-          Selecione uma estrutura cicloviária específica para realizar a avaliação detalhada.
-        </p>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="rounded-[28px] border-ideciclo-blue/10 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Trechos disponíveis</p>
+            <p className="mt-2 text-3xl font-black text-ideciclo-blue">{segmentSummary.total}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[28px] border-emerald-200 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Pendentes</p>
+            <p className="mt-2 text-3xl font-black text-emerald-600">{segmentSummary.pending}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[28px] border-amber-200 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Já avaliados</p>
+            <p className="mt-2 text-3xl font-black text-amber-500">{segmentSummary.evaluated}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[28px] border-slate-200 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Compatibilizadas / pendentes</p>
+            <p className="mt-2 text-3xl font-black text-slate-700">
+              {segmentSummary.compatible} / {segmentSummary.pendingCompatibility}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card>
+      {segmentSummary.incompatible > 0 ? (
+        <Card className="rounded-[28px] border-rose-200 bg-rose-50/70 shadow-sm">
+          <CardContent className="p-5 text-sm text-rose-950">
+            {segmentSummary.incompatible} trecho{segmentSummary.incompatible === 1 ? "" : "s"} incompatível{segmentSummary.incompatible === 1 ? "" : "eis"} já ficaram fora da lista principal de avaliação.
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card className="rounded-[32px] border-0 shadow-lg">
         <CardHeader>
           <CardTitle>Estruturas Disponíveis em {cityData.cityName}</CardTitle>
+          <CardDescription>
+            Filtre a lista para localizar mais rápido o trecho certo e siga para o formulário com a seleção salva.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr),repeat(3,minmax(0,1fr)),auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar por nome, ID, bairro ou tipologia"
+                className="pl-9"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="todos">Todos os status</option>
+              <option value="pendentes">Pendentes</option>
+              <option value="avaliados">Avaliados</option>
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="todos">Todas as tipologias</option>
+              {typeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <select
+              value={classificationFilter}
+              onChange={(event) => setClassificationFilter(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="todos">Todas as classes</option>
+              {classificationOptions.map((classification) => (
+                <option key={classification} value={classification}>
+                  {classificationLabels[classification] || classification}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+              className="gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Limpar
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>
+              {filteredSegments.length} de {segments.length} trechos visíveis
+            </p>
+            {selectedSegment ? (
+              <p>
+                Trecho selecionado:{" "}
+                <span className="font-semibold text-foreground">
+                  {getReadableSegmentName(selectedSegment, cityData.cityId)}
+                </span>
+              </p>
+            ) : (
+              <p>Selecione um trecho para habilitar o formulário.</p>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="text-center py-8">
-              <p>Carregando estruturas...</p>
+              <p>Carregando trechos disponíveis...</p>
+            </div>
+          ) : loadError ? (
+            <div className="rounded-3xl border border-destructive/20 bg-destructive/5 px-6 py-8 text-center">
+              <p className="font-medium text-destructive">{loadError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setReloadKey((currentValue) => currentValue + 1)}
+                className="mt-4"
+              >
+                Tentar novamente
+              </Button>
             </div>
           ) : segments.length === 0 ? (
-            <div className="text-center py-8">
-              <p>Nenhuma estrutura encontrada para esta cidade.</p>
+            <div className="rounded-3xl border border-dashed px-6 py-8 text-center">
+              <p className="font-medium">Nenhum trecho foi encontrado para esta cidade.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Se você acabou de baixar os dados, volte para a etapa de refinamento e confirme se os trechos foram carregados corretamente.
+              </p>
+            </div>
+          ) : filteredSegments.length === 0 ? (
+            <div className="rounded-3xl border border-dashed px-6 py-8 text-center">
+              <p className="font-medium">Nenhum trecho corresponde aos filtros atuais.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Ajuste a busca ou limpe os filtros para ver todos os trechos novamente.
+              </p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {segments.map((segment) => (
+            <div className="grid gap-3">
+              {filteredSegments.map((segment) => {
+                const compatibilityDecision = getSegmentCompatibilityDecision(segment);
+
+                return (
                 <div
                   key={segment.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  className={cn(
+                    "w-full rounded-[28px] border p-5 text-left transition-all",
                     selectedSegment?.id === segment.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                  onClick={() => handleSelectSegment(segment)}
+                      ? "border-emerald-300 bg-emerald-50 shadow-md"
+                      : "border-slate-200 bg-white hover:border-ideciclo-teal/40 hover:shadow-sm"
+                  )}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-semibold">{segment.name || segment.id}</h4>
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{segment.type}</Badge>
-                        {segment.classification && (
-                          <Badge variant="secondary">{segment.classification}</Badge>
-                        )}
-                        <Badge variant={segment.evaluated ? "default" : "secondary"}>
-                          {segment.evaluated ? "Avaliado" : "Não avaliado"}
-                        </Badge>
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => handleSelectSegment(segment)}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            className={getEvaluatedBadgeClassName(segment.evaluated)}
+                          >
+                            {segment.evaluated ? "Avaliado" : "Pendente"}
+                          </Badge>
+                          <Badge className={getSegmentTypeBadgeClassName(segment.type)}>
+                            {segment.type}
+                          </Badge>
+                          {segment.classification ? (
+                            <Badge className={getHierarchyBadgeClassName(segment.classification)}>
+                              {classificationLabels[segment.classification] || segment.classification}
+                            </Badge>
+                          ) : null}
+                          <Badge
+                            className={
+                              compatibilityDecision.status === "compatible"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-amber-500 text-white"
+                            }
+                          >
+                            {compatibilityDecision.status === "compatible"
+                              ? "Compatível"
+                              : "Compatibilização pendente"}
+                          </Badge>
+                          {selectedSegment?.id === segment.id ? (
+                            <Badge className="bg-emerald-600 text-white">Selecionado</Badge>
+                          ) : null}
+                        </div>
+                        <h4 className="mt-3 text-lg font-semibold text-foreground">
+                          {getReadableSegmentName(segment, cityData.cityId)}
+                        </h4>
+                        <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <span>ID: {segment.id}</span>
+                          <span>Extensão: {formatLength(segment.length)}</span>
+                          {segment.neighborhood ? <span>Bairro: {segment.neighborhood}</span> : null}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Extensão: {segment.length?.toFixed(2) || 0} m
-                      </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>
+                          Interseções:{" "}
+                          {segment.intersections_count ??
+                            segment.estimated_intersections_count ??
+                            "-"}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Quadras:{" "}
+                          {segment.blocks_count ?? segment.estimated_blocks_count ?? "-"}
+                        </span>
+                      </div>
                     </div>
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  </button>
 
-          {selectedSegment && (
-            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <span className="font-semibold text-green-700">Estrutura Selecionada</span>
-              </div>
-              <p><strong>Nome:</strong> {selectedSegment.name || selectedSegment.id}</p>
-              <p><strong>Tipo:</strong> {selectedSegment.type}</p>
-              <p><strong>Extensão:</strong> {selectedSegment.length?.toFixed(2) || 0} m</p>
-              
-              <div className="flex gap-3 mt-4">
-                <Button onClick={handleGoToEvaluation} className="flex-1">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Avaliar com IDECICLO
-                </Button>
-              </div>
+                  {selectedSegment?.id === segment.id ? (
+                    <div className="mt-5 border-t border-emerald-200 pt-5">
+                      <div className="space-y-4 md:hidden">
+                        <div className="flex flex-col gap-3">
+                          <Button onClick={handleGoToEvaluation} className="gap-2">
+                            {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" onClick={handleGoToReview}>
+                            Revisão da Estrutura
+                          </Button>
+                        </div>
+
+                        <details className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+                            Resumo técnico
+                          </summary>
+                          <div className="grid gap-3 border-t border-emerald-100 p-4">
+                            {getSegmentTechnicalSummary(segment).map((item) => {
+                              const missing = item.value === "Não obtido ainda";
+
+                              return (
+                                <div
+                                  key={item.label}
+                                  className={cn(
+                                    "rounded-2xl border px-4 py-3",
+                                    missing
+                                      ? "border-amber-200 bg-amber-50"
+                                      : "border-emerald-200 bg-emerald-50/50"
+                                  )}
+                                >
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "mt-2 text-sm font-semibold",
+                                      missing ? "text-amber-800" : "text-slate-900"
+                                    )}
+                                  >
+                                    {item.value}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+
+                        <details className="overflow-hidden rounded-[20px] border border-emerald-200 bg-white">
+                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-900">
+                            Mapa do trecho
+                          </summary>
+                          <div className="border-t border-emerald-100">
+                            <SegmentPreviewMap
+                              segment={segment}
+                              className="h-[240px] w-full"
+                            />
+                          </div>
+                        </details>
+                      </div>
+
+                      <div className="hidden gap-5 md:grid xl:grid-cols-[minmax(0,1.1fr),minmax(320px,0.9fr)]">
+                        <div className="space-y-5">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {getSegmentTechnicalSummary(segment).map((item) => {
+                              const missing = item.value === "Não obtido ainda";
+
+                              return (
+                                <div
+                                  key={item.label}
+                                  className={cn(
+                                    "rounded-2xl border px-4 py-3",
+                                    missing
+                                      ? "border-amber-200 bg-amber-50"
+                                      : "border-emerald-200 bg-white"
+                                  )}
+                                >
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                  </p>
+                                  <p
+                                    className={cn(
+                                      "mt-2 text-sm font-semibold",
+                                      missing ? "text-amber-800" : "text-slate-900"
+                                    )}
+                                  >
+                                    {item.value}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                            {compatibilityDecision.detail}
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <Button onClick={handleGoToEvaluation} className="gap-2">
+                              {segment.evaluated ? "Revisar avaliação" : "Avaliar com IDECICLO"}
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" onClick={handleGoToReview}>
+                              Revisão da Estrutura
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="overflow-hidden rounded-[24px] border border-emerald-200 bg-white">
+                          <SegmentPreviewMap segment={segment} className="h-[280px] w-full" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

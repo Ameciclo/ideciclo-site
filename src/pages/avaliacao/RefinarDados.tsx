@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { City, Segment, SegmentType } from "@/types";
 import { Button } from "@/components/ui/button";
-import CitySelection from "@/components/CitySelection";
-import StoredCitiesSelection from "@/components/StoredCitiesSelection";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   fetchCityHighwayStats,
   fetchCityWays,
@@ -16,6 +15,8 @@ import {
   mergeSegmentsInDB,
   unmergeSegments,
   deleteMultipleSegments,
+  fetchDeletedSegments,
+  restoreDeletedSegments,
 } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,11 +28,23 @@ import {
 } from "lucide-react";
 import {
   deleteCityFromDB,
+  updateSegmentTechnicalInDB,
   updateSegmentInDB,
 } from "@/services/database";
 import MergeSegmentsDialog from "@/components/MergeSegmentsDialog";
 import { CityInfrastructureCard } from "@/components/CityInfrastructureCard";
 import { RefinementTableSortableWrapper } from "@/components/RefinementTableSortableWrapper";
+import {
+  clearPersistedCityData,
+  getPersistedCityData,
+  setPersistedCityData,
+} from "@/utils/persistedCityData";
+
+const normalizeSegmentLength = (segment: Segment): Segment => ({
+  ...segment,
+  length:
+    typeof segment.length === "number" ? segment.length : Number(segment.length) || 0,
+});
 
 const RefinarDados = () => {
   const [cityId, setCityId] = useState<string>("");
@@ -40,99 +53,140 @@ const RefinarDados = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [city, setCity] = useState<Partial<City> | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [deletedSegments, setDeletedSegments] = useState<Segment[]>([]);
+  const [isLoadingTrash, setIsLoadingTrash] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState<boolean>(false);
+  const [autoMergeSuggestions, setAutoMergeSuggestions] = useState<
+    Array<{
+      id: string;
+      mergedName: string;
+      mergedType: SegmentType;
+      mergedClassification?: string;
+      candidateSegmentIds: string[];
+      selectedSegmentIds: string[];
+      enabled: boolean;
+    }>
+  >([]);
+  const [isApplyingAutoMerge, setIsApplyingAutoMerge] = useState<boolean>(false);
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
 
+  const normalizeForMergeKey = (value?: string) =>
+    (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+
+  const persistCitySnapshot = (
+    nextCityId: string,
+    nextCityName: string,
+    nextStateName: string,
+    nextCity: Partial<City> | null,
+    nextSegments: Segment[]
+  ) => {
+    if (!nextCityId || !nextCity || nextSegments.length === 0) return;
+
+    setPersistedCityData(
+      JSON.stringify({
+        cityId: nextCityId,
+        cityName: nextCityName,
+        stateName: nextStateName,
+        city: nextCity,
+        segments: nextSegments,
+      })
+    );
+  };
+
+  const loadDeletedSegmentsForCity = async (selectedCityId: string) => {
+    if (!selectedCityId) return;
+    try {
+      setIsLoadingTrash(true);
+      const trash = await fetchDeletedSegments(selectedCityId);
+      setDeletedSegments(trash);
+    } catch (trashError) {
+      console.error("Erro ao carregar lixeira de segmentos:", trashError);
+      setDeletedSegments([]);
+    } finally {
+      setIsLoadingTrash(false);
+    }
+  };
+
   useEffect(() => {
-    const storedData = sessionStorage.getItem("cityData");
+    const storedData = getPersistedCityData();
     if (storedData) {
-      const data = JSON.parse(storedData);
-      setCityId(data.cityId);
-      setCityName(data.cityName);
-      setStateName(data.stateName);
-      loadStoredCityData(data.cityId);
+      try {
+        const data = JSON.parse(storedData);
+        setCityId(data.cityId);
+        setCityName(data.cityName);
+        setStateName(data.stateName);
+        loadStoredCityData(
+          data.cityId,
+          data.cityName,
+          data.stateName,
+          data.city && Array.isArray(data.segments) && data.segments.length > 0
+            ? {
+                city: data.city,
+                segments: data.segments.map((segment: Segment) =>
+                  normalizeSegmentLength(segment)
+                ),
+              }
+            : undefined
+        );
+      } catch (error) {
+        console.error("Falha ao ler snapshot persistido da cidade:", error);
+        clearPersistedCityData();
+        setError("Os dados locais da cidade ficaram inválidos. Selecione a cidade novamente.");
+      }
     }
   }, []);
 
-  const handleCitySelected = async (
-    stateId: string,
+  const downloadAndStoreCityData = async (
     selectedCityId: string,
     selectedCityName: string,
     selectedStateName: string
   ) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setCityId(selectedCityId);
-      setCityName(selectedCityName);
-      setStateName(selectedStateName);
+    const highwayStats = await fetchCityHighwayStats(selectedCityId);
+    const cityStats = calculateCityStats(highwayStats);
 
-      const storedData = await getStoredCityData(selectedCityId);
-      if (storedData) {
-        setCity(storedData.city);
-        setSegments([...storedData.segments]);
-        toast({
-          title: "Dados carregados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} carregados!`,
-        });
-      } else {
-        const highwayStats = await fetchCityHighwayStats(selectedCityId);
-        const cityStats = calculateCityStats(highwayStats);
+    const newCity: Partial<City> = {
+      id: selectedCityId,
+      name: selectedCityName,
+      state: selectedStateName,
+      extensao_avaliada: 0,
+      ideciclo: 0,
+      ...cityStats,
+    };
 
-        const newCity: Partial<City> = {
-          id: selectedCityId,
-          name: selectedCityName,
-          state: selectedStateName,
-          extensao_avaliada: 0,
-          ideciclo: 0,
-          ...cityStats,
-        };
+    const waysData = await fetchCityWays(selectedCityId);
+    const downloadedSegments = convertToSegments(waysData, selectedCityId);
 
-        setCity(newCity);
+    const enhancedSegments = downloadedSegments.map((segment) => ({
+      ...segment,
+      evaluated: false,
+      id_form: undefined,
+    }));
 
-        const waysData = await fetchCityWays(selectedCityId);
-        const segments = convertToSegments(waysData, selectedCityId);
+    await storeCityData(selectedCityId, {
+      city: newCity,
+      segments: enhancedSegments,
+    });
 
-        const enhancedSegments = segments.map((segment) => ({
-          ...segment,
-          evaluated: false,
-          id_form: undefined,
-        }));
+    setCity(newCity);
+    setSegments(enhancedSegments);
 
-        setSegments(enhancedSegments);
-
-        await storeCityData(selectedCityId, {
-          city: newCity,
-          segments: enhancedSegments,
-        });
-
-        toast({
-          title: "Dados baixados",
-          description: `Dados de ${selectedCityName}/${selectedStateName} baixados com sucesso!`,
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao processar cidade:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Falha ao processar os dados da cidade";
-      setError(errorMessage);
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    return { city: newCity, segments: enhancedSegments };
   };
 
-  const loadStoredCityData = async (selectedCityId: string) => {
+  const loadStoredCityData = async (
+    selectedCityId: string,
+    selectedCityName?: string,
+    selectedStateName?: string,
+    fallbackData?: { city: Partial<City>; segments: Segment[] }
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -141,12 +195,70 @@ const RefinarDados = () => {
       if (storedData) {
         setCity(storedData.city);
         setSegments([...storedData.segments]);
+        await loadDeletedSegmentsForCity(selectedCityId);
+        persistCitySnapshot(
+          selectedCityId,
+          selectedCityName || storedData.city.name || "",
+          selectedStateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      } else if (fallbackData) {
+        setCity(fallbackData.city);
+        setSegments([...fallbackData.segments]);
+        await loadDeletedSegmentsForCity(selectedCityId);
+        persistCitySnapshot(
+          selectedCityId,
+          selectedCityName || fallbackData.city.name || "",
+          selectedStateName || fallbackData.city.state || "",
+          fallbackData.city,
+          fallbackData.segments
+        );
       } else {
-        setError("Nenhum dado encontrado para esta cidade");
+        if (selectedCityName && selectedStateName) {
+          const downloadedData = await downloadAndStoreCityData(
+            selectedCityId,
+            selectedCityName,
+            selectedStateName
+          );
+          persistCitySnapshot(
+            selectedCityId,
+            selectedCityName,
+            selectedStateName,
+            downloadedData.city,
+            downloadedData.segments
+          );
+          await loadDeletedSegmentsForCity(selectedCityId);
+          toast({
+            title: "Dados reconstruídos",
+            description: `Os dados de ${selectedCityName}/${selectedStateName} foram baixados novamente.`,
+          });
+        } else {
+          setError("Nenhum dado encontrado para esta cidade");
+        }
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      setError("Falha ao carregar dados armazenados");
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "Falha ao carregar os dados da cidade.";
+
+      setError(errorMessage);
+
+      if (
+        errorMessage.includes("401") ||
+        errorMessage.includes("403") ||
+        errorMessage.toLowerCase().includes("acesso negado") ||
+        errorMessage.toLowerCase().includes("acesso restrito")
+      ) {
+        toast({
+          title: "Permissão insuficiente",
+          description:
+            "Sua sessão está ativa, mas esta conta não tem acesso a essa operação para a cidade selecionada.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -185,6 +297,8 @@ const RefinarDados = () => {
       }));
 
       setSegments(enhancedSegments);
+      setDeletedSegments([]);
+      persistCitySnapshot(cityId, cityName, stateName, updatedCity, enhancedSegments);
 
       await storeCityData(cityId, {
         city: updatedCity,
@@ -218,11 +332,13 @@ const RefinarDados = () => {
   ) => {
     try {
       await updateSegmentName(cityId, segmentId, newName);
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, name: newName } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
     } catch (error) {
       console.error("Erro ao atualizar nome do segmento:", error);
       toast({
@@ -238,21 +354,27 @@ const RefinarDados = () => {
     classification: string
   ) => {
     try {
-      await updateSegmentInDB({ id: segmentId, classification });
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        classification,
+      });
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, classification } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
       toast({
-        title: "Classificação atualizada",
-        description: "A classificação do segmento foi atualizada com sucesso.",
+        title: "Hierarquia da via atualizada",
+        description: "A hierarquia da via do segmento foi atualizada com sucesso.",
       });
     } catch (error) {
       console.error("Erro ao atualizar classificação do segmento:", error);
       toast({
         title: "Erro",
-        description: "Falha ao atualizar a classificação do segmento.",
+        description: "Falha ao atualizar a hierarquia da via do segmento.",
         variant: "destructive",
       });
     }
@@ -263,12 +385,18 @@ const RefinarDados = () => {
     type: SegmentType
   ) => {
     try {
-      await updateSegmentInDB({ id: segmentId, type });
-      setSegments((prevSegments) =>
-        prevSegments.map((seg) =>
+      await updateSegmentInDB({
+        id: segmentId,
+        id_cidade: cityId,
+        type,
+      });
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
           seg.id === segmentId ? { ...seg, type } : seg
-        )
-      );
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
       toast({
         title: "Tipo atualizado",
         description: "O tipo do segmento foi atualizado com sucesso.",
@@ -283,6 +411,48 @@ const RefinarDados = () => {
     }
   };
 
+  const handleUpdateSegmentTechnical = async (
+    segmentId: string,
+    updates: Partial<Segment>
+  ) => {
+    try {
+      const persistedSegment = await updateSegmentTechnicalInDB(
+        segmentId,
+        cityId,
+        updates
+      );
+      if (!persistedSegment) {
+        throw new Error(
+          "Banco não confirmou a atualização do trecho. A API pode estar sem a coluna segments.osm_advanced ou com cache de schema desatualizado."
+        );
+      }
+
+      setSegments((prevSegments) => {
+        const nextSegments = prevSegments.map((seg) =>
+          seg.id === segmentId ? { ...seg, ...persistedSegment } : seg
+        );
+        persistCitySnapshot(cityId, cityName, stateName, city, nextSegments);
+        return nextSegments;
+      });
+      toast({
+        title: "Complemento técnico salvo",
+        description: "Os dados técnicos manuais e OSM foram salvos no trecho.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar complemento técnico do segmento:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Falha ao salvar complemento técnico do segmento.";
+      toast({
+        title: "Erro",
+        description: message,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   const handleDeleteSegment = async (segmentId: string) => {
     try {
       await removeSegments([segmentId]);
@@ -290,9 +460,11 @@ const RefinarDados = () => {
         (segment) => segment.id !== segmentId
       );
       setSegments(updatedSegments);
+      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      await loadDeletedSegmentsForCity(cityId);
       toast({
-        title: "Segmento removido",
-        description: "O segmento foi removido com sucesso.",
+        title: "Segmento movido para lixeira",
+        description: "Você pode restaurar este segmento na seção de lixeira.",
       });
     } catch (error) {
       console.error("Erro ao remover segmento:", error);
@@ -319,6 +491,14 @@ const RefinarDados = () => {
     setSegments(updatedSegments);
   };
 
+  const handleClearSelection = () => {
+    const updatedSegments = segments.map((segment) => ({
+      ...segment,
+      selected: false,
+    }));
+    setSegments(updatedSegments);
+  };
+
   const handleMergeButtonClick = () =>
     Promise.resolve().then(() => {
       if (selectedSegmentsCount >= 2) {
@@ -337,15 +517,88 @@ const RefinarDados = () => {
       await deleteMultipleSegments(selectedSegmentIds);
       const updatedSegments = segments.filter((segment) => !segment.selected);
       setSegments(updatedSegments);
+      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      await loadDeletedSegmentsForCity(cityId);
       toast({
-        title: "Segmentos removidos",
-        description: `${selectedSegmentIds.length} segmentos foram removidos com sucesso.`,
+        title: "Segmentos movidos para lixeira",
+        description: `${selectedSegmentIds.length} segmentos podem ser restaurados na lixeira.`,
       });
     } catch (error) {
       console.error("Erro ao remover múltiplos segmentos:", error);
       toast({
         title: "Erro",
         description: "Falha ao remover os segmentos selecionados.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreDeletedSegment = async (segmentId: string) => {
+    try {
+      const restored = await restoreDeletedSegments([segmentId]);
+      if (!restored) {
+        throw new Error("Não foi possível restaurar o segmento.");
+      }
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(
+          storedData.segments.map((segment) => ({ ...segment, selected: false }))
+        );
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      }
+      await loadDeletedSegmentsForCity(cityId);
+      toast({
+        title: "Segmento restaurado",
+        description: "O segmento voltou para a lista principal.",
+      });
+    } catch (restoreError) {
+      console.error("Erro ao restaurar segmento:", restoreError);
+      toast({
+        title: "Erro",
+        description: "Falha ao restaurar segmento da lixeira.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreAllDeletedSegments = async () => {
+    if (deletedSegments.length === 0) return;
+    try {
+      const restored = await restoreDeletedSegments(
+        deletedSegments.map((segment) => segment.id)
+      );
+      if (!restored) {
+        throw new Error("Não foi possível restaurar todos os segmentos.");
+      }
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        setSegments(
+          storedData.segments.map((segment) => ({ ...segment, selected: false }))
+        );
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          storedData.segments
+        );
+      }
+      await loadDeletedSegmentsForCity(cityId);
+      toast({
+        title: "Lixeira restaurada",
+        description: "Todos os segmentos foram restaurados.",
+      });
+    } catch (restoreError) {
+      console.error("Erro ao restaurar todos os segmentos:", restoreError);
+      toast({
+        title: "Erro",
+        description: "Falha ao restaurar todos os segmentos da lixeira.",
         variant: "destructive",
       });
     }
@@ -373,7 +626,15 @@ const RefinarDados = () => {
           ...segment,
           selected: false,
         }));
+        setCity(storedData.city);
         setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
       }
 
       toast({
@@ -402,7 +663,15 @@ const RefinarDados = () => {
           ...segment,
           selected: false,
         }));
+        setCity(storedData.city);
         setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
       }
       toast({
         title: "Segmentos desmesclados",
@@ -420,6 +689,167 @@ const RefinarDados = () => {
 
   const selectedSegmentsCount = segments.filter((s) => s.selected).length;
   const selectedSegments = segments.filter((s) => s.selected);
+
+  const generateAutoMergeSuggestions = () => {
+    const candidates = segments.filter(
+      (segment) => !segment.parent_segment_id && !segment.is_merged
+    );
+
+    const grouped = new Map<string, Segment[]>();
+    candidates.forEach((segment) => {
+      const key = [
+        normalizeForMergeKey(segment.name),
+        segment.type || "",
+        segment.classification || "",
+      ].join("|");
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(segment);
+    });
+
+    const suggestions = Array.from(grouped.entries())
+      .filter(([, items]) => items.length >= 2)
+      .map(([key, items], index) => {
+        const baseName = items[0]?.name || `Sugestão ${index + 1}`;
+        const mergedType = items[0]?.type || SegmentType.CICLOFAIXA;
+        const mergedClassification = items[0]?.classification;
+        const uniqueNames = Array.from(new Set(items.map((item) => item.name))).join(" / ");
+
+        return {
+          id: `${key}-${index}`,
+          mergedName: uniqueNames || baseName,
+          mergedType,
+          mergedClassification,
+          candidateSegmentIds: items.map((item) => item.id),
+          selectedSegmentIds: items.map((item) => item.id),
+          enabled: true,
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.selectedSegmentIds.length - left.selectedSegmentIds.length
+      );
+
+    setAutoMergeSuggestions(suggestions);
+
+    if (suggestions.length === 0) {
+      toast({
+        title: "Sem sugestões automáticas",
+        description:
+          "Nenhum grupo com nome, tipologia e hierarquia compatíveis foi encontrado.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Sugestões geradas",
+      description: `${suggestions.length} grupos sugeridos para revisão.`,
+    });
+  };
+
+  const toggleAutoMergeSuggestion = (suggestionId: string, enabled: boolean) => {
+    setAutoMergeSuggestions((prev) =>
+      prev.map((item) =>
+        item.id === suggestionId
+          ? { ...item, enabled }
+          : item
+      )
+    );
+  };
+
+  const toggleSegmentInSuggestion = (
+    suggestionId: string,
+    segmentId: string,
+    include: boolean
+  ) => {
+    setAutoMergeSuggestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== suggestionId) return item;
+        const hasSegment = item.selectedSegmentIds.includes(segmentId);
+        if (include && !hasSegment) {
+          return {
+            ...item,
+            selectedSegmentIds: [...item.selectedSegmentIds, segmentId],
+          };
+        }
+        if (!include && hasSegment) {
+          return {
+            ...item,
+            selectedSegmentIds: item.selectedSegmentIds.filter(
+              (id) => id !== segmentId
+            ),
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const applyAutoMergeSuggestions = async () => {
+    const approved = autoMergeSuggestions.filter(
+      (suggestion) =>
+        suggestion.enabled && suggestion.selectedSegmentIds.length >= 2
+    );
+
+    if (approved.length === 0) {
+      toast({
+        title: "Nada para aplicar",
+        description: "Selecione ao menos uma sugestão válida com 2+ trechos.",
+      });
+      return;
+    }
+
+    setIsApplyingAutoMerge(true);
+    try {
+      let appliedCount = 0;
+
+      for (const suggestion of approved) {
+        const groupSegments = segments.filter((segment) =>
+          suggestion.selectedSegmentIds.includes(segment.id)
+        );
+        if (groupSegments.length < 2) continue;
+
+        const merged = await mergeSegmentsInDB(
+          groupSegments,
+          suggestion.mergedName,
+          suggestion.mergedType,
+          suggestion.mergedClassification
+        );
+        if (merged) appliedCount += 1;
+      }
+
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        const updatedSegments = storedData.segments.map((segment) => ({
+          ...segment,
+          selected: false,
+        }));
+        setCity(storedData.city);
+        setSegments(updatedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          updatedSegments
+        );
+      }
+
+      toast({
+        title: "Mesclagem automática aplicada",
+        description: `${appliedCount} sugest${appliedCount === 1 ? "ão aplicada" : "ões aplicadas"}.`,
+      });
+      setAutoMergeSuggestions([]);
+    } catch (autoMergeError) {
+      console.error("Erro ao aplicar mesclagens automáticas:", autoMergeError);
+      toast({
+        title: "Erro",
+        description: "Falha ao aplicar as mesclagens sugeridas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsApplyingAutoMerge(false);
+    }
+  };
 
   return (
     <>
@@ -440,7 +870,7 @@ const RefinarDados = () => {
         <a href="/avaliacao" className="hover:underline">
           Avaliação
         </a>{" "}
-        &gt; <span>Refinar Dados</span>
+        &gt; <span>Aprimorar Dados</span>
       </nav>
 
       {/* Título com Design Customizado */}
@@ -468,7 +898,7 @@ const RefinarDados = () => {
                 className="text-4xl md:text-5xl font-bold text-text-grey pb-8 bg-ideciclo-pink 
                          mx-auto px-7 py-6 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)]"
               >
-                Refinar Dados
+                Aprimorar Dados
               </h1>
             </div>
 
@@ -548,19 +978,30 @@ const RefinarDados = () => {
 
       <div className="container py-8">
         <div className="flex justify-between items-center mb-8">
-          <p className="text-gray-600 text-lg">
-            Ajuste e melhore os dados baixados da cidade
-          </p>
+          <div className="max-w-3xl text-gray-600 text-lg space-y-2">
+            <p>
+              Revise os dados da cidade selecionada, ajuste nomes e tipologias e confirme os
+              trechos antes de seguir para a avaliação em campo.
+            </p>
+            <p className="text-base">
+              Se a cidade ainda não estiver no banco, o download é feito automaticamente ao abrir
+              esta etapa.
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
-              sessionStorage.removeItem("cityData");
+              clearPersistedCityData();
+              sessionStorage.removeItem("selectedSegmentId");
+              sessionStorage.removeItem("selectedCityId");
               setCityId("");
               setCityName("");
               setStateName("");
               setCity(null);
               setSegments([]);
+              setDeletedSegments([]);
+              navigate("/avaliacao");
             }}>
-              Nova Cidade
+              Trocar Cidade
             </Button>
             <Button variant="outline" onClick={() => navigate("/avaliacao")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -603,30 +1044,106 @@ const RefinarDados = () => {
 
             <div className="flex flex-col gap-8">
               <div>
-                <div className="flex flex-wrap items-center gap-4 mb-4">
-                  {selectedSegmentsCount > 0 && (
-                    <>
-                      <Button
-                        onClick={handleMergeButtonClick}
-                        disabled={selectedSegmentsCount < 2}
-                      >
-                        Mesclar {selectedSegmentsCount} segmentos
-                      </Button>
-                      <Button
-                        onClick={handleDeleteMultipleSegments}
-                        variant="destructive"
-                      >
-                        Excluir {selectedSegmentsCount} segmentos
-                      </Button>
-                    </>
-                  )}
-                </div>
                 <MergeSegmentsDialog
                   open={mergeDialogOpen}
                   onOpenChange={setMergeDialogOpen}
                   selectedSegments={selectedSegments}
                   onConfirm={handleMergeSegments}
                 />
+                <div className="mb-6 rounded-md border bg-muted/20 p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                      Mesclagem automática sugerida
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={generateAutoMergeSuggestions}>
+                        Gerar sugestões
+                      </Button>
+                      {autoMergeSuggestions.length > 0 && (
+                        <Button
+                          size="sm"
+                          onClick={applyAutoMergeSuggestions}
+                          disabled={isApplyingAutoMerge}
+                        >
+                          {isApplyingAutoMerge
+                            ? "Aplicando..."
+                            : "Aplicar sugestões selecionadas"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {autoMergeSuggestions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Gere sugestões para revisar agrupamentos por nome, tipologia e hierarquia.
+                    </p>
+                  ) : (
+                    <div className="max-h-80 space-y-3 overflow-auto">
+                      {autoMergeSuggestions.map((suggestion) => {
+                        const suggestionSegments = segments.filter((segment) =>
+                          suggestion.candidateSegmentIds.includes(segment.id)
+                        );
+                        return (
+                          <div key={suggestion.id} className="rounded-md border bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={suggestion.enabled}
+                                  onCheckedChange={(checked) =>
+                                    toggleAutoMergeSuggestion(
+                                      suggestion.id,
+                                      Boolean(checked)
+                                    )
+                                  }
+                                />
+                                <p className="text-sm font-semibold">{suggestion.mergedName}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {suggestion.mergedType}
+                                {" · "}
+                                {suggestion.mergedClassification || "não classificada"}
+                              </p>
+                            </div>
+                            <p className="mb-2 text-xs text-muted-foreground">
+                              Revise os trechos sugeridos e desmarque os que não devem entrar.
+                            </p>
+                            <div className="space-y-1">
+                              {suggestionSegments.map((segment) => (
+                                <label
+                                  key={`${suggestion.id}-${segment.id}`}
+                                  className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-muted/40"
+                                >
+                                  <span className="flex items-center gap-2 text-sm">
+                                    <Checkbox
+                                      checked={suggestion.selectedSegmentIds.includes(
+                                        segment.id
+                                      )}
+                                      onCheckedChange={(checked) =>
+                                        toggleSegmentInSuggestion(
+                                          suggestion.id,
+                                          segment.id,
+                                          Boolean(checked)
+                                        )
+                                      }
+                                  />
+                                  {segment.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {Number(segment.length || 0).toFixed(4)} km
+                                </span>
+                              </label>
+                              ))}
+                            </div>
+                            {suggestion.selectedSegmentIds.length < 2 && (
+                              <p className="mt-2 text-xs text-destructive">
+                                Esta sugestão precisa de pelo menos 2 trechos para ser aplicada.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 {segments && segments.length > 0 ? (
                   <RefinementTableSortableWrapper
                     segments={segments}
@@ -635,18 +1152,81 @@ const RefinarDados = () => {
                     selectedSegments={selectedSegments}
                     onMergeSelected={handleMergeButtonClick}
                     onUpdateSegmentName={handleUpdateSegmentName}
+                    onUpdateSegmentTechnical={handleUpdateSegmentTechnical}
                     onDeleteSegment={handleDeleteSegment}
                     onUnmergeSegments={handleUnmergeSegments}
                     onUpdateSegmentClassification={
                       handleUpdateSegmentClassification
                     }
                     onUpdateSegmentType={handleUpdateSegmentType}
+                    technicalOpen={selectedSegmentsCount === 1}
+                    technicalSegment={
+                      selectedSegmentsCount === 1
+                        ? selectedSegments[0]
+                        : null
+                    }
+                    selectedSegmentsCount={selectedSegmentsCount}
+                    onMergeClick={handleMergeButtonClick}
+                    onDeleteClick={handleDeleteMultipleSegments}
+                    onClearSelectionClick={handleClearSelection}
                   />
                 ) : (
                   <div className="text-center py-8">
                     <p>Nenhum segmento encontrado para esta cidade.</p>
                   </div>
                 )}
+                <div className="mt-6 rounded-md border bg-muted/20 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+                      Lixeira de segmentos
+                    </h3>
+                    {deletedSegments.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={handleRestoreAllDeletedSegments}>
+                        Restaurar todos
+                      </Button>
+                    )}
+                  </div>
+                  {isLoadingTrash ? (
+                    <p className="text-sm text-muted-foreground">Carregando lixeira...</p>
+                  ) : deletedSegments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum segmento removido nesta cidade.
+                    </p>
+                  ) : (
+                    <div className="max-h-56 overflow-auto rounded-md border bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-left">
+                          <tr>
+                            <th className="px-3 py-2">Segmento</th>
+                            <th className="px-3 py-2">Tipo</th>
+                            <th className="px-3 py-2 text-right">km</th>
+                            <th className="px-3 py-2 text-right">Ação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deletedSegments.map((deleted) => (
+                            <tr key={deleted.id} className="border-t">
+                              <td className="px-3 py-2">{deleted.name}</td>
+                              <td className="px-3 py-2">{deleted.type || "-"}</td>
+                              <td className="px-3 py-2 text-right">
+                                {deleted.length?.toFixed?.(4) || "0.0000"}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void handleRestoreDeletedSegment(deleted.id)}
+                                >
+                                  Restaurar
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 <div className="mt-8 flex justify-between">
                   <Button
@@ -678,7 +1258,7 @@ const RefinarDados = () => {
                   className="text-2xl md:text-3xl font-bold text-text-grey bg-ideciclo-blue 
                            mx-auto px-6 py-4 rounded-[40px] shadow-[0px_6px_8px_rgba(0,0,0,0.25)] text-white"
                 >
-                  Selecionar Cidade
+                  Aprimorar Dados
                 </h2>
               </div>
             </div>
@@ -686,25 +1266,21 @@ const RefinarDados = () => {
             <div className="max-w-2xl mx-auto">
               <div className="rounded bg-white shadow-2xl p-8">
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-semibold mb-2">Cidades Já Baixadas</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    Selecione uma cidade na página de avaliação
+                  </h3>
                   <p className="text-gray-600 text-sm">
-                    Selecione uma cidade que já foi baixada para refinar seus dados
+                    Esta etapa agora é dedicada apenas ao aprimoramento. Volte para
+                    <strong> Avaliação</strong>, escolha a cidade e então retorne para revisar os
+                    trechos.
                   </p>
                 </div>
-                
                 <div className="flex justify-center">
-                  <StoredCitiesSelection onCitySelected={handleCitySelected} />
-                </div>
-                
-                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                  <p className="text-gray-600 text-sm mb-4">
-                    Não encontrou sua cidade? Baixe os dados de uma nova cidade
-                  </p>
-                  <Button 
-                    onClick={() => navigate("/avaliacao/baixar-dados")}
-                    className="bg-ideciclo-yellow hover:bg-yellow-500 text-black px-8 py-3 text-lg font-semibold rounded-[20px] shadow-lg"
+                  <Button
+                    onClick={() => navigate("/avaliacao")}
+                    className="bg-ideciclo-blue hover:bg-blue-600"
                   >
-                    Baixar Nova Cidade
+                    Voltar para Avaliação
                   </Button>
                 </div>
               </div>

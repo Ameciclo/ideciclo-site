@@ -49,10 +49,10 @@ export const SupportersSection = ({ partners, consultants, sponsors }) => {
 
       <div className="mb-12">
         <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">
-          Parceria
+          Patrocínio
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {partners.map(renderOrganizationCard)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {sponsors.map(renderOrganizationCard)}
         </div>
       </div>
 
@@ -67,10 +67,10 @@ export const SupportersSection = ({ partners, consultants, sponsors }) => {
 
       <div className="mb-12">
         <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">
-          Patrocínio
+          Organizações apoiadoras
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {sponsors.map(renderOrganizationCard)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {partners.map(renderOrganizationCard)}
         </div>
       </div>
     </div>

@@ -1,7 +1,20 @@
-import IdecicloForm from "@/pages/IdecicloForm";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
+import IdecicloFormPage from "@/pages/avaliacao/form/IdecicloFormPage";
 
 const AvaliarEstrutura = () => {
-  return <IdecicloForm />;
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const selectedSegmentId = sessionStorage.getItem("selectedSegmentId");
+
+    if (!selectedSegmentId) {
+      navigate("/avaliacao/escolher-estrutura", { replace: true });
+    }
+  }, [navigate]);
+
+  return <IdecicloFormPage />;
 };
 
 export default AvaliarEstrutura;

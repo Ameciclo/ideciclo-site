@@ -1,6 +1,15 @@
 
-import { City, IBGECity, IBGEState, OverpassResponse, Segment, SegmentType } from "@/types";
+import {
+  City,
+  IBGECity,
+  IBGEState,
+  OverpassElement,
+  OverpassResponse,
+  Segment,
+  SegmentType,
+} from "@/types";
 import * as turf from '@turf/turf';
+import { ParsedOsmAdvancedSegment, parseOsmAdvancedSegment } from "./osmAdvancedParser";
 import { 
   fetchCityFromDB, 
   saveCityToDB, 
@@ -10,6 +19,9 @@ import {
   clearLocalStorage,
   saveSegmentToDB,
   removeSegmentsFromDB,
+  hardDeleteSegmentsFromDB,
+  fetchDeletedSegmentsFromDB,
+  restoreSegmentsFromDB,
   unmergeSegmentsFromDB,
   fetchAllStoredCities
 } from "./database";
@@ -35,6 +47,45 @@ const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 
     }
   }
   
+  throw lastError;
+};
+
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+
+const postOverpassWithFallback = async (
+  query: string,
+  retries = 3,
+  delay = 1000
+) => {
+  let lastError;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: query,
+        },
+        retries,
+        delay
+      );
+
+      return response;
+    } catch (error) {
+      lastError = error;
+      console.warn(`Overpass endpoint failed: ${endpoint}`, error);
+    }
+  }
+
   throw lastError;
 };
 
@@ -148,20 +199,13 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
       // We'll use the name-based query instead of IBGE code
       const raName = getRegionNameById(cityId);
       if (raName) {
-        const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
         const query = `
           [out:json][timeout:900];
           area["name"="${raName}"]["admin_level"="9"]["is_in:state"="Distrito Federal"];
           out ids;
         `;
 
-        const response = await fetchWithRetry(OVERPASS_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: query,
-        });
+        const response = await postOverpassWithFallback(query, 3, 2000);
 
         const data = await response.json();
         const areaId = data.elements[0]?.id;
@@ -200,18 +244,10 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
         `
       ];
       
-      const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-      
       // Try each query until we find a valid area ID
       for (const query of queries) {
         try {
-          const response = await fetchWithRetry(OVERPASS_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: query,
-          });
+          const response = await postOverpassWithFallback(query, 3, 2000);
           
           const data = await response.json();
           const areaId = data.elements[0]?.id;
@@ -233,20 +269,13 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
     }
     
     // Standard approach for other cities using IBGE code
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     const query = `
       [out:json][timeout:900];
       area["IBGE:GEOCODIGO"=${cityId}];
       out ids;
     `;
 
-    const response = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: query,
-    });
+    const response = await postOverpassWithFallback(query, 3, 2000);
 
     const data = await response.json();
     
@@ -266,10 +295,9 @@ export const getOverpassAreaId = async (cityId: string): Promise<number> => {
 export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassResponse> => {
   try {
     const areaId = await getOverpassAreaId(cityId);
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
     // Increase timeout for Distrito Federal regions
-    const timeout = cityId.startsWith('53001') ? 1200 : 900;
+    const timeout = cityId.startsWith('53001') ? 1200 : 1200;
 
     const query = `
       [out:json][timeout:${timeout}];
@@ -287,13 +315,7 @@ export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassRes
       }
     `;
 
-    const response = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: query,
-    }, 3, 2000); // More retries and longer delay for complex queries
+    const response = await postOverpassWithFallback(query, 3, 2000);
 
     return response.json();
   } catch (error) {
@@ -305,10 +327,9 @@ export const fetchCityHighwayStats = async (cityId: string): Promise<OverpassRes
 export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> => {
   try {
     const areaId = await getOverpassAreaId(cityId);
-    const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
     
     // Increase timeout for Distrito Federal regions
-    const timeout = cityId.startsWith('53001') ? 120 : 60;
+    const timeout = cityId.startsWith('53001') ? 180 : 180;
     
     // First query: Get all bicycle infrastructure
     const cycleQuery = `
@@ -332,13 +353,7 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     out geom;
     `;
 
-    const cycleResponse = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: cycleQuery,
-    }, 3, 2000);
+    const cycleResponse = await postOverpassWithFallback(cycleQuery, 3, 2000);
     
     const cycleData = await cycleResponse.json();
     
@@ -372,7 +387,7 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
     // Use a larger buffer to ensure we get all relevant roads
     const bufferDegrees = 0.005; // Approximately 500m at the equator
     // Increase timeout for Distrito Federal regions
-    const roadsTimeout = cityId.startsWith('53001') ? 120 : 60;
+    const roadsTimeout = cityId.startsWith('53001') ? 180 : 180;
     
     const roadsQuery = `
     [out:json][timeout:${roadsTimeout}];
@@ -384,26 +399,23 @@ export const fetchCityWays = async (cityId: string): Promise<OverpassResponse> =
       way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
       
       // Local roads
-      way["highway"~"^(residential|unclassified)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
+      way["highway"~"^(residential|unclassified|living_street|service)$"](${minLat-bufferDegrees},${minLon-bufferDegrees},${maxLat+bufferDegrees},${maxLon+bufferDegrees});
     );
     out geom;
     `;
     
-    const roadsResponse = await fetchWithRetry(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: roadsQuery,
-    }, 3, 2000);
-    
-    const roadsData = await roadsResponse.json();
-    
-    // Combine both responses
-    return {
-      ...cycleData,
-      elements: [...cycleData.elements, ...roadsData.elements]
-    };
+    try {
+      const roadsResponse = await postOverpassWithFallback(roadsQuery, 3, 2000);
+      const roadsData = await roadsResponse.json();
+
+      return {
+        ...cycleData,
+        elements: [...cycleData.elements, ...roadsData.elements]
+      };
+    } catch (roadsError) {
+      console.warn("Failed to fetch nearby roads for classification; returning cycle data only:", roadsError);
+      return cycleData;
+    }
   } catch (error) {
     console.error("Error fetching city ways:", error);
     throw new Error(`Falha ao obter dados cicloviários para a cidade ${cityId}. O serviço Overpass API pode estar indisponível ou com lentidão. Por favor, tente novamente mais tarde.`);
@@ -523,8 +535,8 @@ export const determineSegmentClassification = (tags: Record<string, string>): st
   else if (['secondary', 'secondary_link', 'tertiary', 'tertiary_link'].includes(highway)) {
     return "alimentadora";
   } 
-  // Locais: residential, unclassified
-  else if (['residential', 'unclassified'].includes(highway)) {
+  // Locais: residential, unclassified, living_street, service
+  else if (['residential', 'unclassified', 'living_street', 'service'].includes(highway)) {
     return "local";
   }
   
@@ -815,7 +827,7 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
               coordinates: [coordinates]
             },
             selected: false,
-            evaluated: false
+            evaluated: false,
           };
         } catch (error) {
           console.error(`Error processing segment ${element.id}:`, error);
@@ -829,6 +841,103 @@ export const convertToSegments = (data: OverpassResponse, cityId: string): Segme
   }
 };
 
+const buildRoadsAroundBboxQuery = (
+  minLat: number,
+  minLon: number,
+  maxLat: number,
+  maxLon: number
+) => `
+  [out:json][timeout:90];
+  (
+    way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+    way["highway"~"^(secondary|secondary_link|tertiary|tertiary_link)$"](${minLat},${minLon},${maxLat},${maxLon});
+    way["highway"~"^(residential|unclassified|living_street|service)$"](${minLat},${minLon},${maxLat},${maxLon});
+  );
+  out geom;
+`;
+
+export const fetchSegmentOsmAdvancedData = async (
+  osmIds: string[]
+): Promise<ParsedOsmAdvancedSegment[]> => {
+  const numericIds = Array.from(
+    new Set(
+      osmIds
+        .map((value) => value.trim())
+        .filter((value) => /^\d+$/.test(value))
+    )
+  );
+
+  if (numericIds.length === 0) {
+    return [];
+  }
+
+  try {
+    const waysQuery = `
+      [out:json][timeout:90];
+      way(id:${numericIds.join(",")});
+      out geom;
+    `;
+
+    const waysResponse = await postOverpassWithFallback(waysQuery, 2, 1500);
+    const waysData: OverpassResponse = await waysResponse.json();
+    const ways = (waysData.elements || []).filter(
+      (element): element is OverpassElement =>
+        element.type === "way" &&
+        Boolean(element.geometry) &&
+        Array.isArray(element.geometry) &&
+        element.geometry.length >= 2
+    );
+
+    if (ways.length === 0) {
+      return [];
+    }
+
+    const allCoords = ways.flatMap((way) => way.geometry || []);
+    let roads: OverpassElement[] = [];
+
+    if (allCoords.length > 0) {
+      const lats = allCoords.map((coord) => coord.lat);
+      const lons = allCoords.map((coord) => coord.lon);
+      const minLat = Math.min(...lats) - 0.002;
+      const maxLat = Math.max(...lats) + 0.002;
+      const minLon = Math.min(...lons) - 0.002;
+      const maxLon = Math.max(...lons) + 0.002;
+
+      const roadsQuery = buildRoadsAroundBboxQuery(minLat, minLon, maxLat, maxLon);
+      const roadsResponse = await postOverpassWithFallback(roadsQuery, 2, 1500);
+      const roadsData: OverpassResponse = await roadsResponse.json();
+      roads = (roadsData.elements || []).filter(
+        (element): element is OverpassElement =>
+          element.type === "way" &&
+          Boolean(element.tags?.highway) &&
+          Boolean(element.geometry) &&
+          Array.isArray(element.geometry) &&
+          element.geometry.length >= 2
+      );
+    }
+
+    return ways.map((way) => {
+      const inferredType = determineSegmentType(way.tags);
+      let inferredHierarchy = determineSegmentClassification(way.tags);
+
+      if (way.tags.highway === "cycleway") {
+        const nearbyRoad = findNearbyRoad(way, roads);
+        if (nearbyRoad) {
+          inferredHierarchy =
+            determineSegmentClassification(nearbyRoad.tags) || inferredHierarchy;
+        }
+      }
+
+      return parseOsmAdvancedSegment(way, roads, inferredType, inferredHierarchy);
+    });
+  } catch (error) {
+    console.error("Error fetching advanced OSM data by segment IDs:", error);
+    throw new Error(
+      "Falha ao buscar complemento técnico no OSM. Tente novamente em instantes."
+    );
+  }
+};
+
 export const mergeGeometry = (segments: Segment[]): any => {
   const allCoordinates: number[][][] = segments.flatMap(segment => segment.geometry.coordinates);
 
@@ -839,15 +948,13 @@ export const mergeGeometry = (segments: Segment[]): any => {
 };
 
 export const calculateMergedLength = (segments: Segment[]): number => {
-  const selectedSegments = segments.filter(segment => segment.selected);
-  
-  if (selectedSegments.length === 0) return 0;
-  
+  if (segments.length === 0) return 0;
+
   let totalLength = 0;
-  selectedSegments.forEach(segment => {
+  segments.forEach(segment => {
     totalLength += segment.length;
   });
-  
+
   return parseFloat(totalLength.toFixed(4));
 };
 
@@ -891,7 +998,22 @@ export const createMergedSegment = async (
     type: segment.type,
     classification: segment.classification,
     length: segment.length,
-    originalGeometry: segment.geometry
+    originalGeometry: segment.geometry,
+    blocks_count: segment.blocks_count,
+    intersections_count: segment.intersections_count,
+    relevant_intersections_count: segment.relevant_intersections_count,
+    connected_intersections_count: segment.connected_intersections_count,
+    osm_id: segment.osm_id,
+    osm_type: segment.osm_type,
+    osm_tags: segment.osm_tags,
+    osm_raw: segment.osm_raw,
+    osm_confidence: segment.osm_confidence,
+    ideciclo_prefill: segment.ideciclo_prefill,
+    osm_improvement_suggestions: segment.osm_improvement_suggestions,
+    estimated_blocks_count: segment.estimated_blocks_count,
+    estimated_intersections_count: segment.estimated_intersections_count,
+    intersections_preview: segment.intersections_preview,
+    osm_advanced: segment.osm_advanced,
   }));
 
   // Create the parent merged segment
@@ -921,6 +1043,54 @@ export const createMergedSegment = async (
   return { mergedSegment, childSegments };
 };
 
+const flattenSegmentsForMerge = (segments: Segment[]): Segment[] => {
+  const flattened = new Map<string, Segment>();
+
+  segments.forEach((segment) => {
+    if (segment.is_merged && segment.merged_segments?.length) {
+      segment.merged_segments.forEach((mergedInfo: any) => {
+        if (!flattened.has(mergedInfo.id)) {
+          flattened.set(mergedInfo.id, {
+            id: mergedInfo.id,
+            id_cidade: segment.id_cidade,
+            name: mergedInfo.name,
+            type: mergedInfo.type,
+            classification: mergedInfo.classification,
+            length: mergedInfo.length,
+            geometry: mergedInfo.originalGeometry,
+            blocks_count: mergedInfo.blocks_count,
+            intersections_count: mergedInfo.intersections_count,
+            relevant_intersections_count: mergedInfo.relevant_intersections_count,
+            connected_intersections_count: mergedInfo.connected_intersections_count,
+            osm_id: mergedInfo.osm_id,
+            osm_type: mergedInfo.osm_type,
+            osm_tags: mergedInfo.osm_tags,
+            osm_raw: mergedInfo.osm_raw,
+            osm_confidence: mergedInfo.osm_confidence,
+            ideciclo_prefill: mergedInfo.ideciclo_prefill,
+            osm_improvement_suggestions: mergedInfo.osm_improvement_suggestions,
+            estimated_blocks_count: mergedInfo.estimated_blocks_count,
+            estimated_intersections_count: mergedInfo.estimated_intersections_count,
+            intersections_preview: mergedInfo.intersections_preview,
+            osm_advanced: mergedInfo.osm_advanced,
+            neighborhood: segment.neighborhood,
+            selected: false,
+            evaluated: false,
+          });
+        }
+      });
+      return;
+    }
+
+    flattened.set(segment.id, {
+      ...segment,
+      selected: false,
+    });
+  });
+
+  return Array.from(flattened.values());
+};
+
 // Enhanced function to handle merging with already merged segments
 export const mergeSegmentsInDB = async (
   selectedSegments: Segment[],
@@ -931,88 +1101,59 @@ export const mergeSegmentsInDB = async (
   try {
     console.log("Starting merge process for segments:", selectedSegments.map(s => s.id));
     
-    // Check if any of the selected segments is already a merged segment
-    const alreadyMergedSegment = selectedSegments.find(s => s.is_merged && s.merged_segments);
-    const newSegmentsToMerge = selectedSegments.filter(s => !s.is_merged || !s.merged_segments);
-    
-    if (alreadyMergedSegment && newSegmentsToMerge.length > 0) {
-      console.log("Merging new segments with existing merged segment:", alreadyMergedSegment.id);
-      
-      // Get all existing merged segments info
-      const existingMergedSegments = alreadyMergedSegment.merged_segments || [];
-      
-      // Create info for new segments being added
-      const newMergedSegmentInfo = newSegmentsToMerge.map(segment => ({
-        id: segment.id,
-        name: segment.name,
-        type: segment.type,
-        length: segment.length,
-        originalGeometry: segment.geometry
-      }));
-      
-      // Combine existing and new merged segments info
-      const allMergedSegments = [...existingMergedSegments, ...newMergedSegmentInfo];
-      
-      // Calculate new geometry by combining all segments
-      const allSegmentsForGeometry = [
-        alreadyMergedSegment,
-        ...newSegmentsToMerge
-      ];
-      const updatedGeometry = mergeGeometry(allSegmentsForGeometry);
-      const updatedLength = alreadyMergedSegment.length + newSegmentsToMerge.reduce((sum, s) => sum + s.length, 0);
-      
-      // Update the existing merged segment
-      const updatedMergedSegment: Segment = {
-        ...alreadyMergedSegment,
-        name: mergedName,
-        type: mergedType,
-        classification: mergedClassification,
-        length: parseFloat(updatedLength.toFixed(4)),
-        geometry: updatedGeometry,
-        merged_segments: allMergedSegments,
-        selected: false
-      };
-      
-      console.log("Updating existing merged segment:", updatedMergedSegment.id);
-      await updateSegmentInDB(updatedMergedSegment);
-      
-      // Update the new segments to be children of the merged segment
-      for (const newSegment of newSegmentsToMerge) {
-        const childSegment: Segment = {
-          ...newSegment,
-          parent_segment_id: alreadyMergedSegment.id,
-          selected: false
-        };
-        console.log("Updating new child segment:", childSegment.id);
-        await updateSegmentInDB(childSegment);
-      }
-      
-      return true;
+    const selectedMergedParents = selectedSegments.filter(
+      (segment) => segment.is_merged && segment.merged_segments?.length
+    );
+    const flattenedSegments = flattenSegmentsForMerge(selectedSegments);
+
+    const { mergedSegment, childSegments } = await createMergedSegment(
+      flattenedSegments,
+      mergedName,
+      mergedType,
+      mergedClassification
+    );
+
+    const targetParent = selectedMergedParents[0];
+    const mergedParentId = targetParent?.id || mergedSegment.id;
+    const parentPayload: Segment = {
+      ...(targetParent || mergedSegment),
+      ...mergedSegment,
+      id: mergedParentId,
+      id_cidade: flattenedSegments[0].id_cidade,
+      selected: false,
+    };
+
+    if (targetParent) {
+      console.log("Updating existing merged parent:", mergedParentId);
+      await updateSegmentInDB({
+        ...parentPayload,
+        id_cidade: flattenedSegments[0].id_cidade,
+      });
     } else {
-      // Standard merge of non-merged segments
-      const { mergedSegment, childSegments } = await createMergedSegment(
-        selectedSegments, 
-        mergedName, 
-        mergedType,
-        mergedClassification
-      );
-
-      console.log("Created merged segment:", mergedSegment.id);
-      console.log("Child segments to update:", childSegments.map(s => s.id));
-
-      // Save the merged segment first
-      await saveSegmentToDB(mergedSegment);
-      console.log("Saved merged segment to DB");
-
-      // Update the original segments to be children of the merged segment
-      for (const childSegment of childSegments) {
-        console.log("Updating child segment:", childSegment.id);
-        await updateSegmentInDB(childSegment);
-      }
-
-      console.log("Merge process completed successfully");
-      return true;
+      console.log("Creating new merged parent:", mergedParentId);
+      await saveSegmentToDB(parentPayload);
     }
+
+    for (const childSegment of childSegments) {
+      console.log("Updating child segment:", childSegment.id);
+      await updateSegmentInDB({
+        ...childSegment,
+        id_cidade: flattenedSegments[0].id_cidade,
+        parent_segment_id: mergedParentId,
+        selected: false,
+      });
+    }
+
+    const redundantParentSegments = selectedMergedParents
+      .slice(1)
+      .map((segment) => segment.id);
+
+    if (redundantParentSegments.length > 0) {
+      await hardDeleteSegmentsFromDB(redundantParentSegments);
+    }
+
+    console.log("Merge process completed successfully");
+    return true;
   } catch (error) {
     console.error("Error merging segments in database:", error);
     return false;
@@ -1041,22 +1182,23 @@ export const storeCityData = async (cityId: string, data: { city: Partial<City>,
     // Store city in database
     const cityResult = await saveCityToDB(data.city);
     if (!cityResult) {
-      console.error("Failed to save city to database");
-      return false;
+      throw new Error(`Falha ao salvar a cidade ${cityId} no banco.`);
     }
     
     // Store segments in database
     const segmentsResult = await saveSegmentsToDB(data.segments);
     if (!segmentsResult) {
-      console.error("Failed to save segments to database");
-      return false;
+      throw new Error(`Falha ao salvar os segmentos da cidade ${cityId} no banco.`);
     }
     
     console.log(`Successfully stored city ${cityId} in database`);
     return true;
   } catch (error) {
     console.error("Error storing city data:", error);
-    return false;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`Erro inesperado ao salvar os dados da cidade ${cityId} no banco.`);
   }
 };
 
@@ -1086,6 +1228,24 @@ export const deleteMultipleSegments = async (segmentIds: string[]): Promise<bool
     return true;
   } catch (error) {
     console.error("Error deleting multiple segments:", error);
+    return false;
+  }
+};
+
+export const fetchDeletedSegments = async (cityId: string): Promise<Segment[]> => {
+  try {
+    return await fetchDeletedSegmentsFromDB(cityId);
+  } catch (error) {
+    console.error("Error fetching deleted segments:", error);
+    return [];
+  }
+};
+
+export const restoreDeletedSegments = async (segmentIds: string[]): Promise<boolean> => {
+  try {
+    return await restoreSegmentsFromDB(segmentIds);
+  } catch (error) {
+    console.error("Error restoring deleted segments:", error);
     return false;
   }
 };
@@ -1135,7 +1295,11 @@ export const getStoredCityData = async (cityId: string): Promise<{ city: Partial
 export const updateSegmentName = async (cityId: string, segmentId: string, newName: string): Promise<boolean> => {
   try {
     // Update in database only
-    const result = await updateSegmentInDB({ id: segmentId, name: newName });
+    const result = await updateSegmentInDB({
+      id: segmentId,
+      id_cidade: cityId,
+      name: newName,
+    });
     return result !== null;
   } catch (error) {
     console.error("Error updating segment name:", error);    

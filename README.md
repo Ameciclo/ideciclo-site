@@ -1,203 +1,412 @@
-# IDECICLO - Plataforma Digital
+# IDECICLO
 
-> Plataforma digital para avaliação da qualidade da infraestrutura cicloviária urbana
+Plataforma web para baixar, refinar, avaliar e publicar resultados do IDECICLO por cidade, com autenticação por magic link, controle de permissões por escopo territorial e painel administrativo.
 
-## 📋 Sobre o Projeto
+## Visão geral
 
-O **IDECICLO** (Índice de Desenvolvimento Cicloviário) é uma metodologia de avaliação qualitativa da infraestrutura cicloviária que considera não apenas a extensão das ciclovias e ciclofaixas, mas também a segurança, qualidade e o contexto viário em que estão inseridas.
+O projeto combina:
 
-Esta plataforma digital foi desenvolvida para facilitar o processo de coleta, análise e visualização dos dados do IDECICLO, permitindo que pesquisadores registrem avaliações de campo, gestores acessem relatórios e cidadãos consultem informações sobre a qualidade da infraestrutura cicloviária em suas cidades.
+- portal público com apresentação da metodologia, ranking e páginas de detalhe;
+- fluxo protegido de avaliação por cidade;
+- persistência em PostgreSQL;
+- rotas server-side locais em `/api/auth/*` e `/api/db/*`;
+- autenticação por link mágico enviado por e-mail;
+- gestão administrativa de usuários, permissões e solicitações de acesso.
 
-### 🎯 Funcionalidades Principais
+## Sobre o IDECICLO
 
-- **Avaliação de Campo**: Formulário digital para coleta de dados in loco
-- **Mapeamento Interativo**: Visualização geográfica dos segmentos avaliados
-- **Cálculo Automático**: Processamento das notas baseado na metodologia IDECICLO
-- **Ranking Nacional**: Comparação entre cidades avaliadas
-- **Relatórios**: Geração de documentos e análises detalhadas
-- **Gestão de Dados**: Sistema completo para armazenamento e consulta
+O IDECICLO é uma metodologia de avaliação qualitativa da infraestrutura cicloviária urbana. Em vez de medir apenas extensão de ciclovias e ciclofaixas, a plataforma trabalha com qualidade da infraestrutura, segurança e contexto viário.
 
-### 🏛️ Desenvolvido por
+A metodologia considera 23 parâmetros organizados em 5 eixos:
 
-**Ameciclo** - Associação Metropolitana de Ciclistas do Recife
+- Planejamento cicloviário
+- Projeto cicloviário ao longo da quadra
+- Projeto cicloviário nas interseções
+- Urbanidade
+- Manutenção da infraestrutura
 
-Criado inicialmente em 2016 e atualizado em 2024 com colaboração de especialistas e organizações não governamentais.
+O projeto é mantido no contexto da Ameciclo e foi estruturado para apoiar avaliação técnica, incidência pública e comparação entre cidades.
 
-## 🚀 Começando
+Hoje a página inicial oferece três materiais principais:
 
-### Pré-requisitos
+- `Manual` em `public/manual_ideciclo.pdf`;
+- `Formulário` em link externo;
+- `Cálculo do IDECICLO` em `public/resumo_ideciclo.pdf`.
 
-- Node.js (versão 18 ou superior)
-- npm ou yarn
-- Git
+## O que a aplicação faz
 
-### Instalação
+### Área pública
 
-```bash
-# Clone o repositório
-git clone <URL_DO_REPOSITORIO>
+- `/` página inicial com apresentação, materiais e navegação para a metodologia.
+- `/sobre` explicação do IDECICLO.
+- `/apoiadores` parceiros e apoiadores.
+- `/ranking` ranking nacional das cidades publicadas.
+- `/detalhes-cidades/:cityId` página pública de resultados por cidade.
+- `/detalhes-cidades/:cityId/estruturas/:segmentId` detalhe público de um trecho avaliado.
 
-# Navegue até o diretório
-cd ideciclo-site
+### Fluxo de avaliação
 
-# Instale as dependências
-npm install
+- `/avaliacao` escolha da cidade ativa e entrada para o fluxo protegido.
+- `/avaliacao/refinar-dados` refinamento da malha cicloviária da cidade.
+- `/avaliacao/escolher-estrutura` seleção do trecho a ser avaliado.
+- `/avaliacao/avaliar-estrutura` apoio à avaliação do trecho.
+- `/avaliacao/formulario-ideciclo/:segmentId` formulário IDECICLO.
+- `/avaliacao/resultados` consolidação da nota, visualização e liberação para ranking.
 
-# Inicie o servidor de desenvolvimento
-npm run dev
-```
+### Autenticação e acesso
 
-### Scripts Disponíveis
+- `/login` envio de magic link.
+- `/solicitar-acesso` solicitação de acesso com verificação de e-mail.
+- `/auth/verify` consumo do magic link de login.
+- `/auth/logout` encerramento de sessão.
+- `/admin` painel administrativo de usuários e solicitações.
 
-```bash
-# Desenvolvimento
-npm run dev
+## Fluxos principais
 
-# Build para produção
-npm run build
+### 1. Avaliar uma cidade
 
-# Build para desenvolvimento
-npm run build:dev
+1. Entrar em `/avaliacao`.
+2. Selecionar estado e cidade.
+3. Ativar a cidade na sessão atual.
+4. Refinar os segmentos em `/avaliacao/refinar-dados`.
+5. Escolher um trecho e preencher o formulário IDECICLO.
+6. Consultar os resultados em `/avaliacao/resultados`.
+7. Se fizer sentido, liberar a cidade para aparecer no ranking.
 
-# Linting
-npm run lint
+### 2. Solicitar acesso
 
-# Preview da build
-npm run preview
-```
+1. A pessoa preenche `/solicitar-acesso`.
+2. O sistema envia um e-mail de verificação.
+3. Após a confirmação do e-mail, a solicitação fica `pending_review`.
+4. Um admin revisa no painel `/admin`.
+5. Se aprovada, as permissões são criadas conforme o tipo de interesse e o escopo informado.
 
-## 🛠️ Tecnologias Utilizadas
+### 3. Entrar no sistema
+
+1. A pessoa informa o e-mail em `/login`.
+2. Se o e-mail já tiver acesso, o sistema envia um magic link.
+3. O link leva para `/auth/verify` e cria a sessão autenticada.
+
+## Modelo de permissões
+
+### Papéis
+
+- `admin_global`
+- `admin_estado`
+- `admin_cidade`
+- `avaliador_estrutura_cicloviaria`
+- `refinador_dados_cidade`
+- `visualizador`
+
+### Módulos protegidos
+
+- `admin`
+- `avaliacao_estrutura_cicloviaria`
+- `refinamento_dados_cidade`
+
+### Escopo territorial
+
+As permissões podem ser:
+
+- globais;
+- por estado;
+- por cidade.
+
+O acesso é calculado com base em `role`, `module`, `state` e `city`.
+
+### Regras administrativas atuais
+
+- `admin_global` tem acesso total.
+- `admin_estado` e `admin_cidade` acessam o painel admin dentro do próprio escopo.
+- Admin regional pode revisar solicitações de acesso da própria jurisdição.
+- Admin regional só pode conceder `visualizador`, `avaliador_estrutura_cicloviaria` e `refinador_dados_cidade`.
+- Admin regional não pode conceder novos papéis de admin.
+- Usuário não pode alterar o próprio status nem as próprias permissões.
+
+## Ranking
+
+Uma cidade só aparece em `/ranking` quando as duas condições abaixo são verdadeiras:
+
+1. `show_in_ranking !== false`
+2. existe pelo menos um formulário salvo em `public.forms` para a cidade
+
+Na tela `/avaliacao/resultados`, a ação de liberação para ranking abre um modal com:
+
+- pendências obrigatórias;
+- pendências não obrigatórias;
+- aviso explícito de que sem formulário salvo a cidade não entra no ranking.
+
+## Arquitetura local
 
 ### Frontend
-- **React 19** - Biblioteca para interfaces de usuário
-- **TypeScript** - Superset tipado do JavaScript
-- **Vite** - Build tool e dev server
-- **React Router** - Roteamento
 
-### UI/UX
-- **Tailwind CSS** - Framework CSS utilitário
-- **shadcn/ui** - Componentes de interface
-- **Radix UI** - Primitivos de componentes acessíveis
-- **Lucide React** - Ícones
+- React
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- shadcn/ui
 
-### Mapas e Geolocalização
-- **Leaflet** - Biblioteca de mapas interativos
-- **React Leaflet** - Componentes React para Leaflet
-- **Turf.js** - Análise geoespacial
+### Dados e mapas
 
-### Dados e Estado
-- **Supabase** - Backend como serviço
-- **TanStack Query** - Gerenciamento de estado do servidor
-- **React Hook Form** - Gerenciamento de formulários
-- **Zod** - Validação de esquemas
+- PostgreSQL
+- rotas Node locais em `/api/auth/*` e `/api/db/*`
+- OpenStreetMap / Overpass para malha cicloviária
+- IBGE para estados e municípios
+- Mapbox para mapas interativos no frontend
 
-### Utilitários
-- **date-fns** - Manipulação de datas
-- **html2pdf.js** - Geração de PDFs
-- **Recharts** - Gráficos e visualizações
+### Observação sobre o backend local
 
-## 📁 Estrutura do Projeto
+No desenvolvimento normal, `npm run dev` já sobe o Vite e injeta middleware para atender:
 
-```
-src/
-├── components/          # Componentes reutilizáveis
-│   ├── ui/             # Componentes de interface base
-│   ├── CityMap.tsx     # Mapa interativo das cidades
-│   ├── Navbar.tsx      # Barra de navegação
-│   └── ...
-├── pages/              # Páginas da aplicação
-│   ├── Index.tsx       # Página inicial
-│   ├── About.tsx       # Sobre o IDECICLO
-│   ├── Avaliacao.tsx   # Formulário de avaliação
-│   ├── Ranking.tsx     # Ranking das cidades
-│   └── ...
-├── services/           # Serviços e APIs
-│   ├── api.ts          # Configuração da API
-│   └── database.ts     # Operações do banco
-├── types/              # Definições de tipos TypeScript
-├── utils/              # Funções utilitárias
-│   └── idecicloCalculator.ts  # Cálculos do IDECICLO
-└── hooks/              # Hooks customizados
-```
+- `/api/auth/*`
+- `/api/db/*`
 
-## 🗺️ Metodologia IDECICLO
+Ou seja, para desenvolvimento local comum não é necessário subir um servidor HTTP separado para a API.
 
-### Parâmetros de Avaliação
+O comando `npm run auth:dev` existe para rodar o servidor de autenticação isoladamente, mas ele não é obrigatório para o fluxo padrão do projeto.
 
-A metodologia avalia **23 parâmetros** organizados em **5 eixos**:
+## Pré-requisitos
 
-1. **Planejamento Cicloviário** (2 parâmetros)
-2. **Projeto Cicloviário ao Longo da Quadra** (11 parâmetros)
-3. **Projeto Cicloviário nas Interseções** (3 parâmetros)
-4. **Urbanidade** (3 parâmetros)
-5. **Manutenção da Infraestrutura** (4 parâmetros)
+- Node.js 18 ou superior
+- npm
+- Docker e Docker Compose
+- acesso à internet para IBGE e Overpass
+- token do Mapbox para visualizar mapas interativos
 
-### Diferencial
+## Instalação local
 
-O IDECICLO pondera a avaliação de acordo com a **velocidade máxima permitida** nas vias, dando maior peso às estruturas em vias de alta velocidade, onde a proteção ao ciclista é mais crítica.
-
-## 🎯 Público-Alvo
-
-- **Gestores Públicos**: Planejamento e justificativa de melhorias
-- **Técnicos e Planejadores**: Incorporação de indicadores em projetos
-- **Organizações Cicloativistas**: Incidência e reivindicações baseadas em dados
-- **Pesquisadores**: Estudos sobre mobilidade urbana e segurança viária
-- **Ciclistas e Conselhos**: Diálogo qualificado com o poder público
-
-## 📊 Como Usar a Plataforma
-
-1. **Preparação**: Leia o manual e organize a equipe
-2. **Mapeamento**: Identifique os segmentos a serem avaliados
-3. **Avaliação**: Colete dados em campo usando o formulário digital
-4. **Análise**: Visualize resultados e relatórios gerados
-5. **Ação**: Use os dados para advocacy e melhorias
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Para contribuir:
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto é uma ferramenta aberta e replicável, desenvolvida para fortalecer o planejamento participativo e promover cidades mais seguras para ciclistas.
-
-## 📞 Contato
-
-**Ameciclo** - Associação Metropolitana de Ciclistas do Recife
-
----
-
-## 🔧 Desenvolvimento
-
-### Configuração do Ambiente
-
-O projeto utiliza Supabase como backend. Configure as variáveis de ambiente necessárias:
+### 1. Instalar dependências
 
 ```bash
-# .env.local
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+npm install
 ```
 
-### Deploy
+### 2. Criar o arquivo de ambiente
 
-O projeto pode ser deployado em qualquer plataforma que suporte aplicações React/Vite:
+Use `.env.example` como base:
 
-- **Vercel**: Deploy automático via Git
-- **Netlify**: Build e deploy contínuo
-- **AWS S3 + CloudFront**: Hospedagem estática
-- **Lovable**: [Deploy direto pela plataforma](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c)
+```bash
+cp .env.example .env.local
+```
 
-### Lovable Integration
+Exemplo mínimo:
 
-Este projeto foi desenvolvido com [Lovable](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c) e suporta:
+```env
+DATABASE_URL=postgresql://ideciclo:change_me_local_password@127.0.0.1:54322/ideciclo
+APP_URL=http://127.0.0.1:8080
+EMAIL_FROM=no-reply@ideciclo.local
+MAGIC_LINK_SECRET=change_me_magic_link_secret
+AUTH_COOKIE_SECURE=false
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_SECURE=false
+AUTH_MAGIC_LINK_RATE_LIMIT_WINDOW_MINUTES=15
+AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_MAX=5
+AUTH_MAGIC_LINK_RATE_LIMIT_IP_MAX=20
+AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS=60
+POSTGRES_DB=ideciclo
+POSTGRES_USER=ideciclo
+POSTGRES_PASSWORD=change_me_local_password
+POSTGRES_PORT=54322
+VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
+```
 
-- Deploy automático via Lovable
-- Sincronização bidirecional com o repositório
-- Edição visual de componentes
-- Configuração de domínio customizado
+### 3. Subir o PostgreSQL
+
+```bash
+npm run db:up
+```
+
+O container `ideciclo-postgres` expõe o banco em `127.0.0.1:54322` por padrão.
+
+Na primeira subida com volume novo, o `docker-compose.yml` já monta `supabase/bootstrap_full_schema.sql` como script de inicialização do Postgres.
+
+### 4. Bootstrap do banco
+
+Para bancos externos, bancos já existentes ou reaplicação manual da estrutura:
+
+```bash
+npm run db:bootstrap
+```
+
+### 5. Criar o primeiro admin global
+
+```bash
+npm run db:seedsudo
+```
+
+Ou passando o e-mail diretamente:
+
+```bash
+npm run db:seedsudo -- admin@exemplo.org
+```
+
+### 6. Iniciar a aplicação
+
+```bash
+npm run dev
+```
+
+Aplicação local:
+
+- frontend + rotas locais: `http://127.0.0.1:8080`
+- auth server isolado, se usado: `http://127.0.0.1:3001`
+
+## Comandos úteis
+
+```bash
+# desenvolvimento
+npm run dev
+
+# auth server isolado
+npm run auth:dev
+
+# subir banco local
+npm run db:up
+
+# derrubar banco local
+npm run db:down
+
+# logs do banco
+npm run db:logs
+
+# aplicar bootstrap manualmente
+npm run db:bootstrap
+
+# criar primeiro admin global
+npm run db:seedsudo
+
+# build de produção
+npm run build
+
+# build em modo development
+npm run build:dev
+
+# preview da build
+npm run preview
+
+# lint
+npm run lint
+```
+
+## Variáveis de ambiente
+
+### Banco e app
+
+- `DATABASE_URL` conexão principal com o PostgreSQL.
+- `APP_URL` URL pública da aplicação.
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` usados no ambiente Docker local.
+
+### Autenticação
+
+- `MAGIC_LINK_SECRET` segredo para hash dos tokens.
+- `AUTH_COOKIE_SECURE` força cookie seguro.
+- `AUTH_SESSION_COOKIE_NAME` nome do cookie de sessão, opcional.
+
+### E-mail
+
+- `EMAIL_FROM` remetente dos e-mails.
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_SECURE`
+- `ACCESS_REQUEST_NOTIFICATION_EMAIL` e-mail que recebe notificação de novas solicitações.
+
+### Rate limit e expiração
+
+- `AUTH_MAGIC_LINK_RATE_LIMIT_WINDOW_MINUTES`
+- `AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_MAX`
+- `AUTH_MAGIC_LINK_RATE_LIMIT_IP_MAX`
+- `AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS`
+- `AUTH_ACCESS_REQUEST_VERIFICATION_TTL_MINUTES`
+- `AUTH_ACCESS_REQUEST_PENDING_TTL_DAYS`
+- `AUTH_ACCESS_REQUEST_RATE_LIMIT_WINDOW_MINUTES`
+- `AUTH_ACCESS_REQUEST_RATE_LIMIT_EMAIL_MAX`
+- `AUTH_ACCESS_REQUEST_RATE_LIMIT_IP_MAX`
+- `AUTH_ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS`
+
+### Mapas
+
+- `VITE_MAPBOX_ACCESS_TOKEN` habilita a renderização dos mapas Mapbox no frontend.
+
+Sem esse token, a aplicação continua funcionando, mas os componentes de mapa exibem aviso em vez do mapa interativo.
+
+## E-mail em desenvolvimento
+
+Se `SMTP_HOST` não estiver configurado, o servidor usa `jsonTransport`.
+
+Na prática:
+
+- magic links não são enviados de fato;
+- e-mails de verificação de solicitação não são enviados de fato;
+- o conteúdo do e-mail é registrado no terminal do processo.
+
+Logs esperados:
+
+- `Magic link gerado em modo local: ...`
+- `Verificação de solicitação de acesso gerada em modo local: ...`
+- `Notificação de solicitação de acesso gerada em modo local: ...`
+
+Isso é suficiente para desenvolvimento local, mas para testes reais de e-mail você deve configurar SMTP.
+
+## Dependências externas para replicar o projeto
+
+Para rodar uma instância equivalente em outro ambiente, você precisa reproduzir:
+
+- PostgreSQL com a estrutura de `supabase/bootstrap_full_schema.sql`;
+- frontend Vite;
+- runtime Node capaz de servir `/api/auth/*` e `/api/db/*`;
+- SMTP para produção;
+- acesso aos endpoints do IBGE;
+- acesso aos endpoints Overpass do OpenStreetMap;
+- token do Mapbox, se quiser mapas interativos.
+
+## Estrutura principal do repositório
+
+```text
+api/                     adaptadores das rotas /api no ambiente Vite/Node
+public/                  PDFs, imagens e assets públicos
+scripts/                 bootstrap e seed do banco
+server/                  lógica das APIs locais de auth e leitura do banco
+src/components/          componentes reutilizáveis
+src/pages/               páginas públicas, avaliação e admin
+src/services/            acesso a APIs, banco e integrações
+src/lib/                 regras de permissão e helpers de acesso
+supabase/                schema SQL usado no bootstrap
+```
+
+## Build e deploy
+
+O deploy de produção atual assume:
+
+- frontend Vite;
+- funções Node em `/api/auth/*` e `/api/db/*`;
+- PostgreSQL acessível por `DATABASE_URL`.
+
+### Requisitos mínimos de produção
+
+- `APP_URL` com `https`
+- `MAGIC_LINK_SECRET` forte, com pelo menos 32 caracteres
+- `EMAIL_FROM` real
+- `SMTP_HOST` configurado
+- `AUTH_COOKIE_SECURE=true`
+
+Depois de provisionar o banco:
+
+1. aplicar a estrutura com `npm run db:bootstrap` ou equivalente;
+2. executar `npm run db:seedsudo` uma única vez para criar o primeiro `admin_global`.
+
+## Observações operacionais
+
+- O ranking depende de formulários persistidos no banco, não só da flag de liberação.
+- O refinamento de dados usa persistência local e remota; snapshots antigos com `length` como string já são normalizados pela aplicação.
+- Admin regional revisa solicitações apenas do próprio estado ou cidade.
+- A página inicial não expõe mais os atalhos antigos de `Aprimorar os dados` e `Avaliar infraestrutura`; o fluxo parte da página `/avaliacao`.
+
+## Licença
+
+Veja [LICENSE.md](LICENSE.md).

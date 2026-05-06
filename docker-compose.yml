@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ideciclo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ideciclo}
+      POSTGRES_USER: ${POSTGRES_USER:-ideciclo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ideciclo}
+    ports:
+      - "${POSTGRES_PORT:-54322}:5432"
+    volumes:
+      - ideciclo-postgres-data:/var/lib/postgresql/data
+      - ./supabase/bootstrap_full_schema.sql:/docker-entrypoint-initdb.d/10-bootstrap_full_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  ideciclo-postgres-data:

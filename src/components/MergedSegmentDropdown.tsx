@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Unlink2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock3, Unlink2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Segment, SegmentType } from "@/types";
@@ -16,6 +16,8 @@ const MergedSegmentDropdown = ({
   onUnmergeSegments 
 }: MergedSegmentDropdownProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pendingSegmentIds, setPendingSegmentIds] = useState<string[]>([]);
+  const [isUnmergingAll, setIsUnmergingAll] = useState(false);
 
   const getSegmentTypeBadge = (type: string) => {
     switch (type) {
@@ -34,18 +36,26 @@ const MergedSegmentDropdown = ({
 
   const handleUnmergeSegment = async (segmentId: string) => {
     try {
+      setPendingSegmentIds((current) => [...current, segmentId]);
       await onUnmergeSegments(segment.id, [segmentId]);
     } catch (error) {
       console.error("Error unmerging segment:", error);
+    } finally {
+      setPendingSegmentIds((current) =>
+        current.filter((currentId) => currentId !== segmentId)
+      );
     }
   };
 
   const handleUnmergeAll = async () => {
     try {
+      setIsUnmergingAll(true);
       const allSegmentIds = segment.merged_segments?.map(s => s.id) || [];
       await onUnmergeSegments(segment.id, allSegmentIds);
     } catch (error) {
       console.error("Error unmerging all segments:", error);
+    } finally {
+      setIsUnmergingAll(false);
     }
   };
 
@@ -79,9 +89,14 @@ const MergedSegmentDropdown = ({
               variant="outline"
               size="sm"
               onClick={handleUnmergeAll}
+              disabled={isUnmergingAll}
               className="h-6 px-2 text-xs"
             >
-              <Unlink2 className="w-3 h-3 mr-1" />
+              {isUnmergingAll ? (
+                <Clock3 className="w-3 h-3 mr-1" />
+              ) : (
+                <Unlink2 className="w-3 h-3 mr-1" />
+              )}
               Desmesclar todos
             </Button>
           </div>
@@ -102,9 +117,14 @@ const MergedSegmentDropdown = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => handleUnmergeSegment(mergedInfo.id)}
+                disabled={isUnmergingAll || pendingSegmentIds.includes(mergedInfo.id)}
                 className="h-6 px-2 ml-2 flex-shrink-0"
               >
-                <Unlink2 className="w-3 h-3" />
+                {pendingSegmentIds.includes(mergedInfo.id) ? (
+                  <Clock3 className="w-3 h-3" />
+                ) : (
+                  <Unlink2 className="w-3 h-3" />
+                )}
               </Button>
             </div>
           ))}

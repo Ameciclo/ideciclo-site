@@ -4,6 +4,20 @@ import RefinementSegmentsTable from "./RefinementSegmentsTable";
 import { SegmentsFilters } from "./SegmentsFilters";
 import { SegmentsPagination } from "./SegmentsPagination";
 import MapboxMap from "./MapboxMap";
+import { getA1Decision } from "@/utils/idecicloAssessment";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+
+const normalizeLength = (value: unknown) => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 interface RefinementTableSortableWrapperProps {
   segments: Segment[];
@@ -12,6 +26,10 @@ interface RefinementTableSortableWrapperProps {
   selectedSegments: Segment[];
   onMergeSelected: () => Promise<void>;
   onUpdateSegmentName: (segmentId: string, newName: string) => Promise<void>;
+  onUpdateSegmentTechnical?: (
+    segmentId: string,
+    updates: Partial<Segment>
+  ) => Promise<void>;
   onDeleteSegment: (segmentId: string) => Promise<void>;
   onUnmergeSegments: (
     parentSegmentId: string,
@@ -19,6 +37,13 @@ interface RefinementTableSortableWrapperProps {
   ) => Promise<void>;
   onUpdateSegmentClassification?: (segmentId: string, classification: string) => Promise<void>;
   onUpdateSegmentType?: (segmentId: string, type: any) => Promise<void>;
+  technicalOpen?: boolean;
+  technicalSegment?: Segment | null;
+  onFocusGeometryChange?: (geometry: any | null) => void;
+  selectedSegmentsCount?: number;
+  onMergeClick?: () => void;
+  onDeleteClick?: () => void;
+  onClearSelectionClick?: () => void;
 }
 
 export const RefinementTableSortableWrapper = ({
@@ -28,30 +53,49 @@ export const RefinementTableSortableWrapper = ({
   selectedSegments,
   onMergeSelected,
   onUpdateSegmentName,
+  onUpdateSegmentTechnical,
   onDeleteSegment,
   onUnmergeSegments,
   onUpdateSegmentClassification,
   onUpdateSegmentType,
+  technicalOpen = false,
+  technicalSegment = null,
+  onFocusGeometryChange,
+  selectedSegmentsCount = 0,
+  onMergeClick,
+  onDeleteClick,
+  onClearSelectionClick,
 }: RefinementTableSortableWrapperProps) => {
   // Debug removed
   // Filter and sort state
+  const [sortField, setSortField] = useState<
+    "name" | "type" | "classification" | "length"
+  >("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedClassification, setSelectedClassification] = useState<string>("all");
+  const [selectedCompatibility, setSelectedCompatibility] = useState<string>("all");
   const [minLength, setMinLength] = useState<string>("");
   const [maxLength, setMaxLength] = useState<string>("");
   const [nameFilter, setNameFilter] = useState<string>("");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [desktopLayout, setDesktopLayout] = useState<"stacked" | "split" | "table-only">("split");
+  const [focusGeometry, setFocusGeometry] = useState<any | null>(null);
+  const [mapSticky, setMapSticky] = useState<boolean>(true);
 
-  // Splitter state
-  const [leftWidth, setLeftWidth] = useState<number>(50); // percentage
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const handleSortChange = (
+    field: "name" | "type" | "classification" | "length"
+  ) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
 
-  const toggleSortDirection = () => {
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    setSortField(field);
+    setSortDirection("asc");
   };
 
   // Reset filters
@@ -61,7 +105,18 @@ export const RefinementTableSortableWrapper = ({
     setMaxLength("");
     setSelectedType("all");
     setSelectedClassification("all");
+    setSelectedCompatibility("all");
   };
+
+  const getSegmentCompatibilityStatus = (segment: Segment) =>
+    getA1Decision({
+      infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+      road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+      classification: segment.classification || undefined,
+      velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+      pedestrian_flow_per_hour_per_meter: 0,
+      position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+    }).status;
 
   // Filter and sort segments - show all segments that are not children of merged segments
   const filteredAndSortedSegments = () => {
@@ -108,8 +163,14 @@ export const RefinementTableSortableWrapper = ({
         }
       })
       .filter((segment) => {
+        if (selectedCompatibility !== "all") {
+          return getSegmentCompatibilityStatus(segment) === selectedCompatibility;
+        }
+        return true;
+      })
+      .filter((segment) => {
         // Filter by length
-        const segmentLength = segment.length;
+        const segmentLength = normalizeLength(segment.length);
         const min = minLength ? parseFloat(minLength) : null;
         const max = maxLength ? parseFloat(maxLength) : null;
 
@@ -123,18 +184,30 @@ export const RefinementTableSortableWrapper = ({
         return true;
       })
       .sort((a, b) => {
-        const nameA = a.name.toLowerCase();
-        const nameB = b.name.toLowerCase();
+        const direction = sortDirection === "asc" ? 1 : -1;
 
-        if (sortDirection === "asc") {
-          return nameA.localeCompare(nameB);
-        } else {
-          return nameB.localeCompare(nameA);
+        if (sortField === "length") {
+          return (normalizeLength(a.length) - normalizeLength(b.length)) * direction;
         }
+
+        const valueA =
+          sortField === "classification"
+            ? a.classification || ""
+            : a[sortField] || "";
+        const valueB =
+          sortField === "classification"
+            ? b.classification || ""
+            : b[sortField] || "";
+
+        return valueA.localeCompare(valueB, "pt-BR", {
+          sensitivity: "base",
+        }) * direction;
       });
   };
 
   const processedSegments = filteredAndSortedSegments();
+  const mapSegments =
+    selectedSegments.length > 0 ? selectedSegments : processedSegments;
 
   // Calculate pagination values
   const totalPages = Math.ceil(processedSegments.length / itemsPerPage);
@@ -154,42 +227,19 @@ export const RefinementTableSortableWrapper = ({
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedType, selectedClassification, minLength, maxLength, sortDirection, nameFilter]);
+  }, [selectedType, selectedClassification, selectedCompatibility, minLength, maxLength, sortField, sortDirection, nameFilter, itemsPerPage]);
   
   // Reset to first page when segments change (e.g., after merge)
   useEffect(() => {
     setCurrentPage(1);
   }, [initialSegments.length]);
 
-  // Splitter handlers
-  const handleMouseDown = () => {
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
-    const container = document.getElementById('splitter-container');
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const newLeftWidth = ((e.clientX - rect.left) / rect.width) * 100;
-    setLeftWidth(Math.max(20, Math.min(80, newLeftWidth))); // Limit between 20% and 80%
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
   useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
+    if (selectedSegments.length !== 1) {
+      setFocusGeometry(null);
+      onFocusGeometryChange?.(null);
     }
-  }, [isDragging]);
+  }, [selectedSegments.length, onFocusGeometryChange]);
 
   // Safety check
   if (!initialSegments) {
@@ -199,39 +249,201 @@ export const RefinementTableSortableWrapper = ({
 
   return (
     <div>
-      <SegmentsFilters
-        nameFilter={nameFilter}
-        onNameFilterChange={setNameFilter}
-        selectedRating="all"
-        onRatingChange={() => {}} // Not used in refinement
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
-        selectedClassification={selectedClassification}
-        onClassificationChange={setSelectedClassification}
-        minLength={minLength}
-        onMinLengthChange={setMinLength}
-        maxLength={maxLength}
-        onMaxLengthChange={setMaxLength}
-        onResetFilters={resetFilters}
-        showRatingFilter={false}
-        showClassificationFilter={true}
-      />
-      {/* Table layout without map (temporary fix) */}
       <div className="space-y-4">
-        <RefinementSegmentsTable
-          segments={currentItems}
-          sortDirection={sortDirection}
-          onToggleSortDirection={toggleSortDirection}
-          onSelectSegment={onSelectSegment}
-          onSelectAllSegments={onSelectAllSegments}
-          selectedSegments={selectedSegments}
-          onUpdateSegmentName={onUpdateSegmentName}
-          onDeleteSegment={onDeleteSegment}
-          onUnmergeSegments={onUnmergeSegments}
-          onUpdateSegmentClassification={onUpdateSegmentClassification}
-          onUpdateSegmentType={onUpdateSegmentType}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {selectedSegmentsCount >= 2 && (
+              <Button
+                size="sm"
+                onClick={onMergeClick}
+                disabled={selectedSegmentsCount < 2}
+              >
+                Mesclar {selectedSegmentsCount} segmentos
+              </Button>
+            )}
+            {selectedSegmentsCount > 0 && (
+              <Button
+                size="sm"
+                onClick={onDeleteClick}
+                variant="destructive"
+              >
+                Excluir {selectedSegmentsCount} segmentos
+              </Button>
+            )}
+            {selectedSegmentsCount > 0 && (
+              <Button
+                size="sm"
+                onClick={onClearSelectionClick}
+                variant="outline"
+              >
+                Limpar seleção
+              </Button>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span>Visualização</span>
+              <Select
+                value={desktopLayout}
+                onValueChange={(value) =>
+                  setDesktopLayout(value as "split" | "stacked" | "table-only")
+                }
+              >
+                <SelectTrigger className="w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="split">Lado a lado</SelectItem>
+                  <SelectItem value="stacked">Empilhado</SelectItem>
+                  <SelectItem value="table-only">Sem mapa</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>Segmentos por página</span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) => setItemsPerPage(parseInt(value, 10))}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((option) => (
+                    <SelectItem key={option} value={option.toString()}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {desktopLayout === "split" && (
+                <Button
+                  variant={mapSticky ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMapSticky((prev) => !prev)}
+                >
+                  {mapSticky ? "Mapa fixo" : "Mapa livre"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        <SegmentsFilters
+          nameFilter={nameFilter}
+          onNameFilterChange={setNameFilter}
+          selectedRating="all"
+          onRatingChange={() => {}} // Not used in refinement
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          selectedClassification={selectedClassification}
+          onClassificationChange={setSelectedClassification}
+          selectedCompatibility={selectedCompatibility}
+          onCompatibilityChange={setSelectedCompatibility}
+          minLength={minLength}
+          onMinLengthChange={setMinLength}
+          maxLength={maxLength}
+          onMaxLengthChange={setMaxLength}
+          onResetFilters={resetFilters}
+          showRatingFilter={false}
+          showClassificationFilter={true}
+          showCompatibilityFilter
         />
-        <MapboxMap segments={selectedSegments.length > 0 ? selectedSegments : processedSegments.slice(0, 10)} className="w-full h-[400px]" />
+        <p className="text-sm text-gray-600">
+          Modo atual:{" "}
+          {desktopLayout === "split"
+            ? "Lado a lado"
+            : desktopLayout === "stacked"
+              ? "Empilhado"
+              : "Sem mapa"}
+        </p>
+
+        {desktopLayout === "split" && (
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)]">
+              <RefinementSegmentsTable
+                segments={currentItems}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortChange={handleSortChange}
+                onSelectSegment={onSelectSegment}
+                onSelectAllSegments={onSelectAllSegments}
+                selectedSegments={selectedSegments}
+                onUpdateSegmentName={onUpdateSegmentName}
+                onUpdateSegmentTechnical={onUpdateSegmentTechnical}
+                onDeleteSegment={onDeleteSegment}
+                onUnmergeSegments={onUnmergeSegments}
+                onUpdateSegmentClassification={onUpdateSegmentClassification}
+                onUpdateSegmentType={onUpdateSegmentType}
+                technicalOpen={technicalOpen}
+                technicalSegment={technicalSegment}
+                onFocusGeometryChange={(geometry) => {
+                  setFocusGeometry(geometry);
+                  onFocusGeometryChange?.(geometry);
+                }}
+              />
+              <MapboxMap
+                segments={mapSegments}
+                className={`h-[62vh] min-h-[420px] w-full rounded-md border ${
+                  mapSticky ? "lg:sticky lg:top-6" : ""
+                }`}
+                focusGeometry={focusGeometry}
+              />
+            </div>
+          </div>
+        )}
+
+        {desktopLayout === "stacked" && (
+          <div className="space-y-4">
+            <RefinementSegmentsTable
+              segments={currentItems}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSortChange={handleSortChange}
+              onSelectSegment={onSelectSegment}
+              onSelectAllSegments={onSelectAllSegments}
+              selectedSegments={selectedSegments}
+              onUpdateSegmentName={onUpdateSegmentName}
+              onUpdateSegmentTechnical={onUpdateSegmentTechnical}
+              onDeleteSegment={onDeleteSegment}
+              onUnmergeSegments={onUnmergeSegments}
+              onUpdateSegmentClassification={onUpdateSegmentClassification}
+              onUpdateSegmentType={onUpdateSegmentType}
+              technicalOpen={technicalOpen}
+              technicalSegment={technicalSegment}
+              onFocusGeometryChange={(geometry) => {
+                setFocusGeometry(geometry);
+                onFocusGeometryChange?.(geometry);
+              }}
+            />
+            <MapboxMap
+              segments={mapSegments}
+              className="h-[58vh] min-h-[420px] w-full rounded-md border"
+              focusGeometry={focusGeometry}
+            />
+          </div>
+        )}
+
+        {desktopLayout === "table-only" && (
+          <RefinementSegmentsTable
+            segments={currentItems}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
+            onSelectSegment={onSelectSegment}
+            onSelectAllSegments={onSelectAllSegments}
+            selectedSegments={selectedSegments}
+            onUpdateSegmentName={onUpdateSegmentName}
+            onUpdateSegmentTechnical={onUpdateSegmentTechnical}
+            onDeleteSegment={onDeleteSegment}
+            onUnmergeSegments={onUnmergeSegments}
+            onUpdateSegmentClassification={onUpdateSegmentClassification}
+            onUpdateSegmentType={onUpdateSegmentType}
+            technicalOpen={technicalOpen}
+            technicalSegment={technicalSegment}
+            onFocusGeometryChange={(geometry) => {
+              setFocusGeometry(geometry);
+              onFocusGeometryChange?.(geometry);
+            }}
+          />
+        )}
       </div>
 
       <SegmentsPagination

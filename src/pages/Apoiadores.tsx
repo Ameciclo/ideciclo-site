@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 const Apoiadores = () => {
   const sponsors = [
     {
@@ -110,8 +108,7 @@ const Apoiadores = () => {
         
         <div className="mb-8 text-text-grey text-center">
           <p className="mb-4 text-lg">
-            O IDECICLO é possível graças ao apoio e colaboração de organizações comprometidas 
-            com a promoção da mobilidade urbana sustentável e segura.
+            De Pernambuco para o mundo, o IDECICLO nasceu do voluntariado interdisciplinar da Associação Metropolitana de Ciclistas do Recife (Ameciclo) e hoje é aplicado em diversas cidades brasileiras. Reconhecido nacionalmente com menção honrosa no Prêmio da Mobilidade por Bicicleta (2019), o Selo Bicicleta Brasil (2024) e o 1º lugar no Prêmio da Mobilidade por Bicicleta (2025), o projeto é fruto de um trabalho coletivo de especialistas, técnicos e cicloativistas das cinco regiões do país, contando também com o patrocínio de parceiros que promovem o uso da bicicleta.
           </p>
         </div>
 
@@ -155,7 +152,7 @@ const Apoiadores = () => {
 
         {/* Parceiros */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">Parceiros</h2>
+          <h2 className="text-2xl font-bold text-ideciclo-red mb-6 text-center">Organizações apoiadoras</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {partners.map((partner) => (
               <div key={partner.name} 

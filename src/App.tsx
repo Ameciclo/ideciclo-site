@@ -2,30 +2,44 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Index from "./pages/Index";
-import Refine from "./pages/Refine";
 import Avaliacao from "./pages/Avaliacao";
-import SegmentForm from "./pages/SegmentForm";
-import ViewEvaluation from "./pages/ViewEvaluation";
 import About from "./pages/About";
 import Ranking from "./pages/Ranking";
-import CityDetails from "./pages/CityDetails";
+import DetalhesCidades from "./pages/DetalhesCidades";
+import DetalhesEstrutura from "./pages/DetalhesEstrutura";
 import Apoiadores from "./pages/Apoiadores";
+import ResumoIdeciclo from "./pages/ResumoIdeciclo";
 import NotFound from "./pages/NotFound";
-import ProcessoAvaliacao from "./pages/ProcessoAvaliacao";
-import BaixarDados from "./pages/avaliacao/BaixarDados";
 import RefinarDados from "./pages/avaliacao/RefinarDados";
 import EscolherEstrutura from "./pages/avaliacao/EscolherEstrutura";
 import AvaliarEstrutura from "./pages/avaliacao/AvaliarEstrutura";
 import Resultados from "./pages/avaliacao/Resultados";
-import IdecicloForm from "./pages/IdecicloForm";
+import IdecicloFormPage from "./pages/avaliacao/form/IdecicloFormPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Login from "./pages/Login";
+import AccessRequest from "./pages/AccessRequest";
+import AuthVerify from "./pages/auth/AuthVerify";
+import Logout from "./pages/auth/Logout";
+import AdminUsers from "./pages/admin/AdminUsers";
 
 const queryClient = new QueryClient();
+
+const LegacyCityDetailsRedirect = () => {
+  const { cityId } = useParams<{ cityId: string }>();
+
+  return cityId ? (
+    <Navigate replace to={`/detalhes-cidades/${cityId}`} />
+  ) : (
+    <Navigate replace to="/ranking" />
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -33,44 +47,96 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col">
-          <Navbar />
-          <div className="flex-grow pt-20">
-            <ErrorBoundary>
-              <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/processo-avaliacao" element={<ProcessoAvaliacao />} />
-              <Route path="/refinar" element={<Refine />} />
-              <Route path="/avaliacao" element={<Avaliacao />} />
-              <Route path="/avaliacao/baixar-dados" element={<BaixarDados />} />
-              <Route path="/avaliacao/refinar-dados" element={<RefinarDados />} />
-              <Route path="/avaliacao/escolher-estrutura" element={<EscolherEstrutura />} />
-              <Route path="/avaliacao/avaliar-estrutura" element={<AvaliarEstrutura />} />
-              <Route path="/avaliacao/formulario-ideciclo/:segmentId" element={<IdecicloForm />} />
-              <Route path="/avaliacao/resultados" element={<Resultados />} />
-              <Route path="/ranking" element={<Ranking />} />
-              <Route path="/city-details/:cityId" element={<CityDetails />} />
-              <Route path="/sobre" element={<About />} />
-              <Route path="/apoiadores" element={<Apoiadores />} />
-              <Route
-                path="/refinar/formulario/:segmentId"
-                element={<SegmentForm />}
-              />
-              <Route
-                path="/view-evaluation/:formId"
-                element={<ViewEvaluation />}
-              />
-              <Route
-                path="/edit-evaluation/:segmentId/:formId"
-                element={<SegmentForm />}
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            </ErrorBoundary>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            <Navbar />
+            <div className="flex-grow pt-20">
+              <ErrorBoundary>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/solicitar-acesso" element={<AccessRequest />} />
+                  <Route path="/auth/verify" element={<AuthVerify />} />
+                  <Route path="/auth/logout" element={<Logout />} />
+                  <Route path="/avaliacao" element={<Avaliacao />} />
+                  <Route
+                    path="/avaliacao/refinar-dados"
+                    element={
+                      <ProtectedRoute
+                        requiredModule="refinamento_dados_cidade"
+                        useAssessmentScope
+                      >
+                        <RefinarDados />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/avaliacao/escolher-estrutura"
+                    element={
+                      <ProtectedRoute
+                        requiredModule="avaliacao_estrutura_cicloviaria"
+                        useAssessmentScope
+                      >
+                        <EscolherEstrutura />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/avaliacao/avaliar-estrutura"
+                    element={
+                      <ProtectedRoute
+                        requiredModule="avaliacao_estrutura_cicloviaria"
+                        useAssessmentScope
+                      >
+                        <AvaliarEstrutura />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/avaliacao/formulario-ideciclo/:segmentId"
+                    element={
+                      <ProtectedRoute
+                        requiredModule="avaliacao_estrutura_cicloviaria"
+                        useAssessmentScope
+                      >
+                        <IdecicloFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/avaliacao/resultados"
+                    element={
+                      <ProtectedRoute allowViewer useAssessmentScope>
+                        <Resultados />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <ProtectedRoute requiredModule="admin">
+                        <AdminUsers />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/ranking" element={<Ranking />} />
+                  <Route path="/resumo-ideciclo" element={<ResumoIdeciclo />} />
+                  <Route path="/detalhes-cidades/:cityId" element={<DetalhesCidades />} />
+                  <Route
+                    path="/detalhes-cidades/:cityId/estruturas/:segmentId"
+                    element={<DetalhesEstrutura />}
+                  />
+                  <Route path="/city-details/:cityId" element={<LegacyCityDetailsRedirect />} />
+                  <Route path="/sobre" element={<About />} />
+                  <Route path="/apoiadores" element={<Apoiadores />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ErrorBoundary>
+            </div>
+            <Footer />
+            <ScrollToTop />
           </div>
-          <Footer />
-          <ScrollToTop />
-        </div>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

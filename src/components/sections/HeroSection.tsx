@@ -1,3 +1,4 @@
+import { manualDownloadUrl } from "@/constants/siteLinks";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, MapPin } from "lucide-react";
@@ -5,10 +6,20 @@ import { ArrowRight, MapPin } from "lucide-react";
 export const HeroSection = ({ coverUrl }) => (
   <>
     <div
-      className="bg-cover bg-center bg-no-repeat object-fill h-cover w-full px-10 py-24 text-black relative"
+      className="bg-cover bg-center bg-no-repeat object-fill h-cover w-full px-10 py-24 text-black relative cursor-pointer"
       style={{
         backgroundImage: `url('${coverUrl}')`,
       }}
+      onClick={() => window.open(manualDownloadUrl, "_blank", "noopener,noreferrer")}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          window.open(manualDownloadUrl, "_blank", "noopener,noreferrer");
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      aria-label="Baixar manual do IDECICLO"
     >
       <div className="absolute inset-0 bg-black bg-opacity-30" />
       <div className="relative z-10 container mx-auto h-full flex items-center justify-center">
@@ -19,16 +30,22 @@ export const HeroSection = ({ coverUrl }) => (
           <p className="text-xl md:text-2xl mb-8 drop-shadow-md">
             Índice de Desenvolvimento Cicloviário
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <p className="text-sm md:text-base mb-6 font-medium tracking-wide uppercase">
+            Clique no banner para baixar o manual
+          </p>
+          <div
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+            onClick={(event) => event.stopPropagation()}
+          >
             <Button asChild size="lg" className="bg-ideciclo-blue hover:bg-ideciclo-blue/90 text-white">
               <Link to="/avaliacao">
                 <MapPin className="mr-2 h-5 w-5" />
-                Iniciar Processo Guiado
+                Ir para Avaliação
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="bg-white/90 hover:bg-white text-gray-900">
               <Link to="/ranking">
-                Ver Ranking das Cidades
+                Ver Ranking Nacional
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>

@@ -3,13 +3,20 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import EtapaResultados from "@/components/processo/EtapaResultados";
 import { useState, useEffect } from "react";
+import { getPersistedCityData } from "@/utils/persistedCityData";
+
+interface PersistedCityData {
+  cityId: string;
+  cityName: string;
+  stateName: string;
+}
 
 const Resultados = () => {
   const navigate = useNavigate();
-  const [cityData, setCityData] = useState<any>(null);
+  const [cityData, setCityData] = useState<PersistedCityData | null>(null);
 
   useEffect(() => {
-    const storedData = sessionStorage.getItem("cityData");
+    const storedData = getPersistedCityData();
     if (storedData) {
       setCityData(JSON.parse(storedData));
     }
