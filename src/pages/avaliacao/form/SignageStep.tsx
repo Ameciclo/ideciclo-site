@@ -164,6 +164,22 @@ const Page6: React.FC<Page6Props> = ({
         <span>{data.identification_conservation || "–"}</span>
       </span>
     ) : null;
+  const hasB41Answered = isTouched([
+    "regulation_signs_per_block",
+    "regulation_signs_per_block_by_block",
+    "signs_both_directions",
+    "signs_both_directions_by_block",
+  ]);
+  const hasB42Answered = isTouched(["space_identification"]);
+  const hasE41Answered = isTouched([
+    "vertical_signs_conservation",
+    "vertical_signs_conservation_by_block",
+  ]);
+  const hasE42Answered = isTouched(["identification_conservation"]);
+  const b41AnsweredLabel = hasB41Answered && !hasB42Answered ? "Aguardo B.4.2" : undefined;
+  const b42AnsweredLabel = hasB42Answered && !hasB41Answered ? "Aguardo B.4.1" : undefined;
+  const e41AnsweredLabel = hasE41Answered && !hasE42Answered ? "Aguardo E.4.2" : undefined;
+  const e42AnsweredLabel = hasE42Answered && !hasE41Answered ? "Aguardo E.4.1" : undefined;
   const setRegulationSignsByBlock = (
     nextSignsPerBlock: number,
     nextBothDirections: boolean | null = currentSignsBothDirections,
@@ -258,12 +274,8 @@ const Page6: React.FC<Page6Props> = ({
           description="Presença de placas de regulamentação ao longo do trecho."
           scorePreview={buildCriterionScorePreview(data, ["B4"])}
           extraBadges={b4CompositeBadge}
-          answered={isTouched([
-            "regulation_signs_per_block",
-            "regulation_signs_per_block_by_block",
-            "signs_both_directions",
-            "signs_both_directions_by_block",
-          ])}
+          answered={hasB41Answered}
+          answeredLabel={b41AnsweredLabel}
           inAnalysis={data.criterion_workflow_state?.b41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b41", value ? "analysis" : "default")}
             onClear={() =>
@@ -339,7 +351,8 @@ const Page6: React.FC<Page6Props> = ({
           description="Pintura, contraste e reconhecimento visual do espaço cicloviário."
           scorePreview={buildCriterionScorePreview(data, ["B4"])}
           extraBadges={b4CompositeBadge}
-          answered={isTouched(["space_identification"])}
+          answered={hasB42Answered}
+          answeredLabel={b42AnsweredLabel}
           inAnalysis={data.criterion_workflow_state?.b42 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b42", value ? "analysis" : "default")}
           onClear={() =>
@@ -383,10 +396,8 @@ const Page6: React.FC<Page6Props> = ({
           description="Entrada de conservação da sinalização vertical para avaliação por quadra."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
           extraBadges={e4CompositeBadge}
-          answered={isTouched([
-            "vertical_signs_conservation",
-            "vertical_signs_conservation_by_block",
-          ])}
+          answered={hasE41Answered}
+          answeredLabel={e41AnsweredLabel}
           inAnalysis={data.criterion_workflow_state?.e41 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e41", value ? "analysis" : "default")}
             onClear={() =>
@@ -434,7 +445,8 @@ const Page6: React.FC<Page6Props> = ({
           description="Entrada de conservação da identificação do espaço para o cálculo de E.4."
           scorePreview={buildCriterionScorePreview(data, ["E4"])}
           extraBadges={e4CompositeBadge}
-          answered={isTouched(["identification_conservation"])}
+          answered={hasE42Answered}
+          answeredLabel={e42AnsweredLabel}
           inAnalysis={data.criterion_workflow_state?.e42 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("e42", value ? "analysis" : "default")}
           onClear={() =>

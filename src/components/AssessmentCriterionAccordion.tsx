@@ -29,6 +29,7 @@ interface AssessmentCriterionAccordionProps {
   description?: string;
   scorePreview?: CriterionScorePreviewItem[];
   answered?: boolean;
+  answeredLabel?: string;
   inAnalysis?: boolean;
   onAnalysisChange?: (value: boolean) => void;
   onClear?: () => void;
@@ -45,6 +46,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
   description,
   scorePreview = [],
   answered = false,
+  answeredLabel,
   inAnalysis = false,
   onAnalysisChange,
   onClear,
@@ -182,7 +184,7 @@ const AssessmentCriterionAccordion: React.FC<AssessmentCriterionAccordionProps> 
                     : "border-rose-600 bg-rose-600 text-white"
                 }`}
               >
-                <span>{answered ? "Respondido" : "Pendente"}</span>
+                <span>{answered ? answeredLabel || "Respondido" : "Pendente"}</span>
               </Badge>
             ) : null}
             {onAnalysisChange ? (
