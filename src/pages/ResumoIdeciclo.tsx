@@ -229,7 +229,59 @@ const ResumoIdeciclo = () => {
             </div>
           </div>
         </section>
+                <section className="container mx-auto px-4 pb-8">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            ...
+          </div>
 
+          <div className="mt-6 rounded-[32px] bg-white p-8 shadow-[0px_12px_32px_rgba(0,0,0,0.06)]">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+                Outras metodologias comuns
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-text-grey">
+                Cada indicador conta uma parte da história
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Medir quilômetros, cobertura populacional ou distribuição territorial é importante. 
+                O IDECICLO complementa essas leituras ao avaliar se a infraestrutura está adequada, 
+                segura, conectada e bem mantida.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-lg font-black text-text-grey">Quilometragem total</p>
+                <p className="mt-1 text-sm font-semibold text-ideciclo-red">
+                  “Quanto existe?”
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Mede a extensão da rede cicloviária. Mostra quantidade, mas não revela se os trechos são seguros, conectados ou adequados ao tipo de via.
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-lg font-black text-text-grey">Cobertura por população</p>
+                <p className="mt-1 text-sm font-semibold text-ideciclo-red">
+                  “Quantas pessoas são atendidas?”
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Observa a proximidade da infraestrutura em relação aos moradores. Ajuda a entender alcance territorial e acesso cotidiano à rede.
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-lg font-black text-text-grey">Distribuição territorial</p>
+                <p className="mt-1 text-sm font-semibold text-ideciclo-red">
+                  “Quem está sendo priorizado?”
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Analisa se a infraestrutura chega de forma equilibrada aos bairros, considerando desigualdades de renda, raça, gênero ou periferização.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
         <section className="container mx-auto px-4 py-8">
           <div className="rounded-[36px] bg-white p-8 shadow-[0px_12px_32px_rgba(0,0,0,0.06)] md:p-10">
             <h2 className="text-3xl font-black text-text-grey">Quais infraestruturas entram na avaliação</h2>
