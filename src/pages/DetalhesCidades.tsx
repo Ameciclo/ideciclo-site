@@ -790,13 +790,15 @@ const DetalhesCidades = () => {
               <div className="rounded-[24px] bg-[#eff8f2] p-5">
                 <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
                   <CheckCircle2 className="h-4 w-4" />
-                  O que já entra no índice
+                  Tipos de estrutura na cidade
                 </div>
                 <p className="mt-3 text-lg font-semibold text-text-grey">
-                  {formatCount(results.summary.validStructures)} trechos válidos
+                  {formatCount(typologyStats.length)} tipologias identificadas
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Somam {formatKm(results.summary.validStructureKm)} km que hoje contam no IDECICLO da cidade.
+                  {typologyStats.length > 0
+                    ? typologyStats.map((item) => item.label).join(", ")
+                    : "Nenhuma tipologia consolidada para esta cidade."}
                 </p>
               </div>
 
