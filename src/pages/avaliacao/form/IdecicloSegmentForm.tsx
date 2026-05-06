@@ -2224,7 +2224,7 @@ const SegmentForm = () => {
       <div
         className={
           a1BannerSticky
-            ? "mb-6 md:sticky md:top-4 md:z-40"
+            ? "sticky top-4 z-40 mb-6 md:top-24"
             : "mb-6"
         }
       >
