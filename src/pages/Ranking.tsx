@@ -13,6 +13,7 @@ import { City, Segment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { downloadCsvFile, downloadElementAsPdf } from "@/utils/reportDownloads";
+import { getCityDetailsPath } from "@/utils/publicIdeciclo";
 
 interface CityRanking {
   city: City;
@@ -441,7 +442,7 @@ const Ranking = () => {
                   key={cityRanking.city.id}
                   className="rounded bg-white shadow-2xl ideciclo-card-hover"
                 >
-                  <Link to={`/city-details/${cityRanking.city.id}`}>
+                  <Link to={getCityDetailsPath(cityRanking.city.id)}>
                     <div className="flex flex-col bg-white divide-y divide-gray-100">
                       <div className="flex flex-col justify-center w-full p-4 text-center tracking-widest">
                         <h3 className="text-ideciclo-red font-bold text-sm">
