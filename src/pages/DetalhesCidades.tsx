@@ -7,6 +7,7 @@ import {
   Bike,
   Building2,
   CheckCircle2,
+  Download,
   Filter,
   GitCompareArrows,
   Gauge,
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { manualDownloadUrl } from "@/constants/siteLinks";
 import { cn } from "@/lib/utils";
+import { downloadJsonFile } from "@/utils/reportDownloads";
 import {
   fetchAllStoredCities,
   fetchCityFromDB,
@@ -572,6 +574,85 @@ const DetalhesCidades = () => {
     })).filter((group) => group.criteria.length > 0);
   }, [firstComparisonDetail, secondComparisonDetail]);
 
+  const handleDownloadCityData = () => {
+    if (!city || !results) return;
+
+    const payload = {
+      type: "FeatureCollection",
+      name: `ideciclo-${city.name.toLowerCase().replace(/\s+/g, "-")}`,
+      metadata: {
+        city: {
+          id: city.id,
+          name: city.name,
+          state: city.state,
+        },
+        summary: {
+          ideciclo: displayedIndex,
+          ranking_position: rankingPosition,
+          ranked_cities_count: rankedCitiesCount,
+          total_structures: results.summary.totalStructures,
+          evaluated_structures: results.summary.evaluatedStructures,
+          total_structure_km: results.summary.totalStructureKm,
+          evaluated_structure_km: results.summary.evaluatedStructureKm,
+          total_road_km: results.summary.totalRoadKm,
+        },
+      },
+      features: structureDetails.map((detail) => ({
+        type: "Feature",
+        geometry: detail.segment.geometry,
+        properties: {
+          id: detail.id,
+          nome: getComparisonFriendlyTitle(detail),
+          tipologia: detail.result.typeLabel,
+          hierarquia: detail.result.hierarchyLabel,
+          bairro: detail.segment.neighborhood || null,
+          extensao_km: detail.result.lengthKm,
+          nota_total: detail.totalScore,
+          conceito: detail.scoreLabel,
+          status: getStructureStatusLabel(detail.result),
+          avaliacao_concluida: detail.result.evaluated,
+          entra_no_indice: detail.result.contributes,
+          avaliacao_ideciclo: {
+            nota_total: detail.totalScore,
+            conceito_total: detail.scoreLabel,
+            secoes: detail.sections.map((section) => ({
+              codigo: section.key,
+              nome: section.label,
+              pontuacao: section.score,
+              pontuacao_maxima: section.max,
+              criterios: section.criteria.map((criterion) => ({
+                codigo: criterion.code,
+                nome: criterion.label,
+                conceito: criterion.rating,
+                pontos: criterion.points,
+                pontos_maximos: criterion.maxPoints,
+                descricao_conceito:
+                  criterion.scale.find((item) => item.rating === criterion.rating)?.description ||
+                  null,
+              })),
+            })),
+            criterios: detail.criteria.map((criterion) => ({
+              codigo: criterion.code,
+              nome: criterion.label,
+              conceito: criterion.rating,
+              pontos: criterion.points,
+              pontos_maximos: criterion.maxPoints,
+              descricao_conceito:
+                criterion.scale.find((item) => item.rating === criterion.rating)?.description ||
+                null,
+            })),
+          },
+        },
+      })),
+    };
+
+    downloadJsonFile(
+      `dados-${city.name.toLowerCase().replace(/\s+/g, "-")}.geojson`,
+      payload,
+      "application/geo+json;charset=utf-8;"
+    );
+  };
+
   if (loading) {
     return (
       <div className="container py-20">
@@ -647,6 +728,15 @@ const DetalhesCidades = () => {
                     <ListFilter className="h-4 w-4" />
                     Ler manual do IDECICLO
                   </a>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={handleDownloadCityData}
+                >
+                  <Download className="h-4 w-4" />
+                  Baixar dados
                 </Button>
               </div>
             </div>
@@ -1337,6 +1427,12 @@ const DetalhesCidades = () => {
                                   <div className="space-y-2">
                                     <Badge className={getRatingBadgeClassName(row.first.rating)}>
                                       {row.first.rating || "-"}
+                                      {typeof row.first.points === "number" ? (
+                                        <>
+                                          <span className="mx-1 opacity-70">·</span>
+                                          <span>+ {row.first.points} pts</span>
+                                        </>
+                                      ) : null}
                                     </Badge>
                                     <p className="text-sm leading-6 text-slate-600">
                                       {row.first.scale.find((item) => item.rating === row.first?.rating)?.description ||
@@ -1352,6 +1448,12 @@ const DetalhesCidades = () => {
                                   <div className="space-y-2">
                                     <Badge className={getRatingBadgeClassName(row.second.rating)}>
                                       {row.second.rating || "-"}
+                                      {typeof row.second.points === "number" ? (
+                                        <>
+                                          <span className="mx-1 opacity-70">·</span>
+                                          <span>+ {row.second.points} pts</span>
+                                        </>
+                                      ) : null}
                                     </Badge>
                                     <p className="text-sm leading-6 text-slate-600">
                                       {row.second.scale.find((item) => item.rating === row.second?.rating)?.description ||
