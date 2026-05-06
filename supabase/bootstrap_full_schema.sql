@@ -309,6 +309,22 @@ CREATE INDEX IF NOT EXISTS auth_sessions_user_id_idx
 CREATE INDEX IF NOT EXISTS auth_sessions_expires_at_idx
   ON auth.sessions (expires_at);
 
+CREATE TABLE IF NOT EXISTS auth.magic_link_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  ip_address text,
+  requested_at timestamp with time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS auth_magic_link_requests_email_idx
+  ON auth.magic_link_requests (lower(email));
+
+CREATE INDEX IF NOT EXISTS auth_magic_link_requests_ip_idx
+  ON auth.magic_link_requests (ip_address);
+
+CREATE INDEX IF NOT EXISTS auth_magic_link_requests_requested_at_idx
+  ON auth.magic_link_requests (requested_at);
+
 CREATE TABLE IF NOT EXISTS auth.permissions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -367,3 +383,26 @@ ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS idx_segments_deleted_at
 ON public.segments (deleted_at);
+
+-- Harden anonymous access: keep public schema read-only over PostgREST.
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.cities;
+DROP POLICY IF EXISTS "Enable update access for all users" ON public.cities;
+DROP POLICY IF EXISTS "Enable delete access for all users" ON public.cities;
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.segments;
+DROP POLICY IF EXISTS "Enable update access for all users" ON public.segments;
+DROP POLICY IF EXISTS "Enable delete access for all users" ON public.segments;
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.forms;
+DROP POLICY IF EXISTS "Enable update access for all users" ON public.forms;
+DROP POLICY IF EXISTS "Enable delete access for all users" ON public.forms;
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.reviews;
+DROP POLICY IF EXISTS "Enable update access for all users" ON public.reviews;
+DROP POLICY IF EXISTS "Enable delete access for all users" ON public.reviews;
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.avaliacoes_ideciclo;
+DROP POLICY IF EXISTS "Enable update access for all users" ON public.avaliacoes_ideciclo;
+
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.pontuacoes_ideciclo;
+DROP POLICY IF EXISTS "Enable insert access for all users" ON public.resultados_ideciclo;

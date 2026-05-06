@@ -196,13 +196,16 @@ DATABASE_URL=postgresql://ideciclo:change_me_local_password@127.0.0.1:54322/idec
 APP_URL=http://127.0.0.1:8080
 EMAIL_FROM=no-reply@ideciclo.local
 MAGIC_LINK_SECRET=change_me_magic_link_secret
-AUTH_BOOTSTRAP_ADMIN_EMAIL=contato@ideciclo.org
 AUTH_COOKIE_SECURE=false
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
 SMTP_PASS=
 SMTP_SECURE=false
+AUTH_MAGIC_LINK_RATE_LIMIT_WINDOW_MINUTES=15
+AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_MAX=5
+AUTH_MAGIC_LINK_RATE_LIMIT_IP_MAX=20
+AUTH_MAGIC_LINK_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS=60
 POSTGRES_DB=ideciclo
 POSTGRES_USER=ideciclo
 POSTGRES_PASSWORD=change_me_local_password
@@ -234,16 +237,29 @@ Comandos úteis:
 ```bash
 npm run db:logs
 npm run db:down
+npm run db:seedsudo
+```
+
+Primeiro admin global:
+
+```bash
+npm run db:seedsudo
+```
+
+O comando pedirá o e-mail que deve receber a permissão `admin_global` inicial. Também é possível passar o e-mail direto:
+
+```bash
+npm run db:seedsudo -- admin@exemplo.org
 ```
 
 ### Deploy
 
-O projeto pode ser deployado em qualquer plataforma que suporte aplicações React/Vite:
+O deploy de produção atual assume frontend Vite + função Node para autenticação.
 
-- **Vercel**: Deploy automático via Git
-- **Netlify**: Build e deploy contínuo
-- **AWS S3 + CloudFront**: Hospedagem estática
-- **Lovable**: [Deploy direto pela plataforma](https://lovable.dev/projects/dd5572a5-488e-4df3-8a4f-562c8ff6d96c)
+- **Vercel**: o frontend é servido como SPA e o auth roda em `/api/auth/*` via função Node do projeto.
+- **PostgREST em produção**: mantenha `VITE_DATABASE_API_URL=/api` e configure `DATABASE_API_PROXY_TARGET` apontando para a sua instância real do PostgREST; a Vercel fará o proxy em runtime.
+- **Variáveis obrigatórias em produção**: `DATABASE_URL`, `APP_URL` com `https`, `EMAIL_FROM`, `MAGIC_LINK_SECRET` forte, `SMTP_HOST` e `AUTH_COOKIE_SECURE=true`.
+- **Provisionamento inicial**: depois de aplicar as migrations no banco, rode `npm run db:seedsudo` uma vez para criar o primeiro `admin_global`.
 
 ### Lovable Integration
 
