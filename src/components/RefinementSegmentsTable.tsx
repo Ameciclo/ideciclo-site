@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getA1Decision, getA1FieldLabel } from "@/utils/idecicloAssessment";
 import {
   getHierarchyBadgeClassName,
   getSegmentTypeBadgeClassName,
@@ -53,6 +55,11 @@ import {
 } from "@/components/ui/dialog";
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+const CTB_SPEED_BY_HIERARCHY: Record<string, number> = {
+  estrutural: 60,
+  alimentadora: 40,
+  local: 30,
+};
 
 const FLOW_OPTIONS = [
   {
@@ -98,6 +105,15 @@ const POSITION_OPTIONS = [
     label: "Isolada",
     icon: "/icones/isolada.svg",
   },
+] as const;
+
+const INTERSECTION_TYPING_OPTIONS = [
+  { value: "Ciclovia", label: "Ciclovia" },
+  { value: "Ciclofaixa", label: "Ciclofaixa" },
+  { value: "Calçada", label: "Calçada" },
+  { value: "Ciclorrota", label: "Ciclorrota" },
+  { value: "Sim", label: "Sim" },
+  { value: "Não", label: "Não" },
 ] as const;
 
 const FIELD_HELP_CONTENT: Record<
@@ -270,9 +286,34 @@ const RefinementSegmentsTable = ({
   const [intersectionSelections, setIntersectionSelections] = useState<
     SegmentIntersectionSelection[]
   >([]);
+  const [intersectionRoadFilter, setIntersectionRoadFilter] = useState("");
+  const [intersectionHierarchyFilter, setIntersectionHierarchyFilter] =
+    useState<string>("all");
+  const [intersectionTypeFilter, setIntersectionTypeFilter] = useState<string>("all");
+  const [intersectionConsiderationFilter, setIntersectionConsiderationFilter] =
+    useState<string>("all");
 
   // Available classification options
   const classificationOptions = ["estrutural", "alimentadora", "local"];
+
+  const getIntersectionInfrastructureLabel = (item: SegmentIntersectionSelection) => {
+    if (item.cyclingInfrastructureType) {
+      return item.cyclingInfrastructureType;
+    }
+
+    if (item.hasCyclingInfrastructure === true) return "Sim";
+    if (item.hasCyclingInfrastructure === false) return "Não";
+    return "Indef.";
+  };
+
+  const setIntersectionSelectionPatch = (
+    intersectionId: string,
+    patch: Partial<SegmentIntersectionSelection>
+  ) => {
+    setIntersectionSelections((prev) =>
+      prev.map((item) => (item.id === intersectionId ? { ...item, ...patch } : item))
+    );
+  };
 
   const getSegmentTypeBadge = (type: SegmentType) => {
     return (
@@ -573,6 +614,30 @@ const RefinementSegmentsTable = ({
     return <Badge className={getHierarchyBadgeClassName(classification)}>{label}</Badge>;
   };
 
+  const getCompatibilityBadge = (segment: Segment) => {
+    const decision = getA1Decision({
+      infra_typology: segment.type || segment.ideciclo_prefill?.tipologia || "",
+      road_hierarchy: segment.classification || segment.ideciclo_prefill?.hierarquia || "",
+      classification: segment.classification || undefined,
+      velocity_kmh: Number(segment.ideciclo_prefill?.velocidade || 0),
+      pedestrian_flow_per_hour_per_meter: 0,
+      position_on_road: segment.ideciclo_prefill?.posicaoNaVia || "",
+    });
+
+    if (decision.status === "compatible") {
+      return <Badge className="bg-emerald-600 text-white">Compatível</Badge>;
+    }
+
+    if (decision.status === "incompatible") {
+      return <Badge className="bg-rose-600 text-white">Incompatível</Badge>;
+    }
+
+    return <Badge className="bg-amber-500 text-white">Pendente</Badge>;
+  };
+
+  const getCtbSpeedForClassification = (classification: string) =>
+    CTB_SPEED_BY_HIERARCHY[classification] ?? null;
+
   const handleEditStart = (segment: Segment) => {
     setEditingSegment(segment);
     setEditName(segment.name);
@@ -637,6 +702,7 @@ const RefinementSegmentsTable = ({
           highway: item.highway,
           hierarchy: item.hierarchyIdeciclo,
           hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
+          cyclingInfrastructureType: item.cyclingInfrastructureType || undefined,
         }));
 
         const currentPending = [
@@ -663,6 +729,8 @@ const RefinementSegmentsTable = ({
           ideciclo_prefill: {
             ...editingSegment.ideciclo_prefill,
             ...(prefillFromSelection || {}),
+            tipologia: typeDraft || undefined,
+            hierarquia: classificationDraft || undefined,
             trechoInicio: techDraft.trechoInicio.trim(),
             trechoFim: techDraft.trechoFim.trim(),
             posicaoNaVia: techDraft.posicaoNaVia || undefined,
@@ -807,6 +875,7 @@ const RefinementSegmentsTable = ({
                 hierarchyOsm: item.highway || undefined,
                 hierarchyIdeciclo: item.hierarchy || undefined,
                 hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
+                cyclingInfrastructureType: item.cyclingInfrastructureType,
                 selected: true,
               });
             }
@@ -907,6 +976,7 @@ const RefinementSegmentsTable = ({
     min = 0,
     onDecrease,
     onIncrease,
+    onInputChange,
     disabled = false,
   }: {
     label: string;
@@ -914,6 +984,7 @@ const RefinementSegmentsTable = ({
     min?: number;
     onDecrease: () => void;
     onIncrease: () => void;
+    onInputChange?: (value: number) => void;
     disabled?: boolean;
   }) => (
     <div className="rounded-xl border p-3">
@@ -928,9 +999,24 @@ const RefinementSegmentsTable = ({
         >
           -
         </Button>
-        <div className="flex min-h-[36px] min-w-[60px] items-center justify-center rounded-lg border px-2 text-base font-bold">
-          {value}
-        </div>
+        {onInputChange ? (
+          <Input
+            type="number"
+            min={min}
+            value={String(value)}
+            onChange={(event) => {
+              const nextValue = Number(event.target.value);
+              if (!Number.isFinite(nextValue)) return;
+              onInputChange(nextValue);
+            }}
+            className="h-9 min-w-[80px] text-center text-base font-bold"
+            disabled={disabled}
+          />
+        ) : (
+          <div className="flex min-h-[36px] min-w-[60px] items-center justify-center rounded-lg border px-2 text-base font-bold">
+            {value}
+          </div>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -1015,6 +1101,7 @@ const RefinementSegmentsTable = ({
               hierarchyOsm: item.highway || undefined,
               hierarchyIdeciclo: item.hierarchy || undefined,
               hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
+              cyclingInfrastructureType: item.cyclingInfrastructureType,
               selected: true,
             });
           }
@@ -1031,6 +1118,7 @@ const RefinementSegmentsTable = ({
       hierarchyOsm: item.highway || undefined,
       hierarchyIdeciclo: item.hierarchy || undefined,
       hasCyclingInfrastructure: item.hasCyclingInfrastructure ?? null,
+      cyclingInfrastructureType: item.cyclingInfrastructureType,
       selected: true,
     }));
   };
@@ -1045,6 +1133,11 @@ const RefinementSegmentsTable = ({
       return {
         ...item,
         selected: saved?.selected ?? true,
+        hierarchyIdeciclo: saved?.hierarchyIdeciclo ?? item.hierarchyIdeciclo,
+        hasCyclingInfrastructure:
+          saved?.hasCyclingInfrastructure ?? item.hasCyclingInfrastructure,
+        cyclingInfrastructureType:
+          saved?.cyclingInfrastructureType ?? item.cyclingInfrastructureType,
       };
     });
     const baseIds = new Set(mergedBase.map((item) => item.id));
@@ -1255,11 +1348,46 @@ const RefinementSegmentsTable = ({
   });
 
   const pendingItems = Array.from(new Set([...pendingFromOsm, ...pendingFromDraft]));
+  const refinementCompatibilityDecision = getA1Decision({
+    infra_typology: typeDraft,
+    road_hierarchy: classificationDraft,
+    classification: classificationDraft || undefined,
+    velocity_kmh: Number(techDraft.velocidade || 0),
+    position_on_road: techDraft.posicaoNaVia || "",
+    pedestrian_flow_per_hour_per_meter: 0,
+  });
+  const ctbSuggestedSpeed = getCtbSpeedForClassification(classificationDraft);
+  const filteredIntersectionSelections = intersectionSelections.filter((item) => {
+    const roadFilter = intersectionRoadFilter.trim().toLowerCase();
+    const roadMatch =
+      !roadFilter ||
+      (item.roadName || `Via ${item.roadId}`).toLowerCase().includes(roadFilter) ||
+      item.roadId.toLowerCase().includes(roadFilter);
+
+    const hierarchyValue = item.hierarchyIdeciclo || "não classificada";
+    const hierarchyMatch =
+      intersectionHierarchyFilter === "all" ||
+      hierarchyValue === intersectionHierarchyFilter;
+
+    const typeValue = getIntersectionInfrastructureLabel(item);
+    const typeMatch =
+      intersectionTypeFilter === "all" || typeValue === intersectionTypeFilter;
+
+    const considerationMatch =
+      intersectionConsiderationFilter === "all" ||
+      (intersectionConsiderationFilter === "selected" && item.selected) ||
+      (intersectionConsiderationFilter === "unselected" && !item.selected);
+
+    return roadMatch && hierarchyMatch && typeMatch && considerationMatch;
+  });
+  const visibleIntersectionIds = new Set(
+    filteredIntersectionSelections.map((item) => item.id)
+  );
   const allIntersectionsSelected =
-    intersectionSelections.length > 0 &&
-    intersectionSelections.every((item) => item.selected);
+    filteredIntersectionSelections.length > 0 &&
+    filteredIntersectionSelections.every((item) => item.selected);
   const someIntersectionsSelected =
-    intersectionSelections.some((item) => item.selected) && !allIntersectionsSelected;
+    filteredIntersectionSelections.some((item) => item.selected) && !allIntersectionsSelected;
 
   return (
     <div className="rounded-md border">
@@ -1281,6 +1409,7 @@ const RefinementSegmentsTable = ({
             <TableHead>{renderSortButton("name", "Nome")}</TableHead>
             <TableHead>{renderSortButton("type", "Tipo")}</TableHead>
             <TableHead>{renderSortButton("classification", "Hierarquia da via")}</TableHead>
+            <TableHead>Compatibilidade</TableHead>
             <TableHead className="text-right">
               {renderSortButton("length", "km", "right")}
             </TableHead>
@@ -1290,7 +1419,7 @@ const RefinementSegmentsTable = ({
         <TableBody>
           {segments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-6">
+              <TableCell colSpan={7} className="text-center py-6">
                 Nenhum segmento encontrado
               </TableCell>
             </TableRow>
@@ -1432,6 +1561,7 @@ const RefinementSegmentsTable = ({
                     )}
                   </div>
                 </TableCell>
+                <TableCell>{getCompatibilityBadge(segment)}</TableCell>
                 <TableCell className="text-right">
                   {segment.length.toFixed(4)}
                 </TableCell>
@@ -1493,6 +1623,25 @@ const RefinementSegmentsTable = ({
               </DialogContent>
             </Dialog>
             <div className="space-y-6">
+              <Alert
+                className={
+                  refinementCompatibilityDecision.status === "incompatible"
+                    ? "border-rose-300 bg-rose-50 text-rose-950"
+                    : refinementCompatibilityDecision.status === "compatible"
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                      : "border-amber-300 bg-amber-50 text-amber-950"
+                }
+              >
+                <AlertTitle>{refinementCompatibilityDecision.headline}</AlertTitle>
+                <AlertDescription>
+                  {refinementCompatibilityDecision.detail}
+                  {refinementCompatibilityDecision.missingFields.length > 0
+                    ? ` Campos-chave: ${refinementCompatibilityDecision.missingFields
+                        .map(getA1FieldLabel)
+                        .join(", ")}.`
+                    : ""}
+                </AlertDescription>
+              </Alert>
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-muted-foreground">
                   Trechos da estrutura selecionada
@@ -1503,6 +1652,7 @@ const RefinementSegmentsTable = ({
                       variant="secondary"
                       onClick={() => void handleFetchOsmComplement()}
                       disabled={isLoadingOsmComplement}
+                      className="bg-black text-white hover:bg-black/90"
                     >
                       {isLoadingOsmComplement
                         ? "Baixando..."
@@ -1805,6 +1955,25 @@ const RefinementSegmentsTable = ({
                       >
                         Sem preenchimento
                       </button>
+                      <button
+                        type="button"
+                        className={chipClassName(
+                          ctbSuggestedSpeed !== null &&
+                            Number(techDraft.velocidade) === ctbSuggestedSpeed
+                        )}
+                        onClick={() => {
+                          if (ctbSuggestedSpeed === null) return;
+                          setTechDraft((prev) => ({
+                            ...prev,
+                            velocidade: String(ctbSuggestedSpeed),
+                          }));
+                        }}
+                        disabled={ctbSuggestedSpeed === null}
+                      >
+                        {ctbSuggestedSpeed === null
+                          ? "Usar velocidade do CTB"
+                          : `Usar CTB (${ctbSuggestedSpeed} km/h)`}
+                      </button>
                     </div>
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                       {SPEED_OPTIONS.map((speed) => {
@@ -1827,6 +1996,9 @@ const RefinementSegmentsTable = ({
                         );
                       })}
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sem placa observada, use o padrão urbano do CTB pela hierarquia do trecho.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -1941,6 +2113,11 @@ const RefinementSegmentsTable = ({
                     label: "N° quadras",
                     value: techDraft.quadrasEstimadas,
                     min: 1,
+                    onInputChange: (value) =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        quadrasEstimadas: clampMinimumOne(value),
+                      })),
                     onDecrease: () =>
                       setTechDraft((prev) => ({
                         ...prev,
@@ -1956,13 +2133,78 @@ const RefinementSegmentsTable = ({
                     label: "N° interseções",
                     value: techDraft.intersecoesEstimadas,
                     min: 0,
-                    disabled: intersectionSelections.length > 0,
-                    onDecrease: () => undefined,
-                    onIncrease: () => undefined,
+                    onInputChange: (value) =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        intersecoesEstimadas: clampNonNegative(value),
+                      })),
+                    onDecrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas - 1),
+                      })),
+                    onIncrease: () =>
+                      setTechDraft((prev) => ({
+                        ...prev,
+                        intersecoesEstimadas: clampNonNegative(prev.intersecoesEstimadas + 1),
+                      })),
                   })}
                 </div>
                 {intersectionSelections.length > 0 ? (
-                  <div className="max-h-48 overflow-auto rounded-md border">
+                  <div className="space-y-3">
+                    <div className="grid gap-3 rounded-md border p-3 md:grid-cols-2 xl:grid-cols-4">
+                      <Input
+                        value={intersectionRoadFilter}
+                        onChange={(event) => setIntersectionRoadFilter(event.target.value)}
+                        placeholder="Filtrar por via ou ID"
+                      />
+                      <Select
+                        value={intersectionHierarchyFilter}
+                        onValueChange={setIntersectionHierarchyFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Hierarquia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as hierarquias</SelectItem>
+                          <SelectItem value="estrutural">Estrutural</SelectItem>
+                          <SelectItem value="alimentadora">Alimentadora</SelectItem>
+                          <SelectItem value="local">Local</SelectItem>
+                          <SelectItem value="não classificada">Não classificada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={intersectionTypeFilter}
+                        onValueChange={setIntersectionTypeFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipologia / infra" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as opções</SelectItem>
+                          {INTERSECTION_TYPING_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Indef.">Indef.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={intersectionConsiderationFilter}
+                        onValueChange={setIntersectionConsiderationFilter}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Consideração" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="selected">Consideradas</SelectItem>
+                          <SelectItem value="unselected">Desconsideradas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  <div className="max-h-72 overflow-auto rounded-md border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-left">
                         <tr>
@@ -1979,22 +2221,23 @@ const RefinementSegmentsTable = ({
                                   setIntersectionSelections((prev) =>
                                     prev.map((item) => ({
                                       ...item,
-                                      selected: Boolean(checked),
+                                      selected: visibleIntersectionIds.has(item.id)
+                                        ? Boolean(checked)
+                                        : item.selected,
                                     }))
                                   )
                                 }
                               />
-                              <span>Contar</span>
+                              <span>Considerar</span>
                             </div>
                           </th>
                           <th className="px-3 py-2">Via</th>
-                          <th className="px-3 py-2">Highway</th>
                           <th className="px-3 py-2">Hierarquia IDECICLO</th>
-                          <th className="px-3 py-2">Estrutura cicloviária</th>
+                          <th className="px-3 py-2">Tipologia / infra cicloviária</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {intersectionSelections
+                        {filteredIntersectionSelections
                           .slice(0, 80)
                           .map((item) => (
                             <tr key={`${item.pointKey}-${item.roadId}`} className="border-t">
@@ -2002,34 +2245,86 @@ const RefinementSegmentsTable = ({
                                 <Checkbox
                                   checked={item.selected}
                                   onCheckedChange={(checked) =>
-                                    setIntersectionSelections((prev) =>
-                                      prev.map((current) =>
-                                        current.id === item.id
-                                          ? { ...current, selected: Boolean(checked) }
-                                          : current
-                                      )
-                                    )
+                                    setIntersectionSelectionPatch(item.id, {
+                                      selected: Boolean(checked),
+                                    })
                                   }
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                {item.roadName || `Via ${item.roadId}`}
+                                <Input
+                                  value={item.roadName || `Via ${item.roadId}`}
+                                  onChange={(event) =>
+                                    setIntersectionSelectionPatch(item.id, {
+                                      roadName: event.target.value,
+                                    })
+                                  }
+                                  className="h-8 min-w-[220px]"
+                                />
                               </td>
-                              <td className="px-3 py-2">{item.highway || "-"}</td>
                               <td className="px-3 py-2">
-                                {item.hierarchyIdeciclo || "não classificada"}
+                                <Select
+                                  value={item.hierarchyIdeciclo || "não classificada"}
+                                  onValueChange={(value) =>
+                                    setIntersectionSelectionPatch(item.id, {
+                                      hierarchyIdeciclo:
+                                        value === "não classificada" ? undefined : value,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 min-w-[150px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="estrutural">Estrutural</SelectItem>
+                                    <SelectItem value="alimentadora">Alimentadora</SelectItem>
+                                    <SelectItem value="local">Local</SelectItem>
+                                    <SelectItem value="não classificada">
+                                      Não classificada
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </td>
                               <td className="px-3 py-2">
-                                {item.hasCyclingInfrastructure === true
-                                  ? "Sim"
-                                  : item.hasCyclingInfrastructure === false
-                                    ? "Não"
-                                    : "Indef."}
+                                <Select
+                                  value={getIntersectionInfrastructureLabel(item)}
+                                  onValueChange={(value) =>
+                                    setIntersectionSelectionPatch(item.id, {
+                                      cyclingInfrastructureType:
+                                        value === "Sim" ||
+                                        value === "Não" ||
+                                        value === "Indef."
+                                          ? undefined
+                                          : value,
+                                      hasCyclingInfrastructure:
+                                        value === "Sim"
+                                          ? true
+                                          : value === "Não"
+                                            ? false
+                                            : value === "Indef."
+                                              ? null
+                                              : true,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 min-w-[170px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {INTERSECTION_TYPING_OPTIONS.map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                      </SelectItem>
+                                    ))}
+                                    <SelectItem value="Indef.">Indef.</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </td>
                             </tr>
                           ))}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">

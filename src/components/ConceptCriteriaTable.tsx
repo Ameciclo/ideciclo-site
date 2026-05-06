@@ -10,6 +10,7 @@ interface ConceptCriteriaTableProps {
   value?: string | null;
   options: ConceptCriteriaOption[];
   onValueChange: (value: string) => void;
+  disabled?: boolean;
 }
 
 const getSelectedTone = (value: string) => {
@@ -56,6 +57,7 @@ const ConceptCriteriaTable: React.FC<ConceptCriteriaTableProps> = ({
   value,
   options,
   onValueChange,
+  disabled = false,
 }) => {
   return (
     <div className="space-y-2" role="radiogroup">
@@ -69,11 +71,17 @@ const ConceptCriteriaTable: React.FC<ConceptCriteriaTableProps> = ({
             type="button"
             role="radio"
             aria-checked={isSelected}
-            onClick={() => onValueChange(option.value)}
+            aria-disabled={disabled}
+            onClick={() => {
+              if (disabled) return;
+              onValueChange(option.value);
+            }}
             className={`flex w-full overflow-hidden rounded-lg border text-left transition-all sm:rounded-xl ${
               isSelected
                 ? `${tone.wrapper} shadow-sm`
-                : "border-slate-200 opacity-65 hover:opacity-90"
+                : disabled
+                  ? "border-slate-200 opacity-45"
+                  : "border-slate-200 opacity-65 hover:opacity-90"
             }`}
           >
             <div

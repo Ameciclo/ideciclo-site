@@ -181,6 +181,14 @@ const Page3: React.FC<Page3Props> = ({
     ? [{ code: "B3", rating: bufferConcept, points: null }]
     : [];
   const b3FinalRating = buildCriterionScorePreview(data, ["B3"])[0]?.rating;
+  const hasB31Answered = isTouched([
+    "separation_devices_ciclofaixa",
+    "separation_devices_ciclovia",
+    "separation_devices_calcada",
+  ]);
+  const hasB32Answered = isTouched(["buffer_width_m", "buffer_measurements_m", "lateral_spacing_width_m"]);
+  const b32AnsweredLabel =
+    hasB32Answered && !hasB31Answered ? "Aguardo B.3.1" : undefined;
   const b31LocalRating = normalizedTypology.includes("ciclovia")
     ? data.separation_devices_ciclovia || null
     : normalizedTypology.includes("ciclofaixa")
@@ -479,6 +487,7 @@ const Page3: React.FC<Page3Props> = ({
             data.buffer_width_m > 0 ||
             isTouched(["buffer_width_m", "buffer_measurements_m", "lateral_spacing_width_m"])
           }
+          answeredLabel={b32AnsweredLabel}
           inAnalysis={data.criterion_workflow_state?.b32 === "analysis"}
           onAnalysisChange={(value) => updateWorkflow("b32", value ? "analysis" : "default")}
           onClear={() =>

@@ -42,6 +42,24 @@ const SECTIONS: Array<{
 
 const RATINGS: IdecicloRating[] = ["A", "B", "C", "D"];
 
+const formatWholeNumber = (value?: number | null) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return "0";
+  return String(Math.round(value));
+};
+
+const getCriterionDisplaySourceLabel = () => "Campo";
+
+const getCriterionPointsTag = (
+  criterion: CriterionCode,
+  points?: number | null,
+  maxPoints?: number | null
+) => {
+  if (criterion === "A1") return "0/-100 pts";
+  if (criterion === "B7") return "0/-36 pts";
+  if (typeof points !== "number") return null;
+  return `${formatWholeNumber(points)}/${formatWholeNumber(maxPoints)} pts`;
+};
+
 const ratingBadgeClassName = (rating: IdecicloRating | null | undefined) => {
   if (rating === "A") return "border-transparent bg-[#b8e5db] text-[#163b38]";
   if (rating === "B") return "border-transparent bg-[#9fd3cb] text-[#163b38]";
@@ -121,8 +139,8 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                     {section.title}
                   </span>
                   {sectionSummary ? (
-                    <Badge variant="secondary">
-                      {sectionSummary.score.toFixed(1)}/{sectionSummary.max}
+                    <Badge variant="secondary" className="px-3 py-2 text-lg font-black">
+                      {formatWholeNumber(sectionSummary.score)}/{formatWholeNumber(sectionSummary.max)}
                     </Badge>
                   ) : null}
                 </div>
@@ -142,7 +160,11 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                 const finalRatingDescription = finalRating
                   ? ratingScale.find((item) => item.rating === finalRating)
                   : null;
-
+                const pointsTag = getCriterionPointsTag(
+                  criterion,
+                  itemSummary?.points,
+                  itemSummary?.maxPoints
+                );
                 return (
                   <div key={criterion} className="rounded-xl border p-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -155,7 +177,7 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                         </div>
                         <div className="flex flex-wrap gap-2 text-sm">
                           <Badge className={ratingBadgeClassName(autoRating)}>
-                            Automático: {autoRating ?? "N/A"}
+                            {getCriterionDisplaySourceLabel()}: {autoRating ?? "N/A"}
                           </Badge>
                           <Badge
                             className={cn(
@@ -166,9 +188,9 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
                             Final: {finalRating ?? "N/A"}
                           </Badge>
                           {manualEnabled ? <Badge variant="outline">Manual ligado</Badge> : null}
-                          {typeof itemSummary?.points === "number" ? (
-                            <Badge variant="outline">
-                              {itemSummary.points > 0 ? `+${itemSummary.points}` : itemSummary.points} pts
+                          {pointsTag ? (
+                            <Badge variant="outline" className="text-sm">
+                              {pointsTag}
                             </Badge>
                           ) : null}
                         </div>
@@ -195,7 +217,9 @@ const Page9: React.FC<Page9Props> = ({ data, onDataChange }) => {
 
                     <div className="mt-4 space-y-3">
                       <div>
-                        <div className="mb-2 text-sm font-medium text-slate-700">Conceito final</div>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm font-medium text-slate-700">Conceito final</div>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {RATINGS.map((rating) => (
                             <Button

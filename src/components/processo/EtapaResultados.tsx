@@ -36,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import {
   getHierarchyBadgeClassName,
   getSegmentTypeBadgeClassName,
@@ -45,6 +46,8 @@ import {
   fetchCityFromDB,
   fetchFormsByCityId,
   fetchSegmentsFromDB,
+  saveCityToDB,
+  updateCityRankingVisibility,
 } from "@/services/database";
 import type { City } from "@/types";
 import { clearPersistedCityData } from "@/utils/persistedCityData";
@@ -431,6 +434,9 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>("displayName");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [showInRanking, setShowInRanking] = useState<boolean>(true);
+  const [isUpdatingRankingVisibility, setIsUpdatingRankingVisibility] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     let isActive = true;
@@ -463,6 +469,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
         const breakdown = calculateCityResults(city, segments, forms);
 
         setResults(breakdown);
+        setShowInRanking(city.show_in_ranking !== false);
 
         const storedSelectedSegmentId =
           typeof window !== "undefined"
@@ -493,6 +500,67 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
       isActive = false;
     };
   }, [cityData]);
+
+  const handleToggleRankingVisibility = async () => {
+    if (!results?.city?.id || isUpdatingRankingVisibility) return;
+
+    const nextValue = !showInRanking;
+    setIsUpdatingRankingVisibility(true);
+    setShowInRanking(nextValue);
+
+    try {
+      const cityToPersist = {
+        ...results.city,
+        name: results.city.name || cityData?.city?.name || cityData?.cityName || "",
+        state: results.city.state || cityData?.city?.state || cityData?.stateName || "",
+      };
+
+      if (!cityToPersist.name || !cityToPersist.state) {
+        throw new Error("Dados obrigatórios da cidade ausentes para salvar a liberação no ranking.");
+      }
+
+      await saveCityToDB(cityToPersist);
+      const success = await updateCityRankingVisibility(results.city.id, nextValue, cityToPersist);
+
+      if (!success) {
+        setShowInRanking(!nextValue);
+        toast({
+          title: "Não foi possível atualizar",
+          description: "A liberação do ranking não foi salva.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setResults((current) =>
+        current
+          ? {
+              ...current,
+              city: {
+                ...current.city,
+              show_in_ranking: nextValue,
+              },
+            }
+          : current
+      );
+      toast({
+        title: nextValue ? "Cidade liberada" : "Cidade removida",
+        description: nextValue
+          ? "A cidade agora pode aparecer no ranking."
+          : "A cidade deixou de aparecer no ranking.",
+      });
+    } catch (error) {
+      setShowInRanking(!nextValue);
+      toast({
+        title: "Não foi possível atualizar",
+        description: "Verifique o banco de dados e tente novamente.",
+        variant: "destructive",
+      });
+      console.error("Error toggling ranking visibility:", error);
+    } finally {
+      setIsUpdatingRankingVisibility(false);
+    }
+  };
 
   const filteredSegments = useMemo(() => {
     if (!results) return [];
@@ -1300,7 +1368,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
           <CardTitle>Próximos passos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <Button onClick={handleContinueEvaluating} className="h-auto flex-col gap-2 p-6">
               <FileText className="h-7 w-7" />
               <span>Continuar avaliando</span>
@@ -1314,6 +1382,23 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
             <Button onClick={() => navigate("/ranking")} variant="outline" className="h-auto flex-col gap-2 p-6">
               <BarChart3 className="h-7 w-7" />
               <span>Ver ranking</span>
+            </Button>
+
+            <Button
+              onClick={handleToggleRankingVisibility}
+              variant="outline"
+              className={cn(
+                "h-auto flex-col gap-2 p-6 border-transparent text-white",
+                showInRanking
+                  ? "bg-rose-600 hover:bg-rose-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              )}
+              disabled={isUpdatingRankingVisibility}
+            >
+              <Award className="h-7 w-7" />
+              <span>
+                {showInRanking ? "Remover do ranking" : "Liberar no ranking"}
+              </span>
             </Button>
 
             <Button onClick={handleStartOver} variant="outline" className="h-auto flex-col gap-2 p-6">

@@ -57,6 +57,7 @@ export interface IdecicloFormData {
   segment_name: string;
   extension_m: number;
   velocity_kmh: number;
+  regulated_speed_choices: number[];
   start_point: string;
   end_point: string;
   road_hierarchy: string;

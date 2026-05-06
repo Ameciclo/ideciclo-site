@@ -19,6 +19,8 @@ interface SegmentsFiltersProps {
   onTypeChange: (value: string) => void;
   selectedClassification?: string;
   onClassificationChange?: (value: string) => void;
+  selectedCompatibility?: string;
+  onCompatibilityChange?: (value: string) => void;
   minLength: string;
   onMinLengthChange: (value: string) => void;
   maxLength: string;
@@ -26,6 +28,7 @@ interface SegmentsFiltersProps {
   onResetFilters: () => void;
   showRatingFilter?: boolean;
   showClassificationFilter?: boolean;
+  showCompatibilityFilter?: boolean;
 }
 
 export const SegmentsFilters = ({
@@ -37,6 +40,8 @@ export const SegmentsFilters = ({
   onTypeChange,
   selectedClassification = "all",
   onClassificationChange = () => {},
+  selectedCompatibility = "all",
+  onCompatibilityChange = () => {},
   minLength,
   onMinLengthChange,
   maxLength,
@@ -44,6 +49,7 @@ export const SegmentsFilters = ({
   onResetFilters,
   showRatingFilter = true,
   showClassificationFilter = true,
+  showCompatibilityFilter = false,
 }: SegmentsFiltersProps) => {
   return (
     <div className="mb-4">
@@ -89,6 +95,23 @@ export const SegmentsFilters = ({
                 <SelectItem value="alimentadora">Alimentadora</SelectItem>
                 <SelectItem value="local">Local</SelectItem>
                 <SelectItem value="undefined">Não classificada</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {showCompatibilityFilter && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="filter-compatibility">Compatibilidade:</Label>
+            <Select value={selectedCompatibility} onValueChange={onCompatibilityChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="compatible">Compatíveis</SelectItem>
+                <SelectItem value="pending">Pendentes</SelectItem>
+                <SelectItem value="incompatible">Incompatíveis</SelectItem>
               </SelectContent>
             </Select>
           </div>

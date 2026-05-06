@@ -92,6 +92,23 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
       </span>
     ) : null;
   const e3FinalRating = buildCriterionScorePreview(data, ["E3"])[0]?.rating;
+  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
+  const hasB31Answered = isTouched([
+    "separation_devices_ciclofaixa",
+    "separation_devices_ciclovia",
+    "separation_devices_calcada",
+  ]);
+  const hasB32Answered = isTouched(["lateral_spacing_width_m", "lateral_spacing_type", "has_double_lateral_line"]);
+  const b31AnsweredLabel =
+    hasB31Answered && !hasB32Answered ? "Aguardo B.3.2" : undefined;
+  const b32AnsweredLabel =
+    hasB32Answered && !hasB31Answered ? "Aguardo B.3.1" : undefined;
+  const hasE31Answered = isTouched(["devices_conservation"]);
+  const hasE32Answered = isTouched(["spacing_conservation"]);
+  const e31AnsweredLabel =
+    hasE31Answered && !hasE32Answered ? "Aguardo E.3.2" : undefined;
+  const e32AnsweredLabel =
+    hasE32Answered && !hasE31Answered ? "Aguardo E.3.1" : undefined;
   const e3CompositeBadge =
     data.devices_conservation || data.spacing_conservation ? (
       <span
@@ -101,10 +118,9 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
       >
         <span>{data.devices_conservation || "–"}</span>
         <span className="mx-1.5 opacity-70">×</span>
-        <span>{data.spacing_conservation || "–"}</span>
+      <span>{data.spacing_conservation || "–"}</span>
       </span>
     ) : null;
-  const isTouched = (fields: string[]) => fields.some((field) => data.touched_fields?.[field]);
   const updateWorkflow = (criterion: string, value: "default" | "analysis") =>
     onDataChange({
       criterion_workflow_state: {
@@ -127,11 +143,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
             description="O conteúdo muda conforme a tipologia da estrutura escolhida."
             scorePreview={buildCriterionScorePreview(data, ["B3"])}
             extraBadges={b3LocalConceptBadge}
-            answered={isTouched([
-              "separation_devices_ciclofaixa",
-              "separation_devices_ciclovia",
-              "separation_devices_calcada",
-            ])}
+            answered={hasB31Answered}
+            answeredLabel={b31AnsweredLabel}
             inAnalysis={data.criterion_workflow_state?.b31 === "analysis"}
             onAnalysisChange={(value) => updateWorkflow("b31", value ? "analysis" : "default")}
             onClear={() =>
@@ -254,7 +267,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
               description="Primeira entrada do cálculo E.3, aplicada a ciclovias e ciclofaixas."
               scorePreview={buildCriterionScorePreview(data, ["E3"])}
               extraBadges={e3CompositeBadge}
-              answered={isTouched(["devices_conservation"])}
+              answered={hasE31Answered}
+              answeredLabel={e31AnsweredLabel}
               inAnalysis={data.criterion_workflow_state?.e31 === "analysis"}
               onAnalysisChange={(value) => updateWorkflow("e31", value ? "analysis" : "default")}
               onClear={() =>
@@ -302,7 +316,8 @@ const Page5: React.FC<Page5Props> = ({ data, onDataChange, filter, command }) =>
               description="Segunda entrada do cálculo E.3, combinada com E.3.1 pela matriz do manual."
               scorePreview={buildCriterionScorePreview(data, ["E3"])}
               extraBadges={e3CompositeBadge}
-              answered={isTouched(["spacing_conservation"])}
+              answered={hasE32Answered}
+              answeredLabel={e32AnsweredLabel}
               inAnalysis={data.criterion_workflow_state?.e32 === "analysis"}
               onAnalysisChange={(value) => updateWorkflow("e32", value ? "analysis" : "default")}
               onClear={() =>

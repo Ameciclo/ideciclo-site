@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS public.cities (
   vias_estruturais_km numeric DEFAULT 0,
   vias_alimentadoras_km numeric DEFAULT 0,
   vias_locais_km numeric DEFAULT 0,
+  show_in_ranking boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );

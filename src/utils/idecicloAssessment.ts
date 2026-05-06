@@ -3,6 +3,7 @@ import { IdecicloFormData } from "@/types/idecicloForm";
 
 export type IdecicloRating = "A" | "B" | "C" | "D";
 export type RatingMode = "auto" | "manual";
+export type A1DecisionStatus = "pending" | "compatible" | "incompatible";
 
 export const CRITERION_CODES = [
   "A1",
@@ -38,6 +39,23 @@ type SectionKey = "A" | "B" | "C" | "D" | "E";
 
 type RatingMap = Partial<Record<CriterionCode, IdecicloRating | null>>;
 
+export interface A1Decision {
+  status: A1DecisionStatus;
+  rating: IdecicloRating | null;
+  missingFields: string[];
+  headline: string;
+  detail: string;
+}
+
+const A1_FIELD_LABELS: Record<string, string> = {
+  infra_typology: "tipologia",
+  road_hierarchy: "hierarquia viária",
+  velocity_kmh: "velocidade regulamentada",
+  position_on_road: "posição na via",
+  lateral_spacing_width_m: "afastamento lateral",
+  pedestrian_flow_per_hour_per_meter: "fluxo de pedestres",
+};
+
 interface ConfigItem {
   codigo: CriterionCode;
   nome: string;
@@ -54,6 +72,7 @@ interface ScoreItem {
   label: string;
   rating: IdecicloRating | null | undefined;
   points: number | null;
+  maxPoints: number;
 }
 
 interface ScoreSection {
@@ -245,59 +264,296 @@ export const isCriterionApplicable = (
 };
 
 const calculateA1 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
+  return getA1Decision(formData).rating;
+};
+
+const hasPositiveNumber = (value: unknown) => toNumber(value) > 0;
+
+const appendMissingField = (missingFields: string[], key: string) => {
+  if (!missingFields.includes(key)) {
+    missingFields.push(key);
+  }
+};
+
+const buildA1Decision = (
+  status: A1DecisionStatus,
+  rating: IdecicloRating | null,
+  missingFields: string[],
+  headline: string,
+  detail: string
+): A1Decision => ({
+  status,
+  rating,
+  missingFields,
+  headline,
+  detail,
+});
+
+export const getA1Decision = (
+  formData: Partial<IdecicloFormData>
+): A1Decision => {
   const typology = normalizeTypology(formData.infra_typology);
   const hierarchy = normalizeHierarchy(formData.road_hierarchy || formData.classification);
   const velocity = toNumber(formData.velocity_kmh);
+  const pedestrianFlow = toNumber(formData.pedestrian_flow_per_hour_per_meter);
+  const lateralSpacing = toNumber(formData.lateral_spacing_width_m);
+  const position = String(formData.position_on_road ?? "").trim();
+  const missingFields: string[] = [];
 
-  if (!typology || !hierarchy || velocity <= 0) return null;
+  if (!typology) appendMissingField(missingFields, "infra_typology");
+  if (!hierarchy) appendMissingField(missingFields, "road_hierarchy");
+
+  if (missingFields.length > 0) {
+    return buildA1Decision(
+      "pending",
+      null,
+      missingFields,
+      "A.1 pendente",
+      "Defina tipologia e hierarquia para verificar a compatibilidade inicial."
+    );
+  }
 
   if (
     typology === "calcada_partilhada" &&
-    toNumber(formData.pedestrian_flow_per_hour_per_meter) > 200
+    pedestrianFlow > 200
   ) {
-    return "D";
+    return buildA1Decision(
+      "incompatible",
+      "D",
+      [],
+      "Estrutura incompatível para o IDECICLO",
+      "Calçadas partilhadas com fluxo acima de 200 pedestres por hora por metro são incompatíveis."
+    );
   }
 
   if (hierarchy === "estrutural") {
-    if (velocity >= 70) {
-      if (typology === "calcada_partilhada") return "A";
+    if (typology === "ciclorrota") {
+      return buildA1Decision(
+        "incompatible",
+        "D",
+        [],
+        "Estrutura incompatível para o IDECICLO",
+        "Ciclorrotas são incompatíveis em vias estruturais."
+      );
+    }
 
+    if (typology === "ciclofaixa") {
+      return buildA1Decision(
+        "incompatible",
+        "D",
+        [],
+        "Estrutura incompatível para o IDECICLO",
+        "Ciclofaixas são incompatíveis em vias estruturais."
+      );
+    }
+
+    if (typology === "calcada_partilhada") {
+      if (!hasPositiveNumber(formData.pedestrian_flow_per_hour_per_meter)) {
+        appendMissingField(missingFields, "pedestrian_flow_per_hour_per_meter");
+      }
+
+      return missingFields.length > 0
+        ? buildA1Decision(
+            "pending",
+            null,
+            missingFields,
+            "A.1 pendente",
+            "Informe o fluxo de pedestres para decidir a compatibilidade da calçada partilhada."
+          )
+        : buildA1Decision(
+            "compatible",
+            "A",
+            [],
+            "Estrutura compatível para o IDECICLO",
+            "A tipologia é compatível neste enquadramento, condicionado ao fluxo de pedestres informado."
+          );
+    }
+
+    if (typology === "ciclovia" && velocity <= 0) {
+      appendMissingField(missingFields, "velocity_kmh");
+      return buildA1Decision(
+        "pending",
+        null,
+        missingFields,
+        "A.1 pendente",
+        "Informe a velocidade regulamentada para confirmar a compatibilidade da ciclovia estrutural."
+      );
+    }
+
+    if (velocity >= 70) {
       const bufferedCiclovia =
         typology === "ciclovia" &&
-        (toNumber(formData.lateral_spacing_width_m) > 0.8 ||
-          ["canteiro", "isolada"].includes(String(formData.position_on_road ?? "")));
+        (lateralSpacing > 0.8 || ["canteiro", "isolada"].includes(position));
 
-      return bufferedCiclovia ? "A" : "D";
+      if (!bufferedCiclovia && !["canteiro", "isolada"].includes(position) && lateralSpacing <= 0) {
+        appendMissingField(missingFields, "position_on_road");
+        appendMissingField(missingFields, "lateral_spacing_width_m");
+        return buildA1Decision(
+          "pending",
+          null,
+          missingFields,
+          "A.1 pendente",
+          "Para ciclovia estrutural em via de alta velocidade, confirme a posição na via ou meça o afastamento lateral."
+        );
+      }
+
+      return bufferedCiclovia
+        ? buildA1Decision(
+            "compatible",
+            "A",
+            [],
+            "Estrutura compatível para o IDECICLO",
+            "A ciclovia estrutural atende ao A.1 com afastamento lateral suficiente ou implantação protegida."
+          )
+        : buildA1Decision(
+            "incompatible",
+            "D",
+            [],
+            "Estrutura incompatível para o IDECICLO",
+            "A ciclovia estrutural em via de alta velocidade exige afastamento lateral maior que 0,8 m ou implantação em canteiro/isolada."
+          );
     }
 
-    if (velocity >= 50) {
-      return ["ciclovia", "calcada_partilhada"].includes(typology) ? "A" : "D";
-    }
-
-    return ["ciclovia", "ciclofaixa", "calcada_partilhada"].includes(typology)
-      ? "A"
-      : "D";
+    return buildA1Decision(
+      "compatible",
+      "A",
+      [],
+      "Estrutura compatível para o IDECICLO",
+      "A tipologia é compatível com a hierarquia estrutural neste cenário."
+    );
   }
 
   if (hierarchy === "alimentadora") {
-    if (velocity >= 50) {
-      return ["ciclovia", "calcada_partilhada"].includes(typology) ? "A" : "D";
+    if (typology === "ciclorrota") {
+      return buildA1Decision(
+        "incompatible",
+        "D",
+        [],
+        "Estrutura incompatível para o IDECICLO",
+        "Ciclorrotas são incompatíveis em vias alimentadoras."
+      );
     }
 
-    return ["ciclovia", "ciclofaixa", "calcada_partilhada"].includes(typology)
-      ? "A"
-      : "D";
+    if (typology === "ciclovia") {
+      return buildA1Decision(
+        "compatible",
+        "A",
+        [],
+        "Estrutura compatível para o IDECICLO",
+        "Ciclovias são compatíveis com a hierarquia alimentadora neste cenário."
+      );
+    }
+
+    if (typology === "calcada_partilhada") {
+      if (!hasPositiveNumber(formData.pedestrian_flow_per_hour_per_meter)) {
+        appendMissingField(missingFields, "pedestrian_flow_per_hour_per_meter");
+      }
+
+      return missingFields.length > 0
+        ? buildA1Decision(
+            "pending",
+            null,
+            missingFields,
+            "A.1 pendente",
+            "Informe o fluxo de pedestres para decidir a compatibilidade da calçada partilhada."
+          )
+        : buildA1Decision(
+            "compatible",
+            "A",
+            [],
+            "Estrutura compatível para o IDECICLO",
+            "A tipologia é compatível neste enquadramento, condicionado ao fluxo de pedestres informado."
+          );
+    }
+
+    if (velocity <= 0) {
+      appendMissingField(missingFields, "velocity_kmh");
+      return buildA1Decision(
+        "pending",
+        null,
+        missingFields,
+        "A.1 pendente",
+        "Informe a velocidade regulamentada para confirmar a compatibilidade da ciclofaixa alimentadora."
+      );
+    }
+
+    if (velocity >= 50) {
+      return buildA1Decision(
+        "incompatible",
+        "D",
+        [],
+        "Estrutura incompatível para o IDECICLO",
+        "Ciclofaixas em vias alimentadoras com velocidade de 50 km/h ou mais são incompatíveis."
+      );
+    }
+
+    return buildA1Decision(
+      "compatible",
+      "A",
+      [],
+      "Estrutura compatível para o IDECICLO",
+      "A ciclofaixa é compatível com a hierarquia alimentadora nesta velocidade."
+    );
   }
 
   if (hierarchy === "local") {
-    if (velocity <= 30) {
-      return ["ciclovia", "ciclofaixa", "ciclorrota"].includes(typology) ? "A" : "D";
+    if (typology === "calcada_partilhada") {
+      return buildA1Decision(
+        "incompatible",
+        "D",
+        [],
+        "Estrutura incompatível para o IDECICLO",
+        "Calçadas partilhadas são incompatíveis em vias locais."
+      );
     }
 
-    return ["ciclovia", "ciclofaixa"].includes(typology) ? "A" : "D";
+    if (typology === "ciclovia" || typology === "ciclofaixa") {
+      return buildA1Decision(
+        "compatible",
+        "A",
+        [],
+        "Estrutura compatível para o IDECICLO",
+        "A tipologia é compatível com a hierarquia local."
+      );
+    }
+
+    if (velocity <= 0) {
+      appendMissingField(missingFields, "velocity_kmh");
+      return buildA1Decision(
+        "pending",
+        null,
+        missingFields,
+        "A.1 pendente",
+        "Informe a velocidade regulamentada para decidir a compatibilidade da ciclorrota local."
+      );
+    }
+
+    if (velocity <= 30) {
+      return buildA1Decision(
+        "compatible",
+        "A",
+        [],
+        "Estrutura compatível para o IDECICLO",
+        "Ciclorrotas em vias locais de até 30 km/h são compatíveis."
+      );
+    }
+
+    return buildA1Decision(
+      "incompatible",
+      "D",
+      [],
+      "Estrutura incompatível para o IDECICLO",
+      "Ciclorrotas em vias locais acima de 30 km/h são incompatíveis."
+    );
   }
 
-  return null;
+  return buildA1Decision(
+    "pending",
+    null,
+    ["road_hierarchy"],
+    "A.1 pendente",
+    "Revise a hierarquia da via para concluir a compatibilidade."
+  );
 };
 
 const calculateA2 = (formData: Partial<IdecicloFormData>): IdecicloRating | null => {
@@ -688,7 +944,7 @@ const calculateC3 = (formData: Partial<IdecicloFormData>): IdecicloRating | null
   if (Array.isArray(formData.motorized_conflicts_by_intersection)) {
     const perIntersectionRatings = formData.motorized_conflicts_by_intersection.map(
       (conflicts, index) =>
-        Boolean(touchedFields[`intersection_c3_${index}`])
+        touchedFields[`intersection_c3_${index}`]
           ? calculateConflictRating(Array.isArray(conflicts) ? conflicts : [])
           : null
     );
@@ -955,11 +1211,18 @@ const buildScoreDetails = (
     (sectionConfig.itens ?? []).forEach((item) => {
       const rating = resolvedRatings[item.codigo as CriterionCode];
       const points = rating ? item.avaliacao?.[rating] : null;
+      const maxPoints = Math.max(
+        0,
+        ...Object.values(item.avaliacao || {}).filter(
+          (value): value is number => typeof value === "number"
+        )
+      );
 
       items[item.codigo] = {
         label: item.nome,
         rating,
         points,
+        maxPoints,
       };
 
       if (typeof points === "number") {
@@ -1019,6 +1282,9 @@ export const getScoreBreakdown = (formData: Partial<IdecicloFormData>) => {
 };
 
 export const getCriterionLabel = (code: CriterionCode) => CRITERION_LABELS[code];
+
+export const getA1FieldLabel = (fieldKey: string) =>
+  A1_FIELD_LABELS[fieldKey] || fieldKey;
 
 export const getInitialRatingModes = (): Partial<Record<CriterionCode, RatingMode>> =>
   CRITERION_CODES.reduce((acc, code) => {

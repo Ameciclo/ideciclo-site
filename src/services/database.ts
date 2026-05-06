@@ -8,6 +8,8 @@ type SegmentRow = Database['public']['Tables']['segments']['Row'];
 type FormRow = Database['public']['Tables']['forms']['Row'];
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
+const CITY_RANKING_VISIBILITY_STORAGE_KEY = "ideciclo-city-ranking-visibility";
+
 const formatDatabaseError = (context: string, error: unknown): string => {
   if (!error || typeof error !== "object") {
     return context;
@@ -53,6 +55,136 @@ const omitColumn = <T extends Record<string, any>>(payload: T, column: string) =
   if (!(column in payload)) return payload;
   const { [column]: _omitted, ...rest } = payload;
   return rest;
+};
+
+const readCityRankingVisibilityMap = (): Record<string, boolean> => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(CITY_RANKING_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, boolean> : {};
+  } catch (error) {
+    console.warn("Failed to read ranking visibility map from localStorage:", error);
+    return {};
+  }
+};
+
+const writeCityRankingVisibilityMap = (value: Record<string, boolean>) => {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      CITY_RANKING_VISIBILITY_STORAGE_KEY,
+      JSON.stringify(value)
+    );
+  } catch (error) {
+    console.warn("Failed to write ranking visibility map to localStorage:", error);
+  }
+};
+
+const setLocalCityRankingVisibility = (cityId: string, visible: boolean) => {
+  const current = readCityRankingVisibilityMap();
+  current[cityId] = visible;
+  writeCityRankingVisibilityMap(current);
+};
+
+export const getLocalCityRankingVisibility = (cityId: string): boolean | null => {
+  const current = readCityRankingVisibilityMap();
+  return typeof current[cityId] === "boolean" ? current[cityId] : null;
+};
+
+const SUPPORTED_FORM_COLUMNS = new Set([
+  "id",
+  "segment_id",
+  "city_id",
+  "researcher",
+  "date",
+  "street_name",
+  "neighborhood",
+  "extension",
+  "start_point",
+  "end_point",
+  "hierarchy",
+  "velocity",
+  "blocks_count",
+  "intersections_count",
+  "observations",
+  "responses",
+]);
+
+const sanitizeFormPayload = <T extends Record<string, any>>(payload: T): T => {
+  const sanitizedEntries = Object.entries(payload).filter(([key]) =>
+    SUPPORTED_FORM_COLUMNS.has(key)
+  );
+  return Object.fromEntries(sanitizedEntries) as T;
+};
+
+const insertFormWithCompatibility = async (payload: Record<string, any>) => {
+  let currentPayload = sanitizeFormPayload(payload);
+
+  while (true) {
+    const result = await supabase
+      .from("forms")
+      .insert(currentPayload)
+      .select()
+      .single();
+
+    if (!result.error) {
+      return result;
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn) {
+      return result;
+    }
+
+    const nextPayload = omitColumn(currentPayload, missingColumn);
+    if (nextPayload === currentPayload) {
+      return result;
+    }
+
+    console.warn(
+      `forms.${missingColumn} is missing in the remote database; retrying insert without it.`,
+      result.error
+    );
+    currentPayload = nextPayload;
+  }
+};
+
+const updateFormWithCompatibility = async (formId: string, payload: Record<string, any>) => {
+  let currentPayload = sanitizeFormPayload(payload);
+
+  while (true) {
+    const result = await supabase
+      .from("forms")
+      .update(currentPayload)
+      .eq("id", formId)
+      .select()
+      .single();
+
+    if (!result.error) {
+      return result;
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (!missingColumn) {
+      return result;
+    }
+
+    const nextPayload = omitColumn(currentPayload, missingColumn);
+    if (nextPayload === currentPayload) {
+      return result;
+    }
+
+    console.warn(
+      `forms.${missingColumn} is missing in the remote database; retrying update without it.`,
+      result.error
+    );
+    currentPayload = nextPayload;
+  }
 };
 
 const SUPPORTED_SEGMENT_COLUMNS = new Set([
@@ -191,6 +323,12 @@ const resolveDatabaseSegmentId = async (
   return null;
 };
 
+export const getSegmentByIdForForm = async (
+  segmentId: string,
+  cityId?: string
+): Promise<{ dbId: string; cityId?: string } | null> =>
+  resolveDatabaseSegmentId(segmentId, cityId);
+
 // Conversion helpers
 const convertCityRowToCity = (row: CityRow): City => ({
   id: row.id,
@@ -201,6 +339,10 @@ const convertCityRowToCity = (row: CityRow): City => ({
   vias_estruturais_km: row.vias_estruturais_km || 0,
   vias_alimentadoras_km: row.vias_alimentadoras_km || 0,
   vias_locais_km: row.vias_locais_km || 0,
+  show_in_ranking:
+    typeof (row as any).show_in_ranking === "boolean"
+      ? (row as any).show_in_ranking
+      : getLocalCityRankingVisibility(row.id) ?? true,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -327,6 +469,9 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
         vias_estruturais_km: city.vias_estruturais_km || 0,
         vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
         vias_locais_km: city.vias_locais_km || 0,
+        ...(typeof city.show_in_ranking === "boolean"
+          ? { show_in_ranking: city.show_in_ranking }
+          : {}),
       })
       .eq('id', city.id);
   } else {
@@ -342,18 +487,102 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
         vias_estruturais_km: city.vias_estruturais_km || 0,
         vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
         vias_locais_km: city.vias_locais_km || 0,
+        ...(typeof city.show_in_ranking === "boolean"
+          ? { show_in_ranking: city.show_in_ranking }
+          : {}),
       });
   }
 
   const { data, error } = await operation.select().single();
 
   if (error) {
+    const missingColumn = getMissingColumnName(error);
+    if (missingColumn === "show_in_ranking" && city.id && typeof city.show_in_ranking === "boolean") {
+      console.warn("cities.show_in_ranking missing in remote database; retrying save without the column.");
+      const fallbackPayload = omitColumn(
+        {
+          id: city.id,
+          name: city.name,
+          state: city.state,
+          extensao_avaliada: city.extensao_avaliada || 0,
+          ideciclo: city.ideciclo || 0,
+          vias_estruturais_km: city.vias_estruturais_km || 0,
+          vias_alimentadoras_km: city.vias_alimentadoras_km || 0,
+          vias_locais_km: city.vias_locais_km || 0,
+          show_in_ranking: city.show_in_ranking,
+        },
+        "show_in_ranking"
+      );
+
+      const fallbackOperation = existingCity
+        ? supabase.from("cities").update(fallbackPayload).eq("id", city.id)
+        : supabase.from("cities").insert(fallbackPayload);
+
+      const fallbackResult = await fallbackOperation.select().single();
+
+      if (fallbackResult.error) {
+        const message = formatDatabaseError(
+          "Erro ao salvar a cidade no banco de dados sem show_in_ranking",
+          fallbackResult.error
+        );
+        console.error(message, fallbackResult.error);
+        throw new Error(message);
+      }
+
+      setLocalCityRankingVisibility(city.id, city.show_in_ranking);
+      return convertCityRowToCity(fallbackResult.data);
+    }
     const message = formatDatabaseError("Erro ao salvar a cidade no banco de dados", error);
     console.error(message, error);
     throw new Error(message);
   }
 
   return convertCityRowToCity(data);
+};
+
+export const updateCityRankingVisibility = async (
+  cityId: string,
+  visible: boolean,
+  citySnapshot?: Partial<City>
+): Promise<boolean> => {
+  try {
+    const result = await (supabase.from("cities") as any)
+      .update({ show_in_ranking: visible })
+      .eq("id", cityId)
+      .select("id")
+      .maybeSingle();
+
+    if (!result.error && result.data?.id) {
+      setLocalCityRankingVisibility(cityId, visible);
+      return true;
+    }
+
+    if (!result.error && citySnapshot?.name && citySnapshot?.state) {
+      const savedCity = await saveCityToDB({
+        ...citySnapshot,
+        id: cityId,
+        show_in_ranking: visible,
+      });
+
+      if (savedCity) {
+        setLocalCityRankingVisibility(cityId, visible);
+        return true;
+      }
+    }
+
+    const missingColumn = getMissingColumnName(result.error);
+    if (missingColumn === "show_in_ranking") {
+      console.warn("cities.show_in_ranking missing; using local visibility fallback.");
+      setLocalCityRankingVisibility(cityId, visible);
+      return true;
+    }
+
+    console.error("Error updating city ranking visibility:", result.error);
+    return false;
+  } catch (error) {
+    console.error("Error updating city ranking visibility:", error);
+    return false;
+  }
 };
 
 /**
@@ -1317,17 +1546,36 @@ export const fetchFormById = async (formId: string): Promise<any | null> => {
 
 export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
+    const directMatch = await supabase
       .from("forms")
       .select("*")
       .eq("segment_id", segmentId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      console.error("Error fetching form by segment ID:", error);
+    if (directMatch.error && directMatch.error.code !== "PGRST116") {
+      console.error("Error fetching form by segment ID:", directMatch.error);
     }
 
-    return data || null;
+    if (directMatch.data) {
+      return directMatch.data;
+    }
+
+    const resolvedSegment = await resolveDatabaseSegmentId(segmentId);
+    if (!resolvedSegment || resolvedSegment.dbId === segmentId) {
+      return null;
+    }
+
+    const fallbackMatch = await supabase
+      .from("forms")
+      .select("*")
+      .eq("segment_id", resolvedSegment.dbId)
+      .maybeSingle();
+
+    if (fallbackMatch.error && fallbackMatch.error.code !== "PGRST116") {
+      console.error("Error fetching form by resolved segment ID:", fallbackMatch.error);
+    }
+
+    return fallbackMatch.data || null;
   } catch (error) {
     console.error("Error fetching form by segment ID:", error);
     return null;
@@ -1394,42 +1642,35 @@ export const fetchSegmentById = async (segmentId: string): Promise<any | null> =
 
 export const updateFormInDB = async (formId: string, formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .update(formData)
-      .eq("id", formId)
-      .select()
-      .single();
+    const { data, error } = await updateFormWithCompatibility(formId, formData);
 
     if (error) {
-      console.error("Error updating form:", error);
-      return null;
+      const message = formatDatabaseError("Erro ao atualizar formulário", error);
+      console.error(message, error);
+      throw new Error(message);
     }
 
     return data;
   } catch (error) {
     console.error("Error updating form:", error);
-    return null;
+    throw error;
   }
 };
 
 export const createFormInDB = async (formData: any): Promise<any | null> => {
   try {
-    const { data, error } = await supabase
-      .from("forms")
-      .insert(formData)
-      .select()
-      .single();
+    const { data, error } = await insertFormWithCompatibility(formData);
 
     if (error) {
-      console.error("Error creating form:", error);
-      return null;
+      const message = formatDatabaseError("Erro ao criar formulário", error);
+      console.error(message, error);
+      throw new Error(message);
     }
 
     return data;
   } catch (error) {
     console.error("Error creating form:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -1548,17 +1789,7 @@ export const fetchAllStoredCities = async (): Promise<City[]> => {
 
 export const fetchSegmentsByCity = async (cityId: string): Promise<Segment[]> => {
   try {
-    const { data, error } = await supabase
-      .from("segments")
-      .select("*")
-      .eq("id_cidade", cityId);
-
-    if (error) {
-      console.error("Error fetching segments:", error);
-      return [];
-    }
-
-    return data as Segment[];
+    return await fetchSegmentsFromDB(cityId);
   } catch (error) {
     console.error("Error fetching segments:", error);
     return [];

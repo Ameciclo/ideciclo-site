@@ -35,6 +35,14 @@ export const downloadCsvFile = (
   triggerFileDownload(filename, csvContent, "text/csv;charset=utf-8;");
 };
 
+export const downloadJsonFile = (
+  filename: string,
+  data: unknown,
+  mimeType = "application/json;charset=utf-8;"
+) => {
+  triggerFileDownload(filename, JSON.stringify(data, null, 2), mimeType);
+};
+
 export const downloadElementAsPdf = async (element: HTMLElement, filename: string) => {
   const html2pdf = (await import("html2pdf.js")).default;
 

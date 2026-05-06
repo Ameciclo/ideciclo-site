@@ -44,6 +44,7 @@ export type SegmentIntersectionPreview = {
   highway?: string;
   hierarchy?: string;
   hasCyclingInfrastructure?: boolean | null;
+  cyclingInfrastructureType?: string;
 };
 
 export type SegmentIntersectionSelection = {
@@ -55,6 +56,7 @@ export type SegmentIntersectionSelection = {
   hierarchyOsm?: string;
   hierarchyIdeciclo?: string;
   hasCyclingInfrastructure?: boolean | null;
+  cyclingInfrastructureType?: string;
   selected: boolean;
 };
 
@@ -76,6 +78,7 @@ export interface City {
   vias_estruturais_km: number;
   vias_alimentadoras_km: number;
   vias_locais_km: number;
+  show_in_ranking?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -189,6 +192,7 @@ export interface SurveyResponses {
   segment_name: string;
   extension_m: number;
   velocity_kmh: number;
+  regulated_speed_choices: number[];
   start_point: string;
   end_point: string;
   road_hierarchy: string;
