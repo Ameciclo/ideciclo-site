@@ -6,12 +6,16 @@ import {
   ArrowRightLeft,
   Bike,
   CheckCircle2,
+  Download,
+  Filter,
   FileText,
   Gauge,
+  GitCompareArrows,
   MapPinned,
   Route,
   Shield,
   SunMedium,
+  TimerReset,
   TriangleAlert,
   Wrench,
 } from "lucide-react";
@@ -21,9 +25,25 @@ import SegmentPreviewMap from "@/components/SegmentPreviewMap";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { manualDownloadUrl } from "@/constants/siteLinks";
 import { fetchCityFromDB, fetchFormsByCityId, fetchSegmentsFromDB } from "@/services/database";
 import type { City, Form, Segment } from "@/types";
+import { downloadJsonFile } from "@/utils/reportDownloads";
 import { getHierarchyBadgeClassName, getSegmentTypeBadgeClassName } from "@/utils/segmentBadgeStyles";
 import {
   buildResultsSnapshot,
@@ -114,12 +134,104 @@ const SECTION_HEADER_STYLES: Record<
   },
 };
 
+const ComparisonStructureCard = ({
+  detail,
+  cityId,
+}: {
+  detail: PublicStructureDetail;
+  cityId: string;
+}) => {
+  const topBottom = getTopAndBottomCriteria(detail);
+
+  return (
+    <Card className="rounded-[28px] border-0 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-2xl leading-tight text-text-grey">
+              {getComparisonFriendlyTitle(detail)}
+            </CardTitle>
+            <CardDescription className="mt-2 text-sm leading-6 text-slate-600">
+              {detail.result.lengthKm > 0 ? `${formatKm(detail.result.lengthKm)} km` : "Extensão não informada"} •{" "}
+              {detail.result.hierarchyLabel}
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge className={detail.scoreBadgeClassName}>{detail.scoreLabel}</Badge>
+            <Badge className={getSegmentTypeBadgeClassName(detail.result.typeLabel)}>
+              {detail.result.typeLabel}
+            </Badge>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Nota total</div>
+            <div className="mt-2 text-2xl font-bold text-text-grey">
+              {formatScore(detail.totalScore)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Status</div>
+            <Badge className={`mt-2 ${getStructureStatusBadgeClassName(detail.result)}`}>
+              {getStructureStatusLabel(detail.result)}
+            </Badge>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Detalhamento</div>
+            <Button asChild variant="outline" className="mt-2 w-full justify-between rounded-full">
+              <Link to={getStructureDetailsPath(cityId, detail.id)}>
+                Ver estrutura
+                <ArrowRightLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl bg-emerald-50 p-4">
+            <div className="text-sm font-semibold text-emerald-900">Pontos fortes</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topBottom.strengths.length > 0 ? (
+                topBottom.strengths.map((criterion) => (
+                  <Badge key={criterion.code} className={getRatingBadgeClassName(criterion.rating)}>
+                    {criterion.code} • {criterion.label}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-emerald-900/70">Ainda sem destaque consolidado.</span>
+              )}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-amber-50 p-4">
+            <div className="text-sm font-semibold text-amber-900">Pontos de atenção</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {topBottom.attention.length > 0 ? (
+                topBottom.attention.map((criterion) => (
+                  <Badge key={criterion.code} className={getRatingBadgeClassName(criterion.rating)}>
+                    {criterion.code} • {criterion.label}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-amber-900/70">Nenhum alerta crítico apareceu nesta leitura.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const DetalhesEstrutura = () => {
   const { cityId, segmentId } = useParams<{ cityId: string; segmentId: string }>();
   const [city, setCity] = useState<City | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
+  const [comparisonType, setComparisonType] = useState("todos");
+  const [firstComparisonId, setFirstComparisonId] = useState("");
+  const [secondComparisonId, setSecondComparisonId] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -177,6 +289,69 @@ const DetalhesEstrutura = () => {
     [currentDetail?.id, orderedDetails]
   );
 
+  const structureTypeOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          structureDetails
+            .map((detail) => detail.result.typeLabel)
+            .filter(Boolean)
+        )
+      ).sort((left, right) => left.localeCompare(right, "pt-BR")),
+    [structureDetails]
+  );
+
+  const comparisonCandidates = useMemo(() => {
+    if (comparisonType === "todos") return structureDetails;
+    return structureDetails.filter((detail) => detail.result.typeLabel === comparisonType);
+  }, [comparisonType, structureDetails]);
+
+  useEffect(() => {
+    if (!currentDetail) return;
+
+    setComparisonType(currentDetail.result.typeLabel || "todos");
+    setFirstComparisonId(currentDetail.id);
+  }, [currentDetail?.id, currentDetail?.result.typeLabel]);
+
+  useEffect(() => {
+    const currentTypeValues = new Set(comparisonCandidates.map((detail) => detail.id));
+
+    if (firstComparisonId && !currentTypeValues.has(firstComparisonId)) {
+      setFirstComparisonId(currentDetail?.id || "");
+    }
+
+    if (secondComparisonId && !currentTypeValues.has(secondComparisonId)) {
+      setSecondComparisonId("");
+    }
+  }, [comparisonCandidates, currentDetail?.id, firstComparisonId, secondComparisonId]);
+
+  const firstComparisonDetail =
+    comparisonCandidates.find((detail) => detail.id === firstComparisonId) || null;
+  const secondComparisonDetail =
+    comparisonCandidates.find((detail) => detail.id === secondComparisonId) || null;
+
+  const comparisonRows = useMemo(() => {
+    if (!firstComparisonDetail || !secondComparisonDetail) return [];
+
+    const firstMap = new Map(
+      firstComparisonDetail.criteria.map((criterion) => [criterion.code, criterion])
+    );
+    const secondMap = new Map(
+      secondComparisonDetail.criteria.map((criterion) => [criterion.code, criterion])
+    );
+
+    return PUBLIC_CRITERION_GROUPS.map((group) => ({
+      ...group,
+      criteria: group.criteria
+        .map((code) => ({
+          code,
+          first: firstMap.get(code) || null,
+          second: secondMap.get(code) || null,
+        }))
+        .filter((row) => row.first || row.second),
+    })).filter((group) => group.criteria.length > 0);
+  }, [firstComparisonDetail, secondComparisonDetail]);
+
   const previousDetail =
     currentIndex > 0 ? orderedDetails[currentIndex - 1] : null;
   const nextDetail =
@@ -188,6 +363,92 @@ const DetalhesEstrutura = () => {
     () => (currentDetail ? getTopAndBottomCriteria(currentDetail) : null),
     [currentDetail]
   );
+
+  const handleDownloadStructureData = () => {
+    if (!city || !results || !currentDetail) return;
+
+    const payload = {
+      type: "FeatureCollection",
+      name: `ideciclo-${city.name.toLowerCase().replace(/\s+/g, "-")}-${currentDetail.id}`,
+      metadata: {
+        city: {
+          id: city.id,
+          name: city.name,
+          state: city.state,
+        },
+        summary: {
+          ideciclo: results.summary.cityIndex,
+          total_structures: results.summary.totalStructures,
+          evaluated_structures: results.summary.evaluatedStructures,
+          total_structure_km: results.summary.totalStructureKm,
+          evaluated_structure_km: results.summary.evaluatedStructureKm,
+          total_road_km: results.summary.totalRoadKm,
+        },
+        structure: {
+          id: currentDetail.id,
+          nome: getComparisonFriendlyTitle(currentDetail),
+          tipologia: currentDetail.result.typeLabel,
+          hierarquia: currentDetail.result.hierarchyLabel,
+          status: getStructureStatusLabel(currentDetail.result),
+        },
+      },
+      features: [
+        {
+          type: "Feature",
+          geometry: currentDetail.segment.geometry,
+          properties: {
+            id: currentDetail.id,
+            nome: getComparisonFriendlyTitle(currentDetail),
+            tipologia: currentDetail.result.typeLabel,
+            hierarquia: currentDetail.result.hierarchyLabel,
+            bairro: currentDetail.segment.neighborhood || null,
+            extensao_km: currentDetail.result.lengthKm,
+            nota_total: currentDetail.totalScore,
+            conceito: currentDetail.scoreLabel,
+            status: getStructureStatusLabel(currentDetail.result),
+            avaliacao_concluida: currentDetail.result.evaluated,
+            entra_no_indice: currentDetail.result.contributes,
+            avaliacao_ideciclo: {
+              nota_total: currentDetail.totalScore,
+              conceito_total: currentDetail.scoreLabel,
+              secoes: currentDetail.sections.map((section) => ({
+                codigo: section.key,
+                nome: section.label,
+                pontuacao: section.score,
+                pontuacao_maxima: section.max,
+                criterios: section.criteria.map((criterion) => ({
+                  codigo: criterion.code,
+                  nome: criterion.label,
+                  conceito: criterion.rating,
+                  pontos: criterion.points,
+                  pontos_maximos: criterion.maxPoints,
+                  descricao_conceito:
+                    criterion.scale.find((item) => item.rating === criterion.rating)?.description ||
+                    null,
+                })),
+              })),
+              criterios: currentDetail.criteria.map((criterion) => ({
+                codigo: criterion.code,
+                nome: criterion.label,
+                conceito: criterion.rating,
+                pontos: criterion.points,
+                pontos_maximos: criterion.maxPoints,
+                descricao_conceito:
+                  criterion.scale.find((item) => item.rating === criterion.rating)?.description ||
+                  null,
+              })),
+            },
+          },
+        },
+      ],
+    };
+
+    downloadJsonFile(
+      `dados-${city.name.toLowerCase().replace(/\s+/g, "-")}-${currentDetail.id}.geojson`,
+      payload,
+      "application/geo+json;charset=utf-8;"
+    );
+  };
 
   if (loading) {
     return (
@@ -273,16 +534,25 @@ const DetalhesEstrutura = () => {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="rounded-full">
-                  <Link to={`${getCityDetailsPath(city.id)}?compare=${currentDetail.id}#comparacao`}>
+                  <a href="#comparacao">
                     <ArrowRightLeft className="h-4 w-4" />
                     Comparar com outra estrutura
-                  </Link>
+                  </a>
                 </Button>
                 <Button asChild variant="outline" className="rounded-full">
                   <a href={manualDownloadUrl} target="_blank" rel="noreferrer">
                     <FileText className="h-4 w-4" />
                     Ler manual
                   </a>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={handleDownloadStructureData}
+                >
+                  <Download className="h-4 w-4" />
+                  Baixar dados
                 </Button>
               </div>
             </div>
@@ -547,6 +817,189 @@ const DetalhesEstrutura = () => {
                 </div>
                 );
               })}
+            </CardContent>
+          </Card>
+        </section>
+
+        <section id="comparacao" className="space-y-6 scroll-mt-24">
+          <Card className="rounded-[32px] border-0 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-2xl text-text-grey">Comparar estruturas</CardTitle>
+                  <CardDescription>
+                    A estrutura em evidência já entra selecionada. Escolha outra da mesma tipologia para comparar os critérios lado a lado.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => {
+                    setComparisonType(currentDetail.result.typeLabel || "todos");
+                    setFirstComparisonId(currentDetail.id);
+                    setSecondComparisonId("");
+                  }}
+                >
+                  <TimerReset className="h-4 w-4" />
+                  Limpar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    <Filter className="h-4 w-4" />
+                    Tipologia
+                  </label>
+                  <Select value={comparisonType} onValueChange={setComparisonType}>
+                    <SelectTrigger className="rounded-full">
+                      <SelectValue placeholder="Escolha a tipologia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas as tipologias</SelectItem>
+                      {structureTypeOptions.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    <GitCompareArrows className="h-4 w-4" />
+                    Estrutura em evidência
+                  </label>
+                  <Select value={firstComparisonId || "__none__"} disabled>
+                    <SelectTrigger className="rounded-full">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Selecione</SelectItem>
+                      {comparisonCandidates.map((detail) => (
+                        <SelectItem key={detail.id} value={detail.id}>
+                          {getComparisonFriendlyTitle(detail)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    <GitCompareArrows className="h-4 w-4" />
+                    Comparar com
+                  </label>
+                  <Select
+                    value={secondComparisonId || "__none__"}
+                    onValueChange={(value) => setSecondComparisonId(value === "__none__" ? "" : value)}
+                  >
+                    <SelectTrigger className="rounded-full">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Selecione</SelectItem>
+                      {comparisonCandidates
+                        .filter((detail) => detail.id !== firstComparisonId)
+                        .map((detail) => (
+                          <SelectItem key={detail.id} value={detail.id}>
+                            {getComparisonFriendlyTitle(detail)}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {firstComparisonDetail && secondComparisonDetail ? (
+                <>
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <ComparisonStructureCard detail={firstComparisonDetail} cityId={city.id} />
+                    <ComparisonStructureCard detail={secondComparisonDetail} cityId={city.id} />
+                  </div>
+
+                  <div className="overflow-hidden rounded-[24px] border border-slate-200">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50 hover:bg-slate-50">
+                          <TableHead>Critério</TableHead>
+                          <TableHead>{getComparisonFriendlyTitle(firstComparisonDetail)}</TableHead>
+                          <TableHead>{getComparisonFriendlyTitle(secondComparisonDetail)}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {comparisonRows.map((group) =>
+                          group.criteria.map((row, index) => (
+                            <TableRow key={`${group.key}-${row.code}`}>
+                              <TableCell>
+                                <div>
+                                  {index === 0 ? (
+                                    <div className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                      {group.title}
+                                    </div>
+                                  ) : null}
+                                  <div className="font-medium text-text-grey">
+                                    {row.code} • {row.first?.label || row.second?.label}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {row.first ? (
+                                  <div className="space-y-2">
+                                    <Badge className={getRatingBadgeClassName(row.first.rating)}>
+                                      {row.first.rating || "-"}
+                                      {typeof row.first.points === "number" ? (
+                                        <>
+                                          <span className="mx-1 opacity-70">·</span>
+                                          <span>+ {row.first.points} pts</span>
+                                        </>
+                                      ) : null}
+                                    </Badge>
+                                    <p className="text-sm leading-6 text-slate-600">
+                                      {row.first.scale.find((item) => item.rating === row.first?.rating)?.description ||
+                                        "Sem descrição disponível."}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-500">Não se aplica</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {row.second ? (
+                                  <div className="space-y-2">
+                                    <Badge className={getRatingBadgeClassName(row.second.rating)}>
+                                      {row.second.rating || "-"}
+                                      {typeof row.second.points === "number" ? (
+                                        <>
+                                          <span className="mx-1 opacity-70">·</span>
+                                          <span>+ {row.second.points} pts</span>
+                                        </>
+                                      ) : null}
+                                    </Badge>
+                                    <p className="text-sm leading-6 text-slate-600">
+                                      {row.second.scale.find((item) => item.rating === row.second?.rating)?.description ||
+                                        "Sem descrição disponível."}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-500">Não se aplica</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-slate-600">
+                  Escolha uma segunda estrutura para abrir a comparação lado a lado com o trecho atual.
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>
