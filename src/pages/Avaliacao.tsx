@@ -233,6 +233,31 @@ const Avaliacao = () => {
       });
   }, [isAuthenticated, relevantPermissions, storedCitiesById]);
 
+  const activeCityIsWithinScope = useMemo(() => {
+    if (!isAuthenticated || !activeCity) return false;
+    if (relevantPermissions.some((permission) => permission.role === "admin_global")) {
+      return true;
+    }
+
+    const matchingStoredCity = storedCitiesById[activeCity.cityId] || null;
+
+    if (matchingStoredCity) {
+      return cityIsWithinPermissionScope(relevantPermissions, matchingStoredCity);
+    }
+
+    return relevantPermissions.some((permission) =>
+      matchesRegionalScope(permission, activeCity.stateName, activeCity.cityName)
+    );
+  }, [activeCity, isAuthenticated, relevantPermissions, storedCitiesById]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeCity) return;
+    if (!activeCityIsWithinScope) {
+      clearPersistedCityData();
+      setActiveCity(null);
+    }
+  }, [activeCity, activeCityIsWithinScope, isAuthenticated]);
+
   const formatLastDownload = (storedCity?: City | null) => {
     const rawDate = storedCity?.updated_at || storedCity?.created_at;
     if (!rawDate) return "Ainda não baixada";
@@ -603,21 +628,22 @@ const Avaliacao = () => {
               )}
             </div>
           </div>
-          {scopedStoredCities.length > 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-text-grey">
-                    3. Cidades já baixadas no seu escopo
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Clique em uma cidade para torná-la a cidade ativa imediatamente.
-                  </p>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {scopedStoredCities.length} cidade{scopedStoredCities.length === 1 ? "" : "s"}
-                </span>
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-text-grey">
+                  Cidades já baixadas no seu escopo
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Clique em uma cidade para torná-la a cidade ativa imediatamente.
+                </p>
               </div>
+              <span className="text-sm text-gray-500">
+                {scopedStoredCities.length} cidade{scopedStoredCities.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            {scopedStoredCities.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {scopedStoredCities.map((city) => (
                   <button
@@ -651,115 +677,117 @@ const Avaliacao = () => {
                     ) : null}
                   </button>
                 ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                Nenhuma cidade foi baixada ainda neste escopo.
+              </div>
+            )}
 
-                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 md:col-span-2 xl:col-span-3">
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-base font-semibold text-text-grey">Baixar nova cidade</h4>
+                  <p className="text-sm text-gray-600">
+                    Use os seletores abaixo para escolher estado e cidade. Se a cidade já existir
+                    no banco, ela só será ativada.
+                  </p>
+                </div>
+                {activeCity ? (
+                  <Button variant="outline" onClick={handleClearActiveCity}>
+                    Limpar cidade ativa
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label htmlFor="estado-avaliacao-baixo" className="text-sm font-medium">
+                    Estado
+                  </label>
+                  <Select value={selectedStateId} onValueChange={handleSelectionStateChange}>
+                    <SelectTrigger id="estado-avaliacao-baixo">
+                      <SelectValue placeholder="Selecione um estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableStates.map((state) => (
+                        <SelectItem key={state.id} value={state.id.toString()}>
+                          {state.nome} - {state.sigla}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="cidade-avaliacao-baixo" className="text-sm font-medium">
+                    Cidade
+                  </label>
+                  <Select
+                    value={selectedCityOption}
+                    onValueChange={handleSelectionCityChange}
+                    disabled={isLoadingCities || !selectedStateId || cities.length === 0}
+                  >
+                    <SelectTrigger id="cidade-avaliacao-baixo">
+                      <SelectValue
+                        placeholder={
+                          isLoadingCities
+                            ? "Carregando cidades..."
+                            : cities.length === 0 && selectedStateId
+                              ? "Nenhuma cidade disponível"
+                              : "Selecione uma cidade"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.id.toString()}>
+                          {city.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedCityAction ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-base font-semibold text-text-grey">
-                        Escolher outra cidade
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        Use os seletores abaixo para trocar a cidade ativa ou baixar uma nova no
-                        mesmo fluxo.
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {selectedCityAction.storedCity
+                          ? "Cidade já baixada"
+                          : "Cidade nova selecionada"}
+                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {selectedCityAction.cityName}
+                      </h3>
+                      <p className="text-sm text-slate-600">{selectedCityAction.stateName}</p>
+                      <p className="text-sm text-slate-600">
+                        {selectedCityAction.storedCity
+                          ? `Última atualização: ${formatLastDownload(selectedCityAction.storedCity)}`
+                          : "Essa cidade ainda não foi baixada para sua avaliação."}
                       </p>
                     </div>
-                    {activeCity ? (
-                      <Button variant="outline" onClick={handleClearActiveCity}>
-                        Limpar cidade ativa
-                      </Button>
-                    ) : null}
+                    <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                      {selectedCityAction.storedCity ? "Ativa" : "A baixar"}
+                    </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label htmlFor="estado-avaliacao-baixo" className="text-sm font-medium">
-                        Estado
-                      </label>
-                      <Select value={selectedStateId} onValueChange={handleSelectionStateChange}>
-                        <SelectTrigger id="estado-avaliacao-baixo">
-                          <SelectValue placeholder="Selecione um estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableStates.map((state) => (
-                            <SelectItem key={state.id} value={state.id.toString()}>
-                              {state.nome} - {state.sigla}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="cidade-avaliacao-baixo" className="text-sm font-medium">
-                        Cidade
-                      </label>
-                      <Select
-                        value={selectedCityOption}
-                        onValueChange={handleSelectionCityChange}
-                        disabled={isLoadingCities || !selectedStateId || cities.length === 0}
+                  {!selectedCityAction.storedCity ? (
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                      <Button
+                        onClick={handleDownloadSelectedCity}
+                        className="bg-ideciclo-blue hover:bg-blue-600"
                       >
-                        <SelectTrigger id="cidade-avaliacao-baixo">
-                          <SelectValue
-                            placeholder={
-                              isLoadingCities
-                                ? "Carregando cidades..."
-                                : cities.length === 0 && selectedStateId
-                                  ? "Nenhuma cidade disponível"
-                                  : "Selecione uma cidade"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cities.map((city) => (
-                            <SelectItem key={city.id} value={city.id.toString()}>
-                              {city.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {selectedCityAction ? (
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            {selectedCityAction.storedCity
-                              ? "Cidade já baixada"
-                              : "Cidade nova selecionada"}
-                          </p>
-                          <h3 className="text-lg font-bold text-slate-900">
-                            {selectedCityAction.cityName}
-                          </h3>
-                          <p className="text-sm text-slate-600">{selectedCityAction.stateName}</p>
-                          <p className="text-sm text-slate-600">
-                            {selectedCityAction.storedCity
-                              ? `Última atualização: ${formatLastDownload(selectedCityAction.storedCity)}`
-                              : "Essa cidade ainda não foi baixada para sua avaliação."}
-                          </p>
-                        </div>
-                        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                          {selectedCityAction.storedCity ? "Ativa" : "A baixar"}
-                        </div>
-                      </div>
-
-                      {!selectedCityAction.storedCity ? (
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                          <Button
-                            onClick={handleDownloadSelectedCity}
-                            className="bg-ideciclo-blue hover:bg-blue-600"
-                          >
-                            Selecionar e baixar dados
-                          </Button>
-                        </div>
-                      ) : null}
+                        Selecionar e baixar dados
+                      </Button>
                     </div>
                   ) : null}
                 </div>
-              </div>
+              ) : null}
             </div>
-          ) : null}
+          </div>
 
           {cityDownloads.length > 0 ? (
             <div className="mt-6 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
