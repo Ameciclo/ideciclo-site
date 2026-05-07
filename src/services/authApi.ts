@@ -85,6 +85,7 @@ export const verifyMagicLink = async (token: string, redirectTo: string) =>
 export const fetchCurrentSession = async () =>
   fetchJson<{ session: AuthSession | null }>("/api/auth/session", {
     method: "GET",
+    fresh: true,
   });
 
 export const logoutRequest = async () =>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "ideciclo-shell-v1";
+const CACHE_NAME = "ideciclo-shell-v2";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {
@@ -43,6 +43,10 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/auth/")) {
     return;
   }
 
