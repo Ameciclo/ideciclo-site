@@ -11,7 +11,8 @@ const json = (response, statusCode, payload) => {
 const rewriteRequestUrl = (request, routePath) => {
   const host = request.headers.host || "127.0.0.1";
   const incomingUrl = new URL(request.url, `http://${host}`);
-  const normalizedPath = String(routePath || "").replace(/^\/+/, "");
+  const fallbackPath = incomingUrl.pathname.replace(/^\/api\/?/, "");
+  const normalizedPath = String(routePath || fallbackPath || "").replace(/^\/+/, "");
   const rewrittenUrl = new URL(`/api/${normalizedPath}`, `http://${host}`);
 
   incomingUrl.searchParams.forEach((value, key) => {

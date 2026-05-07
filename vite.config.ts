@@ -22,30 +22,19 @@ type MiddlewareServer = {
 };
 
 const createApiMiddleware = () => {
-  const routeModules = [
-    {
-      prefix: "/api/auth",
-      modulePath: path.resolve(__dirname, "./api/auth/[...route].js"),
-    },
-    {
-      prefix: "/api/db",
-      modulePath: path.resolve(__dirname, "./api/db/[...route].js"),
-    },
-  ];
+  const routerModulePath = path.resolve(__dirname, "./api/router.js");
 
   return async (request: MiddlewareRequest, response: MiddlewareResponse, next: MiddlewareNext) => {
     const requestUrl = request.url || "/";
-    const matchedRoute = routeModules.find(
-      ({ prefix }) => requestUrl === prefix || requestUrl.startsWith(`${prefix}/`)
-    );
+    const isApiRoute = requestUrl === "/api" || requestUrl.startsWith("/api/");
 
-    if (!matchedRoute) {
+    if (!isApiRoute) {
       next();
       return;
     }
 
     try {
-      const handlerModule = await import(pathToFileURL(matchedRoute.modulePath).href);
+      const handlerModule = await import(pathToFileURL(routerModulePath).href);
       await handlerModule.default(request, response);
     } catch (error) {
       next(error);
