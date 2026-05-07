@@ -503,6 +503,104 @@ const sendAccessRequestNotificationEmail = async ({
   }
 };
 
+const getReadableRoleLabel = (role) => {
+  switch (role) {
+    case "admin_global":
+      return "Administrador global";
+    case "admin_estado":
+      return "Administrador estadual";
+    case "admin_cidade":
+      return "Administrador municipal";
+    case "avaliador_estrutura_cicloviaria":
+      return "Avaliador de estrutura cicloviária";
+    case "refinador_dados_cidade":
+      return "Refinador de dados da cidade";
+    case "visualizador":
+      return "Visualizador";
+    default:
+      return role || "Permissão";
+  }
+};
+
+const getReadableScopeLabel = (permission) => {
+  if (permission.role === "admin_global") {
+    return "Escopo global";
+  }
+
+  if (permission.role === "admin_estado") {
+    return permission.state ? `Estado: ${permission.state}` : "Escopo estadual";
+  }
+
+  if (permission.role === "admin_cidade") {
+    const parts = [];
+    if (permission.state) parts.push(`Estado: ${permission.state}`);
+    if (permission.city) parts.push(`Cidade: ${permission.city}`);
+    return parts.length > 0 ? parts.join(" • ") : "Escopo municipal";
+  }
+
+  const parts = [];
+  if (permission.module) {
+    const moduleLabel =
+      permission.module === "admin"
+        ? "Administração"
+        : permission.module === "avaliacao_estrutura_cicloviaria"
+          ? "Avaliação de estrutura cicloviária"
+          : permission.module === "refinamento_dados_cidade"
+            ? "Refinamento de dados da cidade"
+            : permission.module;
+    parts.push(`Módulo: ${moduleLabel}`);
+  }
+  if (permission.state) parts.push(`Estado: ${permission.state}`);
+  if (permission.city) parts.push(`Cidade: ${permission.city}`);
+  return parts.length > 0 ? parts.join(" • ") : "Escopo não restrito";
+};
+
+const sendAccessRequestApprovedEmail = async ({ email, name, permissions }) => {
+  const adminUrl = new URL("/admin", APP_URL);
+  const permissionSummary = permissions.map((permission) => ({
+    label: getReadableRoleLabel(permission.role),
+    value: getReadableScopeLabel(permission),
+  }));
+
+  const info = await transporter.sendMail({
+    from: EMAIL_FROM,
+    to: email,
+    subject: "Seu acesso ao IDECICLO foi aprovado",
+    text: [
+      `Olá, ${name || "tudo bem?"}`,
+      "",
+      "Seu cadastro no IDECICLO foi aprovado e seu acesso já está ativo.",
+      "",
+      "Permissões atribuídas:",
+      ...permissionSummary.map((item) => `- ${item.label}: ${item.value}`),
+      "",
+      `Acesse o sistema em: ${APP_URL.toString()}`,
+      `Painel administrativo: ${adminUrl.toString()}`,
+    ].join("\n"),
+    html: buildTransactionalEmailHtml({
+      eyebrow: "Acesso aprovado",
+      title: "Seu acesso ao IDECICLO foi liberado",
+      intro:
+        "Seu cadastro foi aprovado e o acesso ao sistema já está ativo. Abaixo você encontra o resumo do escopo atribuído à sua conta.",
+      buttonLabel: "Entrar no IDECICLO",
+      buttonUrl: APP_URL.toString(),
+      details: [
+        { label: "Nome", value: name || "Não informado" },
+        ...permissionSummary.flatMap((item, index) => [
+          { label: `Permissão ${index + 1}`, value: item.label },
+          { label: `Escopo ${index + 1}`, value: item.value },
+        ]),
+      ],
+      outro:
+        "Se você não esperava este e-mail, ignore esta mensagem e fale com a equipe administradora.",
+    }),
+  });
+
+  if (!process.env.SMTP_HOST) {
+    console.log("E-mail de aprovação gerado em modo local:", info.message);
+  }
+};
+
 const getAccessRequestRateLimitMessage = (reason) => {
   if (reason === "email_cooldown") {
     const minutes = Math.ceil(ACCESS_REQUEST_RATE_LIMIT_EMAIL_COOLDOWN_SECONDS / 60);
@@ -3040,6 +3138,14 @@ export const handleAuthRequest = async (request, response) => {
         );
 
         await client.query("COMMIT");
+
+        sendAccessRequestApprovedEmail({
+          email: accessRequest.email,
+          name: nextName,
+          permissions,
+        }).catch((error) => {
+          console.error("Falha ao enviar e-mail de aprovação de acesso:", error);
+        });
 
         json(response, 200, {
           ok: true,
