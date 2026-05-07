@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,16 @@ const AuthVerify = () => {
     [searchParams]
   );
   const [error, setError] = useState<string | null>(null);
+  const hasVerifiedRef = useRef(false);
 
   useEffect(() => {
     const verify = async () => {
+      if (hasVerifiedRef.current) {
+        return;
+      }
+
+      hasVerifiedRef.current = true;
+
       if (!token) {
         setError("O link de acesso está incompleto ou inválido.");
         return;

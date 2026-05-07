@@ -21,10 +21,26 @@ const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> 
     ...init,
   });
 
-  const payload = (await response.json().catch(() => ({}))) as JsonResponse<T>;
+  const rawBody = await response.text();
+  const payload = (() => {
+    if (!rawBody) return {} as JsonResponse<T>;
+
+    try {
+      return JSON.parse(rawBody) as JsonResponse<T>;
+    } catch {
+      return {} as JsonResponse<T>;
+    }
+  })();
 
   if (!response.ok) {
-    throw new Error(payload.error || "Erro inesperado na autenticação.");
+    const fallbackMessage =
+      rawBody.trim() ||
+      `${response.status} ${response.statusText}`.trim() ||
+      "Erro inesperado na autenticação.";
+
+    throw new Error(
+      payload.error || `Falha na autenticação (${response.status}): ${fallbackMessage}`
+    );
   }
 
   return payload;
