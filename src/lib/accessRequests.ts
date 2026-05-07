@@ -7,19 +7,19 @@ import type {
 export const ACCESS_REQUEST_INTEREST_OPTIONS = [
   {
     value: "avaliacao_estrutura_cicloviaria",
-    label: "Avaliação de estrutura cicloviária",
+    label: "Avaliação",
   },
   {
     value: "refinamento_dados_cidade",
-    label: "Refinamento de dados da cidade",
+    label: "Refino de Dados",
   },
   {
     value: "visualizacao_resultados",
-    label: "Visualização de resultados",
+    label: "Visualização de Resultados",
   },
   {
     value: "administracao_local",
-    label: "Administração local",
+    label: "Administração Local",
   },
 ] as const;
 

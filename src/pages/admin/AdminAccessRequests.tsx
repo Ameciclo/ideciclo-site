@@ -17,7 +17,7 @@ import {
   buildDefaultPermissionDraftFromRequest,
   type PermissionDraft,
 } from "@/lib/accessRequests";
-import { AUTH_MODULES, AUTH_ROLES } from "@/lib/authPermissions";
+import { AUTH_ROLES } from "@/lib/authPermissions";
 import { fetchCities, fetchStates } from "@/services/api";
 import {
   approveAdminAccessRequest,
@@ -29,18 +29,41 @@ import type { IBGECity, IBGEState } from "@/types";
 import type { AccessRequest, AdminUser, AuthPermission, AuthRole } from "@/types/auth";
 
 const roleLabels: Record<string, string> = {
-  admin_global: "Admin global",
-  admin_estado: "Admin do estado",
-  admin_cidade: "Admin da cidade",
-  avaliador_estrutura_cicloviaria: "Avaliador de estrutura",
-  refinador_dados_cidade: "Refinador de dados",
-  visualizador: "Visualizador",
+  admin_global: "Administração Global",
+  admin_estado: "Coordenação Estadual",
+  admin_cidade: "Coordenação Municipal",
+  avaliador_estrutura_cicloviaria: "Avaliação",
+  refinador_dados_cidade: "Refino de Dados",
+  visualizador: "Visualização de Resultados",
 };
 
 const moduleLabels: Record<string, string> = {
-  admin: "Admin",
-  avaliacao_estrutura_cicloviaria: "Avaliação de estrutura",
-  refinamento_dados_cidade: "Refinamento de dados",
+  admin: "Todos os módulos",
+  avaliacao_estrutura_cicloviaria: "Avaliação",
+  refinamento_dados_cidade: "Refino de Dados",
+};
+
+const getModuleForRole = (role: string) => {
+  switch (role) {
+    case "admin_global":
+    case "admin_estado":
+    case "admin_cidade":
+      return "admin";
+    case "avaliador_estrutura_cicloviaria":
+      return "avaliacao_estrutura_cicloviaria";
+    case "refinador_dados_cidade":
+      return "refinamento_dados_cidade";
+    case "visualizador":
+    default:
+      return "";
+  }
+};
+
+const getModuleLabel = (module?: string | null) => (module ? moduleLabels[module] || module : "");
+const getPermissionScopeMode = (role: string) => {
+  if (role === "admin_global") return "global";
+  if (role === "admin_estado") return "state";
+  return "city";
 };
 
 const AdminAccessRequests = () => {
@@ -424,11 +447,14 @@ const AdminAccessRequests = () => {
                           setPermissionDraft((current) => ({
                             ...current,
                             role: value as AuthRole,
+                            module: getModuleForRole(value),
+                            state: "",
+                            city: "",
                           }))
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Role" />
+                          <SelectValue placeholder="Papel" />
                         </SelectTrigger>
                         <SelectContent>
                           {AUTH_ROLES.map((role) => (
@@ -439,67 +465,49 @@ const AdminAccessRequests = () => {
                         </SelectContent>
                       </Select>
 
-                      <Select
-                        value={permissionDraft.module || "__none__"}
-                        onValueChange={(value) =>
-                          setPermissionDraft((current) => ({
-                            ...current,
-                            module: value === "__none__" ? "" : value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Módulo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem módulo</SelectItem>
-                          {AUTH_MODULES.map((module) => (
-                            <SelectItem key={module} value={module}>
-                              {moduleLabels[module]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {getPermissionScopeMode(permissionDraft.role) !== "global" ? (
+                        <Select
+                          value={getSelectedStateId(permissionDraft.state)}
+                          onValueChange={(value) => void handleDraftStateChange(value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Estado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Selecione um estado</SelectItem>
+                            {states.map((state) => (
+                              <SelectItem key={state.id} value={state.id.toString()}>
+                                {state.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
 
-                      <Select
-                        value={getSelectedStateId(permissionDraft.state)}
-                        onValueChange={(value) => void handleDraftStateChange(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem estado</SelectItem>
-                          {states.map((state) => (
-                            <SelectItem key={state.id} value={state.id.toString()}>
-                              {state.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={permissionDraft.city || "__none__"}
-                        disabled={!permissionDraft.state}
-                        onValueChange={(value) =>
-                          setPermissionDraft((current) => ({
-                            ...current,
-                            city: value === "__none__" ? "" : value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Cidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem cidade</SelectItem>
-                          {draftCities.map((city) => (
-                            <SelectItem key={city.id} value={city.nome}>
-                              {city.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {getPermissionScopeMode(permissionDraft.role) === "city" ? (
+                        <Select
+                          value={permissionDraft.city || "__none__"}
+                          disabled={!permissionDraft.state}
+                          onValueChange={(value) =>
+                            setPermissionDraft((current) => ({
+                              ...current,
+                              city: value === "__none__" ? "" : value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Cidade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Selecione uma cidade</SelectItem>
+                            {draftCities.map((city) => (
+                              <SelectItem key={city.id} value={city.nome}>
+                                {city.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
 
                       <Button type="button" variant="outline" onClick={handleAddPermission}>
                         Adicionar permissão
@@ -521,7 +529,7 @@ const AdminAccessRequests = () => {
                               <Badge>{roleLabels[permission.role] || permission.role}</Badge>
                               {permission.module ? (
                                 <Badge variant="secondary">
-                                  {moduleLabels[permission.module] || permission.module}
+                                  {getModuleLabel(permission.module)}
                                 </Badge>
                               ) : null}
                               {permission.state ? <Badge variant="outline">{permission.state}</Badge> : null}

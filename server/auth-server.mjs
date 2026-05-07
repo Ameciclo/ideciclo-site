@@ -3312,12 +3312,11 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-      if (userId === auth.session.user.id) {
-        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
-        return;
-      }
-
       if (!isAdminGlobal(auth.session)) {
+        if (userId === auth.session.user.id) {
+          json(response, 403, { error: "Você não pode alterar o próprio usuário." });
+          return;
+        }
         const targetPermissions = await fetchUserPermissions(userId);
 
         if (
@@ -3370,11 +3369,6 @@ export const handleAuthRequest = async (request, response) => {
 
       if (!userId || !ALLOWED_ROLES.has(role)) {
         json(response, 400, { error: "Permissão inválida." });
-        return;
-      }
-
-      if (userId === auth.session.user.id) {
-        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
         return;
       }
 
@@ -3447,12 +3441,11 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
-      if (permission.userId === auth.session.user.id) {
-        json(response, 403, { error: "Você não pode alterar o próprio usuário." });
-        return;
-      }
-
       if (!isAdminGlobal(auth.session)) {
+        if (permission.userId === auth.session.user.id) {
+          json(response, 403, { error: "Você não pode alterar o próprio usuário." });
+          return;
+        }
         if (!canManageExistingPermission(auth.session, permission)) {
           json(response, 403, { error: "Você só pode remover permissões do seu escopo." });
           return;

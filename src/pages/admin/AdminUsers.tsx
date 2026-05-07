@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { AUTH_MODULES, AUTH_ROLES } from "@/lib/authPermissions";
+import { AUTH_ROLES } from "@/lib/authPermissions";
 import { fetchCities, fetchStates } from "@/services/api";
 import AdminAccessRequests from "@/pages/admin/AdminAccessRequests";
 import {
@@ -27,19 +27,37 @@ import type { IBGECity, IBGEState } from "@/types";
 import type { AdminUser, AuthModule, AuthPermission, AuthRole } from "@/types/auth";
 
 const roleLabels: Record<string, string> = {
-  admin_global: "Admin global",
-  admin_estado: "Admin do estado",
-  admin_cidade: "Admin da cidade",
-  avaliador_estrutura_cicloviaria: "Avaliador de estrutura",
-  refinador_dados_cidade: "Refinador de dados",
-  visualizador: "Visualizador",
+  admin_global: "Administração Global",
+  admin_estado: "Coordenação Estadual",
+  admin_cidade: "Coordenação Municipal",
+  avaliador_estrutura_cicloviaria: "Avaliação",
+  refinador_dados_cidade: "Refino de Dados",
+  visualizador: "Visualização de Resultados",
 };
 
 const moduleLabels: Record<string, string> = {
-  admin: "Admin",
-  avaliacao_estrutura_cicloviaria: "Avaliação de estrutura",
-  refinamento_dados_cidade: "Refinamento de dados",
+  admin: "Todos os módulos",
+  avaliacao_estrutura_cicloviaria: "Avaliação",
+  refinamento_dados_cidade: "Refino de Dados",
 };
+
+const getModuleForRole = (role: string) => {
+  switch (role) {
+    case "admin_global":
+    case "admin_estado":
+    case "admin_cidade":
+      return "admin";
+    case "avaliador_estrutura_cicloviaria":
+      return "avaliacao_estrutura_cicloviaria";
+    case "refinador_dados_cidade":
+      return "refinamento_dados_cidade";
+    case "visualizador":
+    default:
+      return "";
+  }
+};
+
+const getModuleLabel = (module?: string | null) => (module ? moduleLabels[module] || module : "");
 
 const REGIONAL_ASSIGNABLE_ROLES: AuthRole[] = [
   "visualizador",
@@ -56,7 +74,7 @@ type PermissionDraft = {
 
 const defaultPermissionDraft: PermissionDraft = {
   role: AUTH_ROLES[0],
-  module: "__none__",
+  module: getModuleForRole(AUTH_ROLES[0]),
   state: "",
   city: "",
 };
@@ -240,6 +258,12 @@ const AdminUsers = () => {
     }));
   };
 
+  const getPermissionScopeMode = (role: string) => {
+    if (role === "admin_global") return "global";
+    if (role === "admin_estado") return "state";
+    return "city";
+  };
+
   const handleStateChange = async (userId: string, stateId: string) => {
     const selectedState = states.find((state) => state.id.toString() === stateId);
 
@@ -297,7 +321,6 @@ const AdminUsers = () => {
   };
 
   const canManageUser = (user: AdminUser) => {
-    if (user.id === currentUserId) return false;
     if (isGlobalAdmin) return true;
     if (user.permissions.length === 0) return true;
 
@@ -312,7 +335,7 @@ const AdminUsers = () => {
       const response = await createUserPermission({
         userId,
         role: draft.role as AuthRole,
-        module: draft.module === "__none__" ? "" : (draft.module as AuthModule),
+        module: (draft.module || getModuleForRole(draft.role)) as AuthModule,
         state: draft.state,
         city: draft.city,
       });
@@ -426,10 +449,10 @@ const AdminUsers = () => {
 
                     <Button
                       variant="outline"
-                      disabled={isSaving || !userIsManageable || isSelf}
+                      disabled={isSaving || !userIsManageable}
                       onClick={() => handleToggleActive(user)}
                     >
-                      {isSelf ? "Não permitido" : user.active ? "Desativar" : "Ativar"}
+                      {isSelf && !isGlobalAdmin ? "Não permitido" : user.active ? "Desativar" : "Ativar"}
                     </Button>
                   </div>
 
@@ -452,7 +475,7 @@ const AdminUsers = () => {
                               <Badge>{roleLabels[permission.role] || permission.role}</Badge>
                               {permission.module ? (
                                 <Badge variant="secondary">
-                                  {moduleLabels[permission.module] || permission.module}
+                                  {getModuleLabel(permission.module)}
                                 </Badge>
                               ) : null}
                               {permission.state ? <Badge variant="outline">{permission.state}</Badge> : null}
@@ -462,7 +485,7 @@ const AdminUsers = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              disabled={isSaving || isSelf || !canManageExistingPermission(permission)}
+                              disabled={isSaving || !canManageExistingPermission(permission)}
                               onClick={() => handleDeletePermission(permission.id)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -473,16 +496,21 @@ const AdminUsers = () => {
                       )}
                     </div>
 
-                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                       <Select
                         value={draft.role}
                         disabled={isSaving || !userIsManageable || isSelf}
                         onValueChange={(value) =>
-                          handlePermissionDraftChange(user.id, { role: value })
+                          handlePermissionDraftChange(user.id, {
+                            role: value,
+                            module: getModuleForRole(value),
+                            state: "",
+                            city: "",
+                          })
                         }
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Role" />
+                      <SelectTrigger>
+                          <SelectValue placeholder="Papel" />
                         </SelectTrigger>
                         <SelectContent>
                           {allowedRoles.map((role) => (
@@ -493,73 +521,57 @@ const AdminUsers = () => {
                         </SelectContent>
                       </Select>
 
-                      <Select
-                        value={draft.module}
-                        disabled={isSaving || !userIsManageable || isSelf}
-                        onValueChange={(value) =>
-                          handlePermissionDraftChange(user.id, { module: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Módulo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem módulo</SelectItem>
-                          {AUTH_MODULES.map((module) => (
-                            <SelectItem key={module} value={module}>
-                              {moduleLabels[module]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {getPermissionScopeMode(draft.role) !== "global" ? (
+                        <Select
+                          value={getSelectedStateId(draft.state)}
+                          disabled={isSaving || !userIsManageable || isSelf}
+                          onValueChange={(value) =>
+                            void handleStateChange(user.id, value === "__none__" ? "" : value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Estado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Selecione um estado</SelectItem>
+                            {availableStates.map((state) => (
+                              <SelectItem key={state.id} value={state.id.toString()}>
+                                {state.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
 
-                      <Select
-                        value={getSelectedStateId(draft.state)}
-                        disabled={isSaving || !userIsManageable || isSelf}
-                        onValueChange={(value) =>
-                          void handleStateChange(user.id, value === "__none__" ? "" : value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem estado</SelectItem>
-                          {availableStates.map((state) => (
-                            <SelectItem key={state.id} value={state.id.toString()}>
-                              {state.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={draft.city || "__none__"}
-                        disabled={
-                          isSaving ||
-                          !userIsManageable ||
-                          isSelf ||
-                          !draft.state ||
-                          (citiesByUserId[user.id] || []).length === 0
-                        }
-                        onValueChange={(value) =>
-                          handlePermissionDraftChange(user.id, {
-                            city: value === "__none__" ? "" : value,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Cidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem cidade</SelectItem>
-                          {(citiesByUserId[user.id] || []).map((city) => (
-                            <SelectItem key={city.id} value={city.nome}>
-                              {city.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {getPermissionScopeMode(draft.role) === "city" ? (
+                        <Select
+                          value={draft.city || "__none__"}
+                          disabled={
+                            isSaving ||
+                            !userIsManageable ||
+                            isSelf ||
+                            !draft.state ||
+                            (citiesByUserId[user.id] || []).length === 0
+                          }
+                          onValueChange={(value) =>
+                            handlePermissionDraftChange(user.id, {
+                              city: value === "__none__" ? "" : value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Cidade" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Selecione uma cidade</SelectItem>
+                            {(citiesByUserId[user.id] || []).map((city) => (
+                              <SelectItem key={city.id} value={city.nome}>
+                                {city.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
 
                       <Button
                         disabled={isSaving || !userIsManageable || isSelf}
@@ -568,7 +580,7 @@ const AdminUsers = () => {
                         <Plus className="mr-2 h-4 w-4" />
                         Atribuir
                       </Button>
-                      {isSelf ? (
+                      {isSelf && !isGlobalAdmin ? (
                         <p className="text-xs text-gray-500 md:col-span-2 xl:col-span-5">
                           Você não pode alterar suas próprias permissões ou status.
                         </p>
