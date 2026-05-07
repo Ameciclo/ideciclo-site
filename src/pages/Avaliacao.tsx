@@ -76,6 +76,22 @@ const matchesRegionalScope = (
   return true;
 };
 
+const normalizeCityLabel = (value?: string | null) =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const cityIsWithinPermissionScope = (
+  permissionsList: AuthPermission[],
+  city: City
+) => {
+  if (permissionsList.some((permission) => permission.role === "admin_global")) {
+    return true;
+  }
+
+  return permissionsList.some((permission) =>
+    matchesRegionalScope(permission, city.state, city.name)
+  );
+};
+
 const Avaliacao = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -186,6 +202,18 @@ const Avaliacao = () => {
       relevantPermissions.some((permission) => matchesRegionalScope(permission, state.sigla))
     );
   }, [isAuthenticated, relevantPermissions, states]);
+
+  const scopedStoredCities = useMemo(() => {
+    if (!isAuthenticated) return [];
+
+    return Object.values(storedCitiesById)
+      .filter((city) => cityIsWithinPermissionScope(relevantPermissions, city))
+      .sort((left, right) => {
+        const leftDate = left.updated_at || left.created_at || "";
+        const rightDate = right.updated_at || right.created_at || "";
+        return rightDate.localeCompare(leftDate);
+      });
+  }, [isAuthenticated, relevantPermissions, storedCitiesById]);
 
   const formatLastDownload = (storedCity?: City | null) => {
     const rawDate = storedCity?.updated_at || storedCity?.created_at;
@@ -299,7 +327,7 @@ const Avaliacao = () => {
         redirectTo: route,
         title: "Entrar para acessar esta etapa",
         description:
-          "Depois do login, você volta direto para a etapa selecionada da avaliação.",
+          "Esta área é mais útil para pessoas com acesso de edição. Depois do login, você volta direto para a etapa selecionada da avaliação.",
       });
       return;
     }
@@ -336,14 +364,40 @@ const Avaliacao = () => {
     setCities([]);
   };
 
+  const handleSelectStoredCity = (city: City) => {
+    const matchedState = states.find(
+      (state) =>
+        normalizeCityLabel(state.sigla) === normalizeCityLabel(city.state) ||
+        normalizeCityLabel(state.nome) === normalizeCityLabel(city.state)
+    );
+
+    if (matchedState) {
+      setSelectedStateId(matchedState.id.toString());
+      setSelectedStateCode(matchedState.sigla);
+    }
+
+    setSelectedCityOption(city.id);
+    setSelectedCityAction({
+      cityId: city.id,
+      cityName: city.name,
+      stateId: matchedState?.id.toString() || "",
+      stateName: matchedState?.sigla || city.state,
+      storedCity: city,
+    });
+
+    toast({
+      title: "Cidade carregada",
+      description: `${city.name}/${city.state} está pronta para continuar.`,
+    });
+  };
+
   return (
     <div className="container py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="mb-2 text-3xl font-bold">Avaliação</h1>
           <p className="text-gray-600">
-            Selecione a cidade aqui. Se ela ainda não existir no banco, o download começa ao
-            entrar na etapa de aprimoramento.
+            Selecione a cidade aqui para seguir com as etapas de avaliação e edição.
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate("/")}>
@@ -351,126 +405,173 @@ const Avaliacao = () => {
         </Button>
       </div>
 
-      <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <h2 className="text-2xl font-semibold text-text-grey">Cidade da avaliação</h2>
-            <p className="leading-7 text-gray-700">
-              A escolha da cidade agora acontece nesta página. Depois disso, você segue para
-              aprimorar os dados, selecionar um trecho e ver os resultados da cidade.
-            </p>
-            {activeCity ? (
-              <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>
-                  Cidade ativa: {activeCity.cityName}, {activeCity.stateName}
+      {isAuthenticated ? (
+        <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <h2 className="text-2xl font-semibold text-text-grey">Cidade da avaliação</h2>
+              <p className="leading-7 text-gray-700">
+                A escolha da cidade agora acontece nesta página. Depois disso, você segue para
+                aprimorar os dados, selecionar um trecho e ver os resultados da cidade.
+              </p>
+              {activeCity ? (
+                <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>
+                    Cidade ativa: {activeCity.cityName}, {activeCity.stateName}
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+                  <FileText className="h-4 w-4" />
+                  <span>Escolha a cidade para habilitar o fluxo de avaliação.</span>
+                </div>
+              )}
+            </div>
+
+            <div className="w-full max-w-xl rounded-[24px] bg-white p-6 shadow-sm">
+              {isLoadingOptions ? (
+                <div className="flex items-center justify-center gap-3 py-10 text-sm text-gray-600">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Carregando estados e cidades...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor="estado-avaliacao" className="text-sm font-medium">
+                        Estado
+                      </label>
+                      <Select value={selectedStateId} onValueChange={handleSelectionStateChange}>
+                        <SelectTrigger id="estado-avaliacao">
+                          <SelectValue placeholder="Selecione um estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableStates.map((state) => (
+                            <SelectItem key={state.id} value={state.id.toString()}>
+                              {state.nome} - {state.sigla}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="cidade-avaliacao" className="text-sm font-medium">
+                        Cidade
+                      </label>
+                      <Select
+                        value={selectedCityOption}
+                        onValueChange={handleSelectionCityChange}
+                        disabled={isLoadingCities || !selectedStateId || cities.length === 0}
+                      >
+                        <SelectTrigger id="cidade-avaliacao">
+                          <SelectValue
+                            placeholder={
+                              isLoadingCities
+                                ? "Carregando cidades..."
+                                : cities.length === 0 && selectedStateId
+                                  ? "Nenhuma cidade disponível"
+                                  : "Selecione uma cidade"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cities.map((city) => (
+                            <SelectItem key={city.id} value={city.id.toString()}>
+                              {city.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {selectedCityAction ? (
+                    <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="space-y-1">
+                        <h3 className="font-semibold">
+                          {selectedCityAction.cityName}, {selectedCityAction.stateName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Último download: {formatLastDownload(selectedCityAction.storedCity)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Status:{" "}
+                          {selectedCityAction.storedCity
+                            ? "dados já disponíveis para aprimoramento"
+                            : "cidade ainda não baixada"}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <Button
+                          onClick={handleActivateCity}
+                          className="bg-ideciclo-blue hover:bg-blue-600"
+                        >
+                          {selectedCityAction.storedCity
+                            ? "Usar esta cidade e aprimorar dados"
+                            : "Selecionar cidade e baixar dados"}
+                        </Button>
+                        {activeCity ? (
+                          <Button variant="outline" onClick={handleClearActiveCity}>
+                            Limpar cidade ativa
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+          {scopedStoredCities.length > 0 ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-text-grey">
+                    Cidades já baixadas no seu escopo
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Use um atalho para retomar uma cidade já preparada.
+                  </p>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {scopedStoredCities.length} cidade{scopedStoredCities.length === 1 ? "" : "s"}
                 </span>
               </div>
-            ) : (
-              <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
-                <FileText className="h-4 w-4" />
-                <span>Escolha a cidade para habilitar o fluxo de avaliação.</span>
-              </div>
-            )}
-          </div>
-
-          <div className="w-full max-w-xl rounded-[24px] bg-white p-6 shadow-sm">
-            {isLoadingOptions ? (
-              <div className="flex items-center justify-center gap-3 py-10 text-sm text-gray-600">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Carregando estados e cidades...</span>
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label htmlFor="estado-avaliacao" className="text-sm font-medium">
-                      Estado
-                    </label>
-                    <Select value={selectedStateId} onValueChange={handleSelectionStateChange}>
-                      <SelectTrigger id="estado-avaliacao">
-                        <SelectValue placeholder="Selecione um estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableStates.map((state) => (
-                          <SelectItem key={state.id} value={state.id.toString()}>
-                            {state.nome} - {state.sigla}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="cidade-avaliacao" className="text-sm font-medium">
-                      Cidade
-                    </label>
-                    <Select
-                      value={selectedCityOption}
-                      onValueChange={handleSelectionCityChange}
-                      disabled={isLoadingCities || !selectedStateId || cities.length === 0}
-                    >
-                      <SelectTrigger id="cidade-avaliacao">
-                        <SelectValue
-                          placeholder={
-                            isLoadingCities
-                              ? "Carregando cidades..."
-                              : cities.length === 0 && selectedStateId
-                                ? "Nenhuma cidade disponível"
-                                : "Selecione uma cidade"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cities.map((city) => (
-                          <SelectItem key={city.id} value={city.id.toString()}>
-                            {city.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {selectedCityAction ? (
-                  <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <div className="space-y-1">
-                      <h3 className="font-semibold">
-                        {selectedCityAction.cityName}, {selectedCityAction.stateName}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Último download: {formatLastDownload(selectedCityAction.storedCity)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Status:{" "}
-                        {selectedCityAction.storedCity
-                          ? "dados já disponíveis para aprimoramento"
-                          : "cidade ainda não baixada"}
-                      </p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {scopedStoredCities.map((city) => (
+                  <button
+                    key={city.id}
+                    type="button"
+                    onClick={() => handleSelectStoredCity(city)}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-ideciclo-blue hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">{city.name}</div>
+                        <div className="text-sm text-slate-600">{city.state}</div>
+                      </div>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     </div>
-
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                      <Button
-                        onClick={handleActivateCity}
-                        className="bg-ideciclo-blue hover:bg-blue-600"
-                      >
-                        {selectedCityAction.storedCity
-                          ? "Usar esta cidade e aprimorar dados"
-                          : "Selecionar cidade e baixar dados"}
-                      </Button>
-                      {activeCity ? (
-                        <Button variant="outline" onClick={handleClearActiveCity}>
-                          Limpar cidade ativa
-                        </Button>
-                      ) : null}
+                    <div className="mt-3 text-xs text-slate-500">
+                      Última atualização: {formatLastDownload(city)}
                     </div>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
-      </div>
+      ) : (
+        <div className="mb-8 rounded-[24px] border border-amber-200 bg-amber-50 p-6 text-amber-900 shadow-md">
+          <h2 className="mb-2 text-2xl font-semibold">Cidade da avaliação</h2>
+          <p className="leading-7">
+            Faça login para escolher a cidade e seguir com as etapas de edição e avaliação.
+          </p>
+        </div>
+      )}
 
       <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
         <p className="leading-7 text-gray-700">

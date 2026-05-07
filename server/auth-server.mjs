@@ -2889,10 +2889,7 @@ export const handleAuthRequest = async (request, response) => {
         }
 
         const accessRequest = toCamelAccessRequest(accessRequestRow);
-        if (
-          accessRequest.status !== "pending_review" ||
-          !accessRequest.emailVerifiedAt
-        ) {
+        if (accessRequest.status !== "pending_review") {
           await client.query("ROLLBACK");
           json(response, 400, { error: "A solicitação não está pronta para aprovação." });
           return;

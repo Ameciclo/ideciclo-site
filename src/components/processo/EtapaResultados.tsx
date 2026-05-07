@@ -445,7 +445,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>("displayName");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [showInRanking, setShowInRanking] = useState<boolean>(true);
+  const [showInRanking, setShowInRanking] = useState<boolean>(false);
   const [isUpdatingRankingVisibility, setIsUpdatingRankingVisibility] = useState(false);
   const [cityFormsCount, setCityFormsCount] = useState(0);
   const [rankingConfirmationOpen, setRankingConfirmationOpen] = useState(false);
@@ -483,7 +483,7 @@ const EtapaResultados = ({ cityData }: EtapaResultadosProps) => {
 
         setResults(breakdown);
         setCityFormsCount(forms.length);
-        setShowInRanking(city.show_in_ranking !== false);
+        setShowInRanking(city.show_in_ranking === true);
 
         const storedSelectedSegmentId =
           typeof window !== "undefined"

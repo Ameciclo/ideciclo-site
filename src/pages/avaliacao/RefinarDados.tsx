@@ -215,27 +215,10 @@ const RefinarDados = () => {
           fallbackData.segments
         );
       } else {
-        if (selectedCityName && selectedStateName) {
-          const downloadedData = await downloadAndStoreCityData(
-            selectedCityId,
-            selectedCityName,
-            selectedStateName
-          );
-          persistCitySnapshot(
-            selectedCityId,
-            selectedCityName,
-            selectedStateName,
-            downloadedData.city,
-            downloadedData.segments
-          );
-          await loadDeletedSegmentsForCity(selectedCityId);
-          toast({
-            title: "Dados reconstruídos",
-            description: `Os dados de ${selectedCityName}/${selectedStateName} foram baixados novamente.`,
-          });
-        } else {
-          setError("Nenhum dado encontrado para esta cidade");
-        }
+        setCity(null);
+        setSegments([]);
+        setDeletedSegments([]);
+        setError(null);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -983,10 +966,6 @@ const RefinarDados = () => {
               Revise os dados da cidade selecionada, ajuste nomes e tipologias e confirme os
               trechos antes de seguir para a avaliação em campo.
             </p>
-            <p className="text-base">
-              Se a cidade ainda não estiver no banco, o download é feito automaticamente ao abrir
-              esta etapa.
-            </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
@@ -1030,11 +1009,49 @@ const RefinarDados = () => {
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
               <p>Carregando dados... Por favor aguarde.</p>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!cityId || !cityName || !stateName) return;
+                  try {
+                    setIsLoading(true);
+                    const downloadedData = await downloadAndStoreCityData(
+                      cityId,
+                      cityName,
+                      stateName
+                    );
+                    persistCitySnapshot(
+                      cityId,
+                      cityName,
+                      stateName,
+                      downloadedData.city,
+                      downloadedData.segments
+                    );
+                    await loadDeletedSegmentsForCity(cityId);
+                    setError(null);
+                    toast({
+                      title: "Dados baixados",
+                      description: `Os dados de ${cityName}/${stateName} foram baixados do OSM.`,
+                    });
+                  } catch (downloadError) {
+                    console.error("Erro ao baixar dados do OSM:", downloadError);
+                    toast({
+                      title: "Erro",
+                      description: "Não foi possível baixar os dados do OSM no momento.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+              >
+                Baixar dados do OSM
+              </Button>
             </div>
           </div>
         )}
 
-        {!isLoading && !error && cityName && (
+        {!isLoading && !error && cityName && (city || segments.length > 0) && (
           <div className="space-y-8">
             <CityInfrastructureCard
               cityName={cityName}
@@ -1247,6 +1264,52 @@ const RefinarDados = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {!isLoading && !error && cityName && !(city || segments.length > 0) && (
+          <div className="mx-auto max-w-2xl rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+            <h3 className="mb-2 text-xl font-semibold">Dados ainda não baixados</h3>
+            <p className="mb-6 text-sm text-slate-600">
+              Esta cidade ainda não tem dados locais salvos. Baixe a base do OSM para continuar.
+            </p>
+            <Button
+              onClick={async () => {
+                if (!cityId || !cityName || !stateName) return;
+                try {
+                  setIsLoading(true);
+                  const downloadedData = await downloadAndStoreCityData(
+                    cityId,
+                    cityName,
+                    stateName
+                  );
+                  persistCitySnapshot(
+                    cityId,
+                    cityName,
+                    stateName,
+                    downloadedData.city,
+                    downloadedData.segments
+                  );
+                  await loadDeletedSegmentsForCity(cityId);
+                  toast({
+                    title: "Dados baixados",
+                    description: `Os dados de ${cityName}/${stateName} foram baixados do OSM.`,
+                  });
+                } catch (downloadError) {
+                  console.error("Erro ao baixar dados do OSM:", downloadError);
+                  toast({
+                    title: "Erro",
+                    description: "Não foi possível baixar os dados do OSM no momento.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="bg-ideciclo-blue hover:bg-blue-600"
+            >
+              Baixar dados do OSM
+            </Button>
           </div>
         )}
         
