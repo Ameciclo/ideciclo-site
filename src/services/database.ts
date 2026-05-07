@@ -81,13 +81,24 @@ const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
     ...init,
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const rawBody = await response.text();
+  const payload = (() => {
+    if (!rawBody) return {};
+
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      return {};
+    }
+  })();
 
   if (!response.ok) {
     const message =
       payload && typeof payload === "object" && "error" in payload
         ? String(payload.error)
-        : "Erro inesperado ao acessar a API de leitura do banco.";
+        : `Falha ao acessar a API de leitura do banco (${response.status}): ${
+            rawBody.trim() || response.statusText || "resposta vazia"
+          }`;
     throw new Error(message);
   }
 
@@ -111,13 +122,24 @@ const fetchAuthDb = async <T>(
         : undefined,
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const rawBody = await response.text();
+  const payload = (() => {
+    if (!rawBody) return {};
+
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      return {};
+    }
+  })();
 
   if (!response.ok) {
     const message =
       payload && typeof payload === "object" && "error" in payload
         ? String(payload.error)
-        : "Erro inesperado ao acessar a API autenticada.";
+        : `Falha ao acessar a API autenticada (${response.status}): ${
+            rawBody.trim() || response.statusText || "resposta vazia"
+          }`;
     throw new Error(message);
   }
 
