@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   ACCESS_REQUEST_INTEREST_OPTIONS,
@@ -68,6 +69,7 @@ const getPermissionScopeMode = (role: string) => {
 
 const AdminAccessRequests = () => {
   const { toast } = useToast();
+  const { permissions } = useAuth();
   const [statusFilter, setStatusFilter] = useState("all");
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string>("");
@@ -88,6 +90,10 @@ const AdminAccessRequests = () => {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isGlobalAdmin = useMemo(
+    () => permissions.some((permission) => permission.role === "admin_global"),
+    [permissions]
+  );
 
   const interestLabels = useMemo(
     () =>
@@ -185,7 +191,12 @@ const AdminAccessRequests = () => {
 
       const defaultDraft = buildDefaultPermissionDraftFromRequest(response.request);
       setPermissionDraft(defaultDraft);
-      setApprovalPermissions(response.request.status === "pending_review" ? [defaultDraft] : []);
+      setApprovalPermissions(
+        response.request.status === "pending_review" ||
+          (response.request.status === "email_verification_pending" && isGlobalAdmin)
+          ? [defaultDraft]
+          : []
+      );
 
       if (defaultDraft.state) {
         await loadCitiesForState(defaultDraft.state);
@@ -432,7 +443,8 @@ const AdminAccessRequests = () => {
                 </div>
               ) : null}
 
-              {selectedRequest.status === "pending_review" ? (
+              {selectedRequest.status === "pending_review" ||
+              (selectedRequest.status === "email_verification_pending" && isGlobalAdmin) ? (
                 <>
                   <div className="rounded-2xl border p-4">
                     <div className="mb-4 flex items-center gap-2">
@@ -597,7 +609,9 @@ const AdminAccessRequests = () => {
                     ? "Esta solicitação já foi aprovada."
                     : selectedRequest.status === "rejected"
                       ? `Solicitação rejeitada${selectedRequest.rejectionReason ? `: ${selectedRequest.rejectionReason}` : "."}`
-                      : "Aguardando confirmação de e-mail pelo solicitante."}
+                      : isGlobalAdmin && selectedRequest.status === "email_verification_pending"
+                        ? "Esta solicitação ainda não confirmou o e-mail, mas pode ser aprovada pela Administração Global."
+                        : "Aguardando confirmação de e-mail pelo solicitante."}
                 </div>
               )}
             </div>

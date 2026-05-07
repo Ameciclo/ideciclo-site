@@ -110,6 +110,7 @@ export const updateAdminUser = async (
   userId: string,
   payload: {
     name?: string | null;
+    email?: string | null;
     active?: boolean;
   }
 ) =>

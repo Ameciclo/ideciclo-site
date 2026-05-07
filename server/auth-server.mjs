@@ -3062,7 +3062,8 @@ export const handleAuthRequest = async (request, response) => {
         }
 
         const accessRequest = toCamelAccessRequest(accessRequestRow);
-        if (accessRequest.status !== "pending_review") {
+        const canApproveAsGlobalAdmin = isAdminGlobal(auth.session);
+        if (accessRequest.status !== "pending_review" && !canApproveAsGlobalAdmin) {
           await client.query("ROLLBACK");
           json(response, 400, { error: "A solicitação não está pronta para aprovação." });
           return;
@@ -3298,6 +3299,9 @@ export const handleAuthRequest = async (request, response) => {
       const name = Object.prototype.hasOwnProperty.call(body, "name")
         ? normalizeScopeValue(body.name)
         : undefined;
+      const email = Object.prototype.hasOwnProperty.call(body, "email")
+        ? normalizeEmail(String(body.email || ""))
+        : undefined;
       const active = Object.prototype.hasOwnProperty.call(body, "active")
         ? Boolean(body.active)
         : undefined;
@@ -3307,7 +3311,7 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
-    if (name === undefined && active === undefined) {
+    if (name === undefined && email === undefined && active === undefined) {
       json(response, 400, { error: "Nenhuma alteração recebida." });
       return;
     }
@@ -3334,6 +3338,15 @@ export const handleAuthRequest = async (request, response) => {
       if (name !== undefined) {
         values.push(name);
         fields.push(`name = $${values.length}`);
+      }
+
+      if (email !== undefined) {
+        if (!email || !email.includes("@")) {
+          json(response, 400, { error: "Informe um e-mail válido." });
+          return;
+        }
+        values.push(email);
+        fields.push(`email = $${values.length}`);
       }
 
       if (active !== undefined) {

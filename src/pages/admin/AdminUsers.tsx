@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Shield, Trash2 } from "lucide-react";
+import { Check, Edit, Loader2, Plus, Shield, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,16 @@ type PermissionDraft = {
   city: string;
 };
 
+type UserDraft = {
+  name: string;
+  email: string;
+};
+
+type EditingUserDraft = {
+  name: string;
+  email: string;
+};
+
 const defaultPermissionDraft: PermissionDraft = {
   role: AUTH_ROLES[0],
   module: getModuleForRole(AUTH_ROLES[0]),
@@ -114,6 +124,12 @@ const AdminUsers = () => {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [permissionDrafts, setPermissionDrafts] = useState<Record<string, PermissionDraft>>({});
+  const [userDrafts, setUserDrafts] = useState<Record<string, UserDraft>>({});
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingUserDraft, setEditingUserDraft] = useState<EditingUserDraft>({
+    name: "",
+    email: "",
+  });
 
   const adminPermissions = useMemo(
     () =>
@@ -171,6 +187,15 @@ const AdminUsers = () => {
         setIsLoading(true);
         const response = await fetchAdminUsers();
         setUsers(response.users);
+        setUserDrafts(
+          response.users.reduce<Record<string, UserDraft>>((accumulator, currentUser) => {
+            accumulator[currentUser.id] = {
+              name: currentUser.name || "",
+              email: currentUser.email || "",
+            };
+            return accumulator;
+          }, {})
+        );
         setPermissionDrafts(
           response.users.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
             accumulator[user.id] = createPermissionDraft();
@@ -194,6 +219,15 @@ const AdminUsers = () => {
 
   const updateUsersState = (nextUsers: AdminUser[]) => {
     setUsers(nextUsers);
+    setUserDrafts(
+      nextUsers.reduce<Record<string, UserDraft>>((accumulator, currentUser) => {
+        accumulator[currentUser.id] = {
+          name: currentUser.name || "",
+          email: currentUser.email || "",
+        };
+        return accumulator;
+      }, {})
+    );
     setPermissionDrafts((currentDrafts) =>
       nextUsers.reduce<Record<string, PermissionDraft>>((accumulator, user) => {
         const currentDraft = currentDrafts[user.id] || createPermissionDraft();
@@ -234,6 +268,47 @@ const AdminUsers = () => {
     try {
       const response = await updateAdminUser(user.id, { active: !user.active });
       updateUsersState(response.users);
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar usuário",
+        description: error instanceof Error ? error.message : "Falha inesperada.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartUserEdit = (user: AdminUser) => {
+    setEditingUserId(user.id);
+    setEditingUserDraft({
+      name: userDrafts[user.id]?.name ?? user.name ?? "",
+      email: userDrafts[user.id]?.email ?? user.email ?? "",
+    });
+  };
+
+  const handleCancelUserEdit = () => {
+    setEditingUserId(null);
+    setEditingUserDraft({
+      name: "",
+      email: "",
+    });
+  };
+
+  const handleSaveUser = async (user: AdminUser) => {
+    setIsSaving(true);
+
+    try {
+      const response = await updateAdminUser(user.id, {
+        name: editingUserDraft.name || null,
+        email: editingUserDraft.email || null,
+      });
+      updateUsersState(response.users);
+      handleCancelUserEdit();
+      toast({
+        title: "Usuário atualizado",
+        description: "Nome e e-mail foram salvos com sucesso.",
+      });
     } catch (error) {
       toast({
         title: "Erro ao atualizar usuário",
@@ -428,32 +503,108 @@ const AdminUsers = () => {
           <div className="space-y-6">
             {users.map((user) => {
               const draft = permissionDrafts[user.id] || createPermissionDraft();
+              const userDraft = userDrafts[user.id] || {
+                name: user.name || "",
+                email: user.email || "",
+              };
               const userIsManageable = canManageUser(user);
               const isSelf = user.id === currentUserId;
+              const isEditingUser = editingUserId === user.id;
 
               return (
                 <div key={user.id} className="rounded-[28px] border bg-white p-6 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-xl font-semibold text-text-grey">
-                          {user.name || user.email}
-                        </h2>
-                        <Badge variant={user.active ? "default" : "destructive"}>
-                          {user.active ? "Ativo" : "Inativo"}
-                        </Badge>
-                        {isSelf ? <Badge variant="secondary">Seu usuário</Badge> : null}
+                    <div className="flex flex-1 items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        {isEditingUser ? (
+                          <div className="grid gap-3 md:grid-cols-[1.4fr_1.2fr_auto_auto]">
+                            <Input
+                              value={editingUserDraft.name}
+                              placeholder="Nome"
+                              disabled={isSaving || !userIsManageable}
+                              onChange={(event) =>
+                                setEditingUserDraft((current) => ({
+                                  ...current,
+                                  name: event.target.value,
+                                }))
+                              }
+                            />
+                            <Input
+                              type="email"
+                              value={editingUserDraft.email}
+                              placeholder="E-mail"
+                              disabled={isSaving || !userIsManageable}
+                              onChange={(event) =>
+                                setEditingUserDraft((current) => ({
+                                  ...current,
+                                  email: event.target.value,
+                                }))
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-10 p-0"
+                              disabled={isSaving || !userIsManageable}
+                              onClick={() => void handleSaveUser(user)}
+                              title="Salvar alterações"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-10 w-10 p-0"
+                              disabled={isSaving || !userIsManageable}
+                              onClick={handleCancelUserEdit}
+                              title="Cancelar edição"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h2 className="truncate text-xl font-semibold text-text-grey">
+                                {user.name || user.email}
+                              </h2>
+                              <Badge variant={user.active ? "default" : "destructive"}>
+                                {user.active ? "Ativo" : "Inativo"}
+                              </Badge>
+                              {isSelf ? <Badge variant="secondary">Seu usuário</Badge> : null}
+                            </div>
+                            <p className="mt-2 break-all text-sm text-gray-600">{user.email}</p>
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-2 text-sm text-gray-600">{user.email}</p>
+
+                      {!isEditingUser ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-10 w-10 p-0"
+                          disabled={isSaving || !userIsManageable}
+                          onClick={() => handleStartUserEdit(user)}
+                          title="Editar dados"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                     </div>
 
-                    <Button
-                      variant="outline"
-                      disabled={isSaving || !userIsManageable}
-                      onClick={() => handleToggleActive(user)}
-                    >
-                      {isSelf && !isGlobalAdmin ? "Não permitido" : user.active ? "Desativar" : "Ativar"}
-                    </Button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-3">
+                      <Button
+                        variant="outline"
+                        disabled={isSaving || !userIsManageable}
+                        onClick={() => handleToggleActive(user)}
+                      >
+                        {isSelf && !isGlobalAdmin
+                          ? "Não permitido"
+                          : user.active
+                            ? "Desativar"
+                            : "Ativar"}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="mt-6 rounded-2xl bg-background-grey p-5">
