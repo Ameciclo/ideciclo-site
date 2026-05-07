@@ -11,14 +11,38 @@ type JsonResponse<T> = T & {
   error?: string;
 };
 
-const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> => {
-  const response = await fetch(input, {
+type FetchJsonOptions = RequestInit & {
+  fresh?: boolean;
+};
+
+const buildFreshUrl = (input: RequestInfo): RequestInfo => {
+  if (typeof input !== "string") return input;
+  if (typeof window === "undefined") return input;
+
+  const url = new URL(input, window.location.origin);
+  url.searchParams.set("_ts", String(Date.now()));
+  return `${url.pathname}${url.search}`;
+};
+
+const fetchJson = async <T>(input: RequestInfo, init?: FetchJsonOptions): Promise<T> => {
+  const method = (init?.method || "GET").toUpperCase();
+  const fresh = Boolean(init?.fresh) && method === "GET";
+  const requestInput = fresh ? buildFreshUrl(input) : input;
+
+  const response = await fetch(requestInput, {
+    ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(fresh
+        ? {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          }
+        : {}),
       ...(init?.headers || {}),
     },
-    ...init,
+    cache: fresh ? "no-store" : init?.cache,
   });
 
   const rawBody = await response.text();
@@ -72,6 +96,7 @@ export const logoutRequest = async () =>
 export const fetchAdminUsers = async () =>
   fetchJson<{ users: AdminUser[] }>("/api/auth/admin/users", {
     method: "GET",
+    fresh: true,
   });
 
 export const createAdminUser = async (email: string, name?: string) =>
@@ -127,6 +152,7 @@ export const fetchAdminAccessRequests = async (status?: string) => {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
   return fetchJson<{ requests: AccessRequest[] }>(`/api/auth/admin/access-requests${query}`, {
     method: "GET",
+    fresh: true,
   });
 };
 
@@ -137,6 +163,7 @@ export const fetchAdminAccessRequest = async (requestId: string) =>
     existingPermissions: AuthPermission[];
   }>(`/api/auth/admin/access-requests/${requestId}`, {
     method: "GET",
+    fresh: true,
   });
 
 export const approveAdminAccessRequest = async (
