@@ -16,7 +16,7 @@ const DATABASE_URL =
   process.env.DATABASE_URL ||
   `postgresql://${process.env.POSTGRES_USER || "ideciclo"}:${
     process.env.POSTGRES_PASSWORD || "change_me_local_password"
-  }@127.0.0.1:${process.env.POSTGRES_PORT || 54322}/${process.env.POSTGRES_DB || "ideciclo"}`;
+  }@127.0.0.1:${process.env.POSTGRES_PORT || 54322}/${process.env.POSTGRES_DATABASE || "ideciclo"}`;
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:8080";
 const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@ideciclo.local";
 const ACCESS_REQUEST_NOTIFICATION_EMAIL =

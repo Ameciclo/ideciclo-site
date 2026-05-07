@@ -17,7 +17,7 @@ const DATABASE_URL =
   process.env.DATABASE_URL ||
   `postgresql://${process.env.POSTGRES_USER || "ideciclo"}:${
     process.env.POSTGRES_PASSWORD || "change_me_local_password"
-  }@127.0.0.1:${process.env.POSTGRES_PORT || 54322}/${process.env.POSTGRES_DB || "ideciclo"}`;
+  }@127.0.0.1:${process.env.POSTGRES_PORT || 54322}/${process.env.POSTGRES_DATABASE || "ideciclo"}`;
 
 if (!DATABASE_URL) {
   throw new Error("DATABASE_URL é obrigatória para rodar o bootstrap do banco.");

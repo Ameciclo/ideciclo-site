@@ -4,7 +4,7 @@ services:
     container_name: ideciclo-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-ideciclo}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-ideciclo}
       POSTGRES_USER: ${POSTGRES_USER:-ideciclo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ideciclo}
     ports:
@@ -13,7 +13,7 @@ services:
       - ideciclo-postgres-data:/var/lib/postgresql/data
       - ./supabase/bootstrap_full_schema.sql:/docker-entrypoint-initdb.d/10-bootstrap_full_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 20
