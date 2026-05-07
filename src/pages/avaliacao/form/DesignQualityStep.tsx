@@ -22,6 +22,16 @@ interface Page2Props {
 }
 
 const SPEED_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+const CTB_SPEED_BY_HIERARCHY: Record<string, number> = {
+  estrutural: 60,
+  alimentadora: 40,
+  local: 30,
+};
+
+const getCtbSpeedForHierarchy = (hierarchy?: string | null) => {
+  const normalized = (hierarchy || "").trim().toLowerCase();
+  return CTB_SPEED_BY_HIERARCHY[normalized] ?? null;
+};
 
 const HIERARCHY_OPTIONS = [
   { value: "local", label: "Local" },
@@ -258,41 +268,49 @@ const Page2: React.FC<Page2Props> = ({
   const selectedSpeedChoices = Array.isArray(data.regulated_speed_choices)
     ? data.regulated_speed_choices
     : [];
+  const ctbSuggestedSpeed = getCtbSpeedForHierarchy(data.road_hierarchy || data.classification);
+  const hasManualSpeedChoices = selectedSpeedChoices.length > 0;
   const resolvedSpeedChoices =
-    selectedSpeedChoices.length > 0
+    hasManualSpeedChoices
       ? selectedSpeedChoices
       : data.velocity_kmh > 0
         ? [data.velocity_kmh]
         : originalVelocityKmh
           ? [originalVelocityKmh]
-          : [];
+          : ctbSuggestedSpeed !== null
+            ? [ctbSuggestedSpeed]
+            : [];
+  const selectedManualSpeedChoices = selectedSpeedChoices;
+  const registeredManualSpeedChoices = [...selectedManualSpeedChoices].sort((a, b) => a - b);
   const selectedPedestrianFlowCategory = resolvePedestrianFlowCategory(
     Number(data.pedestrian_flow_per_hour_per_meter || 0)
   );
-  const getSpeedCount = (speed: number) =>
-    resolvedSpeedChoices.filter((value) => value === speed).length;
+  const getManualSpeedCount = (speed: number) =>
+    selectedManualSpeedChoices.filter((value) => value === speed).length;
   const handleSpeedCountChange = (speed: number, delta: 1 | -1) => {
-    const nextChoices =
+    const nextManualChoices =
       delta > 0
-        ? [...resolvedSpeedChoices, speed]
+        ? [...selectedManualSpeedChoices, speed]
         : (() => {
-            const next = [...resolvedSpeedChoices];
+            const next = [...selectedManualSpeedChoices];
             const removeIndex = next.lastIndexOf(speed);
             if (removeIndex >= 0) {
               next.splice(removeIndex, 1);
             }
             return next;
           })();
-    const normalizedChoices = [...nextChoices].sort((a, b) => a - b);
+    const baselineSpeed =
+      data.velocity_kmh > 0
+        ? data.velocity_kmh
+        : originalVelocityKmh || ctbSuggestedSpeed || 0;
+    const normalizedChoices = [...nextManualChoices].sort((a, b) => a - b);
 
     onDataChange({
       regulated_speed_choices: normalizedChoices,
-      velocity_kmh:
-        normalizedChoices.length > 0
-          ? normalizedChoices[normalizedChoices.length - 1]
-          : 0,
+      velocity_kmh: normalizedChoices.length > 0 ? normalizedChoices[normalizedChoices.length - 1] : baselineSpeed,
     });
   };
+  const hasCtbSuggestedSpeed = ctbSuggestedSpeed !== null;
 
   const handlePedestrianFlowCategorySelect = (
     representativeValue: number
@@ -590,8 +608,22 @@ const Page2: React.FC<Page2Props> = ({
             Marque um ou mais valores. A avaliação considera a maior velocidade selecionada.
           </p>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8">
+            {hasCtbSuggestedSpeed ? (
+              <div className="flex items-stretch overflow-hidden rounded-2xl border border-sky-700 bg-sky-50 shadow-sm">
+                <div className="flex flex-1 flex-col items-center gap-2 px-3 py-3">
+                  <img
+                    src={`/icones/${ctbSuggestedSpeed}-speed.svg`}
+                    alt={`${ctbSuggestedSpeed} km/h`}
+                    className="h-16 w-16 object-contain"
+                  />
+                  <span className="text-xs font-medium text-sky-700">
+                    Padrão CTB
+                  </span>
+                </div>
+              </div>
+            ) : null}
             {SPEED_OPTIONS.map((speed) => {
-              const count = getSpeedCount(speed);
+              const count = getManualSpeedCount(speed);
               const isSelected = count > 0;
 
               return (
@@ -632,11 +664,22 @@ const Page2: React.FC<Page2Props> = ({
               );
             })}
           </div>
-          {resolvedSpeedChoices.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Valores registrados: <strong>{resolvedSpeedChoices.join(", ")} km/h</strong>
+          <div className="space-y-1 text-sm text-muted-foreground">
+            <p>
+              Valores registrados:{" "}
+              <strong>
+                {registeredManualSpeedChoices.length > 0
+                  ? `${registeredManualSpeedChoices.join(", ")} km/h`
+                  : "nenhuma placa manual"}
+              </strong>
             </p>
-          ) : null}
+            {hasCtbSuggestedSpeed ? (
+              <p>
+                CTB aplicado automaticamente:{" "}
+                <strong>{ctbSuggestedSpeed} km/h</strong>
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {String(resolvedTypology || "")

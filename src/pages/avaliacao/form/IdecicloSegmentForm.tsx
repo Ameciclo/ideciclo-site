@@ -229,6 +229,17 @@ const mapIdecicloHierarchyToIntersectionRoadType = (
   return "";
 };
 
+const CTB_SPEED_BY_HIERARCHY: Record<string, number> = {
+  estrutural: 60,
+  alimentadora: 40,
+  local: 30,
+};
+
+const getCtbSpeedForHierarchy = (hierarchy?: string | null) => {
+  const normalized = (hierarchy || "").trim().toLowerCase();
+  return CTB_SPEED_BY_HIERARCHY[normalized] ?? null;
+};
+
 const applyOsmPrefillToFormData = (
   data: IdecicloFormData,
   segmentData: Partial<Segment> | null | undefined
@@ -242,6 +253,9 @@ const applyOsmPrefillToFormData = (
   const inferredPavementType = mapOsmSurfaceToPavementType(
     segmentData.osm_tags?.surface,
     prefill.pavimento
+  );
+  const ctbSuggestedSpeed = getCtbSpeedForHierarchy(
+    segmentData.classification || prefill.hierarquia || data.road_hierarchy
   );
   const selectedIntersections = Array.isArray(segmentData.selected_intersections)
     ? segmentData.selected_intersections.filter((item) => item.selected !== false)
@@ -280,7 +294,7 @@ const applyOsmPrefillToFormData = (
         ? data.velocity_kmh
         : Number.isFinite(inferredSpeed)
           ? Number(inferredSpeed)
-          : data.velocity_kmh,
+          : ctbSuggestedSpeed ?? data.velocity_kmh,
     regulated_speed_choices:
       Array.isArray(data.regulated_speed_choices) && data.regulated_speed_choices.length > 0
         ? data.regulated_speed_choices
@@ -288,7 +302,9 @@ const applyOsmPrefillToFormData = (
           ? [data.velocity_kmh]
           : Number.isFinite(inferredSpeed)
             ? [Number(inferredSpeed)]
-            : data.regulated_speed_choices,
+            : ctbSuggestedSpeed !== null
+              ? [ctbSuggestedSpeed]
+              : data.regulated_speed_choices,
     pavement_type: data.pavement_type || inferredPavementType || data.pavement_type,
     traffic_lanes_count:
       data.traffic_lanes_count !== 2
@@ -373,6 +389,9 @@ const syncSegmentA1ToFormData = (
   const inferredFlow = mapDirectionPrefillToInfraFlow(prefill?.sentido);
   const inferredPosition = mapPositionPrefillToForm(prefill?.posicaoNaVia);
   const inferredSpeed = prefill?.velocidade ? Number(prefill.velocidade) : 0;
+  const ctbSuggestedSpeed = getCtbSpeedForHierarchy(
+    segmentData.classification || prefill?.hierarquia || data.road_hierarchy
+  );
 
   return {
     ...data,
@@ -383,9 +402,13 @@ const syncSegmentA1ToFormData = (
       segmentData.classification || prefill?.hierarquia || data.classification,
     infra_flow: inferredFlow || data.infra_flow,
     position_on_road: inferredPosition || data.position_on_road,
-    velocity_kmh: inferredSpeed > 0 ? inferredSpeed : data.velocity_kmh,
+    velocity_kmh: inferredSpeed > 0 ? inferredSpeed : ctbSuggestedSpeed ?? data.velocity_kmh,
     regulated_speed_choices:
-      inferredSpeed > 0 ? [inferredSpeed] : data.regulated_speed_choices,
+      inferredSpeed > 0
+        ? [inferredSpeed]
+        : ctbSuggestedSpeed !== null
+          ? [ctbSuggestedSpeed]
+          : data.regulated_speed_choices,
   };
 };
 

@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { calcDownloadUrl, formDownloadUrl, manualDownloadUrl } from "@/constants/siteLinks";
-import { fetchCities, fetchStates } from "@/services/api";
+import {
+  calculateCityStats,
+  convertToSegments,
+  fetchCityHighwayStats,
+  fetchCityWays,
+  fetchCities,
+  fetchStates,
+  storeCityData,
+} from "@/services/api";
 import { fetchAllStoredCities } from "@/services/database";
 import { City, IBGECity, IBGEState } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -39,6 +47,15 @@ interface SelectedCityActionState extends PersistedCityData {
   stateId: string;
   storedCity: City | null;
 }
+
+type CityDownloadState = {
+  cityId: string;
+  cityName: string;
+  stateName: string;
+  storedCity: City | null;
+  status: "downloading" | "ready" | "error";
+  error?: string;
+};
 
 const EVALUATION_MODULES = new Set([
   "avaliacao_estrutura_cicloviaria",
@@ -105,6 +122,7 @@ const Avaliacao = () => {
   const [selectedCityAction, setSelectedCityAction] =
     useState<SelectedCityActionState | null>(null);
   const [activeCity, setActiveCity] = useState<PersistedCityData | null>(null);
+  const [cityDownloads, setCityDownloads] = useState<CityDownloadState[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
 
@@ -262,6 +280,19 @@ const Avaliacao = () => {
     }
   };
 
+  const activateCity = (cityId: string, cityName: string, stateName: string) => {
+    const nextActiveCity = {
+      cityId,
+      cityName,
+      stateName,
+    };
+
+    setPersistedCityData(JSON.stringify(nextActiveCity));
+    setActiveCity(nextActiveCity);
+    sessionStorage.removeItem("selectedSegmentId");
+    sessionStorage.removeItem("selectedCityId");
+  };
+
   const handleSelectionCityChange = (cityIdValue: string) => {
     setSelectedCityOption(cityIdValue);
 
@@ -278,30 +309,130 @@ const Avaliacao = () => {
       stateName: selectedStateCode,
       storedCity: storedCitiesById[cityIdValue] || null,
     });
+
+    if (storedCitiesById[cityIdValue]) {
+      activateCity(cityIdValue, cityData.nome, selectedStateCode);
+      toast({
+        title: "Cidade ativa atualizada",
+        description: `${cityData.nome}/${selectedStateCode} agora é a cidade ativa da avaliação.`,
+      });
+    }
   };
 
-  const handleActivateCity = () => {
+  const downloadAndStoreCityData = async (
+    selectedCityId: string,
+    selectedCityName: string,
+    selectedStateName: string
+  ) => {
+    const highwayStats = await fetchCityHighwayStats(selectedCityId);
+    const cityStats = calculateCityStats(highwayStats);
+
+    const newCity: Partial<City> = {
+      id: selectedCityId,
+      name: selectedCityName,
+      state: selectedStateName,
+      extensao_avaliada: 0,
+      ideciclo: 0,
+      ...cityStats,
+    };
+
+    const waysData = await fetchCityWays(selectedCityId);
+    const downloadedSegments = convertToSegments(waysData, selectedCityId);
+
+    const enhancedSegments = downloadedSegments.map((segment) => ({
+      ...segment,
+      evaluated: false,
+      id_form: undefined,
+    }));
+
+    await storeCityData(selectedCityId, {
+      city: newCity,
+      segments: enhancedSegments,
+    });
+
+    return { city: newCity, segments: enhancedSegments };
+  };
+
+  const handleDownloadSelectedCity = async () => {
     if (!selectedCityAction) return;
 
-    const nextCity = {
+    const downloadEntry = {
       cityId: selectedCityAction.cityId,
       cityName: selectedCityAction.cityName,
       stateName: selectedCityAction.stateName,
+      storedCity: selectedCityAction.storedCity,
+      status: "downloading" as const,
     };
 
-    setPersistedCityData(JSON.stringify(nextCity));
-    setActiveCity(nextCity);
-    sessionStorage.removeItem("selectedSegmentId");
-    sessionStorage.removeItem("selectedCityId");
-
-    toast({
-      title: selectedCityAction.storedCity ? "Cidade selecionada" : "Cidade pronta para baixar",
-      description: selectedCityAction.storedCity
-        ? `${selectedCityAction.cityName}/${selectedCityAction.stateName} está ativa para a avaliação.`
-        : `Ao entrar em aprimorar dados, vamos baixar ${selectedCityAction.cityName}/${selectedCityAction.stateName}.`,
+    setCityDownloads((current) => {
+      const withoutCurrent = current.filter(
+        (item) => item.cityId !== downloadEntry.cityId
+      );
+      return [downloadEntry, ...withoutCurrent];
     });
 
-    navigate("/avaliacao/refinar-dados");
+    try {
+      const downloadedData = selectedCityAction.storedCity
+        ? { city: selectedCityAction.storedCity, segments: [] as City[] }
+        : await downloadAndStoreCityData(
+            selectedCityAction.cityId,
+            selectedCityAction.cityName,
+            selectedCityAction.stateName
+          );
+
+      activateCity(
+        selectedCityAction.cityId,
+        selectedCityAction.cityName,
+        selectedCityAction.stateName
+      );
+      setCityDownloads((current) =>
+        current.map((item) =>
+          item.cityId === selectedCityAction.cityId
+            ? {
+                ...item,
+                status: "ready",
+                storedCity: selectedCityAction.storedCity || storedCitiesById[selectedCityAction.cityId] || null,
+              }
+            : item
+        )
+      );
+
+      toast({
+        title: "Cidade baixada",
+        description: `${selectedCityAction.cityName}/${selectedCityAction.stateName} agora está ativa para a avaliação.`,
+      });
+
+      if (!selectedCityAction.storedCity && downloadedData) {
+        setStoredCitiesById((current) => ({
+          ...current,
+          [selectedCityAction.cityId]: {
+            id: selectedCityAction.cityId,
+            name: selectedCityAction.cityName,
+            state: selectedCityAction.stateName,
+            extensao_avaliada: 0,
+            ideciclo: 0,
+            vias_estruturais_km: 0,
+            vias_alimentadoras_km: 0,
+            vias_locais_km: 0,
+          },
+        }));
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Não foi possível baixar os dados da cidade.";
+      setCityDownloads((current) =>
+        current.map((item) =>
+          item.cityId === selectedCityAction.cityId
+            ? { ...item, status: "error", error: message }
+            : item
+        )
+      );
+      toast({
+        title: "Erro ao baixar cidade",
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGoToStep = (route: string) => {
@@ -385,9 +516,20 @@ const Avaliacao = () => {
       storedCity: city,
     });
 
+    const nextActiveCity = {
+      cityId: city.id,
+      cityName: city.name,
+      stateName: matchedState?.sigla || city.state,
+    };
+
+    setPersistedCityData(JSON.stringify(nextActiveCity));
+    setActiveCity(nextActiveCity);
+    sessionStorage.removeItem("selectedSegmentId");
+    sessionStorage.removeItem("selectedCityId");
+
     toast({
       title: "Cidade carregada",
-      description: `${city.name}/${city.state} está pronta para continuar.`,
+      description: `${city.name}/${city.state} agora é a cidade ativa da avaliação.`,
     });
   };
 
@@ -408,23 +550,37 @@ const Avaliacao = () => {
       {isAuthenticated ? (
         <div className="mb-8 rounded-[24px] bg-background-grey p-6 shadow-md">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl space-y-3">
+            <div className="max-w-3xl space-y-4">
               <h2 className="text-2xl font-semibold text-text-grey">Cidade da avaliação</h2>
               <p className="leading-7 text-gray-700">
-                A escolha da cidade agora acontece nesta página. Depois disso, você segue para
-                aprimorar os dados, selecionar um trecho e ver os resultados da cidade.
+                Primeiro escolha ou troque a cidade ativa aqui. Depois siga para aprimorar os
+                dados, selecionar um trecho e ver os resultados da cidade.
               </p>
               {activeCity ? (
-                <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>
-                    Cidade ativa: {activeCity.cityName}, {activeCity.stateName}
-                  </span>
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-900 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span className="text-sm font-semibold uppercase tracking-wide">
+                      Cidade ativa
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xl font-bold text-emerald-950">
+                    {activeCity.cityName}
+                  </p>
+                  <p className="text-sm text-emerald-800">{activeCity.stateName}</p>
                 </div>
               ) : (
-                <div className="inline-flex max-w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
-                  <FileText className="h-4 w-4" />
-                  <span>Escolha a cidade para habilitar o fluxo de avaliação.</span>
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-900 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    <span className="text-sm font-semibold uppercase tracking-wide">
+                      Nenhuma cidade ativa
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6">
+                    Escolha uma cidade no seletor ou clique em uma cidade já baixada no seu
+                    escopo para ativar a avaliação.
+                  </p>
                 </div>
               )}
             </div>
@@ -436,14 +592,91 @@ const Avaliacao = () => {
                   <span>Carregando estados e cidades...</span>
                 </div>
               ) : (
-                <>
-                  <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5">
+                  <h3 className="text-base font-semibold text-text-grey">Fluxo da seleção</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Selecione uma cidade já baixada no bloco abaixo para ativá-la imediatamente.
+                    Se for uma cidade nova, escolha o estado e a cidade na última card da lista
+                    para baixar e ativar no mesmo fluxo.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          {scopedStoredCities.length > 0 ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-text-grey">
+                    3. Cidades já baixadas no seu escopo
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Clique em uma cidade para torná-la a cidade ativa imediatamente.
+                  </p>
+                </div>
+                <span className="text-sm text-gray-500">
+                  {scopedStoredCities.length} cidade{scopedStoredCities.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {scopedStoredCities.map((city) => (
+                  <button
+                    key={city.id}
+                    type="button"
+                    onClick={() => handleSelectStoredCity(city)}
+                    className={`rounded-xl border p-4 text-left transition hover:border-ideciclo-blue hover:bg-white ${
+                      activeCity?.cityId === city.id
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">{city.name}</div>
+                        <div className="text-sm text-slate-600">{city.state}</div>
+                      </div>
+                      <CheckCircle2
+                        className={`h-4 w-4 ${
+                          activeCity?.cityId === city.id ? "text-emerald-600" : "text-slate-400"
+                        }`}
+                      />
+                    </div>
+                    <div className="mt-3 text-xs text-slate-500">
+                      Última atualização: {formatLastDownload(city)}
+                    </div>
+                    {activeCity?.cityId === city.id ? (
+                      <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                        Cidade ativa
+                      </div>
+                    ) : null}
+                  </button>
+                ))}
+
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 md:col-span-2 xl:col-span-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-base font-semibold text-text-grey">
+                        Escolher outra cidade
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Use os seletores abaixo para trocar a cidade ativa ou baixar uma nova no
+                        mesmo fluxo.
+                      </p>
+                    </div>
+                    {activeCity ? (
+                      <Button variant="outline" onClick={handleClearActiveCity}>
+                        Limpar cidade ativa
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label htmlFor="estado-avaliacao" className="text-sm font-medium">
+                      <label htmlFor="estado-avaliacao-baixo" className="text-sm font-medium">
                         Estado
                       </label>
                       <Select value={selectedStateId} onValueChange={handleSelectionStateChange}>
-                        <SelectTrigger id="estado-avaliacao">
+                        <SelectTrigger id="estado-avaliacao-baixo">
                           <SelectValue placeholder="Selecione um estado" />
                         </SelectTrigger>
                         <SelectContent>
@@ -457,7 +690,7 @@ const Avaliacao = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label htmlFor="cidade-avaliacao" className="text-sm font-medium">
+                      <label htmlFor="cidade-avaliacao-baixo" className="text-sm font-medium">
                         Cidade
                       </label>
                       <Select
@@ -465,7 +698,7 @@ const Avaliacao = () => {
                         onValueChange={handleSelectionCityChange}
                         disabled={isLoadingCities || !selectedStateId || cities.length === 0}
                       >
-                        <SelectTrigger id="cidade-avaliacao">
+                        <SelectTrigger id="cidade-avaliacao-baixo">
                           <SelectValue
                             placeholder={
                               isLoadingCities
@@ -488,77 +721,91 @@ const Avaliacao = () => {
                   </div>
 
                   {selectedCityAction ? (
-                    <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="space-y-1">
-                        <h3 className="font-semibold">
-                          {selectedCityAction.cityName}, {selectedCityAction.stateName}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Último download: {formatLastDownload(selectedCityAction.storedCity)}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Status:{" "}
-                          {selectedCityAction.storedCity
-                            ? "dados já disponíveis para aprimoramento"
-                            : "cidade ainda não baixada"}
-                        </p>
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {selectedCityAction.storedCity
+                              ? "Cidade já baixada"
+                              : "Cidade nova selecionada"}
+                          </p>
+                          <h3 className="text-lg font-bold text-slate-900">
+                            {selectedCityAction.cityName}
+                          </h3>
+                          <p className="text-sm text-slate-600">{selectedCityAction.stateName}</p>
+                          <p className="text-sm text-slate-600">
+                            {selectedCityAction.storedCity
+                              ? `Última atualização: ${formatLastDownload(selectedCityAction.storedCity)}`
+                              : "Essa cidade ainda não foi baixada para sua avaliação."}
+                          </p>
+                        </div>
+                        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                          {selectedCityAction.storedCity ? "Ativa" : "A baixar"}
+                        </div>
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <Button
-                          onClick={handleActivateCity}
-                          className="bg-ideciclo-blue hover:bg-blue-600"
-                        >
-                          {selectedCityAction.storedCity
-                            ? "Usar esta cidade e aprimorar dados"
-                            : "Selecionar cidade e baixar dados"}
-                        </Button>
-                        {activeCity ? (
-                          <Button variant="outline" onClick={handleClearActiveCity}>
-                            Limpar cidade ativa
+                      {!selectedCityAction.storedCity ? (
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <Button
+                            onClick={handleDownloadSelectedCity}
+                            className="bg-ideciclo-blue hover:bg-blue-600"
+                          >
+                            Selecionar e baixar dados
                           </Button>
-                        ) : null}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
-                </>
-              )}
+                </div>
+              </div>
             </div>
-          </div>
-          {scopedStoredCities.length > 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          ) : null}
+
+          {cityDownloads.length > 0 ? (
+            <div className="mt-6 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-text-grey">
-                    Cidades já baixadas no seu escopo
+                    Cidades em download
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Use um atalho para retomar uma cidade já preparada.
+                    Essas cidades estão sendo preparadas para a avaliação nesta própria página.
                   </p>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {scopedStoredCities.length} cidade{scopedStoredCities.length === 1 ? "" : "s"}
-                </span>
               </div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {scopedStoredCities.map((city) => (
-                  <button
-                    key={city.id}
-                    type="button"
-                    onClick={() => handleSelectStoredCity(city)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-ideciclo-blue hover:bg-white"
+                {cityDownloads.map((download) => (
+                  <div
+                    key={download.cityId}
+                    className={`rounded-xl border p-4 ${
+                      download.status === "error"
+                        ? "border-rose-200 bg-rose-50"
+                        : download.status === "ready"
+                          ? "border-emerald-200 bg-emerald-50"
+                          : "border-blue-200 bg-blue-50"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-slate-900">{city.name}</div>
-                        <div className="text-sm text-slate-600">{city.state}</div>
+                        <div className="font-semibold text-slate-900">{download.cityName}</div>
+                        <div className="text-sm text-slate-600">{download.stateName}</div>
                       </div>
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      {download.status === "downloading" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      ) : download.status === "ready" ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-rose-600" />
+                      )}
                     </div>
-                    <div className="mt-3 text-xs text-slate-500">
-                      Última atualização: {formatLastDownload(city)}
+                    <div className="mt-3 text-sm text-slate-700">
+                      {download.status === "downloading"
+                        ? "Baixando dados do OSM e salvando no banco..."
+                        : download.status === "ready"
+                          ? "Cidade baixada e ativa para continuar."
+                          : download.error || "Falha ao baixar a cidade."}
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>

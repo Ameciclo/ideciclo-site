@@ -271,7 +271,7 @@ export const calculateCityResults = (
     });
 
   const networks = NETWORK_KEYS.reduce((acc, key) => {
-    const totalRoadKm = city[NETWORK_CONFIG[key].cityField] || 0;
+    const totalRoadKm = Number(city[NETWORK_CONFIG[key].cityField] || 0);
     const entries = segmentEntries.filter((segment) => segment.hierarchy === key);
     const structuresCount = entries.length;
     const evaluatedCount = entries.filter((segment) => segment.evaluated).length;
@@ -352,7 +352,7 @@ export const calculateCityResults = (
         evaluatedStructures === totalStructures &&
         classifiedStructures === totalStructures,
       totalRoadKm: NETWORK_KEYS.reduce(
-        (sum, key) => sum + networks[key].totalRoadKm,
+        (sum, key) => sum + Number(networks[key].totalRoadKm || 0),
         0
       ),
     },

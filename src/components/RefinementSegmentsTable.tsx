@@ -1698,7 +1698,7 @@ const RefinementSegmentsTable = ({
                     Clique na linha para definir a base do complemento técnico.
                   </p>
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-left">
+                    <thead className="sticky top-0 z-10 bg-muted/50 text-left shadow-sm">
                       <tr>
                         <th className="px-3 py-2">Trecho</th>
                         <th className="px-3 py-2">osm_id</th>
