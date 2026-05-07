@@ -9,6 +9,15 @@ type FormRow = Database['public']['Tables']['forms']['Row'];
 type ReviewRow = Database['public']['Tables']['reviews']['Row'];
 
 const CITY_RANKING_VISIBILITY_STORAGE_KEY = "ideciclo-city-ranking-visibility";
+const DEBUG_DB_FETCHES =
+  typeof window !== "undefined" &&
+  (import.meta.env.DEV ||
+    window.localStorage.getItem("ideciclo-debug-api") === "1");
+
+type FetchDbOptions = RequestInit & {
+  fresh?: boolean;
+  debugLabel?: string;
+};
 
 const formatDatabaseError = (context: string, error: unknown): string => {
   if (!error || typeof error !== "object") {
@@ -72,13 +81,42 @@ const coerceNumber = (value: unknown, fallback = 0) => {
 
 const DB_API_BASE_PATH = "/api/db";
 
-const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${DB_API_BASE_PATH}${path}`, {
+const buildFreshRequestUrl = (path: string): string => {
+  if (typeof window === "undefined") return `${DB_API_BASE_PATH}${path}`;
+
+  const url = new URL(`${DB_API_BASE_PATH}${path}`, window.location.origin);
+  url.searchParams.set("_ts", String(Date.now()));
+  return `${url.pathname}${url.search}`;
+};
+
+const fetchDb = async <T>(path: string, init?: FetchDbOptions): Promise<T> => {
+  const method = (init?.method || "GET").toUpperCase();
+  const fresh = Boolean(init?.fresh) && method === "GET";
+  const requestUrl = fresh ? buildFreshRequestUrl(path) : `${DB_API_BASE_PATH}${path}`;
+  const startedAt = Date.now();
+
+  if (DEBUG_DB_FETCHES) {
+    console.debug("[db:fetch]", {
+      label: init?.debugLabel,
+      method,
+      fresh,
+      url: requestUrl,
+    });
+  }
+
+  const response = await fetch(requestUrl, {
+    ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(fresh
+        ? {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          }
+        : {}),
       ...(init?.headers || {}),
     },
-    ...init,
+    cache: fresh ? "no-store" : init?.cache,
   });
 
   const rawBody = await response.text();
@@ -102,20 +140,55 @@ const fetchDb = async <T>(path: string, init?: RequestInit): Promise<T> => {
     throw new Error(message);
   }
 
+  if (DEBUG_DB_FETCHES) {
+    console.debug("[db:fetch:ok]", {
+      label: init?.debugLabel,
+      method,
+      fresh,
+      status: response.status,
+      ms: Date.now() - startedAt,
+      url: requestUrl,
+    });
+  }
+
   return payload as T;
 };
 
 const fetchAuthDb = async <T>(
   input: RequestInfo,
-  init?: Omit<RequestInit, "body"> & { body?: unknown }
+  init?: (Omit<RequestInit, "body"> & { body?: unknown }) & {
+    fresh?: boolean;
+    debugLabel?: string;
+  }
 ): Promise<T> => {
+  const method =
+    (typeof init?.method === "string" ? init.method : "GET").toUpperCase();
+  const fresh = Boolean(init?.fresh) && method === "GET";
+  const startedAt = Date.now();
+
+  if (DEBUG_DB_FETCHES) {
+    console.debug("[db:auth-fetch]", {
+      label: init?.debugLabel,
+      method,
+      fresh,
+      url: input,
+    });
+  }
+
   const response = await fetch(input, {
+    ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(fresh
+        ? {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          }
+        : {}),
       ...(init?.headers || {}),
     },
-    ...init,
+    cache: fresh ? "no-store" : init?.cache,
     body:
       init && "body" in init
         ? JSON.stringify(init.body ?? {})
@@ -143,6 +216,17 @@ const fetchAuthDb = async <T>(
     throw new Error(message);
   }
 
+  if (DEBUG_DB_FETCHES) {
+    console.debug("[db:auth-fetch:ok]", {
+      label: init?.debugLabel,
+      method,
+      fresh,
+      status: response.status,
+      ms: Date.now() - startedAt,
+      url: input,
+    });
+  }
+
   return payload as T;
 };
 
@@ -166,7 +250,10 @@ const resolveDatabaseSegmentId = async (
   try {
     const payload = await fetchDb<{
       segment: { dbId: string; cityId?: string } | null;
-    }>(`/segments/resolve/${encodeURIComponent(segmentId)}`);
+    }>(`/segments/resolve/${encodeURIComponent(segmentId)}`, {
+      fresh: true,
+      debugLabel: "resolveDatabaseSegmentId",
+    });
 
     return payload.segment;
   } catch (error) {
@@ -194,7 +281,7 @@ const convertCityRowToCity = (row: CityRow): City => ({
   show_in_ranking:
     typeof (row as any).show_in_ranking === "boolean"
       ? (row as any).show_in_ranking
-      : getLocalCityRankingVisibility(row.id) ?? true,
+      : false,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -283,7 +370,8 @@ const convertSegmentRowToSegment = (row: SegmentRow): Segment => {
 export const fetchCityFromDB = async (cityId: string): Promise<City | null> => {
   try {
     const payload = await fetchDb<{ city: CityRow | null }>(
-      `/cities/${encodeURIComponent(cityId)}`
+      `/cities/${encodeURIComponent(cityId)}`,
+      { fresh: true, debugLabel: "fetchCityFromDB" }
     );
     return payload.city ? convertCityRowToCity(payload.city) : null;
   } catch (error) {
@@ -300,6 +388,7 @@ export const saveCityToDB = async (city: Partial<City>): Promise<City | null> =>
     const payload = await fetchAuthDb<{ city: CityRow }>("/api/auth/db/cities/upsert", {
       method: "POST",
       body: { city },
+      debugLabel: "saveCityToDB",
     });
 
     if (typeof city.show_in_ranking === "boolean") {
@@ -325,9 +414,16 @@ export const updateCityRankingVisibility = async (
       {
         method: "PATCH",
         body: { visible },
+        debugLabel: "updateCityRankingVisibility",
       }
     );
     setLocalCityRankingVisibility(cityId, visible);
+    if (DEBUG_DB_FETCHES) {
+      console.debug("[db:ranking-visibility]", {
+        cityId,
+        visible,
+      });
+    }
     return true;
   } catch (error) {
     console.error("Error updating city ranking visibility:", error);
@@ -342,7 +438,7 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
   // First, clear any existing segments from the cache
   try {
     const cacheName = `segments-${cityId}`;
-    if ('caches' in window) {
+    if (typeof window !== "undefined" && "caches" in window) {
       const cache = await caches.open(cacheName);
       await cache.delete(`/segments?cityId=${cityId}`);
     }
@@ -386,7 +482,8 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
 
   try {
     const payload = await fetchDb<{ segments: SegmentRow[] }>(
-      `/segments/city/${encodeURIComponent(cityId)}`
+      `/segments/city/${encodeURIComponent(cityId)}`,
+      { fresh: true, debugLabel: "fetchSegmentsFromDB" }
     );
     data = payload.segments || [];
   } catch (error) {
@@ -398,6 +495,12 @@ export const fetchSegmentsFromDB = async (cityId: string): Promise<Segment[]> =>
     console.log(`Found ${data.length} segments in database for city ${cityId}, using database data`);
     const segments = normalizeSegments(data);
     console.log(`Fetched ${segments.length} unique segments for city ${cityId} from database`);
+    if (DEBUG_DB_FETCHES) {
+      console.debug("[db:segments]", {
+        cityId,
+        count: segments.length,
+      });
+    }
     return segments;
   }
 
@@ -451,6 +554,7 @@ export const saveSegmentToDB = async (segment: Segment): Promise<boolean> => {
       body: {
         segment: segmentPayload,
       },
+      debugLabel: "saveSegmentToDB",
     });
     return true;
   } catch (error) {
@@ -471,6 +575,7 @@ export const removeSegmentsFromDB = async (segmentIds: string[]): Promise<boolea
       body: {
         segmentIds,
       },
+      debugLabel: "removeSegmentsFromDB",
     });
     return true;
   } catch (error) {
@@ -488,6 +593,7 @@ export const hardDeleteSegmentsFromDB = async (segmentIds: string[]): Promise<bo
         segmentIds,
         hard: true,
       },
+      debugLabel: "hardDeleteSegmentsFromDB",
     });
     return true;
   } catch (error) {
@@ -501,7 +607,8 @@ export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segmen
 
   try {
     const payload = await fetchDb<{ segments: SegmentRow[] }>(
-      `/segments/city/${encodeURIComponent(cityId)}/deleted`
+      `/segments/city/${encodeURIComponent(cityId)}/deleted`,
+      { fresh: true, debugLabel: "fetchDeletedSegmentsFromDB" }
     );
     rows = payload.segments || [];
   } catch (error) {
@@ -509,7 +616,7 @@ export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segmen
     return [];
   }
 
-  return rows.map((row) => {
+  const segments = rows.map((row) => {
     const segment = convertSegmentRowToSegment(row);
     if (segment.id.startsWith(`${cityId}_`)) {
       segment.id = segment.id.substring(cityId.length + 1);
@@ -524,6 +631,15 @@ export const fetchDeletedSegmentsFromDB = async (cityId: string): Promise<Segmen
     }
     return segment;
   });
+
+  if (DEBUG_DB_FETCHES) {
+    console.debug("[db:segments:deleted]", {
+      cityId,
+      count: segments.length,
+    });
+  }
+
+  return segments;
 };
 
 export const restoreSegmentsFromDB = async (segmentIds: string[]): Promise<boolean> => {
@@ -535,6 +651,7 @@ export const restoreSegmentsFromDB = async (segmentIds: string[]): Promise<boole
       body: {
         segmentIds,
       },
+      debugLabel: "restoreSegmentsFromDB",
     });
     return true;
   } catch (error) {
@@ -605,6 +722,7 @@ export const saveSegmentsToDB = async (segments: Segment[]): Promise<boolean> =>
         cityId,
         segments: segmentsToInsert,
       },
+      debugLabel: "saveSegmentsToDB",
     });
 
     console.log(`Successfully inserted all ${segmentsToInsert.length} segments for city ${cityId}`);
@@ -634,6 +752,7 @@ export const updateSegmentInDB = async (segment: Partial<Segment>): Promise<Segm
           cityId: segment.id_cidade,
           segment,
         },
+        debugLabel: "updateSegmentInDB",
       }
     );
 
@@ -673,6 +792,7 @@ export const updateSegmentTechnicalInDB = async (
           cityId,
           updates,
         },
+        debugLabel: "updateSegmentTechnicalInDB",
       }
     );
 
@@ -713,6 +833,7 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
         parentSegmentId,
         segmentIdsToUnmerge,
       },
+      debugLabel: "unmergeSegmentsFromDB",
     });
     return true;
   } catch (error) {
@@ -727,9 +848,17 @@ export const unmergeSegmentsFromDB = async (parentSegmentId: string, segmentIdsT
 export const fetchFormsByCityId = async (cityId: string): Promise<Form[]> => {
   try {
     const payload = await fetchDb<{ forms: FormRow[] }>(
-      `/forms/city/${encodeURIComponent(cityId)}`
+      `/forms/city/${encodeURIComponent(cityId)}`,
+      { fresh: true, debugLabel: "fetchFormsByCityId" }
     );
-    return (payload.forms || []).map(convertFormRowToForm);
+    const forms = (payload.forms || []).map(convertFormRowToForm);
+    if (DEBUG_DB_FETCHES) {
+      console.debug("[db:forms]", {
+        cityId,
+        count: forms.length,
+      });
+    }
+    return forms;
   } catch (error) {
     console.error("Error fetching forms by city ID:", error);
     return [];
@@ -778,7 +907,8 @@ export const saveFormToDB = async (form: Partial<Form>): Promise<Form | null> =>
 export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
   try {
     const payload = await fetchDb<{ form: FormRow | null }>(
-      `/forms/${encodeURIComponent(formId)}`
+      `/forms/${encodeURIComponent(formId)}`,
+      { fresh: true, debugLabel: "fetchFormFromDB" }
     );
     return payload.form ? convertFormRowToForm(payload.form) : null;
   } catch (error) {
@@ -790,7 +920,8 @@ export const fetchFormFromDB = async (formId: string): Promise<Form | null> => {
 export const fetchFormBySegmentId = async (segmentId: string): Promise<Form | null> => {
   try {
     const payload = await fetchDb<{ form: FormRow | null }>(
-      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`,
+      { fresh: true, debugLabel: "fetchFormBySegmentId" }
     );
     return payload.form ? convertFormRowToForm(payload.form) : null;
   } catch (error) {
@@ -809,7 +940,10 @@ export const checkFormsExistByIds = async (formIds: string[]): Promise<string[]>
     const query = new URLSearchParams();
     formIds.forEach((formId) => query.append("id", formId));
 
-    const payload = await fetchDb<{ formIds: string[] }>(`/forms/exists?${query.toString()}`);
+    const payload = await fetchDb<{ formIds: string[] }>(`/forms/exists?${query.toString()}`, {
+      fresh: true,
+      debugLabel: "checkFormsExistByIds",
+    });
     return payload.formIds || [];
   } catch (error) {
     console.error("Error checking forms existence:", error);
@@ -837,6 +971,7 @@ export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
       body: {
         reviews: reviewsToInsert,
       },
+      debugLabel: "saveReviewsToDB",
     });
     return true;
   } catch (error) {
@@ -848,7 +983,8 @@ export const saveReviewsToDB = async (reviews: Review[]): Promise<boolean> => {
 export const fetchReviewsForForm = async (formId: string): Promise<Review[]> => {
   try {
     const payload = await fetchDb<{ reviews: ReviewRow[] }>(
-      `/reviews/form/${encodeURIComponent(formId)}`
+      `/reviews/form/${encodeURIComponent(formId)}`,
+      { fresh: true, debugLabel: "fetchReviewsForForm" }
     );
 
     return (payload.reviews || []).map((review: ReviewRow): Review => ({
@@ -874,6 +1010,7 @@ export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
   try {
     await fetchAuthDb<{ ok: true }>(`/api/auth/db/cities/${encodeURIComponent(cityId)}`, {
       method: "DELETE",
+      debugLabel: "deleteCityFromDB",
     });
     return true;
   } catch (error) {
@@ -888,7 +1025,8 @@ export const deleteCityFromDB = async (cityId: string): Promise<boolean> => {
 export const fetchFormById = async (formId: string): Promise<any | null> => {
   try {
     const payload = await fetchDb<{ form: FormRow | null }>(
-      `/forms/${encodeURIComponent(formId)}`
+      `/forms/${encodeURIComponent(formId)}`,
+      { fresh: true, debugLabel: "fetchFormById" }
     );
     return payload.form ?? null;
   } catch (error) {
@@ -900,7 +1038,8 @@ export const fetchFormById = async (formId: string): Promise<any | null> => {
 export const getFormBySegmentId = async (segmentId: string): Promise<any | null> => {
   try {
     const payload = await fetchDb<{ form: FormRow | null }>(
-      `/forms/by-segment/${encodeURIComponent(segmentId)}`
+      `/forms/by-segment/${encodeURIComponent(segmentId)}`,
+      { fresh: true, debugLabel: "getFormBySegmentId" }
     );
     return payload.form ?? null;
   } catch (error) {
@@ -912,7 +1051,8 @@ export const getFormBySegmentId = async (segmentId: string): Promise<any | null>
 export const fetchSegmentById = async (segmentId: string): Promise<any | null> => {
   try {
     const payload = await fetchDb<{ segment: SegmentRow | null }>(
-      `/segments/${encodeURIComponent(segmentId)}`
+      `/segments/${encodeURIComponent(segmentId)}`,
+      { fresh: true, debugLabel: "fetchSegmentById" }
     );
 
     if (!payload.segment) return null;
@@ -932,6 +1072,7 @@ export const updateFormInDB = async (formId: string, formData: any): Promise<any
         body: {
           formData,
         },
+        debugLabel: "updateFormInDB",
       }
     );
     return payload.form ?? null;
@@ -948,6 +1089,7 @@ export const createFormInDB = async (formData: any): Promise<any | null> => {
       body: {
         formData,
       },
+      debugLabel: "createFormInDB",
     });
     return payload.form ?? null;
   } catch (error) {
@@ -965,6 +1107,7 @@ export const updateSegmentEvaluationStatus = async (segmentId: string, formId: s
         body: {
           formId,
         },
+        debugLabel: "updateSegmentEvaluationStatus",
       }
     );
     return true;
@@ -980,7 +1123,8 @@ export const updateSegmentEvaluationStatus = async (segmentId: string, formId: s
 export const fetchFormWithDetails = async (formId: string): Promise<any | null> => {
   try {
     const payload = await fetchDb<{ form: FormRow | null }>(
-      `/forms/${encodeURIComponent(formId)}`
+      `/forms/${encodeURIComponent(formId)}`,
+      { fresh: true, debugLabel: "fetchFormWithDetails" }
     );
     return payload.form ?? null;
   } catch (error) {
@@ -994,7 +1138,10 @@ export const fetchFormWithDetails = async (formId: string): Promise<any | null> 
  */
 export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: string }[]> => {
   try {
-    const payload = await fetchDb<{ states: { id: string; name: string }[] }>("/states");
+    const payload = await fetchDb<{ states: { id: string; name: string }[] }>("/states", {
+      fresh: true,
+      debugLabel: "fetchUniqueStatesFromDB",
+    });
     return payload.states || [];
   } catch (error) {
     console.error("Error fetching states:", error);
@@ -1005,7 +1152,8 @@ export const fetchUniqueStatesFromDB = async (): Promise<{ id: string; name: str
 export const fetchCitiesByState = async (state: string): Promise<City[]> => {
   try {
     const payload = await fetchDb<{ cities: CityRow[] }>(
-      `/cities?state=${encodeURIComponent(state)}`
+      `/cities?state=${encodeURIComponent(state)}`,
+      { fresh: true, debugLabel: "fetchCitiesByState" }
     );
     return (payload.cities || []).map(convertCityRowToCity);
   } catch (error) {
@@ -1019,8 +1167,17 @@ export const fetchCitiesByState = async (state: string): Promise<City[]> => {
  */
 export const fetchAllStoredCities = async (): Promise<City[]> => {
   try {
-    const payload = await fetchDb<{ cities: CityRow[] }>("/cities");
-    return (payload.cities || []).map(convertCityRowToCity);
+    const payload = await fetchDb<{ cities: CityRow[] }>("/cities", {
+      fresh: true,
+      debugLabel: "fetchAllStoredCities",
+    });
+    const cities = (payload.cities || []).map(convertCityRowToCity);
+    if (DEBUG_DB_FETCHES) {
+      console.debug("[db:cities]", {
+        count: cities.length,
+      });
+    }
+    return cities;
   } catch (error) {
     console.error("Error fetching stored cities:", error);
     return [];

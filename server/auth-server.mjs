@@ -240,6 +240,8 @@ const serializeCookie = (name, value, options = {}) => {
 const json = (response, statusCode, payload, extraHeaders = {}) => {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store, max-age=0, must-revalidate",
+    Pragma: "no-cache",
     ...extraHeaders,
   });
   response.end(JSON.stringify(payload));
@@ -2212,6 +2214,10 @@ export const handleAuthRequest = async (request, response) => {
       if (!auth) return;
 
       const savedCity = await upsertCityRow(city);
+      console.log("[auth-db] city upsert", {
+        cityId: savedCity?.id || city.id,
+        show_in_ranking: savedCity?.show_in_ranking,
+      });
       json(response, 200, { city: savedCity });
       return;
     }
@@ -2246,6 +2252,11 @@ export const handleAuthRequest = async (request, response) => {
         `,
         [visible, cityId]
       );
+
+      console.log("[auth-db] ranking visibility update", {
+        cityId,
+        visible,
+      });
 
       json(response, 200, { ok: true });
       return;
@@ -2296,13 +2307,21 @@ export const handleAuthRequest = async (request, response) => {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        await client.query(`DELETE FROM public.segments WHERE id_cidade = $1`, [cityId]);
+        const deleteExistingResult = await client.query(
+          `DELETE FROM public.segments WHERE id_cidade = $1`,
+          [cityId]
+        );
 
         for (const segment of segments) {
           await upsertSegmentRow(segment, client);
         }
 
         await client.query("COMMIT");
+        console.log("[auth-db] segments bulk-upsert", {
+          cityId,
+          incoming: segments.length,
+          deletedBeforeInsert: deleteExistingResult.rowCount,
+        });
         json(response, 200, { ok: true });
       } catch (error) {
         await client.query("ROLLBACK");
@@ -2331,6 +2350,10 @@ export const handleAuthRequest = async (request, response) => {
       if (!auth) return;
 
       const savedSegment = await upsertSegmentRow(segment);
+      console.log("[auth-db] segment upsert", {
+        cityId: segment.id_cidade,
+        segmentId: savedSegment?.id || segment.id,
+      });
       json(response, 200, { segment: savedSegment });
       return;
     }
@@ -2374,6 +2397,10 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
+      console.log("[auth-db] segment patch", {
+        segmentId,
+        cityId: segment.id_cidade || segmentScope.cityId,
+      });
       json(response, 200, { segment: updatedSegment });
       return;
     }
@@ -2412,6 +2439,10 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
+      console.log("[auth-db] segment technical patch", {
+        segmentId,
+        cityId: cityId || segmentScope.cityId,
+      });
       json(response, 200, { segment: updatedSegment });
       return;
     }
@@ -2443,6 +2474,12 @@ export const handleAuthRequest = async (request, response) => {
         formId,
         body.cityId ?? null
       );
+      console.log("[auth-db] segment evaluation-status", {
+        segmentId,
+        formId,
+        cityId: body.cityId ?? null,
+        success,
+      });
       json(response, 200, { ok: success });
       return;
     }
@@ -2493,7 +2530,7 @@ export const handleAuthRequest = async (request, response) => {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
-        await client.query(
+        const parentUpdateResult = await client.query(
           `
             UPDATE public.segments
             SET parent_segment_id = null,
@@ -2504,12 +2541,19 @@ export const handleAuthRequest = async (request, response) => {
         );
 
         if (hard) {
-          await client.query(
+          const hardDeleteResult = await client.query(
             `DELETE FROM public.segments WHERE id = ANY($1::text[])`,
             [resolvedIds]
           );
+          console.log("[auth-db] segments delete", {
+            hard,
+            requested: segmentIds.length,
+            resolved: resolvedIds.length,
+            parentReset: parentUpdateResult.rowCount,
+            deleted: hardDeleteResult.rowCount,
+          });
         } else {
-          await client.query(
+          const softDeleteResult = await client.query(
             `
               UPDATE public.segments
               SET deleted_at = now()
@@ -2517,6 +2561,13 @@ export const handleAuthRequest = async (request, response) => {
             `,
             [resolvedIds]
           );
+          console.log("[auth-db] segments delete", {
+            hard,
+            requested: segmentIds.length,
+            resolved: resolvedIds.length,
+            parentReset: parentUpdateResult.rowCount,
+            deleted: softDeleteResult.rowCount,
+          });
         }
 
         await client.query("COMMIT");
@@ -2567,7 +2618,7 @@ export const handleAuthRequest = async (request, response) => {
         return;
       }
 
-      await pool.query(
+      const restoreResult = await pool.query(
         `
           UPDATE public.segments
           SET deleted_at = null
@@ -2575,6 +2626,12 @@ export const handleAuthRequest = async (request, response) => {
         `,
         [resolvedIds]
       );
+
+      console.log("[auth-db] segments restore", {
+        requested: segmentIds.length,
+        resolved: resolvedIds.length,
+        restored: restoreResult.rowCount,
+      });
 
       json(response, 200, { ok: true });
       return;
@@ -2657,6 +2714,11 @@ export const handleAuthRequest = async (request, response) => {
         }
 
         await client.query("COMMIT");
+        console.log("[auth-db] segments unmerge", {
+          parentSegmentId,
+          removedChildren: segmentIdsToUnmerge.length,
+          remainingChildren: remainingMergedSegments.length,
+        });
         json(response, 200, { ok: true });
       } catch (error) {
         await client.query("ROLLBACK");
@@ -2695,6 +2757,11 @@ export const handleAuthRequest = async (request, response) => {
           client
         );
         await client.query("COMMIT");
+        console.log("[auth-db] form create", {
+          formId: formData.id,
+          segmentId: formData.segment_id,
+          cityId: formData.city_id,
+        });
         json(response, 201, { form });
       } catch (error) {
         await client.query("ROLLBACK");
@@ -2725,6 +2792,10 @@ export const handleAuthRequest = async (request, response) => {
       });
       if (!auth) return;
 
+      console.log("[auth-db] form patch", {
+        formId,
+        cityId: formScope.cityId || formScope.city,
+      });
       const form = await updateFormRow(formId, body.formData || {});
       json(response, 200, { form });
       return;
@@ -2749,6 +2820,10 @@ export const handleAuthRequest = async (request, response) => {
       if (!auth) return;
 
       await saveReviewsRows(reviews);
+      console.log("[auth-db] reviews bulk", {
+        formId,
+        count: reviews.length,
+      });
       json(response, 200, { ok: true });
       return;
     }

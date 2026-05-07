@@ -439,11 +439,28 @@ const RefinarDados = () => {
   const handleDeleteSegment = async (segmentId: string) => {
     try {
       await removeSegments([segmentId]);
-      const updatedSegments = segments.filter(
-        (segment) => segment.id !== segmentId
-      );
-      setSegments(updatedSegments);
-      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        const refreshedSegments = storedData.segments.map((segment) => ({
+          ...segment,
+          selected: false,
+        }));
+        setCity(storedData.city);
+        setSegments(refreshedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          refreshedSegments
+        );
+      } else {
+        const updatedSegments = segments.filter(
+          (segment) => segment.id !== segmentId
+        );
+        setSegments(updatedSegments);
+        persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      }
       await loadDeletedSegmentsForCity(cityId);
       toast({
         title: "Segmento movido para lixeira",
@@ -498,9 +515,26 @@ const RefinarDados = () => {
 
     try {
       await deleteMultipleSegments(selectedSegmentIds);
-      const updatedSegments = segments.filter((segment) => !segment.selected);
-      setSegments(updatedSegments);
-      persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      const storedData = await getStoredCityData(cityId);
+      if (storedData) {
+        const refreshedSegments = storedData.segments.map((segment) => ({
+          ...segment,
+          selected: false,
+        }));
+        setCity(storedData.city);
+        setSegments(refreshedSegments);
+        persistCitySnapshot(
+          cityId,
+          cityName || storedData.city.name || "",
+          stateName || storedData.city.state || "",
+          storedData.city,
+          refreshedSegments
+        );
+      } else {
+        const updatedSegments = segments.filter((segment) => !segment.selected);
+        setSegments(updatedSegments);
+        persistCitySnapshot(cityId, cityName, stateName, city, updatedSegments);
+      }
       await loadDeletedSegmentsForCity(cityId);
       toast({
         title: "Segmentos movidos para lixeira",
