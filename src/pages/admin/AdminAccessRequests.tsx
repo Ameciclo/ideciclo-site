@@ -45,7 +45,7 @@ const moduleLabels: Record<string, string> = {
 
 const AdminAccessRequests = () => {
   const { toast } = useToast();
-  const [statusFilter, setStatusFilter] = useState("pending_review");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [selectedRequestId, setSelectedRequestId] = useState<string>("");
   const [selectedRequest, setSelectedRequest] = useState<AccessRequest | null>(null);
@@ -278,7 +278,7 @@ const AdminAccessRequests = () => {
         <div>
           <h2 className="text-2xl font-semibold text-text-grey">Solicitações de acesso</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Revise solicitações verificadas por e-mail e aprove as permissões antes do primeiro
+            Revise solicitações confirmadas e pendentes de verificação de e-mail antes do primeiro
             login.
           </p>
         </div>
@@ -289,11 +289,11 @@ const AdminAccessRequests = () => {
               <SelectValue placeholder="Filtrar status" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Todas as solicitações</SelectItem>
               <SelectItem value="pending_review">Pendentes de revisão</SelectItem>
               <SelectItem value="email_verification_pending">Aguardando verificação</SelectItem>
               <SelectItem value="approved">Aprovadas</SelectItem>
               <SelectItem value="rejected">Rejeitadas</SelectItem>
-              <SelectItem value="all">Todas</SelectItem>
             </SelectContent>
           </Select>
         </div>

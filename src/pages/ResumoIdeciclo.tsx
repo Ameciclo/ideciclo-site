@@ -266,7 +266,7 @@ const ResumoIdeciclo = () => {
                   “Qual a proporção da estrutura?”
                 </p>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Observa a proporção da estrutura cicloviária frente ao tamanho territorial ou populacional das cidades.
+                  Observa a proporção dagi estrutura cicloviária frente ao tamanho territorial ou populacional das cidades.
                 </p>
               </div>
 
