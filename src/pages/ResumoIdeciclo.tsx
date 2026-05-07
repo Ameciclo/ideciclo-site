@@ -261,12 +261,12 @@ const ResumoIdeciclo = () => {
               </div>
 
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                <p className="text-lg font-black text-text-grey">Cobertura por população</p>
+                <p className="text-lg font-black text-text-grey">Cobertura por extensão/população</p>
                 <p className="mt-1 text-sm font-semibold text-ideciclo-red">
-                  “Quantas pessoas são atendidas?”
+                  “Qual a proporção da estrutura?”
                 </p>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Observa a proximidade da infraestrutura em relação aos moradores. Ajuda a entender alcance territorial e acesso cotidiano à rede.
+                  Observa a proporção da estrutura cicloviária frente ao tamanho territorial ou populacional das cidades.
                 </p>
               </div>
 
