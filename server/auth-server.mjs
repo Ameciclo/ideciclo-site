@@ -1751,8 +1751,9 @@ const resolveSegmentIds = async (segmentIds, client = pool) => {
 export const handleAuthRequest = async (request, response) => {
   try {
     const requestUrl = new URL(request.url || "/", `http://${request.headers.host}`);
+    const pathname = requestUrl.pathname.replace(/\/+$/, "") || "/";
 
-    if (request.method === "GET" && requestUrl.pathname === "/api/auth/session") {
+    if (request.method === "GET" && pathname === "/api/auth/session") {
       const { session, sessionToken } = await getSessionFromRequest(request);
 
       if (!session) {
@@ -1769,7 +1770,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/access-requests") {
+    if (request.method === "POST" && pathname === "/api/auth/access-requests") {
       const body = await parseJsonBody(request);
       const name = normalizeScopeValue(body.name);
       const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
@@ -1920,7 +1921,7 @@ export const handleAuthRequest = async (request, response) => {
       }
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/api/auth/access-requests/verify") {
+    if (request.method === "GET" && pathname === "/api/auth/access-requests/verify") {
       const token = typeof requestUrl.searchParams.get("token") === "string"
         ? requestUrl.searchParams.get("token").trim()
         : "";
@@ -2010,7 +2011,7 @@ export const handleAuthRequest = async (request, response) => {
       }
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/request-magic-link") {
+    if (request.method === "POST" && pathname === "/api/auth/request-magic-link") {
       const body = await parseJsonBody(request);
       const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
       const redirectTo = sanitizeRedirectPath(body.redirectTo);
@@ -2081,7 +2082,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/verify") {
+    if (request.method === "POST" && pathname === "/api/auth/verify") {
       const body = await parseJsonBody(request);
       const token = typeof body.token === "string" ? body.token.trim() : "";
       const redirectTo = sanitizeRedirectPath(body.redirectTo);
@@ -2180,7 +2181,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/logout") {
+    if (request.method === "POST" && pathname === "/api/auth/logout") {
       const cookies = parseCookies(request.headers.cookie);
       await revokeSessionToken(cookies[SESSION_COOKIE_NAME]);
       json(
@@ -2194,7 +2195,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/cities/upsert") {
+    if (request.method === "POST" && pathname === "/api/auth/db/cities/upsert") {
       const body = await parseJsonBody(request);
       const city = body.city;
 
@@ -2217,10 +2218,10 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/db/cities/") &&
-      requestUrl.pathname.endsWith("/ranking-visibility")
+      pathname.startsWith("/api/auth/db/cities/") &&
+      pathname.endsWith("/ranking-visibility")
     ) {
-      const cityId = requestUrl.pathname.split("/")[5];
+      const cityId = pathname.split("/")[5];
       const body = await parseJsonBody(request);
       const visible = Boolean(body.visible);
       const cityScope = await fetchCityScope(cityId);
@@ -2252,9 +2253,9 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "DELETE" &&
-      requestUrl.pathname.startsWith("/api/auth/db/cities/")
+      pathname.startsWith("/api/auth/db/cities/")
     ) {
-      const cityId = requestUrl.pathname.split("/").pop();
+      const cityId = pathname.split("/").pop();
       const cityScope = cityId ? await fetchCityScope(cityId) : null;
 
       if (!cityId || !cityScope) {
@@ -2274,7 +2275,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/segments/bulk-upsert") {
+    if (request.method === "POST" && pathname === "/api/auth/db/segments/bulk-upsert") {
       const body = await parseJsonBody(request);
       const segments = Array.isArray(body.segments) ? body.segments : [];
       const cityId = segments[0]?.id_cidade || body.cityId;
@@ -2312,7 +2313,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/segments/upsert") {
+    if (request.method === "POST" && pathname === "/api/auth/db/segments/upsert") {
       const body = await parseJsonBody(request);
       const segment = body.segment;
       const cityScope = segment?.id_cidade ? await fetchCityScope(segment.id_cidade) : null;
@@ -2336,11 +2337,11 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/db/segments/") &&
-      !requestUrl.pathname.endsWith("/technical") &&
-      !requestUrl.pathname.endsWith("/evaluation-status")
+      pathname.startsWith("/api/auth/db/segments/") &&
+      !pathname.endsWith("/technical") &&
+      !pathname.endsWith("/evaluation-status")
     ) {
-      const segmentId = requestUrl.pathname.split("/").pop();
+      const segmentId = pathname.split("/").pop();
       const body = await parseJsonBody(request);
       const segment = body.segment || {};
       const segmentScope = segmentId
@@ -2379,10 +2380,10 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/db/segments/") &&
-      requestUrl.pathname.endsWith("/technical")
+      pathname.startsWith("/api/auth/db/segments/") &&
+      pathname.endsWith("/technical")
     ) {
-      const segmentId = requestUrl.pathname.split("/")[5];
+      const segmentId = pathname.split("/")[5];
       const body = await parseJsonBody(request);
       const cityId = body.cityId;
       const updates = body.updates || {};
@@ -2417,10 +2418,10 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/db/segments/") &&
-      requestUrl.pathname.endsWith("/evaluation-status")
+      pathname.startsWith("/api/auth/db/segments/") &&
+      pathname.endsWith("/evaluation-status")
     ) {
-      const segmentId = requestUrl.pathname.split("/")[5];
+      const segmentId = pathname.split("/")[5];
       const body = await parseJsonBody(request);
       const formId = typeof body.formId === "string" ? body.formId : "";
       const segmentScope = segmentId ? await fetchSegmentScope(segmentId, body.cityId) : null;
@@ -2446,7 +2447,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/segments/delete") {
+    if (request.method === "POST" && pathname === "/api/auth/db/segments/delete") {
       const body = await parseJsonBody(request);
       const segmentIds = Array.isArray(body.segmentIds) ? body.segmentIds : [];
       const hard = Boolean(body.hard);
@@ -2529,7 +2530,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/segments/restore") {
+    if (request.method === "POST" && pathname === "/api/auth/db/segments/restore") {
       const body = await parseJsonBody(request);
       const segmentIds = Array.isArray(body.segmentIds) ? body.segmentIds : [];
 
@@ -2579,7 +2580,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/segments/unmerge") {
+    if (request.method === "POST" && pathname === "/api/auth/db/segments/unmerge") {
       const body = await parseJsonBody(request);
       const parentSegmentId = typeof body.parentSegmentId === "string" ? body.parentSegmentId : "";
       const segmentIdsToUnmerge = Array.isArray(body.segmentIdsToUnmerge)
@@ -2666,7 +2667,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/forms") {
+    if (request.method === "POST" && pathname === "/api/auth/db/forms") {
       const body = await parseJsonBody(request);
       const formData = body.formData || body.form;
       const cityScope = formData?.city_id ? await fetchCityScope(formData.city_id) : null;
@@ -2706,9 +2707,9 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/db/forms/")
+      pathname.startsWith("/api/auth/db/forms/")
     ) {
-      const formId = requestUrl.pathname.split("/").pop();
+      const formId = pathname.split("/").pop();
       const body = await parseJsonBody(request);
       const formScope = formId ? await fetchFormScope(formId) : null;
 
@@ -2729,7 +2730,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/db/reviews/bulk") {
+    if (request.method === "POST" && pathname === "/api/auth/db/reviews/bulk") {
       const body = await parseJsonBody(request);
       const reviews = Array.isArray(body.reviews) ? body.reviews : [];
       const formId = reviews[0]?.form_id;
@@ -2752,7 +2753,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/access-requests") {
+    if (request.method === "GET" && pathname === "/api/auth/admin/access-requests") {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
@@ -2783,12 +2784,12 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "GET" &&
-      /^\/api\/auth\/admin\/access-requests\/[^/]+$/.test(requestUrl.pathname)
+      /^\/api\/auth\/admin\/access-requests\/[^/]+$/.test(pathname)
     ) {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
-      const requestId = requestUrl.pathname.split("/").pop();
+      const requestId = pathname.split("/").pop();
       if (!requestId) {
         json(response, 400, { error: "Solicitação inválida." });
         return;
@@ -2834,12 +2835,12 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "POST" &&
-      /^\/api\/auth\/admin\/access-requests\/[^/]+\/approve$/.test(requestUrl.pathname)
+      /^\/api\/auth\/admin\/access-requests\/[^/]+\/approve$/.test(pathname)
     ) {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
-      const requestId = requestUrl.pathname.split("/")[5];
+      const requestId = pathname.split("/")[5];
       const body = await parseJsonBody(request);
       const reviewerNotes = normalizeScopeValue(body.reviewerNotes);
       const requestedName = normalizeScopeValue(body.name);
@@ -2983,12 +2984,12 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "POST" &&
-      /^\/api\/auth\/admin\/access-requests\/[^/]+\/reject$/.test(requestUrl.pathname)
+      /^\/api\/auth\/admin\/access-requests\/[^/]+\/reject$/.test(pathname)
     ) {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
-      const requestId = requestUrl.pathname.split("/")[5];
+      const requestId = pathname.split("/")[5];
       const body = await parseJsonBody(request);
       const reviewerNotes = normalizeScopeValue(body.reviewerNotes);
       const rejectionReason = normalizeScopeValue(body.rejectionReason);
@@ -3063,7 +3064,7 @@ export const handleAuthRequest = async (request, response) => {
       }
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/api/auth/admin/users") {
+    if (request.method === "GET" && pathname === "/api/auth/admin/users") {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
@@ -3072,7 +3073,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/admin/users") {
+    if (request.method === "POST" && pathname === "/api/auth/admin/users") {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
@@ -3109,12 +3110,12 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "PATCH" &&
-      requestUrl.pathname.startsWith("/api/auth/admin/users/")
+      pathname.startsWith("/api/auth/admin/users/")
     ) {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
-      const userId = requestUrl.pathname.split("/").pop();
+      const userId = pathname.split("/").pop();
       const body = await parseJsonBody(request);
       const name = Object.prototype.hasOwnProperty.call(body, "name")
         ? normalizeScopeValue(body.name)
@@ -3178,7 +3179,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === "/api/auth/admin/permissions") {
+    if (request.method === "POST" && pathname === "/api/auth/admin/permissions") {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
@@ -3240,12 +3241,12 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "DELETE" &&
-      requestUrl.pathname.startsWith("/api/auth/admin/permissions/")
+      pathname.startsWith("/api/auth/admin/permissions/")
     ) {
       const auth = await requireAdminManager(request, response);
       if (!auth) return;
 
-      const permissionId = requestUrl.pathname.split("/").pop();
+      const permissionId = pathname.split("/").pop();
 
       if (!permissionId) {
         json(response, 400, { error: "Permissão inválida." });
@@ -3286,7 +3287,7 @@ export const handleAuthRequest = async (request, response) => {
       return;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === "/api/auth/me") {
+    if (request.method === "GET" && pathname === "/api/auth/me") {
       const auth = await requireSession(request, response);
       if (!auth) return;
 
@@ -3296,7 +3297,7 @@ export const handleAuthRequest = async (request, response) => {
 
     if (
       request.method === "POST" &&
-      requestUrl.pathname === "/api/auth/can-access"
+      pathname === "/api/auth/can-access"
     ) {
       const auth = await requireSession(request, response);
       if (!auth) return;
